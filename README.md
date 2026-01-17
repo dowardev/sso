@@ -1,63 +1,67 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SSO Server
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Centralized SSO (Single Sign-On) server for authentication of multiple applications.
 
-## Acerca de este proyecto
+---
 
-Servidor SSO (Single Sign-On) centralizado para autenticación de múltiples aplicaciones.
+> **⚠️ IMPORTANT NOTE - PRODUCTION ENVIRONMENT**
+>
+> Examples in this document use `localhost:8002` and development domains.
+> **In production, replace all local values with your actual domains.**
+>
+> See the "[Production Configuration](#production-configuration)" section below.
 
-## Arquitectura
+---
+
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        FRONTEND (Ionic/Vue)                      │
-│                   http://localhost:8003                          │
+│                   https://miapp.com                              │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     BACKEND PORTAFOLIO                           │
-│                   http://localhost:8003/api                      │
+│                     PORTAFOLIO BACKEND                           │
+│                   https://api.miapp.com                          │
 │                              │                                   │
 │                              ▼                                   │
-│              Middleware SSOTokenAuth valida token                │
+│              Middleware SSOTokenAuth validates token             │
 │                              │                                   │
 │                              ▼                                   │
-│              GET http://localhost:8002/api/me                    │
+│              GET https://sso.miapp.com/api/me                    │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                          SSO SERVER                              │
-│                   http://localhost:8002/api                      │
+│                   https://sso.miapp.com                          │
 │                          Laravel + Sanctum                       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Stack Tecnológico
+## Tech Stack
 
 - Laravel 12
-- Laravel Sanctum (autenticación API)
+- Laravel Sanctum (API authentication)
 - MySQL
 
-## Endpoints API
+## API Endpoints
 
-| Método | Endpoint | Descripción |
+| Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/register` | Registrar nuevo usuario |
-| POST | `/api/login` | Iniciar sesión |
-| POST | `/api/logout` | Cerrar sesión (requiere token) |
-| GET | `/api/me` | Obtener usuario autenticado (requiere token) |
-| GET | `/api/user-auth` | Alias de `/me` para compatibilidad |
+| POST | `/api/register` | Register new user |
+| POST | `/api/login` | Login |
+| POST | `/api/logout` | Logout (requires token) |
+| GET | `/api/me` | Get authenticated user (requires token) |
+| GET | `/api/user-auth` | Alias of `/me` for compatibility |
 
-## Configuración
+---
 
-### Variables de entorno (.env)
+## Development Configuration
+
+### Environment Variables (.env)
 
 ```env
 APP_NAME=SSO Server
@@ -72,48 +76,87 @@ DB_DATABASE=sso_server
 DB_USERNAME=root
 DB_PASSWORD=
 
-# Sanctum - dominios permitidos para cookies (si se usan)
+# Sanctum - allowed domains for cookies (if used)
 SANCTUM_STATEFUL_DOMAINS=localhost:8003,localhost:8002
 ```
 
-### Instalación
+### Installation
 
 ```bash
-# Instalar dependencias
+# Install dependencies
 composer install
 
-# Configurar base de datos
+# Configure database
 cp .env.example .env
 php artisan key:generate
-# Editar .env con credenciales de BD
+# Edit .env with database credentials
 
-# Ejecutar migraciones
+# Run migrations
 php artisan migrate
 
-# (Opcional) Crear usuario de prueba
+# (Optional) Create test user
 php artisan tinker --execute="\App\Models\User::create(['name' => 'Admin', 'user' => 'admin', 'email' => 'admin@admin.com', 'password' => bcrypt('123')]);"
 
-# Iniciar servidor
+# Start server
 php artisan serve --port=8002
 ```
 
-### Puerto
+---
 
-Por defecto, el servidor SSO corre en `http://localhost:8002`
+## Production Configuration
 
-## Uso de la API
+> **IMPORTANT:** All `localhost:8002` values must be replaced with your real domain.
 
-### Registro
+### Environment Variables (.env.production)
+
+```env
+APP_NAME=SSO Server
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://sso.miapp.com
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=sso_server
+DB_USERNAME=sso_user
+DB_PASSWORD=your_secure_password_here
+
+# CRITICAL: Domains that can use session cookies
+# Include your frontend and backend
+SANCTUM_STATEFUL_DOMAINS=miapp.com,www.miapp.com,api.miapp.com
+
+# (Optional) Token expiration in minutes
+# SANCTUM_EXPIRATION=60
+```
+
+### Required Changes for Production
+
+| Configuration | Development | Production |
+|---------------|-------------|------------|
+| `APP_URL` | `http://localhost:8002` | `https://sso.miapp.com` |
+| `APP_ENV` | `local` | `production` |
+| `APP_DEBUG` | `true` | `false` |
+| `SANCTUM_STATEFUL_DOMAINS` | `localhost:8003,localhost:8002` | `miapp.com,www.miapp.com,api.miapp.com` |
+| Database | Localhost | Dedicated MySQL server |
+
+```
+
+---
+
+## API Usage (Development)
+
+### Registration
 
 ```bash
 curl -X POST http://localhost:8002/api/register \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Juan Pérez",
-    "user": "juanperez",
-    "email": "juan@ejemplo.com",
-    "password": "contraseña123",
-    "password_confirmation": "contraseña123"
+    "name": "John Doe",
+    "user": "johndoe",
+    "email": "john@example.com",
+    "password": "password123",
+    "password_confirmation": "password123"
   }'
 ```
 
@@ -128,41 +171,58 @@ curl -X POST http://localhost:8002/api/login \
   }'
 ```
 
-Respuesta:
+Response:
 ```json
 {
   "user": {
     "id": 5,
     "name": "Admin",
     "user": "admin",
-    "email": "admin@admin.com",
-    "email_verified_at": null,
-    "created_at": "2026-01-16T21:10:04.000000Z",
-    "updated_at": "2026-01-16T21:10:04.000000Z"
+    "email": "admin@admin.com"
   },
   "token": "1|abc123xyz..."
 }
 ```
 
-### Endpoints protegidos
+### Protected Endpoints
 
-Todos los endpoints protegidos requieren el header `Authorization: Bearer {token}`:
+All protected endpoints require the `Authorization: Bearer {token}` header:
 
 ```bash
 curl http://localhost:8002/api/me \
   -H "Authorization: Bearer 1|abc123xyz..."
 ```
 
-## Integración con otros proyectos
+---
 
-### Frontend Ionic/Vue
+## Integration with Other Projects
 
-Ver [README del Frontend](../frontend/README.md)
+### Ionic/Vue Frontend
 
-### Backend Portafolio
+See [Frontend README](../frontend/README.md)
 
-El backend del portafolio usa este SSO para validar tokens. Ver [README del Backend](../backend/README.md)
+### Portafolio Backend
 
-## Licencia
+The portfolio backend uses this SSO for token validation. See [Backend README](../backend/README.md)
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+
+## Deployment Checklist
+
+- [ ] Configure domain and DNS
+- [ ] Obtain SSL certificate
+- [ ] Configure MySQL database
+- [ ] Set secure credentials in `.env`
+- [ ] Configure `SANCTUM_STATEFUL_DOMAINS` with real domains
+- [ ] Disable `APP_DEBUG`
+- [ ] Configure job queue if needed
+- [ ] Configure logs and monitoring
+- [ ] Test complete flow: registration → login → access protected resources
+
+For a more detailed checklist, see [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md).
+
+---
+
+## License
+
+This project is developed under GPL 3 license.
