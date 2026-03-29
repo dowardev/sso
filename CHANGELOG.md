@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-29
+
+### Added
+- Username-based authentication: login now accepts either `email` or `user` (username) field
+- Optional `client_id` parameter for login endpoint - sessions can be created without specifying a client
+- Complete frontend admin panel with:
+  - Dashboard page with overview statistics
+  - Users management (list, detail view, search)
+  - Clients management (CRUD)
+  - Sessions management (view and revoke)
+- New API service and Auth service in frontend for centralized API calls
+
+### Changed
+- Login validation now allows either email or username
+- Made `client_id` nullable in login endpoint
+- Session registration now handles null client gracefully
+
+### Breaking Changes
+- None
+
 ## [0.3.0] - 2026-03-29
 
 ### Added

@@ -48,9 +48,10 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|string|email',
+            'email' => 'nullable|string',
+            'user' => 'nullable|string',
             'password' => 'required|string',
-            'client_id' => 'required|string|exists:sso_clients,client_id',
+            'client_id' => 'nullable|string|exists:sso_clients,client_id',
         ]);
 
         if ($validator->fails()) {
@@ -60,7 +61,18 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $user = User::where('email', $request->email)->first();
+        $loginField = $request->email ?? $request->user;
+        
+        if (!$loginField) {
+            return response()->json([
+                'message' => 'Error de validación',
+                'errors' => ['email' => ['El email o usuario es requerido']],
+            ], 422);
+        }
+
+        $user = User::where('email', $loginField)
+            ->orWhere('user', $loginField)
+            ->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
             return response()->json([
@@ -100,13 +112,17 @@ class AuthController extends Controller
 
     private function registerSession(User $user, string $plainTextToken, Request $request)
     {
-        $client = SsoClient::where('client_id', $request->client_id)->first();
+        $client = null;
+        
+        if ($request->client_id) {
+            $client = SsoClient::where('client_id', $request->client_id)->first();
+        }
 
         $tokenId = explode('|', $plainTextToken)[0];
 
         UserSession::create([
             'user_id' => $user->id,
-            'sso_client_id' => $client->id,
+            'sso_client_id' => $client?->id,
             'token_id' => $tokenId,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
