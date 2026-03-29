@@ -1,0 +1,7 @@
+{
+  "name": "sso-front",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue-vite"
+}
