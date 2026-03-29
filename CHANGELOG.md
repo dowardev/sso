@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-03-29
+
+### Added
+- Admin panel with full user management (CRUD, search, pagination)
+- Session management endpoints (view all sessions, per-user sessions, revoke sessions)
+- SSO Clients management (CRUD for client applications)
+- Admin role system with `is_admin` flag and `IsAdmin` middleware
+- User session tracking per application (IP, user agent, last used)
+
+### Changed
+- Login and registration now require `client_id` parameter to track sessions per application
+
+### Breaking Changes
+- `/api/login` and `/api/register` endpoints now require `client_id` parameter - existing integrations must be updated
+
 ## [0.1.0] - 2026-03-27
 
 ### Added

@@ -49,13 +49,79 @@ Centralized SSO (Single Sign-On) server for authentication of multiple applicati
 
 ## API Endpoints
 
+### Autenticación
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/register` | Register new user |
-| POST | `/api/login` | Login |
+| POST | `/api/register` | Register new user (requiere `client_id`) |
+| POST | `/api/login` | Login (requiere `client_id`) |
 | POST | `/api/logout` | Logout (requires token) |
 | GET | `/api/me` | Get authenticated user (requires token) |
 | GET | `/api/user-auth` | Alias of `/me` for compatibility |
+
+### Administración (requiere token de admin)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/users` | Listar usuarios (paginado, búsqueda) |
+| GET | `/api/admin/users/{id}` | Detalle de usuario + sus sesiones |
+| PUT | `/api/admin/users/{id}` | Actualizar usuario |
+| DELETE | `/api/admin/users/{id}` | Eliminar usuario |
+| POST | `/api/admin/users/{id}/toggle` | Activar/desactivar admin |
+| GET | `/api/admin/sessions` | Todas las sesiones activas |
+| GET | `/api/admin/users/{id}/sessions` | Sesiones de un usuario |
+| DELETE | `/api/admin/sessions/{id}` | Revocar sesión específica |
+| DELETE | `/api/admin/users/{id}/sessions` | Revocar todas las sesiones |
+| GET | `/api/admin/clients` | Listar clientes SSO |
+| POST | `/api/admin/clients` | Crear cliente SSO |
+| PUT | `/api/admin/clients/{id}` | Actualizar cliente SSO |
+| DELETE | `/api/admin/clients/{id}` | Eliminar cliente SSO |
+
+---
+
+## SSO Clients (Aplicaciones Registradas)
+
+Cada aplicación que use el SSO debe registrarse como un **Cliente SSO** con un `client_id` único.
+
+### Crear un cliente SSO
+
+```bash
+curl -X POST http://localhost:8002/api/admin/clients \
+  -H "Authorization: Bearer {admin_token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Mi Aplicación",
+    "client_id": "mi-app",
+    "redirect_url": "https://miapp.com/callback",
+    "active": true
+  }'
+```
+
+### Login con client_id (REQUERIDO)
+
+Todos los endpoints de login y registro ahora requieren `client_id`:
+
+```bash
+curl -X POST http://localhost:8002/api/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "123456",
+    "client_id": "mi-app"
+  }'
+```
+
+### Ver sesiones por aplicación
+
+```bash
+# Ver todas las sesiones activas de una aplicación
+curl http://localhost:8002/api/admin/sessions?client_id=1&active=1 \
+  -H "Authorization: Bearer {admin_token}"
+
+# Ver sesiones de un usuario específico
+curl http://localhost:8002/api/admin/users/5/sessions \
+  -H "Authorization: Bearer {admin_token}"
+```
 
 ---
 
@@ -94,8 +160,11 @@ php artisan key:generate
 # Run migrations
 php artisan migrate
 
-# (Optional) Create test user
-php artisan tinker --execute="\App\Models\User::create(['name' => 'Admin', 'user' => 'admin', 'email' => 'admin@admin.com', 'password' => bcrypt('123')]);"
+# (Optional) Create test user (admin)
+php artisan tinker --execute="\App\Models\User::create(['name' => 'Admin', 'user' => 'admin', 'email' => 'admin@admin.com', 'password' => bcrypt('123'), 'is_admin' => true]);"
+
+# (Optional) Create test SSO client
+php artisan tinker --execute="\App\Models\SsoClient::create(['name' => 'App Principal', 'client_id' => 'main-app', 'active' => true]);"
 
 # Start server
 php artisan serve --port=8002
@@ -156,7 +225,8 @@ curl -X POST http://localhost:8002/api/register \
     "user": "johndoe",
     "email": "john@example.com",
     "password": "password123",
-    "password_confirmation": "password123"
+    "password_confirmation": "password123",
+    "client_id": "main-app"
   }'
 ```
 
@@ -167,7 +237,8 @@ curl -X POST http://localhost:8002/api/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@admin.com",
-    "password": "123"
+    "password": "123",
+    "client_id": "main-app"
   }'
 ```
 
