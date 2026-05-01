@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Role;
 use App\Models\SsoClient;
 use App\Models\User;
 use App\Models\UserSession;
@@ -261,6 +262,145 @@ class AdminController extends Controller
 
         return response()->json([
             'message' => 'Cliente SSO eliminado correctamente',
+        ]);
+    }
+
+    // ==================== ROLES ====================
+
+    public function indexRoles()
+    {
+        $roles = Role::withCount('users')
+            ->orderBy('is_protected', 'desc')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($roles);
+    }
+
+    public function storeRole(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'slug' => 'required|string|max:255|unique:roles',
+            'description' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Error de validación',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $role = Role::create([
+            'name' => $request->name,
+            'slug' => $request->slug,
+            'description' => $request->description,
+            'is_protected' => false,
+        ]);
+
+        return response()->json([
+            'message' => 'Rol creado correctamente',
+            'role' => $role,
+        ], 201);
+    }
+
+    public function updateRole(Request $request, Role $role)
+    {
+        if ($role->is_protected) {
+            return response()->json([
+                'message' => 'No puedes modificar un rol protegido',
+            ], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'sometimes|string|max:255',
+            'description' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Error de validación',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $role->update($request->only(['name', 'description']));
+
+        return response()->json([
+            'message' => 'Rol actualizado correctamente',
+            'role' => $role,
+        ]);
+    }
+
+    public function destroyRole(Role $role)
+    {
+        if ($role->is_protected) {
+            return response()->json([
+                'message' => 'No puedes eliminar un rol protegido',
+            ], 422);
+        }
+
+        if ($role->users()->count() > 0) {
+            return response()->json([
+                'message' => 'No puedes eliminar un rol que tiene usuarios asignados',
+            ], 422);
+        }
+
+        $role->delete();
+
+        return response()->json([
+            'message' => 'Rol eliminado correctamente',
+        ]);
+    }
+
+    public function indexUserRoles(User $user)
+    {
+        $roles = $user->roles()
+            ->withPivot('sso_client_id')
+            ->get()
+            ->map(function ($role) {
+                return [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                    'slug' => $role->slug,
+                    'description' => $role->description,
+                    'sso_client_id' => $role->pivot->sso_client_id,
+                    'sso_client_name' => $role->pivot->sso_client_id 
+                        ? SsoClient::find($role->pivot->sso_client_id)?->name 
+                        : null,
+                ];
+            });
+
+        return response()->json($roles);
+    }
+
+    public function updateUserRoles(Request $request, User $user)
+    {
+        $validator = Validator::make($request->all(), [
+            'roles' => 'required|array',
+            'roles.*.role_id' => 'required|exists:roles,id',
+            'roles.*.sso_client_id' => 'nullable|exists:sso_clients,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Error de validación',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user->roles()->detach();
+
+        foreach ($request->roles as $roleData) {
+            $user->roles()->attach($roleData['role_id'], [
+                'sso_client_id' => $roleData['sso_client_id'] ?? null,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Roles actualizados correctamente',
+            'roles' => $this->indexUserRoles($user)->getData(true),
         ]);
     }
 }

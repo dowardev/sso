@@ -113,3 +113,22 @@ export interface DashboardStats {
   active_sessions: number;
   total_clients: number;
 }
+
+export interface Role {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  is_protected: boolean;
+  created_at: string;
+  users_count?: number;
+}
+
+export interface UserRole {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  sso_client_id: number | null;
+  sso_client_name: string | null;
+}

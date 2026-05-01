@@ -107,7 +107,10 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        return response()->json($request->user());
+        $user = $request->user();
+        $user->load('roles');
+        
+        return response()->json($user);
     }
 
     private function registerSession(User $user, string $plainTextToken, Request $request)

@@ -45,6 +45,33 @@
           </div>
         </div>
 
+        <div class="roles-section">
+          <div class="section-header">
+            <h3>Roles</h3>
+            <ion-button size="small" @click="openRolesModal">
+              <ion-icon slot="icon-only" :icon="create"></ion-icon>
+            </ion-button>
+          </div>
+          
+          <div v-if="userRoles.length === 0" class="empty-roles">
+            <ion-icon :icon="shieldOutline" size="large"></ion-icon>
+            <p>Sin roles asignados (rol: Estándar)</p>
+          </div>
+
+          <ion-list v-else>
+            <ion-item v-for="(role, index) in userRoles" :key="index">
+              <ion-icon slot="start" :icon="shieldOutline" color="primary"></ion-icon>
+              <ion-label>
+                <h3>{{ role.name }}</h3>
+                <p v-if="role.sso_client_name">App: {{ role.sso_client_name }}</p>
+                <p v-else class="global-role">Global</p>
+              </ion-label>
+              <ion-badge v-if="role.sso_client_id" color="secondary">App</ion-badge>
+              <ion-badge v-else color="medium">Global</ion-badge>
+            </ion-item>
+          </ion-list>
+        </div>
+
         <div class="sessions-section">
           <div class="section-header">
             <h3>Sesiones</h3>
@@ -125,6 +152,68 @@
           </form>
         </ion-content>
       </ion-modal>
+
+      <ion-modal :is-open="showRolesModal" @didDismiss="showRolesModal = false">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>Asignar Roles</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="showRolesModal = false">Cancelar</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <div class="roles-assignment">
+            <div class="roles-list">
+              <ion-list>
+                <ion-item-sliding v-for="(assignment, index) in roleAssignments" :key="index">
+                  <ion-item>
+                    <ion-label position="stacked">Rol</ion-label>
+                    <ion-select
+                      v-model="assignment.role_id"
+                      :disabled="assignment.slug === 'admin' && !isAdmin"
+                      @ionChange="onRoleChange(index, $event.detail.value)"
+                      placeholder="Seleccionar rol"
+                    >
+                      <ion-select-option v-for="role in availableRoles" :key="role.id" :value="role.id">
+                        {{ role.name }}
+                      </ion-select-option>
+                    </ion-select>
+                  </ion-item>
+                  <ion-item>
+                    <ion-label position="stacked">Aplicación (opcional)</ion-label>
+                    <ion-select
+                      v-model="assignment.sso_client_id"
+                      placeholder="Global (todas las apps)"
+                      @ionChange="onClientChange(index, $event.detail.value)"
+                    >
+                      <ion-select-option :value="null">Global (todas las apps)</ion-select-option>
+                      <ion-select-option v-for="client in availableClients" :key="client.id" :value="client.id">
+                        {{ client.name }}
+                      </ion-select-option>
+                    </ion-select>
+                  </ion-item>
+                  <ion-item-options side="end">
+                    <ion-item-option color="danger" @click="removeRoleAssignment(index)">
+                      <ion-icon slot="icon-only" :icon="trash"></ion-icon>
+                    </ion-item-option>
+                  </ion-item-options>
+                </ion-item-sliding>
+              </ion-list>
+            </div>
+            
+            <div class="ion-padding">
+              <ion-button expand="block" fill="outline" @click="addRoleAssignment">
+                <ion-icon slot="start" :icon="add"></ion-icon>
+                Agregar Rol
+              </ion-button>
+              <ion-button expand="block" @click="saveUserRoles" :disabled="savingRoles" style="margin-top: 8px;">
+                {{ savingRoles ? 'Guardando...' : 'Guardar Roles' }}
+              </ion-button>
+            </div>
+          </div>
+        </ion-content>
+      </ion-modal>
     </ion-content>
   </ion-page>
 </template>
@@ -132,9 +221,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonBackButton, IonButton, IonIcon, IonContent, IonAvatar, IonBadge, IonList, IonItem, IonLabel, IonModal, IonInput, IonItemOptions, IonItemOption, IonSpinner } from '@ionic/vue';
-import { create, keyOutline, trash } from 'ionicons/icons';
-import { api, type UserDetail, type UserSession } from '@/services/api';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonBackButton, IonButton, IonIcon, IonContent, IonAvatar, IonBadge, IonList, IonItem, IonLabel, IonModal, IonInput, IonItemOptions, IonItemOption, IonSpinner, IonSelect, IonSelectOption } from '@ionic/vue';
+import { create, keyOutline, trash, shieldOutline, add } from 'ionicons/icons';
+import { api, type UserDetail, type UserSession, type Role, type UserRole, type SsoClient } from '@/services/api';
+
+interface RoleAssignment {
+  role_id: number | null;
+  sso_client_id: number | null;
+  name?: string;
+  slug?: string;
+}
 
 const route = useRoute();
 const router = useRouter();
@@ -144,6 +240,14 @@ const sessions = ref<UserSession[]>([]);
 const loading = ref(true);
 const updating = ref(false);
 const showEditModal = ref(false);
+
+const availableRoles = ref<Role[]>([]);
+const availableClients = ref<SsoClient[]>([]);
+const userRoles = ref<UserRole[]>([]);
+const roleAssignments = ref<RoleAssignment[]>([]);
+const showRolesModal = ref(false);
+const savingRoles = ref(false);
+const isAdmin = ref(false);
 
 const editForm = ref({
   name: '',
@@ -243,6 +347,96 @@ const revokeAllSessions = async () => {
   }
 };
 
+const loadRolesData = async () => {
+  try {
+    const [rolesRes, clientsRes, userRolesRes, currentUserRes] = await Promise.all([
+      api.get<Role[]>('/admin/roles'),
+      api.get<SsoClient[]>('/admin/clients'),
+      api.get<UserRole[]>(`/admin/users/${userId}/roles`),
+      api.get<any>('/me'),
+    ]);
+    availableRoles.value = rolesRes;
+    availableClients.value = clientsRes;
+    userRoles.value = userRolesRes;
+    isAdmin.value = currentUserRes.is_admin || false;
+
+    roleAssignments.value = userRolesRes.map(r => ({
+      role_id: r.id,
+      sso_client_id: r.sso_client_id,
+      name: r.name,
+      slug: r.slug,
+    }));
+  } catch (error) {
+    console.error('Error loading roles:', error);
+  }
+};
+
+const openRolesModal = async () => {
+  await loadRolesData();
+  showRolesModal.value = true;
+};
+
+const addRoleAssignment = () => {
+  roleAssignments.value.push({
+    role_id: null,
+    sso_client_id: null,
+  });
+};
+
+const removeRoleAssignment = (index: number) => {
+  roleAssignments.value.splice(index, 1);
+};
+
+const onRoleChange = (index: number, roleId: number) => {
+  const role = availableRoles.value.find(r => r.id === roleId);
+  if (role) {
+    roleAssignments.value[index].name = role.name;
+    roleAssignments.value[index].slug = role.slug;
+  }
+};
+
+const onClientChange = (index: number, clientId: number | null) => {
+  roleAssignments.value[index].sso_client_id = clientId;
+};
+
+const saveUserRoles = async () => {
+  const validAssignments = roleAssignments.value.filter(a => a.role_id !== null);
+  
+  if (validAssignments.length === 0) {
+    console.error('Debe seleccionar al menos un rol');
+    return;
+  }
+
+  savingRoles.value = true;
+  try {
+    const rolesToSave = validAssignments.map(a => ({
+      role_id: a.role_id,
+      sso_client_id: a.sso_client_id,
+    }));
+
+    await api.put(`/admin/users/${userId}/roles`, { roles: rolesToSave });
+
+    userRoles.value = validAssignments.map(a => {
+      const role = availableRoles.value.find(r => r.id === a.role_id)!;
+      const client = availableClients.value.find(c => c.id === a.sso_client_id);
+      return {
+        id: role.id,
+        name: role.name,
+        slug: role.slug,
+        description: role.description,
+        sso_client_id: a.sso_client_id,
+        sso_client_name: client?.name || null,
+      };
+    });
+
+    showRolesModal.value = false;
+  } catch (error) {
+    console.error('Error saving roles:', error);
+  } finally {
+    savingRoles.value = false;
+  }
+};
+
 onMounted(() => {
   loadUser();
 });
@@ -295,7 +489,8 @@ onMounted(() => {
 }
 
 .info-section,
-.sessions-section {
+.sessions-section,
+.roles-section {
   padding: 16px;
 }
 
@@ -343,5 +538,30 @@ h3 {
 .session-date {
   font-size: 12px;
   color: var(--ion-color-medium);
+}
+
+.empty-roles {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px;
+  color: var(--ion-color-medium);
+}
+
+.empty-roles ion-icon {
+  margin-bottom: 8px;
+}
+
+.global-role {
+  color: var(--ion-color-medium);
+  font-style: italic;
+}
+
+.roles-assignment {
+  padding: 0;
+}
+
+.roles-list ion-item {
+  --padding-start: 16px;
 }
 </style>

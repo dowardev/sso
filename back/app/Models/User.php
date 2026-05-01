@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -45,5 +46,43 @@ class User extends Authenticatable
             $q->whereNull('expires_at')
                 ->orWhere('expires_at', '>', now());
         });
+    }
+
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'user_roles')
+            ->withPivot('sso_client_id')
+            ->withTimestamps();
+    }
+
+    public function hasRole(string $slug): bool
+    {
+        return $this->roles()->where('slug', $slug)->exists();
+    }
+
+    public function getEffectiveRole($ssoClientId = null)
+    {
+        $specificRole = $this->roles()
+            ->where('sso_client_id', $ssoClientId)
+            ->first();
+
+        if ($specificRole) {
+            return $specificRole;
+        }
+
+        $globalRole = $this->roles()
+            ->whereNull('sso_client_id')
+            ->first();
+
+        if ($globalRole) {
+            return $globalRole;
+        }
+
+        return Role::where('slug', 'standard')->first();
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->is_admin || $this->hasRole('admin');
     }
 }

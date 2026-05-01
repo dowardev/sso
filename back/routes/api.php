@@ -32,5 +32,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/clients', [AdminController::class, 'storeClient']);
         Route::put('/clients/{client}', [AdminController::class, 'updateClient']);
         Route::delete('/clients/{client}', [AdminController::class, 'destroyClient']);
+
+        // Roles
+        Route::get('/roles', [AdminController::class, 'indexRoles']);
+        Route::post('/roles', [AdminController::class, 'storeRole']);
+        Route::put('/roles/{role}', [AdminController::class, 'updateRole']);
+        Route::delete('/roles/{role}', [AdminController::class, 'destroyRole']);
+
+        // Roles de usuario
+        Route::get('/users/{user}/roles', [AdminController::class, 'indexUserRoles']);
+        Route::put('/users/{user}/roles', [AdminController::class, 'updateUserRoles']);
     });
 });

@@ -40,6 +40,12 @@
                 <ion-label>Clientes SSO</ion-label>
               </ion-item>
             </ion-menu-toggle>
+            <ion-menu-toggle :auto-hide="false">
+              <ion-item button @click="navigateTo('/admin/roles')">
+                <ion-icon slot="start" :icon="shield"></ion-icon>
+                <ion-label>Roles</ion-label>
+              </ion-item>
+            </ion-menu-toggle>
           </ion-list>
           <div class="logout-section">
             <ion-button expand="block" color="danger" @click="handleLogout">
@@ -58,7 +64,7 @@
 <script setup lang="ts">
 import { IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonMenuToggle, IonItem, IonIcon, IonLabel, IonButton, menuController } from '@ionic/vue';
 import { useRouter } from 'vue-router';
-import { speedometer, people, key, desktop, logOutOutline } from 'ionicons/icons';
+import { speedometer, people, key, desktop, shield, logOutOutline } from 'ionicons/icons';
 import { isAuthenticated, currentUser, auth } from '@/services/auth';
 
 const router = useRouter();

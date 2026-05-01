@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-05-01
+
+### Added
+- Role-based access control (RBAC) system with Role model, migrations, and seeder
+- Role management CRUD endpoints (index, create, update, delete) with protected role guards
+- User-role assignment with per-application (SSO client) scoping via pivot table
+- Frontend roles management page (RolesPage.vue) with create/edit/delete modals
+- Role assignment UI in user detail page with per-application scope selection
+- Roles menu item in admin sidebar and route configuration
+- TypeScript interfaces for Role and UserRole in API service
+
+### Changed
+- User profile endpoint now loads associated roles
+- User model gains roles relationship and helper methods (hasRole, getEffectiveRole, isAdmin)
+- Database seeder now includes default system roles (admin, moderator, standard)
+
 ## [0.4.0] - 2026-03-29
 
 ### Added
