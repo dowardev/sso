@@ -221,7 +221,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonBackButton, IonButton, IonIcon, IonContent, IonAvatar, IonBadge, IonList, IonItem, IonLabel, IonModal, IonInput, IonItemOptions, IonItemOption, IonSpinner, IonSelect, IonSelectOption } from '@ionic/vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonBackButton, IonButton, IonIcon, IonContent, IonAvatar, IonBadge, IonList, IonItem, IonLabel, IonModal, IonInput, IonItemOptions, IonItemOption, IonItemSliding, IonSpinner, IonSelect, IonSelectOption } from '@ionic/vue';
 import { create, keyOutline, trash, shieldOutline, add } from 'ionicons/icons';
 import { api, type UserDetail, type UserSession, type Role, type UserRole, type SsoClient } from '@/services/api';
 
