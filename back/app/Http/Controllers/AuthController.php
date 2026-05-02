@@ -19,6 +19,9 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6|confirmed',
             'client_id' => 'required|string|exists:sso_clients,client_id',
+        ], [
+            'client_id.exists' => 'La aplicación ":value" no está registrada en el SSO. '
+                . 'Por favor, contacta al administrador del sistema.',
         ]);
 
         if ($validator->fails()) {
@@ -52,6 +55,9 @@ class AuthController extends Controller
             'user' => 'nullable|string',
             'password' => 'required|string',
             'client_id' => 'nullable|string|exists:sso_clients,client_id',
+        ], [
+            'client_id.exists' => 'La aplicación ":value" no está registrada en el SSO. '
+                . 'Por favor, contacta al administrador del sistema.',
         ]);
 
         if ($validator->fails()) {
