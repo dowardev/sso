@@ -2,20 +2,26 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class IsAdmin
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->user() || ! $request->user()->is_admin) {
+        $userId = $request->get('sso_user_id');
+
+        if (!$userId) {
+            return response()->json([
+                'message' => 'No autenticado',
+            ], 401);
+        }
+
+        $user = User::find($userId);
+
+        if (!$user || !$user->is_admin) {
             return response()->json([
                 'message' => 'No tienes permisos de administrador',
             ], 403);

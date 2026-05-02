@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-05-01
+
+### Added
+- JWT authentication system with RSA key pair (RS256 algorithm)
+- DPoP (Demonstrating Proof of Possession) support for enhanced token security
+- JWKS endpoint (`/.well-known/jwks`) for public key distribution
+- New `JwtAuth` middleware for token validation
+- New `VerifyDpopProof` middleware for DPoP proof verification
+- JWT configuration file with customizable settings (expiration, issuer, algorithm)
+- RSA key pair files for token signing and verification
+
+### Changed
+- Replaced Laravel Sanctum with lcobucci/jwt library for authentication
+- AuthController now generates and validates JWT tokens directly
+- Updated routes to use `jwt.auth` middleware instead of `auth:sanctum`
+- UserSession model now stores JWT token and DPoP public key
+
+### Fixed
+- Custom validation messages for `client_id` in register and login endpoints
+
 ## [0.6.1] - 2026-05-01
 
 ### Fixed

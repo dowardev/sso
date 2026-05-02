@@ -13,6 +13,8 @@ class UserSession extends Model
         'ip_address',
         'user_agent',
         'last_used_at',
+        'token',
+        'dpop_public_key',
     ];
 
     protected $casts = [
