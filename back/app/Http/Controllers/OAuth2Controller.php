@@ -37,6 +37,8 @@ class OAuth2Controller extends Controller
             'client_id' => 'required|string|exists:sso_clients,client_id',
             'redirect_uri' => 'required|string',
             'state' => 'nullable|string',
+            'code_challenge' => 'nullable|string',
+            'code_challenge_method' => 'nullable|string|in:S256,plain',
         ]);
 
         $client = SsoClient::where('client_id', $validated['client_id'])->first();
@@ -67,6 +69,8 @@ class OAuth2Controller extends Controller
             'user_id' => $user->id,
             'sso_client_id' => $client->id,
             'redirect_uri' => $validated['redirect_uri'],
+            'code_challenge' => $validated['code_challenge'] ?? null,
+            'code_challenge_method' => $validated['code_challenge_method'] ?? null,
             'expires_at' => now()->addSeconds($this->authCodeExpiration),
         ]);
 
@@ -84,6 +88,7 @@ class OAuth2Controller extends Controller
             'client_secret' => 'nullable|string',
             'redirect_uri' => 'required|string',
             'dpop_public_key' => 'nullable|json',
+            'code_verifier' => 'required|string|min:43|max:128',
         ]);
 
         $client = SsoClient::where('client_id', $validated['client_id'])->first();
@@ -133,6 +138,24 @@ class OAuth2Controller extends Controller
         if ($authCode->redirect_uri !== $validated['redirect_uri']) {
             return response()->json([
                 'message' => 'redirect_uri no coincide',
+            ], 400);
+        }
+
+        if ($authCode->code_challenge) {
+            $method = $authCode->code_challenge_method ?? 'S256';
+            $challengeFromVerifier = $this->computeCodeChallenge(
+                $validated['code_verifier'],
+                $method
+            );
+
+            if ($challengeFromVerifier !== $authCode->code_challenge) {
+                return response()->json([
+                    'message' => 'code_verifier inválido',
+                ], 400);
+            }
+        } else {
+            return response()->json([
+                'message' => 'PKCE requerido: code_challenge no encontrado',
             ], 400);
         }
 
@@ -235,5 +258,15 @@ class OAuth2Controller extends Controller
             'user_agent' => $request->userAgent(),
             'last_used_at' => now(),
         ]);
+    }
+
+    private function computeCodeChallenge(string $codeVerifier, string $method): string
+    {
+        if ($method === 'S256') {
+            $hash = hash('sha256', $codeVerifier, true);
+            return rtrim(strtr(base64_encode($hash), '+/', '-_'), '=');
+        }
+
+        return $codeVerifier;
     }
 }

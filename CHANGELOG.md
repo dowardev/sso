@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-05-02
+
+### Added
+- PKCE (Proof Key for Code Exchange) support for OAuth2 authorization code flow
+- `code_challenge` and `code_challenge_method` fields in OAuth authorization codes
+- `code_verifier` validation in token endpoint with S256 and plain challenge methods
+- Database migration to add PKCE fields to `oauth_auth_codes` table
+- `computeCodeChallenge` private method for PKCE verification
+
 ## [0.8.0] - 2026-05-02
 
 ### Added
