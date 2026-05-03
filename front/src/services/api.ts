@@ -34,17 +34,20 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
 }
 
 export const api = {
-  get: <T>(endpoint: string) => fetchApi<T>(endpoint),
-  post: <T>(endpoint: string, data?: unknown) => fetchApi<T>(endpoint, {
+  get: <T>(endpoint: string, headers?: Record<string, string>) => fetchApi<T>(endpoint, { headers }),
+  post: <T>(endpoint: string, data?: unknown, extraHeaders?: Record<string, string>) => fetchApi<T>(endpoint, {
     method: 'POST',
     body: data ? JSON.stringify(data) : undefined,
+    headers: extraHeaders,
   }),
-  put: <T>(endpoint: string, data: unknown) => fetchApi<T>(endpoint, {
+  put: <T>(endpoint: string, data: unknown, headers?: Record<string, string>) => fetchApi<T>(endpoint, {
     method: 'PUT',
     body: JSON.stringify(data),
+    headers,
   }),
-  delete: <T>(endpoint: string) => fetchApi<T>(endpoint, {
+  delete: <T>(endpoint: string, headers?: Record<string, string>) => fetchApi<T>(endpoint, {
     method: 'DELETE',
+    headers,
   }),
 };
 

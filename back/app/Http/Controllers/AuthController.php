@@ -118,12 +118,16 @@ class AuthController extends Controller
 
         $this->registerSession($user, $tokenData['token'], $request, $dpopPublicKey);
 
-        return response()->json([
+        $response = response()->json([
             'user' => $user,
             'token' => $tokenData['token'],
             'token_type' => $tokenData['token_type'],
             'expires_in' => $tokenData['expires_in'],
         ]);
+
+        $response->withCookie(cookie('sso_token', $tokenData['token'], $this->tokenExpiration / 60, '/', null, false, false));
+
+        return $response;
     }
 
     public function logout(Request $request)
@@ -199,6 +203,45 @@ class AuthController extends Controller
                 ]
             ]
         ]);
+    }
+
+    public function checkSession(Request $request)
+    {
+        $tokenString = $request->bearerToken();
+
+        if (!$tokenString) {
+            $tokenString = $request->cookie('sso_token');
+        }
+
+        if (!$tokenString) {
+            return response()->json(['authenticated' => false], 200);
+        }
+
+        try {
+            $token = $this->jwtConfig->parser()->parse($tokenString);
+
+            if (!$token->isValid()) {
+                return response()->json(['authenticated' => false], 200);
+            }
+
+            $userId = $token->claims()->get('sub');
+            $user = User::with('roles')->find($userId);
+
+            if (!$user) {
+                return response()->json(['authenticated' => false], 200);
+            }
+
+            $userArray = $user->toArray();
+            $userArray['roles'] = $user->roles->toArray();
+
+            return response()->json([
+                'authenticated' => true,
+                'user' => $userArray,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['authenticated' => false], 200);
+        }
     }
 
     private function generateToken(User $user, ?string $dpopPublicKey = null): array

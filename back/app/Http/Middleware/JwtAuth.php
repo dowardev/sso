@@ -72,6 +72,13 @@ class JwtAuth
             $userId = $parsedToken->claims()->get('sub');
             $request->merge(['sso_user_id' => $userId]);
 
+            $user = \App\Models\User::find($userId);
+            if ($user) {
+                $request->setUserResolver(function () use ($user) {
+                    return $user;
+                });
+            }
+
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Token inválido: ' . $e->getMessage()

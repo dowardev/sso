@@ -41,6 +41,17 @@
             <ion-spinner v-if="loading" name="lines"></ion-spinner>
             <span v-else>Ingresar</span>
           </ion-button>
+
+          <ion-button
+            v-if="oauthParams.redirect_uri"
+            fill="clear"
+            expand="block"
+            :disabled="loading"
+            @click="goToRegister"
+            class="register-link"
+          >
+            Crear cuenta
+          </ion-button>
         </form>
       </div>
     </ion-content>
@@ -48,12 +59,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { IonPage, IonContent, IonItem, IonLabel, IonInput, IonButton, IonSpinner } from '@ionic/vue';
 import { auth } from '@/services/auth';
+import { api } from '@/services/api';
 
 const router = useRouter();
+const route = useRoute();
 
 const credentials = ref({
   user: '',
@@ -63,18 +76,79 @@ const credentials = ref({
 const loading = ref(false);
 const error = ref('');
 
+const oauthParams = ref({
+  client_id: '',
+  redirect_uri: '',
+  state: '',
+  response_type: '',
+});
+
+const isOAuthFlow = ref(false);
+
+onMounted(() => {
+  const { client_id, redirect_uri, state, response_type } = route.query;
+  if (client_id && redirect_uri) {
+    isOAuthFlow.value = true;
+    oauthParams.value = {
+      client_id: client_id as string,
+      redirect_uri: redirect_uri as string,
+      state: (state as string) || '',
+      response_type: (response_type as string) || 'code',
+    };
+  }
+});
+
 const handleLogin = async () => {
   loading.value = true;
   error.value = '';
 
   try {
-    await auth.login(credentials.value);
-    router.replace('/admin/dashboard');
+    await auth.login({
+      user: credentials.value.user,
+      password: credentials.value.password,
+      client_id: oauthParams.value.client_id || undefined,
+    });
+
+    if (isOAuthFlow.value) {
+      await handleOAuthAuthorize();
+    } else {
+      router.replace('/admin/dashboard');
+    }
   } catch (err: any) {
     error.value = err.message || 'Error al iniciar sesión';
   } finally {
     loading.value = false;
   }
+};
+
+const handleOAuthAuthorize = async () => {
+  try {
+    const response = await api.post<{ code: string; state: string | null }>('/oauth/authorize', {
+      client_id: oauthParams.value.client_id,
+      redirect_uri: oauthParams.value.redirect_uri,
+      state: oauthParams.value.state,
+    });
+
+    const params = new URLSearchParams();
+    params.set('code', response.code);
+    if (response.state) {
+      params.set('state', response.state);
+    }
+    window.location.href = `${oauthParams.value.redirect_uri}?${params.toString()}`;
+  } catch (err: any) {
+    error.value = err.message || 'Error en la autorización';
+  }
+};
+
+const goToRegister = () => {
+  const params = new URLSearchParams();
+  params.set('client_id', oauthParams.value.client_id);
+  params.set('redirect_uri', oauthParams.value.redirect_uri);
+  if (oauthParams.value.state) {
+    params.set('state', oauthParams.value.state);
+  }
+  params.set('response_type', oauthParams.value.response_type || 'code');
+  router.push(`/register?${params.toString()}`);
 };
 </script>
 
@@ -124,6 +198,10 @@ const handleLogin = async () => {
 .login-button {
   margin-top: 16px;
   --border-radius: 8px;
+}
+
+.register-link {
+  margin-top: 8px;
 }
 
 .error-message {

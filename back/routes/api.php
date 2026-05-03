@@ -2,13 +2,21 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\OAuth2Controller;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/.well-known/jwks', [AuthController::class, 'jwks']);
+Route::get('/session/check', [AuthController::class, 'checkSession']);
+Route::post('/session/check', [AuthController::class, 'checkSession']);
+
+Route::post('/oauth/token', [OAuth2Controller::class, 'token']);
 
 Route::middleware('jwt.auth')->group(function () {
+    Route::post('/oauth/authorize', [OAuth2Controller::class, 'authorize']);
+
+    Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/user-auth', [AuthController::class, 'me']);

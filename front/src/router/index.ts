@@ -10,8 +10,27 @@ const routes: Array<RouteRecordRaw> = [
   },
   {
     path: '/login',
-    name: 'Login',
+    name: 'AdminLogin',
     component: () => import('../views/LoginPage.vue')
+  },
+  {
+    path: '/register',
+    name: 'AdminRegister',
+    component: () => import('../views/RegisterPage.vue')
+  },
+  {
+    path: '/auth/login',
+    name: 'AuthLogin',
+    component: () => import('../views/PublicLoginPage.vue')
+  },
+  {
+    path: '/auth/register',
+    name: 'AuthRegister',
+    component: () => import('../views/PublicRegisterPage.vue')
+  },
+  {
+    path: '/auth/callback',
+    redirect: 'http://localhost:5173/auth/callback'
   },
   {
     path: '/home',
@@ -69,10 +88,13 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+  const isAuthRoute = to.path.startsWith('/auth/');
   
   if (requiresAuth && !isAuthenticated.value) {
     next('/login');
-  } else if (to.path === '/login' && isAuthenticated.value) {
+  } else if (isAuthRoute) {
+    next();
+  } else if ((to.path === '/login' || to.path === '/') && isAuthenticated.value) {
     next('/admin/dashboard');
   } else {
     next();

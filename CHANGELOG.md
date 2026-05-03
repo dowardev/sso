@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-05-02
+
+### Added
+- OAuth2 Authorization Code flow implementation with OAuth2Controller
+- OAuth2 `/oauth/authorize` endpoint for authorization code generation
+- OAuth2 `/oauth/token` endpoint for exchanging codes for JWT tokens
+- OAuthAuthCode model with expiration tracking and usage status
+- Database migration for `oauth_auth_codes` table
+- DPoP service (`dpopService.ts`) for key pair generation and proof creation
+- Public authentication pages: PublicLoginPage and PublicRegisterPage
+- Admin registration page (RegisterPage.vue)
+- Session check endpoint (`/session/check`) for validating existing sessions
+
+### Changed
+- JwtAuth middleware now sets user resolver after successful JWT validation
+- Updated router to include public auth routes (`/auth/login`, `/auth/register`, `/auth/callback`)
+- Auth service now supports DPoP public key storage and retrieval
+- API service now supports extra headers for DPoP proof headers
+- Login and register pages now support OAuth flow with client_id redirect
+
+### Fixed
+- JwtAuth middleware now properly sets authenticated user in request
+
 ## [0.7.0] - 2026-05-01
 
 ### Added
