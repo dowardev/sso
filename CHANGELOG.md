@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-05-04
+
+### Added
+- JWT key generation Artisan command (`jwt:generate-keys`) with configurable key size and force overwrite option
+- Multi-theme support system with four theme variants: light, dark, catppuccin-latte-maroon, and catppuccin-macchiato-maroon
+- Prettier configuration (`.prettierrc`) with Vue script/style indentation support
+- Enhanced ESLint configuration with stricter TypeScript and Vue rules (`vue3-recommended`, `@vue/eslint-config-prettier`, explicit return types, no unused vars, attribute ordering)
+- Lambda Services branding logo (`lambda_v1.svg`)
+- New CSS utility classes for themed cards, borders, and transparent Ionic components
+- Build-time ESLint validation (`eslint . --max-warnings 0`) in frontend build pipeline
+
+### Changed
+- Redesigned public authentication pages (login and register) with responsive card-based layout and new branding
+- Replaced string-based router navigation with named route objects and query parameters
+- Improved TypeScript type safety across frontend services (replaced `any` with `unknown`/`Error` types)
+- Updated all Vue event handlers to use kebab-case naming (`@ion-change`, `@did-dismiss`, `@ion-input`)
+- Standardized Vue attribute ordering across all templates per `vue/attributes-order` rule
+- Applied consistent Prettier formatting (2-space indentation with Vue script/style blocks) across all frontend files
+- Updated `DEPLOY.md` and `README.md` documentation
+
+### Fixed
+- Proper error type handling in public login and register page catch blocks
+- Missing trailing commas and semicolons in TypeScript files
+- Inconsistent code style in admin panel Vue components (Clients, Roles, Sessions, Users, UserDetail, Dashboard)
+
 ## [0.9.1] - 2026-05-04
 
 ### Added

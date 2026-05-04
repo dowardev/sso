@@ -14,8 +14,8 @@
         <ion-searchbar
           v-model="search"
           placeholder="Buscar usuarios..."
-          @ionInput="handleSearch"
           :debounce="500"
+          @ion-input="handleSearch"
         ></ion-searchbar>
       </div>
 
@@ -33,7 +33,9 @@
           <ion-item-sliding v-for="user in users" :key="user.id">
             <ion-item button @click="router.push(`/admin/users/${user.id}`)">
               <ion-avatar slot="start">
-                <div class="avatar-placeholder">{{ getInitials(user.name) }}</div>
+                <div class="avatar-placeholder">
+                  {{ getInitials(user.name) }}
+                </div>
               </ion-avatar>
               <ion-label>
                 <h2>{{ user.name }}</h2>
@@ -41,14 +43,21 @@
                 <p class="email">{{ user.email }}</p>
               </ion-label>
               <div slot="end" class="user-badges">
-                <ion-badge v-if="user.is_admin" color="warning">Admin</ion-badge>
-                <ion-badge color="primary">{{ user.sessions_count || 0 }} sesiones</ion-badge>
+                <ion-badge v-if="user.is_admin" color="warning"
+                  >Admin</ion-badge
+                >
+                <ion-badge color="primary"
+                  >{{ user.sessions_count || 0 }} sesiones</ion-badge
+                >
               </div>
             </ion-item>
 
             <ion-item-options side="end">
               <ion-item-option color="medium" @click="toggleAdmin(user)">
-                <ion-icon slot="icon-only" :icon="user.is_admin ? removeCircle : addCircle"></ion-icon>
+                <ion-icon
+                  slot="icon-only"
+                  :icon="user.is_admin ? removeCircle : addCircle"
+                ></ion-icon>
               </ion-item-option>
               <ion-item-option color="danger" @click="confirmDelete(user)">
                 <ion-icon slot="icon-only" :icon="trash"></ion-icon>
@@ -57,8 +66,13 @@
           </ion-item-sliding>
         </ion-list>
 
-        <ion-infinite-scroll @ionInfinite="loadMore($event)" :disabled="!hasMore">
-          <ion-infinite-scroll-content loading-spinner="lines"></ion-infinite-scroll-content>
+        <ion-infinite-scroll
+          :disabled="!hasMore"
+          @ion-infinite="loadMore($event)"
+        >
+          <ion-infinite-scroll-content
+            loading-spinner="lines"
+          ></ion-infinite-scroll-content>
         </ion-infinite-scroll>
       </div>
 
@@ -73,171 +87,196 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonMenuButton, IonContent, IonSearchbar, IonList, IonItem, IonLabel, IonAvatar, IonBadge, IonItemSliding, IonItemOptions, IonItemOption, IonIcon, IonSpinner, IonInfiniteScroll, IonInfiniteScrollContent, IonAlert, alertController } from '@ionic/vue';
-import { personRemove, removeCircle, addCircle, trash } from 'ionicons/icons';
-import { api, type User, type PaginatedResponse } from '@/services/api';
+  import { ref, onMounted } from 'vue';
+  import { useRouter } from 'vue-router';
+  import {
+    IonPage,
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonButtons,
+    IonMenuButton,
+    IonContent,
+    IonSearchbar,
+    IonList,
+    IonItem,
+    IonLabel,
+    IonAvatar,
+    IonBadge,
+    IonItemSliding,
+    IonItemOptions,
+    IonItemOption,
+    IonIcon,
+    IonSpinner,
+    IonInfiniteScroll,
+    IonInfiniteScrollContent,
+    IonAlert,
+    alertController,
+  } from '@ionic/vue';
+  import { personRemove, removeCircle, addCircle, trash } from 'ionicons/icons';
+  import { api, type User, type PaginatedResponse } from '@/services/api';
 
-const router = useRouter();
+  const router = useRouter();
 
-const users = ref<User[]>([]);
-const loading = ref(true);
-const search = ref('');
-const page = ref(1);
-const hasMore = ref(true);
+  const users = ref<User[]>([]);
+  const loading = ref(true);
+  const search = ref('');
+  const page = ref(1);
+  const hasMore = ref(true);
 
-const showDeleteAlert = ref(false);
-const userToDelete = ref<User | null>(null);
+  const showDeleteAlert = ref(false);
+  const userToDelete = ref<User | null>(null);
 
-const loadUsers = async (reset = false) => {
-  if (reset) {
-    page.value = 1;
-    users.value = [];
-    hasMore.value = true;
-  }
-
-  loading.value = true;
-  try {
-    const params = new URLSearchParams({
-      page: page.value.toString(),
-      per_page: '15',
-    });
-
-    if (search.value) {
-      params.append('search', search.value);
-    }
-
-    const response = await api.get<PaginatedResponse<User>>(`/admin/users?${params}`);
-
+  const loadUsers = async (reset = false) => {
     if (reset) {
-      users.value = response.data;
-    } else {
-      users.value = [...users.value, ...response.data];
+      page.value = 1;
+      users.value = [];
+      hasMore.value = true;
     }
 
-    hasMore.value = response.current_page < response.last_page;
-  } catch (error) {
-    console.error('Error loading users:', error);
-  } finally {
-    loading.value = false;
-  }
-};
+    loading.value = true;
+    try {
+      const params = new URLSearchParams({
+        page: page.value.toString(),
+        per_page: '15',
+      });
 
-const handleSearch = () => {
-  loadUsers(true);
-};
+      if (search.value) {
+        params.append('search', search.value);
+      }
 
-const loadMore = (event: any) => {
-  page.value++;
-  loadUsers().then(() => {
-    event.target.complete();
-  });
-};
+      const response = await api.get<PaginatedResponse<User>>(
+        `/admin/users?${params}`
+      );
 
-const getInitials = (name: string) => {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-};
+      if (reset) {
+        users.value = response.data;
+      } else {
+        users.value = [...users.value, ...response.data];
+      }
 
-const toggleAdmin = async (user: User) => {
-  try {
-    await api.post(`/admin/users/${user.id}/toggle`);
-    user.is_admin = !user.is_admin;
-  } catch (error) {
-    console.error('Error toggling admin:', error);
-  }
-};
+      hasMore.value = response.current_page < response.last_page;
+    } catch (error) {
+      console.error('Error loading users:', error);
+    } finally {
+      loading.value = false;
+    }
+  };
 
-const confirmDelete = (user: User) => {
-  userToDelete.value = user;
-  showDeleteAlert.value = true;
-};
+  const handleSearch = () => {
+    loadUsers(true);
+  };
 
-const deleteUser = async () => {
-  if (!userToDelete.value) return;
+  const loadMore = (event: any) => {
+    page.value++;
+    loadUsers().then(() => {
+      event.target.complete();
+    });
+  };
 
-  try {
-    await api.delete(`/admin/users/${userToDelete.value.id}`);
-    users.value = users.value.filter((u) => u.id !== userToDelete.value!.id);
-  } catch (error) {
-    console.error('Error deleting user:', error);
-  } finally {
-    showDeleteAlert.value = false;
-    userToDelete.value = null;
-  }
-};
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
-const deleteAlertButtons = [
-  {
-    text: 'Cancelar',
-    role: 'cancel',
-    handler: () => {
+  const toggleAdmin = async (user: User) => {
+    try {
+      await api.post(`/admin/users/${user.id}/toggle`);
+      user.is_admin = !user.is_admin;
+    } catch (error) {
+      console.error('Error toggling admin:', error);
+    }
+  };
+
+  const confirmDelete = (user: User) => {
+    userToDelete.value = user;
+    showDeleteAlert.value = true;
+  };
+
+  const deleteUser = async () => {
+    if (!userToDelete.value) return;
+
+    try {
+      await api.delete(`/admin/users/${userToDelete.value.id}`);
+      users.value = users.value.filter((u) => u.id !== userToDelete.value!.id);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    } finally {
       showDeleteAlert.value = false;
       userToDelete.value = null;
-    },
-  },
-  {
-    text: 'Eliminar',
-    role: 'destructive',
-    handler: deleteUser,
-  },
-];
+    }
+  };
 
-onMounted(() => {
-  loadUsers();
-});
+  const deleteAlertButtons = [
+    {
+      text: 'Cancelar',
+      role: 'cancel',
+      handler: () => {
+        showDeleteAlert.value = false;
+        userToDelete.value = null;
+      },
+    },
+    {
+      text: 'Eliminar',
+      role: 'destructive',
+      handler: deleteUser,
+    },
+  ];
+
+  onMounted(() => {
+    loadUsers();
+  });
 </script>
 
 <style scoped>
-.search-container {
-  padding: 8px 16px;
-}
+  .search-container {
+    padding: 8px 16px;
+  }
 
-.loading-container,
-.empty-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  color: var(--ion-color-medium);
-}
+  .loading-container,
+  .empty-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--ion-color-medium);
+  }
 
-.empty-container ion-icon {
-  margin-bottom: 8px;
-}
+  .empty-container ion-icon {
+    margin-bottom: 8px;
+  }
 
-.avatar-placeholder {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 14px;
-}
+  .avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+  }
 
-.user-badges {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-end;
-}
+  .user-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-end;
+  }
 
-.email {
-  font-size: 12px;
-  color: var(--ion-color-medium);
-}
+  .email {
+    font-size: 12px;
+    color: var(--ion-color-medium);
+  }
 
-ion-item {
-  --padding-start: 16px;
-}
+  ion-item {
+    --padding-start: 16px;
+  }
 </style>

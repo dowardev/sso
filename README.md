@@ -97,9 +97,8 @@ cd back
 # Install PHP dependencies
 composer install
 
-# Generate RSA keys for JWT
-openssl genrsa -out back/keys/private.pem 2048
-openssl rsa -in back/keys/private.pem -pubout -out back/keys/public.pem
+# Generate RSA keys for JWT (auto-creates back/keys/ if needed)
+php artisan jwt:generate-keys
 
 # Configure environment
 cp .env.example .env

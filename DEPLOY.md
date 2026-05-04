@@ -103,10 +103,8 @@ composer install
 cp .env.example .env
 php artisan key:generate
 
-# Generate RSA keys for JWT
-mkdir -p keys
-openssl genrsa -out keys/private.pem 2048
-openssl rsa -in keys/private.pem -pubout -out keys/public.pem
+# Generate RSA keys for JWT (auto-creates keys/ if needed)
+php artisan jwt:generate-keys
 
 # Configure .env (see Deployment Configuration section)
 

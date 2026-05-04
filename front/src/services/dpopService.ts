@@ -50,7 +50,11 @@ export default class DpopService {
     return this.jkt;
   }
 
-  async createDpopProof(htm: string, htu: string, accessToken?: string): Promise<string> {
+  async createDpopProof(
+    htm: string,
+    htu: string,
+    accessToken?: string
+  ): Promise<string> {
     if (!this.privateKey || !this.publicKeyJwk) {
       throw new Error('DPoP key pair not initialized');
     }
@@ -81,12 +85,19 @@ export default class DpopService {
     };
 
     if (accessToken) {
-      const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(accessToken));
+      const hashBuffer = await crypto.subtle.digest(
+        'SHA-256',
+        encoder.encode(accessToken)
+      );
       payload.ath = this.base64UrlEncode(new Uint8Array(hashBuffer));
     }
 
-    const encodedHeader = this.base64UrlEncode(encoder.encode(JSON.stringify(header)));
-    const encodedPayload = this.base64UrlEncode(encoder.encode(JSON.stringify(payload)));
+    const encodedHeader = this.base64UrlEncode(
+      encoder.encode(JSON.stringify(header))
+    );
+    const encodedPayload = this.base64UrlEncode(
+      encoder.encode(JSON.stringify(payload))
+    );
 
     const signInput = `${encodedHeader}.${encodedPayload}`;
 
@@ -96,7 +107,9 @@ export default class DpopService {
       encoder.encode(signInput)
     );
 
-    const encodedSignature = this.base64UrlEncode(new Uint8Array(signatureBuffer));
+    const encodedSignature = this.base64UrlEncode(
+      new Uint8Array(signatureBuffer)
+    );
 
     return `${signInput}.${encodedSignature}`;
   }
@@ -116,7 +129,10 @@ export default class DpopService {
     });
 
     const encoder = new TextEncoder();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(canonical));
+    const hashBuffer = await crypto.subtle.digest(
+      'SHA-256',
+      encoder.encode(canonical)
+    );
     return this.base64UrlEncode(new Uint8Array(hashBuffer));
   }
 
@@ -126,7 +142,10 @@ export default class DpopService {
     for (let i = 0; i < bytes.length; i++) {
       binary += String.fromCharCode(bytes[i]);
     }
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return btoa(binary)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
   }
 
   private async saveToIndexedDB(): Promise<void> {
@@ -160,7 +179,11 @@ export default class DpopService {
     });
   }
 
-  private async loadFromIndexedDB(): Promise<{ privateKey: CryptoKey; publicKeyJwk: JsonWebKey; jkt: string } | null> {
+  private async loadFromIndexedDB(): Promise<{
+    privateKey: CryptoKey;
+    publicKeyJwk: JsonWebKey;
+    jkt: string;
+  } | null> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open('dpop_keys', 1);
       request.onupgradeneeded = () => {

@@ -8,7 +8,7 @@
           </ion-toolbar>
         </ion-header>
         <ion-content>
-          <div class="user-info" v-if="currentUser">
+          <div v-if="currentUser" class="user-info">
             <div class="user-avatar">{{ getInitials(currentUser.name) }}</div>
             <div class="user-details">
               <span class="user-name">{{ currentUser.name }}</span>
@@ -62,78 +62,100 @@
 </template>
 
 <script setup lang="ts">
-import { IonApp, IonRouterOutlet, IonMenu, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonMenuToggle, IonItem, IonIcon, IonLabel, IonButton, menuController } from '@ionic/vue';
-import { useRouter } from 'vue-router';
-import { speedometer, people, key, desktop, shield, logOutOutline } from 'ionicons/icons';
-import { isAuthenticated, currentUser, auth } from '@/services/auth';
+  import {
+    IonApp,
+    IonRouterOutlet,
+    IonMenu,
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonContent,
+    IonList,
+    IonMenuToggle,
+    IonItem,
+    IonIcon,
+    IonLabel,
+    IonButton,
+    menuController,
+  } from '@ionic/vue';
+  import { useRouter } from 'vue-router';
+  import {
+    speedometer,
+    people,
+    key,
+    desktop,
+    shield,
+    logOutOutline,
+  } from 'ionicons/icons';
+  import { isAuthenticated, currentUser, auth } from '@/services/auth';
 
-const router = useRouter();
+  const router = useRouter();
 
-const navigateTo = async (url: string) => {
-  await menuController.close();
-  router.push(url);
-};
+  const navigateTo = async (url: string) => {
+    await menuController.close();
+    router.push(url);
+  };
 
-const getInitials = (name: string) => {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-};
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
-const handleLogout = async () => {
-  await menuController.close();
-  await auth.logout();
-  router.replace('/login');
-};
+  const handleLogout = async () => {
+    await menuController.close();
+    await auth.logout();
+    router.replace('/login');
+  };
 </script>
 
 <style scoped>
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
 
-.user-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: white;
-  color: #667eea;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 18px;
-}
+  .user-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: white;
+    color: #667eea;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+  }
 
-.user-details {
-  display: flex;
-  flex-direction: column;
-}
+  .user-details {
+    display: flex;
+    flex-direction: column;
+  }
 
-.user-name {
-  font-weight: bold;
-  font-size: 14px;
-}
+  .user-name {
+    font-weight: bold;
+    font-size: 14px;
+  }
 
-.user-email {
-  font-size: 12px;
-  opacity: 0.9;
-}
+  .user-email {
+    font-size: 12px;
+    opacity: 0.9;
+  }
 
-.logout-section {
-  padding: 16px;
-  margin-top: auto;
-}
+  .logout-section {
+    padding: 16px;
+    margin-top: auto;
+  }
 
-.logout-section ion-button {
-  --border-radius: 8px;
-}
+  .logout-section ion-button {
+    --border-radius: 8px;
+  }
 </style>

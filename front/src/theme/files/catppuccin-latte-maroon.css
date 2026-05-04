@@ -1,0 +1,115 @@
+body.catppuccin-latte-maroon {
+  --ion-color-primary: #d20f39;
+  --ion-color-primary-rgb: 210, 15, 57;
+  --ion-color-primary-contrast: #eff1f5;
+  --ion-color-primary-contrast-rgb: 239, 241, 245;
+  --ion-color-primary-shade: #b80d32;
+  --ion-color-primary-tint: #d7274d;
+
+  --ion-color-secondary: #1e66f5;
+  --ion-color-secondary-rgb: 30, 102, 245;
+  --ion-color-secondary-contrast: #eff1f5;
+  --ion-color-secondary-contrast-rgb: 239, 241, 245;
+  --ion-color-secondary-shade: #1a5ad8;
+  --ion-color-secondary-tint: #3576f6;
+
+  --ion-color-tertiary: #8839ef;
+  --ion-color-tertiary-rgb: 136, 57, 239;
+  --ion-color-tertiary-contrast: #eff1f5;
+  --ion-color-tertiary-contrast-rgb: 239, 241, 245;
+  --ion-color-tertiary-shade: #7831d6;
+  --ion-color-tertiary-tint: #944df1;
+
+  --ion-color-success: #40a02b;
+  --ion-color-success-rgb: 64, 160, 43;
+  --ion-color-success-contrast: #eff1f5;
+  --ion-color-success-contrast-rgb: 239, 241, 245;
+  --ion-color-success-shade: #388d26;
+  --ion-color-success-tint: #53aa40;
+
+  --ion-color-warning: #fe640b;
+  --ion-color-warning-rgb: 254, 100, 11;
+  --ion-color-warning-contrast: #eff1f5;
+  --ion-color-warning-contrast-rgb: 239, 241, 245;
+  --ion-color-warning-shade: #df580a;
+  --ion-color-warning-tint: #fe7423;
+
+  --ion-color-danger: #d20f39;
+  --ion-color-danger-rgb: 210, 15, 57;
+  --ion-color-danger-contrast: #eff1f5;
+  --ion-color-danger-contrast-rgb: 239, 241, 245;
+  --ion-color-danger-shade: #b80d32;
+  --ion-color-danger-tint: #d7274d;
+
+  --ion-color-light: #eff1f5;
+  --ion-color-light-rgb: 239, 241, 245;
+  --ion-color-light-contrast: #4c4f69;
+  --ion-color-light-contrast-rgb: 76, 79, 105;
+  --ion-color-light-shade: #d2d4da;
+  --ion-color-light-tint: #f1f2f6;
+
+  --ion-color-medium: #9ca0b0;
+  --ion-color-medium-rgb: 156, 160, 176;
+  --ion-color-medium-contrast: #eff1f5;
+  --ion-color-medium-contrast-rgb: 239, 241, 245;
+  --ion-color-medium-shade: #898c9b;
+  --ion-color-medium-tint: #a6aab8;
+
+  --ion-color-dark: #5c5f77;
+  --ion-color-dark-rgb: 92, 95, 119;
+  --ion-color-dark-contrast: #eff1f5;
+  --ion-color-dark-contrast-rgb: 239, 241, 245;
+  --ion-color-dark-shade: #515468;
+  --ion-color-dark-tint: #6d6f85;
+
+  --ion-background-color: #eff1f5;
+  --ion-background-color-rgb: 239, 241, 245;
+  --background-contrast: #ffffff;
+
+  --ion-text-color: #4c4f69;
+  --ion-text-color-rgb: 76, 79, 105;
+
+  --ion-text-color-step-50: #5c5f77;
+  --ion-text-color-step-100: #585a72;
+  --ion-text-color-step-150: #54556d;
+  --ion-text-color-step-200: #505068;
+  --ion-text-color-step-250: #4c4b63;
+  --ion-text-color-step-300: #48475e;
+  --ion-text-color-step-350: #444259;
+  --ion-text-color-step-400: #403d54;
+  --ion-text-color-step-450: #3c394f;
+  --ion-text-color-step-500: #38354a;
+  --ion-text-color-step-550: #343045;
+  --ion-text-color-step-600: #302c40;
+  --ion-text-color-step-650: #2c283b;
+  --ion-text-color-step-700: #282336;
+  --ion-text-color-step-750: #241f31;
+  --ion-text-color-step-800: #201a2c;
+  --ion-text-color-step-850: #1c1627;
+  --ion-text-color-step-900: #181122;
+  --ion-text-color-step-950: #140d1d;
+
+  --ion-background-color-step-50: #e4e6ec;
+  --ion-background-color-step-100: #dadce4;
+  --ion-background-color-step-150: #cfd2dc;
+  --ion-background-color-step-200: #c5c8d4;
+  --ion-background-color-step-250: #babdcc;
+  --ion-background-color-step-300: #b0b3c4;
+  --ion-background-color-step-350: #a5a8bc;
+  --ion-background-color-step-400: #9b9eb4;
+  --ion-background-color-step-450: #9094ac;
+  --ion-background-color-step-500: #868aa4;
+  --ion-background-color-step-550: #7b809c;
+  --ion-background-color-step-600: #707694;
+  --ion-background-color-step-650: #656c8c;
+  --ion-background-color-step-700: #5a6284;
+  --ion-background-color-step-750: #4f587c;
+  --ion-background-color-step-800: #444e74;
+  --ion-background-color-step-850: #39456c;
+  --ion-background-color-step-900: #2e3c64;
+  --ion-background-color-step-950: #23325c;
+
+  --card-shadow-light: rgba(76, 79, 105, 0.03);
+  --card-shadow-heavy: rgba(76, 79, 105, 0.15);
+  --card-shadow-subtle: rgba(76, 79, 105, 0.06);
+}

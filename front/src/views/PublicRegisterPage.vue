@@ -1,317 +1,312 @@
 <template>
   <ion-page>
-    <ion-content :fullscreen="true" class="login-content">
-      <div class="login-container">
-        <div class="login-header">
-          <h1>Crear Cuenta</h1>
-          <p>Regístrate para acceder</p>
-        </div>
+    <ion-content :fullscreen="true">
+      <ion-grid class="login-grid">
+        <ion-row class="ion-justify-content-center">
+          <ion-col size="12" size-sm="10" size-md="8" size-lg="6" size-xl="4">
+            <ion-card class="shadow1">
+              <img
+                alt="Silhouette of mountains"
+                src="@/assets/images/lambda_v1.svg"
+              />
 
-        <form @submit.prevent="handleRegister" class="login-form">
-          <ion-item>
-            <ion-label position="stacked">Nombre</ion-label>
-            <ion-input
-              v-model="form.name"
-              type="text"
-              required
-              placeholder="Ingresa tu nombre"
-            ></ion-input>
-          </ion-item>
+              <ion-card-header>
+                <ion-card-title>Crear Cuenta</ion-card-title>
+                <ion-card-subtitle> Regístrate para acceder </ion-card-subtitle>
+              </ion-card-header>
 
-          <ion-item>
-            <ion-label position="stacked">Usuario</ion-label>
-            <ion-input
-              v-model="form.user"
-              type="text"
-              required
-              placeholder="Ingresa tu usuario"
-            ></ion-input>
-          </ion-item>
+              <ion-card-content>
+                <div>
+                  <form @submit.prevent="handleRegister">
+                    <ion-item lines="full">
+                      <ion-input
+                        v-model="form.name"
+                        label="Nombre"
+                        label-placement="floating"
+                        type="text"
+                        required
+                        placeholder="Ingresa tu nombre"
+                      ></ion-input>
+                    </ion-item>
 
-          <ion-item>
-            <ion-label position="stacked">Email</ion-label>
-            <ion-input
-              v-model="form.email"
-              type="email"
-              required
-              placeholder="Ingresa tu email"
-            ></ion-input>
-          </ion-item>
+                    <ion-item lines="full">
+                      <ion-input
+                        v-model="form.user"
+                        label="Usuario"
+                        label-placement="floating"
+                        type="text"
+                        required
+                        placeholder="Ingresa tu usuario"
+                      ></ion-input>
+                    </ion-item>
 
-          <ion-item>
-            <ion-label position="stacked">Contraseña</ion-label>
-            <ion-input
-              v-model="form.password"
-              type="password"
-              required
-              placeholder="Ingresa tu contraseña"
-            ></ion-input>
-          </ion-item>
+                    <ion-item lines="full">
+                      <ion-input
+                        v-model="form.email"
+                        label="Email"
+                        label-placement="floating"
+                        type="email"
+                        required
+                        placeholder="Ingresa tu email"
+                      ></ion-input>
+                    </ion-item>
 
-          <ion-item>
-            <ion-label position="stacked">Confirmar contraseña</ion-label>
-            <ion-input
-              v-model="form.password_confirmation"
-              type="password"
-              required
-              placeholder="Confirma tu contraseña"
-            ></ion-input>
-          </ion-item>
+                    <ion-item lines="full">
+                      <ion-input
+                        v-model="form.password"
+                        label="Contraseña"
+                        label-placement="floating"
+                        type="password"
+                        required
+                        placeholder="Ingresa tu contraseña"
+                      ></ion-input>
+                    </ion-item>
 
-          <div v-if="error" class="error-message">
-            {{ error }}
-          </div>
+                    <ion-item lines="full">
+                      <ion-input
+                        v-model="form.password_confirmation"
+                        label="Confirmar contraseña"
+                        label-placement="floating"
+                        type="password"
+                        required
+                        placeholder="Confirma tu contraseña"
+                      ></ion-input>
+                    </ion-item>
 
-          <ion-button
-            type="submit"
-            expand="block"
-            :disabled="loading"
-            class="login-button"
-          >
-            <ion-spinner v-if="loading" name="lines"></ion-spinner>
-            <span v-else>Registrar</span>
-          </ion-button>
+                    <div v-if="error" class="error-message">
+                      {{ error }}
+                    </div>
 
-          <ion-button
-            fill="clear"
-            expand="block"
-            :disabled="loading"
-            @click="goToLogin"
-            class="register-link"
-          >
-            Ya tengo cuenta
-          </ion-button>
-        </form>
+                    <div class="ion-padding-top">
+                      <ion-button
+                        type="submit"
+                        expand="block"
+                        :disabled="loading"
+                        class="no-shadow"
+                      >
+                        <ion-spinner v-if="loading" name="lines"></ion-spinner>
+                        <span v-else>Registrar</span>
+                      </ion-button>
+                    </div>
 
-        <div class="back-link">
-          <ion-button fill="clear" size="small" @click="goBack">
-            <ion-icon slot="start" :icon="arrowBack"></ion-icon>
-            Volver
-          </ion-button>
-        </div>
-      </div>
+                    <section>
+                      <ion-button
+                        fill="clear"
+                        expand="block"
+                        :disabled="loading"
+                        @click="goToLogin"
+                      >
+                        Ya tengo cuenta
+                      </ion-button>
+                    </section>
+                  </form>
+                </div>
+              </ion-card-content>
+            </ion-card>
+
+            <ion-button expand="full" fill="clear" size="small" @click="goBack">
+              <ion-icon slot="start" :icon="arrowBack"></ion-icon>
+              Volver
+            </ion-button>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { IonPage, IonContent, IonItem, IonLabel, IonInput, IonButton, IonSpinner, IonIcon } from '@ionic/vue';
-import { arrowBack } from 'ionicons/icons';
-import { api } from '@/services/api';
-import { auth } from '@/services/auth';
-import { dpopService } from '@/services/dpopService';
+  import { ref, onMounted } from 'vue';
+  import { useRouter, useRoute } from 'vue-router';
+  import {
+    IonPage,
+    IonContent,
+    IonItem,
+    IonInput,
+    IonButton,
+    IonSpinner,
+    IonIcon,
+  } from '@ionic/vue';
+  import { arrowBack } from 'ionicons/icons';
+  import { api } from '@/services/api';
+  import { auth } from '@/services/auth';
+  import { dpopService } from '@/services/dpopService';
 
-const router = useRouter();
-const route = useRoute();
+  const router = useRouter();
+  const route = useRoute();
 
-const form = ref({
-  name: '',
-  user: '',
-  email: '',
-  password: '',
-  password_confirmation: '',
-});
-
-const loading = ref(false);
-const error = ref('');
-
-const oauthParams = ref({
-  client_id: '',
-  redirect_uri: '',
-  state: '',
-  response_type: '',
-});
-
-const isOAuthFlow = ref(false);
-
-onMounted(() => {
-  const { client_id, redirect_uri, state, response_type } = route.query;
-  if (client_id && redirect_uri) {
-    isOAuthFlow.value = true;
-    oauthParams.value = {
-      client_id: client_id as string,
-      redirect_uri: redirect_uri as string,
-      state: (state as string) || '',
-      response_type: (response_type as string) || 'code',
-    };
+  interface ApiValidationError {
+    errors: Record<string, string[]>;
   }
-});
 
-const handleRegister = async () => {
-  loading.value = true;
-  error.value = '';
+  const form = ref({
+    name: '',
+    user: '',
+    email: '',
+    password: '',
+    password_confirmation: '',
+  });
 
-  try {
-    const data: Record<string, unknown> = {
-      name: form.value.name,
-      user: form.value.user,
-      email: form.value.email,
-      password: form.value.password,
-      password_confirmation: form.value.password_confirmation,
-      client_id: oauthParams.value.client_id || undefined,
-    };
+  const loading = ref(false);
+  const error = ref('');
 
-    await api.post('/register', data);
+  const oauthParams = ref({
+    client_id: '',
+    redirect_uri: '',
+    state: '',
+    response_type: '',
+  });
 
-    if (isOAuthFlow.value) {
-      const loginResponse = await api.post<{ token: string; user: any }>('/login', {
-        user: form.value.email,
+  const isOAuthFlow = ref(false);
+
+  onMounted(() => {
+    const { client_id, redirect_uri, state, response_type } = route.query;
+    if (client_id && redirect_uri) {
+      isOAuthFlow.value = true;
+      oauthParams.value = {
+        client_id: client_id as string,
+        redirect_uri: redirect_uri as string,
+        state: (state as string) || '',
+        response_type: (response_type as string) || 'code',
+      };
+    }
+  });
+
+  const handleRegister = async (): Promise<void> => {
+    loading.value = true;
+    error.value = '';
+
+    try {
+      const data: Record<string, unknown> = {
+        name: form.value.name,
+        user: form.value.user,
+        email: form.value.email,
         password: form.value.password,
-        client_id: oauthParams.value.client_id,
-      });
+        password_confirmation: form.value.password_confirmation,
+        client_id: oauthParams.value.client_id || undefined,
+      };
 
-      localStorage.setItem('token', loginResponse.token);
-      localStorage.setItem('user', JSON.stringify(loginResponse.user));
+      await api.post('/register', data);
 
-      await handleOAuthAuthorize();
-    } else {
-      router.replace('/login?registered=true');
-    }
-  } catch (err: any) {
-    const message = err?.message || 'Error al registrar';
-    if (typeof err === 'object' && err.errors) {
-      const messages = Object.values(err.errors).flat().join(', ');
-      error.value = messages;
-    } else {
-      error.value = message;
-    }
-  } finally {
-    loading.value = false;
-  }
-};
+      if (isOAuthFlow.value) {
+        interface LoginResponse {
+          token: string;
+          user: Record<string, unknown>;
+        }
 
-const handleOAuthAuthorize = async () => {
-  try {
-    const token = auth.getToken();
-    if (!token) {
-      error.value = 'Token no disponible';
-      return;
-    }
+        const loginResponse = await api.post<LoginResponse>('/login', {
+          user: form.value.email,
+          password: form.value.password,
+          client_id: oauthParams.value.client_id,
+        });
 
-    const ssoUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
-    const dpopProof = await dpopService.createDpopProof('POST', `${ssoUrl}/oauth/authorize`, token);
-    const publicKeyJwk = dpopService.getPublicKeyJwk();
+        localStorage.setItem('token', loginResponse.token);
+        localStorage.setItem('user', JSON.stringify(loginResponse.user));
 
-    const response = await api.post<{ code: string; state: string | null }>(
-      '/oauth/authorize',
-      {
-        client_id: oauthParams.value.client_id,
-        redirect_uri: oauthParams.value.redirect_uri,
-        state: oauthParams.value.state,
-      },
-      {
-        DPoP: dpopProof,
-        ...(publicKeyJwk ? { 'DPoP-Public-Key': JSON.stringify(publicKeyJwk) } : {}),
+        await handleOAuthAuthorize();
+      } else {
+        router.replace({ name: 'AuthLogin', query: { registered: 'true' } });
       }
-    );
-
-    const params = new URLSearchParams();
-    params.set('code', response.code);
-    if (response.state) {
-      params.set('state', response.state);
+    } catch (err: unknown) {
+      if (
+        err instanceof Error &&
+        'errors' in err &&
+        typeof (err as unknown as ApiValidationError).errors === 'object'
+      ) {
+        const validationErr = err as unknown as ApiValidationError;
+        const messages = Object.values(validationErr.errors).flat().join(', ');
+        error.value = messages;
+      } else if (err instanceof Error) {
+        error.value = err.message;
+      } else {
+        error.value = 'Error al registrar';
+      }
+    } finally {
+      loading.value = false;
     }
-    window.location.href = `${oauthParams.value.redirect_uri}?${params.toString()}`;
-  } catch (err: any) {
-    error.value = err.message || 'Error en la autorización';
-  }
-};
+  };
 
-const goToLogin = () => {
-  if (isOAuthFlow.value) {
-    const params = new URLSearchParams();
-    params.set('client_id', oauthParams.value.client_id);
-    params.set('redirect_uri', oauthParams.value.redirect_uri);
-    if (oauthParams.value.state) {
-      params.set('state', oauthParams.value.state);
+  const handleOAuthAuthorize = async (): Promise<void> => {
+    try {
+      const token = auth.getToken();
+      if (!token) {
+        error.value = 'Token no disponible';
+        return;
+      }
+
+      const ssoUrl =
+        import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
+      const dpopProof = await dpopService.createDpopProof(
+        'POST',
+        `${ssoUrl}/oauth/authorize`,
+        token
+      );
+      const publicKeyJwk = dpopService.getPublicKeyJwk();
+
+      const response = await api.post<{ code: string; state: string | null }>(
+        '/oauth/authorize',
+        {
+          client_id: oauthParams.value.client_id,
+          redirect_uri: oauthParams.value.redirect_uri,
+          state: oauthParams.value.state,
+        },
+        {
+          DPoP: dpopProof,
+          ...(publicKeyJwk
+            ? { 'DPoP-Public-Key': JSON.stringify(publicKeyJwk) }
+            : {}),
+        }
+      );
+
+      const params = new URLSearchParams();
+      params.set('code', response.code);
+      if (response.state) {
+        params.set('state', response.state);
+      }
+      window.location.href = `${oauthParams.value.redirect_uri}?${params.toString()}`;
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        error.value = err.message;
+      } else {
+        error.value = 'Error en la autorización';
+      }
     }
-    params.set('response_type', oauthParams.value.response_type || 'code');
-    router.push(`/login?${params.toString()}`);
-  } else {
-    router.push('/login');
-  }
-};
+  };
 
-const goBack = () => {
-  if (window.history.length > 1) {
-    router.back();
-  } else {
-    router.replace('/');
-  }
-};
+  const goToLogin = (): void => {
+    const query: Record<string, string> = {};
+    if (isOAuthFlow.value) {
+      query.client_id = oauthParams.value.client_id;
+      query.redirect_uri = oauthParams.value.redirect_uri;
+      query.response_type = oauthParams.value.response_type || 'code';
+      if (oauthParams.value.state) {
+        query.state = oauthParams.value.state;
+      }
+    }
+    router.push({ name: 'AuthLogin', query });
+  };
+
+  const goBack = (): void => {
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  };
 </script>
 
 <style scoped>
-.login-content {
-  --background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+  .login-grid {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
 
-.login-container {
-  width: 100%;
-  max-width: 400px;
-  padding: 24px;
-}
-
-.login-header {
-  text-align: center;
-  color: white;
-  margin-bottom: 32px;
-}
-
-.login-header h1 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 600;
-}
-
-.login-header p {
-  margin: 8px 0 0;
-  opacity: 0.8;
-  font-size: 14px;
-}
-
-.login-form {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-
-.login-form ion-item {
-  --background: transparent;
-  margin-bottom: 8px;
-  --border-radius: 8px;
-}
-
-.login-button {
-  margin-top: 16px;
-  --border-radius: 8px;
-  --background: #0f3460;
-  --background-activated: #16213e;
-}
-
-.register-link {
-  margin-top: 8px;
-  color: #0f3460;
-}
-
-.error-message {
-  color: #e74c3c;
-  text-align: center;
-  margin: 8px 0;
-  font-size: 14px;
-}
-
-.back-link {
-  margin-top: 24px;
-  text-align: center;
-}
-
-.back-link ion-button {
-  color: rgba(255, 255, 255, 0.7);
-}
+  .error-message {
+    color: #e74c3c;
+    text-align: center;
+    margin: 8px 0;
+    font-size: 14px;
+  }
 </style>

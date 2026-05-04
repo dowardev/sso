@@ -11,37 +11,44 @@ export const isAuthenticated = ref<boolean>(!!localStorage.getItem(TOKEN_KEY));
 export const currentUser = ref<User | null>(null);
 
 export const auth = {
-  async login(credentials: { user: string; password: string; client_id?: string }) {
+  async login(credentials: {
+    user: string;
+    password: string;
+    client_id?: string;
+  }) {
     await dpopService.initialize();
-    
+
     const dpopPublicKey = dpopService.getPublicKeyJwk();
-    
+
     const loginData: Record<string, unknown> = {
       user: credentials.user,
       password: credentials.password,
     };
-    
+
     if (credentials.client_id) {
       loginData.client_id = credentials.client_id;
     }
-    
+
     if (dpopPublicKey) {
       loginData.dpop_public_key = JSON.stringify(dpopPublicKey);
     }
-    
-    const response = await api.post<{ token: string; user: User }>('/login', loginData);
-    
+
+    const response = await api.post<{ token: string; user: User }>(
+      '/login',
+      loginData
+    );
+
     localStorage.setItem(TOKEN_KEY, response.token);
     localStorage.setItem(USER_KEY, JSON.stringify(response.user));
     localStorage.setItem('sso_token', response.token);
-    
+
     if (dpopPublicKey) {
       localStorage.setItem(DPOP_PUBLIC_KEY, JSON.stringify(dpopPublicKey));
     }
-    
+
     isAuthenticated.value = true;
     currentUser.value = response.user;
-    
+
     return response;
   },
 
@@ -51,10 +58,10 @@ export const auth = {
     } catch (error) {
       console.error('Logout error:', error);
     }
-    
+
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-    
+
     isAuthenticated.value = false;
     currentUser.value = null;
   },
@@ -89,12 +96,12 @@ export const auth = {
   init() {
     const token = localStorage.getItem(TOKEN_KEY);
     const userStr = localStorage.getItem(USER_KEY);
-    
+
     if (token && userStr) {
       isAuthenticated.value = true;
       currentUser.value = JSON.parse(userStr);
     }
-  }
+  },
 };
 
 auth.init();
