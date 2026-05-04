@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-05-04
+
+### Added
+- Comprehensive `README.md` at project root with full architecture, tech stack, installation, and authentication flows
+- `DEPLOY.md` deployment guide with server configuration, SSL setup, and troubleshooting
+
+### Changed
+- Restructured project documentation from `back/` directory to repository root for better visibility
+- Updated `back/.gitignore` to exclude `keys/` directory
+
+### Removed
+- Deprecated `back/DEPLOYMENT_CHECKLIST.md` (replaced by root `DEPLOY.md`)
+- Deprecated `back/README.md` (replaced by root `README.md`)
+
+### Security
+- Removed committed RSA key files (`back/keys/private.pem` and `back/keys/public.pem`) from repository
+
 ## [0.9.0] - 2026-05-02
 
 ### Added
