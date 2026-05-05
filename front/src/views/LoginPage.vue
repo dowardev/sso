@@ -89,12 +89,15 @@
     redirect_uri: '',
     state: '',
     response_type: '',
+    code_challenge: '',
+    code_challenge_method: '',
+    code_verifier: '',
   });
 
   const isOAuthFlow = ref(false);
 
   onMounted(() => {
-    const { client_id, redirect_uri, state, response_type } = route.query;
+    const { client_id, redirect_uri, state, response_type, code_challenge, code_challenge_method, code_verifier } = route.query;
     if (client_id && redirect_uri) {
       isOAuthFlow.value = true;
       oauthParams.value = {
@@ -102,6 +105,9 @@
         redirect_uri: redirect_uri as string,
         state: (state as string) || '',
         response_type: (response_type as string) || 'code',
+        code_challenge: (code_challenge as string) || '',
+        code_challenge_method: (code_challenge_method as string) || '',
+        code_verifier: (code_verifier as string) || '',
       };
     }
   });
@@ -137,6 +143,17 @@
           client_id: oauthParams.value.client_id,
           redirect_uri: oauthParams.value.redirect_uri,
           state: oauthParams.value.state,
+          ...(oauthParams.value.code_challenge
+            ? {
+                code_challenge: oauthParams.value.code_challenge,
+                code_challenge_method: oauthParams.value.code_challenge_method,
+              }
+            : {}),
+          ...(oauthParams.value.code_verifier
+            ? {
+                code_verifier: oauthParams.value.code_verifier,
+              }
+            : {}),
         }
       );
 
@@ -159,6 +176,13 @@
       params.set('state', oauthParams.value.state);
     }
     params.set('response_type', oauthParams.value.response_type || 'code');
+    if (oauthParams.value.code_challenge) {
+      params.set('code_challenge', oauthParams.value.code_challenge);
+      params.set('code_challenge_method', oauthParams.value.code_challenge_method);
+    }
+    if (oauthParams.value.code_verifier) {
+      params.set('code_verifier', oauthParams.value.code_verifier);
+    }
     router.push(`/register?${params.toString()}`);
   };
 </script>

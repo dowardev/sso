@@ -39,6 +39,7 @@ class OAuth2Controller extends Controller
             'state' => 'nullable|string',
             'code_challenge' => 'nullable|string',
             'code_challenge_method' => 'nullable|string|in:S256,plain',
+            'code_verifier' => 'nullable|string|min:43|max:128',
         ]);
 
         $client = SsoClient::where('client_id', $validated['client_id'])->first();
@@ -71,6 +72,7 @@ class OAuth2Controller extends Controller
             'redirect_uri' => $validated['redirect_uri'],
             'code_challenge' => $validated['code_challenge'] ?? null,
             'code_challenge_method' => $validated['code_challenge_method'] ?? null,
+            'code_verifier' => $validated['code_verifier'] ?? null,
             'expires_at' => now()->addSeconds($this->authCodeExpiration),
         ]);
 
@@ -88,7 +90,7 @@ class OAuth2Controller extends Controller
             'client_secret' => 'nullable|string',
             'redirect_uri' => 'required|string',
             'dpop_public_key' => 'nullable|json',
-            'code_verifier' => 'required|string|min:43|max:128',
+            'code_verifier' => 'nullable|string|min:43|max:128',
         ]);
 
         $client = SsoClient::where('client_id', $validated['client_id'])->first();
@@ -142,9 +144,17 @@ class OAuth2Controller extends Controller
         }
 
         if ($authCode->code_challenge) {
+            $codeVerifier = $authCode->code_verifier ?? $validated['code_verifier'];
+
+            if (!$codeVerifier) {
+                return response()->json([
+                    'message' => 'code_verifier requerido',
+                ], 400);
+            }
+
             $method = $authCode->code_challenge_method ?? 'S256';
             $challengeFromVerifier = $this->computeCodeChallenge(
-                $validated['code_verifier'],
+                $codeVerifier,
                 $method
             );
 

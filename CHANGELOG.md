@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-05-04
+
+### Added
+- PKCE code_verifier support in OAuth2 authorization endpoint for enhanced security
+- code_verifier field to OAuthAuthCode model and database table
+- Frontend support for passing code_challenge, code_challenge_method, and code_verifier through login/register OAuth flow
+
+### Changed
+- Made code_verifier optional in token endpoint to support both PKCE and non-PKCE authorization flows
+
 ## [0.10.0] - 2026-05-04
 
 ### Added
