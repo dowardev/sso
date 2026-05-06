@@ -32,10 +32,10 @@ export const useAuthStore = defineStore('auth', () => {
       loginData.dpop_public_key = JSON.stringify(dpopPublicKey);
     }
 
-    const response = await api.post<{ token: string; user: User }>(
-      '/login',
-      loginData
-    );
+    const response = await api.post<{ token: string; user: User }>({
+      endpoint: '/login',
+      data: loginData,
+    });
 
     localStorage.setItem(TOKEN_KEY, response.token);
     localStorage.setItem(USER_KEY, JSON.stringify(response.user));
@@ -53,7 +53,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
-      await api.post('/logout');
+      await api.post({ endpoint: '/logout' });
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -67,7 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function getUser() {
     try {
-      const response = await api.get<User>('/me');
+      const response = await api.get<User>({ endpoint: '/me' });
       user.value = response;
       return response;
     } catch (error) {

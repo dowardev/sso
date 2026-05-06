@@ -104,10 +104,17 @@
     popoverController,
   } from '@ionic/vue';
   import { colorPalette, chevronDown, chevronForward, sunnyOutline, moonOutline } from 'ionicons/icons';
-  import { useTheme, type ResolvedThemeName } from '@/services/theme';
+  import { useThemeController, type ResolvedThemeName } from '@/controllers/themeController';
   import ThemePopover from '@/components/ThemePopover.vue';
 
-  const { currentTheme, isAuto, autoLightThemeInfo, autoDarkThemeInfo, setTheme, setAutoLightTheme, setAutoDarkTheme } = useTheme();
+  const themeController = useThemeController();
+  const currentTheme = themeController.currentTheme;
+  const isAuto = themeController.isAuto;
+  const autoLightThemeInfo = themeController.autoLightThemeInfo;
+  const autoDarkThemeInfo = themeController.autoDarkThemeInfo;
+  const setTheme = (name: ResolvedThemeName) => themeController.setTheme({ themeName: name });
+  const setAutoLightTheme = (name: ResolvedThemeName) => themeController.setAutoLightTheme({ themeName: name });
+  const setAutoDarkTheme = (name: ResolvedThemeName) => themeController.setAutoDarkTheme({ themeName: name });
 
   const openThemePopover = async (event: Event) => {
     const popover = await popoverController.create({

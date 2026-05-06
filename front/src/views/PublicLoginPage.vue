@@ -98,13 +98,11 @@
     IonIcon,
   } from '@ionic/vue';
   import { arrowBack } from 'ionicons/icons';
-  import { useAuthStore } from '@/stores/auth';
-  import { api } from '@/services/api';
-  import { dpopService } from '@/services/dpopService';
+  import { useAuthController } from '@/controllers/authController';
 
   const router = useRouter();
   const route = useRoute();
-  const authStore = useAuthStore();
+  const authController = useAuthController();
 
   const credentials = ref({
     user: '',
@@ -147,14 +145,22 @@
     error.value = '';
 
     try {
-      await authStore.login({
+      await authController.login({
         user: credentials.value.user,
         password: credentials.value.password,
         client_id: oauthParams.value.client_id || undefined,
       });
 
       if (isOAuthFlow.value) {
-        await handleOAuthAuthorize();
+        await authController.oauthAuthorize({
+          client_id: oauthParams.value.client_id,
+          redirect_uri: oauthParams.value.redirect_uri,
+          state: oauthParams.value.state,
+          response_type: oauthParams.value.response_type || 'code',
+          code_challenge: oauthParams.value.code_challenge || undefined,
+          code_challenge_method: oauthParams.value.code_challenge_method || undefined,
+          code_verifier: oauthParams.value.code_verifier || undefined,
+        });
       } else {
         router.replace('/');
       }
@@ -166,64 +172,6 @@
       }
     } finally {
       loading.value = false;
-    }
-  };
-
-  const handleOAuthAuthorize = async (): Promise<void> => {
-    try {
-      const token = authStore.getToken();
-      if (!token) {
-        error.value = 'Token no disponible';
-        return;
-      }
-
-      const ssoUrl =
-        import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
-      const dpopProof = await dpopService.createDpopProof(
-        'POST',
-        `${ssoUrl}/oauth/authorize`,
-        token
-      );
-      const publicKeyJwk = dpopService.getPublicKeyJwk();
-
-      const response = await api.post<{ code: string; state: string | null }>(
-        '/oauth/authorize',
-        {
-          client_id: oauthParams.value.client_id,
-          redirect_uri: oauthParams.value.redirect_uri,
-          state: oauthParams.value.state,
-          ...(oauthParams.value.code_challenge
-            ? {
-                code_challenge: oauthParams.value.code_challenge,
-                code_challenge_method: oauthParams.value.code_challenge_method || 'S256',
-              }
-            : {}),
-          ...(oauthParams.value.code_verifier
-            ? {
-                code_verifier: oauthParams.value.code_verifier,
-              }
-            : {}),
-        },
-        {
-          DPoP: dpopProof,
-          ...(publicKeyJwk
-            ? { 'DPoP-Public-Key': JSON.stringify(publicKeyJwk) }
-            : {}),
-        }
-      );
-
-      const params = new URLSearchParams();
-      params.set('code', response.code);
-      if (response.state) {
-        params.set('state', response.state);
-      }
-      window.location.href = `${oauthParams.value.redirect_uri}?${params.toString()}`;
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        error.value = err.message;
-      } else {
-        error.value = 'Error en la autorización';
-      }
     }
   };
 

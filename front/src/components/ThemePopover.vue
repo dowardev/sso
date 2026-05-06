@@ -30,15 +30,18 @@
 <script setup lang="ts">
   import { computed } from 'vue';
   import { IonIcon } from '@ionic/vue';
-  import { checkmark, desktopOutline } from 'ionicons/icons';
-  import { useTheme, type ThemeName } from '@/services/theme';
+  import { checkmark } from 'ionicons/icons';
+  import { useThemeController, type ThemeName } from '@/controllers/themeController';
 
   const props = defineProps<{
     excludeAuto?: boolean;
     onThemeSelect?: ((name: ThemeName) => void) | null;
   }>();
 
-  const { themes, currentThemeName, setTheme } = useTheme();
+  const themeController = useThemeController();
+  const themes = themeController.themes;
+  const currentThemeName = themeController.currentThemeName;
+  const setTheme = (name: ThemeName): void => { themeController.setTheme({ themeName: name }); };
 
   const filteredThemes = computed(() => {
     if (props.excludeAuto) {

@@ -118,32 +118,34 @@
     alertController,
   } from '@ionic/vue';
   import { personRemove, removeCircle, addCircle, trash } from 'ionicons/icons';
-  import { useUsersStore } from '@/stores/users';
+  import { useUsersController } from '@/controllers/usersController';
   import type { User } from '@/types';
 
   const router = useRouter();
-  const usersStore = useUsersStore();
+  const usersController = useUsersController();
 
-  const users = computed(() => usersStore.users);
-  const loading = computed(() => usersStore.loading);
-  const hasMore = computed(() => usersStore.hasMore);
+  const users = computed(() => usersController.users.value);
+  const loading = computed(() => usersController.loading.value);
+  const hasMore = computed(() => usersController.hasMore.value);
 
   const search = ref('');
   const showDeleteAlert = ref(false);
   const userToDelete = ref<User | null>(null);
 
-  const handleSearch = () => {
-    usersStore.setSearch(search.value);
-    usersStore.fetchUsers({ search: search.value || undefined });
+  const handleSearch = (): void => {
+    usersController.setSearch(search.value);
+    usersController.fetchUsers({ search: search.value || undefined });
   };
 
-  const loadMore = (event: any) => {
-    usersStore.fetchUsers({ page: usersStore.pagination.currentPage + 1 }).then(() => {
-      event.target.complete();
+  const loadMore = (event: unknown): void => {
+    usersController.fetchUsers({ page: usersController.pagination.value.currentPage + 1 }).then(() => {
+      if (event && typeof event === 'object' && 'target' in event) {
+        (event as { target: { complete: () => void } }).target.complete();
+      }
     });
   };
 
-  const getInitials = (name: string) => {
+  const getInitials = (name: string): string => {
     return name
       .split(' ')
       .map((n) => n[0])
@@ -154,7 +156,7 @@
 
   const toggleAdmin = async (user: User) => {
     try {
-      await usersStore.toggleAdmin(user.id);
+      await usersController.toggleAdmin(user.id);
     } catch (error) {
       console.error('Error toggling admin:', error);
     }
@@ -169,7 +171,7 @@
     if (!userToDelete.value) return;
 
     try {
-      await usersStore.deleteUser(userToDelete.value.id);
+      await usersController.deleteUser(userToDelete.value.id);
     } catch (error) {
       console.error('Error deleting user:', error);
     } finally {
@@ -195,7 +197,7 @@
   ];
 
   onMounted(() => {
-    usersStore.fetchUsers({ per_page: 15 });
+    usersController.fetchUsers({ per_page: 15 });
   });
 </script>
 

@@ -10,7 +10,7 @@ export const useRolesStore = defineStore('roles', () => {
   async function fetchRoles() {
     loading.value = true;
     try {
-      const response = await api.get<Role[]>('/admin/roles');
+      const response = await api.get<Role[]>({ endpoint: '/admin/roles' });
       roles.value = response;
       return response;
     } finally {
@@ -21,7 +21,7 @@ export const useRolesStore = defineStore('roles', () => {
   async function createRole(data: { name: string; slug: string; description?: string }) {
     loading.value = true;
     try {
-      const response = await api.post<Role>('/admin/roles', data);
+      const response = await api.post<Role>({ endpoint: '/admin/roles', data });
       roles.value = [...roles.value, response];
       return response;
     } finally {
@@ -29,10 +29,11 @@ export const useRolesStore = defineStore('roles', () => {
     }
   }
 
-  async function updateRole(id: number, data: { name: string; description?: string }) {
+  async function updateRole(params: { id: number; data: { name: string; description?: string } }) {
+    const { id, data } = params;
     loading.value = true;
     try {
-      const response = await api.put<Role>(`/admin/roles/${id}`, data);
+      const response = await api.put<Role>({ endpoint: `/admin/roles/${id}`, data });
       const index = roles.value.findIndex((r) => r.id === id);
       if (index !== -1) {
         roles.value[index] = response;
@@ -46,7 +47,7 @@ export const useRolesStore = defineStore('roles', () => {
   async function deleteRole(id: number) {
     loading.value = true;
     try {
-      await api.delete(`/admin/roles/${id}`);
+      await api.delete({ endpoint: `/admin/roles/${id}` });
       roles.value = roles.value.filter((r) => r.id !== id);
     } finally {
       loading.value = false;

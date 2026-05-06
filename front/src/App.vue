@@ -19,8 +19,8 @@
             <ion-menu-toggle :auto-hide="false">
               <ion-item
                 button
-                @click="navigateTo('/admin/dashboard')"
                 :class="{ 'active-item': isActiveRoute('/admin/dashboard') }"
+                @click="navigateTo('/admin/dashboard')"
               >
                 <ion-icon slot="start" :icon="speedometer"></ion-icon>
                 <ion-label>Dashboard</ion-label>
@@ -29,8 +29,8 @@
             <ion-menu-toggle :auto-hide="false">
               <ion-item
                 button
-                @click="navigateTo('/admin/users')"
                 :class="{ 'active-item': isActiveRoute('/admin/users') }"
+                @click="navigateTo('/admin/users')"
               >
                 <ion-icon slot="start" :icon="people"></ion-icon>
                 <ion-label>Usuarios</ion-label>
@@ -39,8 +39,8 @@
             <ion-menu-toggle :auto-hide="false">
               <ion-item
                 button
-                @click="navigateTo('/admin/sessions')"
                 :class="{ 'active-item': isActiveRoute('/admin/sessions') }"
+                @click="navigateTo('/admin/sessions')"
               >
                 <ion-icon slot="start" :icon="key"></ion-icon>
                 <ion-label>Sesiones</ion-label>
@@ -49,8 +49,8 @@
             <ion-menu-toggle :auto-hide="false">
               <ion-item
                 button
-                @click="navigateTo('/admin/clients')"
                 :class="{ 'active-item': isActiveRoute('/admin/clients') }"
+                @click="navigateTo('/admin/clients')"
               >
                 <ion-icon slot="start" :icon="desktop"></ion-icon>
                 <ion-label>Clientes SSO</ion-label>
@@ -59,8 +59,8 @@
             <ion-menu-toggle :auto-hide="false">
               <ion-item
                 button
-                @click="navigateTo('/admin/roles')"
                 :class="{ 'active-item': isActiveRoute('/admin/roles') }"
+                @click="navigateTo('/admin/roles')"
               >
                 <ion-icon slot="start" :icon="shield"></ion-icon>
                 <ion-label>Roles</ion-label>
@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-  import { computed } from 'vue';
+  
   import {
     IonApp,
     IonRouterOutlet,
@@ -120,25 +120,25 @@
     logOutOutline,
     settingsOutline,
   } from 'ionicons/icons';
-  import { useAuthStore } from '@/stores/auth';
+  import { useAuthController } from '@/controllers/authController';
 
   const router = useRouter();
   const route = useRoute();
 
-  const authStore = useAuthStore();
-  const isAuthenticated = authStore.isAuthenticated;
-  const currentUser = authStore.user;
+  const authController = useAuthController();
+  const isAuthenticated = authController.isAuthenticated;
+  const currentUser = authController.user;
 
-  const isActiveRoute = (path: string) => {
+  const isActiveRoute = (path: string): boolean => {
     return route.path === path || route.path.startsWith(path + '/');
   };
 
-  const navigateTo = async (url: string) => {
+  const navigateTo = async (url: string): Promise<void> => {
     await menuController.close();
     router.push(url);
   };
 
-  const getInitials = (name: string) => {
+  const getInitials = (name: string): string => {
     return name
       .split(' ')
       .map((n) => n[0])
@@ -147,9 +147,9 @@
       .slice(0, 2);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = async (): Promise<void> => {
     await menuController.close();
-    await authStore.logout();
+    await authController.logout();
     router.replace('/login');
   };
 </script>

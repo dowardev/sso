@@ -140,13 +140,13 @@
     alertController,
   } from '@ionic/vue';
   import { add, create, trash, shieldOutline } from 'ionicons/icons';
-  import { useRolesStore } from '@/stores/roles';
+  import { useRolesController } from '@/controllers/rolesController';
   import type { Role } from '@/types';
 
-  const rolesStore = useRolesStore();
+  const rolesController = useRolesController();
 
-  const roles = computed(() => rolesStore.roles);
-  const loading = computed(() => rolesStore.loading);
+  const roles = computed(() => rolesController.roles.value);
+  const loading = computed(() => rolesController.loading.value);
 
   const saving = ref(false);
   const showModal = ref(false);
@@ -160,7 +160,7 @@
     description: '',
   });
 
-  const openCreateModal = () => {
+  const openCreateModal = (): void => {
     editingRole.value = null;
     form.value = { name: '', slug: '', description: '' };
     showModal.value = true;
@@ -180,15 +180,20 @@
     saving.value = true;
     try {
       if (editingRole.value) {
-        await rolesStore.updateRole(editingRole.value.id, {
-          name: form.value.name,
-          description: form.value.description || undefined,
+        await rolesController.updateRole({ 
+          id: editingRole.value.id, 
+          data: {
+            name: form.value.name,
+            description: form.value.description || undefined,
+          },
         });
       } else {
-        await rolesStore.createRole({
-          name: form.value.name,
-          slug: form.value.slug,
-          description: form.value.description || undefined,
+        await rolesController.createRole({ 
+          data: {
+            name: form.value.name,
+            slug: form.value.slug,
+            description: form.value.description || undefined,
+          },
         });
       }
       showModal.value = false;
@@ -208,7 +213,7 @@
     if (!roleToDelete.value) return;
 
     try {
-      await rolesStore.deleteRole(roleToDelete.value.id);
+      await rolesController.deleteRole(roleToDelete.value.id);
     } catch (error) {
       console.error('Error deleting role:', error);
     } finally {
@@ -234,7 +239,7 @@
   ];
 
   onMounted(() => {
-    rolesStore.fetchRoles();
+    rolesController.fetchRoles();
   });
 </script>
 

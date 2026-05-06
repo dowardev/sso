@@ -103,30 +103,32 @@
     IonToggle,
   } from '@ionic/vue';
   import { keyOutline, desktopOutline, trash } from 'ionicons/icons';
-  import { useSessionsStore } from '@/stores/sessions';
+  import { useSessionsController } from '@/controllers/sessionsController';
   import type { UserSession } from '@/types';
 
-  const sessionsStore = useSessionsStore();
+  const sessionsController = useSessionsController();
 
-  const sessions = computed(() => sessionsStore.sessions);
-  const loading = computed(() => sessionsStore.loading);
-  const hasMore = computed(() => sessionsStore.hasMore);
+  const sessions = computed(() => sessionsController.sessions.value);
+  const loading = computed(() => sessionsController.loading.value);
+  const hasMore = computed(() => sessionsController.hasMore.value);
   const onlyActive = computed({
-    get: () => sessionsStore.onlyActive,
-    set: (value: boolean) => sessionsStore.setOnlyActive(value),
+    get: () => sessionsController.onlyActive.value,
+    set: (value: boolean) => sessionsController.setOnlyActive(value),
   });
 
-  const handleFilterChange = () => {
-    sessionsStore.fetchSessions({ active: sessionsStore.onlyActive });
+  const handleFilterChange = (): void => {
+    sessionsController.fetchSessions({ active: sessionsController.onlyActive.value });
   };
 
-  const loadMore = (event: any) => {
-    sessionsStore.fetchSessions({ page: sessionsStore.pagination.currentPage + 1 }).then(() => {
-      event.target.complete();
+  const loadMore = (event: unknown): void => {
+    sessionsController.fetchSessions({ page: sessionsController.pagination.value.currentPage + 1 }).then(() => {
+      if (event && typeof event === 'object' && 'target' in event) {
+        (event as { target: { complete: () => void } }).target.complete();
+      }
     });
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string): string => {
     return new Date(dateStr).toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'short',
@@ -138,14 +140,14 @@
 
   const revokeSession = async (session: UserSession) => {
     try {
-      await sessionsStore.revokeSession(session.id);
+      await sessionsController.revokeSession(session.id);
     } catch (error) {
       console.error('Error revoking session:', error);
     }
   };
 
   onMounted(() => {
-    sessionsStore.fetchSessions({ per_page: 15 });
+    sessionsController.fetchSessions({ per_page: 15 });
   });
 </script>
 

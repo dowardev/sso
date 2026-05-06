@@ -88,23 +88,14 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
   import { useRouter, useRoute } from 'vue-router';
-  import {
-    IonPage,
-    IonContent,
-    IonItem,
-    IonLabel,
-    IonInput,
-    IonButton,
-    IonSpinner,
-  } from '@ionic/vue';
-  import { api } from '@/services/api';
-  import { useAuthStore } from '@/stores/auth';
+  import { IonPage, IonContent, IonItem, IonLabel, IonInput, IonButton, IonSpinner } from '@ionic/vue';
+  import { useAuthController } from '@/controllers/authController';
 
   const router = useRouter();
   const route = useRoute();
-  const authStore = useAuthStore();
+  const authController = useAuthController();
 
   const form = ref({
     name: '',
@@ -145,19 +136,31 @@
     }
   });
 
-  const handleRegister = async () => {
+const handleRegister = async (): Promise<void> => {
     loading.value = true;
     error.value = '';
 
     try {
-      const data: Record<string, unknown> = {
+      await authController.register({
         name: form.value.name,
         user: form.value.user,
         email: form.value.email,
         password: form.value.password,
         password_confirmation: form.value.password_confirmation,
         client_id: oauthParams.value.client_id || undefined,
-      };
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al registrar';
+      if (typeof err === 'object' && err && 'errors' in err) {
+        const messages = Object.values((err as Record<string, unknown>).errors as Record<string, unknown>).flat().join(', ');
+        error.value = messages;
+      } else {
+        error.value = message;
+      }
+    } finally {
+      loading.value = false;
+    }
+  };
 
       await api.post('/register', data);
 

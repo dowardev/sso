@@ -14,7 +14,7 @@ export const useClientsStore = defineStore('clients', () => {
   async function fetchClients() {
     loading.value = true;
     try {
-      const response = await api.get<SsoClient[]>('/admin/clients');
+      const response = await api.get<SsoClient[]>({ endpoint: '/admin/clients' });
       clients.value = response;
       return response;
     } finally {
@@ -31,7 +31,7 @@ export const useClientsStore = defineStore('clients', () => {
   }) {
     loading.value = true;
     try {
-      const response = await api.post<SsoClient>('/admin/clients', data);
+      const response = await api.post<SsoClient>({ endpoint: '/admin/clients', data });
       clients.value = [...clients.value, response];
       return response;
     } finally {
@@ -39,19 +39,20 @@ export const useClientsStore = defineStore('clients', () => {
     }
   }
 
-  async function updateClient(
-    id: number,
+  async function updateClient(params: {
+    id: number;
     data: {
       name: string;
       client_id: string;
       client_secret?: string;
       redirect_url?: string;
       active?: boolean;
-    }
-  ) {
+    };
+  }) {
+    const { id, data } = params;
     loading.value = true;
     try {
-      const response = await api.put<SsoClient>(`/admin/clients/${id}`, data);
+      const response = await api.put<SsoClient>({ endpoint: `/admin/clients/${id}`, data });
       const index = clients.value.findIndex((c) => c.id === id);
       if (index !== -1) {
         clients.value[index] = response;
@@ -65,7 +66,7 @@ export const useClientsStore = defineStore('clients', () => {
   async function deleteClient(id: number) {
     loading.value = true;
     try {
-      await api.delete(`/admin/clients/${id}`);
+      await api.delete({ endpoint: `/admin/clients/${id}` });
       clients.value = clients.value.filter((c) => c.id !== id);
     } finally {
       loading.value = false;

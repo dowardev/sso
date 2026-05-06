@@ -83,3 +83,42 @@ function holaMundo(objeto1: string, objeto2: number) { ... }
 ```
 
 > This pattern requires TypeScript. In plain JS the inline type annotation is invalid syntax — use JSDoc `@param` instead if needed.
+
+### Frontend (Vue Components): Controller-Only Communication
+
+Vue components must **not** directly access stores or consume API services. All communication with business logic must go through **controllers**. Controllers are the sole bridge between Vue components and the rest of the application.
+
+```ts
+// ✅ Correct — component uses a controller
+import { useAuthController } from '@/controllers/authController'
+const controller = useAuthController()
+controller.login(params)
+
+// ❌ Wrong — component accesses store directly
+import { useAuthStore } from '@/stores/auth'
+const store = useAuthStore()
+
+// ❌ Wrong — component calls API service directly
+import { authApi } from '@/services/auth'
+authApi.login(params)
+```
+
+### Frontend (Vue Components): Template Structure
+
+All Vue components must follow the structure and rules defined in `guides/TemplateView.vue`. Key sections in order:
+
+**Template:**
+- `<ion-page>` as root with `<ion-header>` and `<ion-content>`
+- Content, modals, popovers, and alerts in dedicated comment-delimited sections
+
+**Script (`<script lang="ts" setup>`):**
+1. Imports (ionic/vue/ionicons)
+2. Controllers
+3. Components
+4. Interface and types imports
+5. Main (props, emits, etc.)
+6. Vars and const
+7. Watch
+8. Computed
+9. OnMounted
+10. Functions (must use named parameters pattern)

@@ -140,13 +140,13 @@
     IonSpinner,
   } from '@ionic/vue';
   import { add, desktopOutline, trash } from 'ionicons/icons';
-  import { useClientsStore } from '@/stores/clients';
+  import { useClientsController } from '@/controllers/clientsController';
   import type { SsoClient } from '@/types';
 
-  const clientsStore = useClientsStore();
+  const clientsController = useClientsController();
 
-  const clients = computed(() => clientsStore.clients);
-  const loading = computed(() => clientsStore.loading);
+  const clients = computed(() => clientsController.clients.value);
+  const loading = computed(() => clientsController.loading.value);
 
   const showModal = ref(false);
   const editingClient = ref<SsoClient | null>(null);
@@ -160,7 +160,7 @@
     active: true,
   });
 
-  const openCreateModal = () => {
+  const openCreateModal = (): void => {
     editingClient.value = null;
     clientForm.value = {
       name: '',
@@ -196,9 +196,9 @@
       };
 
       if (editingClient.value) {
-        await clientsStore.updateClient(editingClient.value.id, data);
+        await clientsController.updateClient({ id: editingClient.value.id, data });
       } else {
-        await clientsStore.createClient(data);
+        await clientsController.createClient({ data });
       }
 
       showModal.value = false;
@@ -211,14 +211,14 @@
 
   const deleteClient = async (client: SsoClient) => {
     try {
-      await clientsStore.deleteClient(client.id);
+      await clientsController.deleteClient(client.id);
     } catch (error) {
       console.error('Error deleting client:', error);
     }
   };
 
   onMounted(() => {
-    clientsStore.fetchClients();
+    clientsController.fetchClients();
   });
 </script>
 

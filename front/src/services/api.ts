@@ -39,9 +39,9 @@ const getHeaders = () => {
 };
 
 async function fetchApi<T>(
-  endpoint: string,
-  options: RequestInit = {}
+  params: { endpoint: string; options?: RequestInit }
 ): Promise<T> {
+  const { endpoint, options = {} } = params;
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers: {
@@ -61,27 +61,32 @@ async function fetchApi<T>(
 }
 
 export const api = {
-  get: <T>(endpoint: string, headers?: Record<string, string>) =>
-    fetchApi<T>(endpoint, { headers }),
-  post: <T>(
-    endpoint: string,
-    data?: unknown,
-    extraHeaders?: Record<string, string>
-  ) =>
-    fetchApi<T>(endpoint, {
-      method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
-      headers: extraHeaders,
+  get: <T>(params: { endpoint: string; headers?: Record<string, string> }) =>
+    fetchApi<T>({ endpoint: params.endpoint, options: { headers: params.headers } }),
+  post: <T>(params: { endpoint: string; data?: unknown; extraHeaders?: Record<string, string> }) =>
+    fetchApi<T>({
+      endpoint: params.endpoint,
+      options: {
+        method: 'POST',
+        body: params.data ? JSON.stringify(params.data) : undefined,
+        headers: params.extraHeaders,
+      },
     }),
-  put: <T>(endpoint: string, data: unknown, headers?: Record<string, string>) =>
-    fetchApi<T>(endpoint, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-      headers,
+  put: <T>(params: { endpoint: string; data: unknown; headers?: Record<string, string> }) =>
+    fetchApi<T>({
+      endpoint: params.endpoint,
+      options: {
+        method: 'PUT',
+        body: JSON.stringify(params.data),
+        headers: params.headers,
+      },
     }),
-  delete: <T>(endpoint: string, headers?: Record<string, string>) =>
-    fetchApi<T>(endpoint, {
-      method: 'DELETE',
-      headers,
+  delete: <T>(params: { endpoint: string; headers?: Record<string, string> }) =>
+    fetchApi<T>({
+      endpoint: params.endpoint,
+      options: {
+        method: 'DELETE',
+        headers: params.headers,
+      },
     }),
 };

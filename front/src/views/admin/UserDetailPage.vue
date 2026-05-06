@@ -219,7 +219,7 @@
                       v-model="assignment.role_id"
                       :disabled="assignment.slug === 'admin' && !isAdmin"
                       placeholder="Seleccionar rol"
-                      @ion-change="onRoleChange(index, $event.detail.value)"
+                      @ion-change="onRoleChange({ index, roleId: $event.detail.value })"
                     >
                       <ion-select-option
                         v-for="role in availableRoles"
@@ -237,7 +237,7 @@
                     <ion-select
                       v-model="assignment.sso_client_id"
                       placeholder="Global (todas las apps)"
-                      @ion-change="onClientChange(index, $event.detail.value)"
+                      @ion-change="onClientChange({ index, clientId: $event.detail.value })"
                     >
                       <ion-select-option :value="null"
                         >Global (todas las apps)</ion-select-option
@@ -325,38 +325,37 @@
     shieldOutline,
     add,
   } from 'ionicons/icons';
-  import { useUsersStore } from '@/stores/users';
-  import { useSessionsStore } from '@/stores/sessions';
-  import { useClientsStore } from '@/stores/clients';
-  import { useRolesStore } from '@/stores/roles';
-  import { useAuthStore } from '@/stores/auth';
+import { useUsersController } from '@/controllers/usersController';
+  import { useSessionsController } from '@/controllers/sessionsController';
+  import { useClientsController } from '@/controllers/clientsController';
+  import { useRolesController } from '@/controllers/rolesController';
+  import { useAuthController } from '@/controllers/authController';
   import type { UserDetail, UserSession, Role, SsoClient } from '@/types';
 
   const route = useRoute();
   const router = useRouter();
 
-  const usersStore = useUsersStore();
-  const sessionsStore = useSessionsStore();
-  const clientsStore = useClientsStore();
-  const rolesStore = useRolesStore();
-  const authStore = useAuthStore();
+  const usersController = useUsersController();
+  const sessionsController = useSessionsController();
+  const clientsController = useClientsController();
+  const rolesController = useRolesController();
+  const authController = useAuthController();
 
-  const user = computed(() => usersStore.selectedUser);
+  const user = computed(() => usersController.selectedUser.value);
   const sessions = computed(() => user.value?.sessions || []);
-  const loading = computed(() => usersStore.loading);
+  const loading = computed(() => usersController.loading.value);
   const updating = ref(false);
   const showEditModal = ref(false);
 
-  const availableRoles = computed(() => rolesStore.roles);
-  const availableClients = computed(() => clientsStore.clients);
-  const userRoles = computed(() => usersStore.userRoles);
+  const availableRoles = computed(() => rolesController.roles.value);
+  const availableClients = computed(() => clientsController.clients.value);
+  const userRoles = computed(() => usersController.userRoles.value);
   const roleAssignments = computed({
-    get: () => usersStore.roleAssignments,
-    set: (value) => { usersStore.roleAssignments = value; },
+    get: () => usersController.roleAssignments.value,
+    set: (value) => { usersController.roleAssignments.value = value; },
   });
-  const showRolesModal = ref(false);
-  const savingRoles = ref(false);
-  const isAdmin = computed(() => authStore.user?.is_admin || false);
+
+  const isAdmin = computed(() => authController.user.value?.is_admin || false);
 
   const editForm = ref({
     name: '',
@@ -369,7 +368,7 @@
 
   const loadUser = async () => {
     try {
-      const response = await usersStore.fetchUser(userId);
+      const response = await usersController.fetchUser(userId);
       editForm.value = {
         name: response.name,
         user: response.user,
@@ -417,7 +416,7 @@
         data.password = editForm.value.password;
       }
 
-      await usersStore.updateUser(userId, data);
+      await usersController.updateUser({ id: userId, data });
       showEditModal.value = false;
     } catch (error) {
       console.error('Error updating user:', error);
@@ -428,7 +427,7 @@
 
   const revokeSession = async (session: UserSession) => {
     try {
-      await sessionsStore.revokeSession(session.id);
+      await sessionsController.revokeSession(session.id);
       if (user.value) {
         user.value.active_tokens_count--;
       }
@@ -439,7 +438,7 @@
 
   const revokeAllSessions = async () => {
     try {
-      await usersStore.revokeUserSessions(userId);
+      await usersController.revokeUserSessions(userId);
     } catch (error) {
       console.error('Error revoking sessions:', error);
     }
@@ -448,11 +447,13 @@
   const openRolesModal = async () => {
     try {
       await Promise.all([
-        rolesStore.fetchRoles(),
-        clientsStore.fetchClients(),
-        usersStore.fetchUserRoles(userId),
+rolesController.fetchRoles(),
+
+        clientsController.fetchClients(),
+
+        usersController.fetchUserRoles(userId),
       ]);
-      roleAssignments.value = usersStore.userRoles.map((r) => ({
+      roleAssignments.value = usersController.userRoles.value.map((r: { id: number; sso_client_id: number | null; name: string; slug: string }) => ({
         role_id: r.id,
         sso_client_id: r.sso_client_id,
         name: r.name,
@@ -475,7 +476,8 @@
     roleAssignments.value.splice(index, 1);
   };
 
-  const onRoleChange = (index: number, roleId: number) => {
+  const onRoleChange = (params: { index: number; roleId: number }) => {
+    const { index, roleId } = params;
     const role = availableRoles.value.find((r) => r.id === roleId);
     if (role) {
       roleAssignments.value[index].name = role.name;
@@ -483,7 +485,8 @@
     }
   };
 
-  const onClientChange = (index: number, clientId: number | null) => {
+  const onClientChange = (params: { index: number; clientId: number | null }) => {
+    const { index, clientId } = params;
     roleAssignments.value[index].sso_client_id = clientId;
   };
 
@@ -504,7 +507,7 @@
         sso_client_id: a.sso_client_id,
       }));
 
-      await usersStore.saveUserRoles(userId, rolesToSave);
+      await usersController.saveUserRoles({ id: userId, assignments: rolesToSave });
       showRolesModal.value = false;
     } catch (error) {
       console.error('Error saving roles:', error);

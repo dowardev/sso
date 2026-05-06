@@ -186,15 +186,15 @@
     pricetag,
     time,
   } from 'ionicons/icons';
-  import { useUsersStore } from '@/stores/users';
-  import { useSessionsStore } from '@/stores/sessions';
-  import { useClientsStore } from '@/stores/clients';
+  import { useUsersController } from '@/controllers/usersController';
+  import { useSessionsController } from '@/controllers/sessionsController';
+  import { useClientsController } from '@/controllers/clientsController';
 
   const router = useRouter();
 
-  const usersStore = useUsersStore();
-  const sessionsStore = useSessionsStore();
-  const clientsStore = useClientsStore();
+  const usersController = useUsersController();
+  const sessionsController = useSessionsController();
+  const clientsController = useClientsController();
 
   const loading = ref(true);
 
@@ -210,22 +210,24 @@
   });
 
   const stats = computed(() => ({
-    totalUsers: usersStore.pagination.total,
-    activeSessions: sessionsStore.activeCount,
-    totalClients: clientsStore.count,
+    totalUsers: usersController.pagination.value.total,
+    activeSessions: sessionsController.activeCount.value,
+    totalClients: clientsController.count.value,
   }));
 
   const isLoading = computed(() => {
-    return usersStore.loading || sessionsStore.loading || clientsStore.loading;
+    return usersController.loading.value || sessionsController.loading.value || clientsController.loading.value;
   });
 
   onMounted(async () => {
     loading.value = true;
     try {
       await Promise.all([
-        usersStore.fetchUsers({ per_page: 1 }),
-        sessionsStore.fetchSessions({ per_page: 1, active: true }),
-        clientsStore.fetchClients(),
+usersController.fetchUsers({ per_page: 1 }),
+
+        sessionsController.fetchSessions({ per_page: 1, active: true }),
+
+        clientsController.fetchClients(),
       ]);
     } catch (error) {
       console.error('Error loading stats:', error);

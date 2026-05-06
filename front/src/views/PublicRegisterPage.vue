@@ -120,13 +120,11 @@
     IonIcon,
   } from '@ionic/vue';
   import { arrowBack } from 'ionicons/icons';
-  import { api } from '@/services/api';
-  import { useAuthStore } from '@/stores/auth';
-  import { dpopService } from '@/services/dpopService';
+  import { useAuthController } from '@/controllers/authController';
 
   const router = useRouter();
   const route = useRoute();
-  const authStore = useAuthStore();
+  const authController = useAuthController();
 
   interface ApiValidationError {
     errors: Record<string, string[]>;
@@ -171,19 +169,41 @@
     }
   });
 
-  const handleRegister = async (): Promise<void> => {
+const handleRegister = async (): Promise<void> => {
     loading.value = true;
     error.value = '';
 
     try {
-      const data: Record<string, unknown> = {
+      await authController.register({
         name: form.value.name,
         user: form.value.user,
         email: form.value.email,
         password: form.value.password,
         password_confirmation: form.value.password_confirmation,
         client_id: oauthParams.value.client_id || undefined,
-      };
+      });
+
+      if (!oauthParams.value.client_id) {
+        router.replace({ name: 'AuthLogin', query: { registered: 'true' } });
+      }
+    } catch (err: unknown) {
+      if (
+        err instanceof Error &&
+        'errors' in err &&
+        typeof (err as unknown as ApiValidationError).errors === 'object'
+      ) {
+        const validationErr = err as unknown as ApiValidationError;
+        const messages = Object.values(validationErr.errors).flat().join(', ');
+        error.value = messages;
+      } else if (err instanceof Error) {
+        error.value = err.message;
+      } else {
+        error.value = 'Error al registrar';
+      }
+    } finally {
+      loading.value = false;
+    }
+  };
 
       await api.post('/register', data);
 

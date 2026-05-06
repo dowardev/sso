@@ -34,9 +34,9 @@ export const useUsersStore = defineStore('users', () => {
       if (params?.per_page) queryParams.set('per_page', String(params.per_page));
       if (params?.search) queryParams.set('search', params.search);
 
-      const response = await api.get<PaginatedResponse<User>>(
-        `/admin/users?${queryParams.toString()}`
-      );
+      const response = await api.get<PaginatedResponse<User>>({
+        endpoint: `/admin/users?${queryParams.toString()}`,
+      });
 
       if (params?.page && params.page > 1) {
         users.value = [...users.value, ...response.data];
@@ -58,7 +58,7 @@ export const useUsersStore = defineStore('users', () => {
   async function fetchUser(id: number) {
     loading.value = true;
     try {
-      const response = await api.get<UserDetail>(`/admin/users/${id}`);
+      const response = await api.get<UserDetail>({ endpoint: `/admin/users/${id}` });
       selectedUser.value = response;
       return response;
     } finally {
@@ -66,10 +66,11 @@ export const useUsersStore = defineStore('users', () => {
     }
   }
 
-  async function updateUser(id: number, data: { name: string; user: string; email: string; password?: string }) {
+  async function updateUser(params: { id: number; data: { name: string; user: string; email: string; password?: string } }) {
+    const { id, data } = params;
     loading.value = true;
     try {
-      const response = await api.put<UserDetail>(`/admin/users/${id}`, data);
+      const response = await api.put<UserDetail>({ endpoint: `/admin/users/${id}`, data });
       selectedUser.value = response;
       const index = users.value.findIndex((u) => u.id === id);
       if (index !== -1) {
@@ -84,7 +85,7 @@ export const useUsersStore = defineStore('users', () => {
   async function toggleAdmin(id: number) {
     loading.value = true;
     try {
-      const response = await api.post<{ is_admin: boolean }>(`/admin/users/${id}/toggle`);
+      const response = await api.post<{ is_admin: boolean }>({ endpoint: `/admin/users/${id}/toggle` });
       const index = users.value.findIndex((u) => u.id === id);
       if (index !== -1) {
         users.value[index].is_admin = response.is_admin;
@@ -101,7 +102,7 @@ export const useUsersStore = defineStore('users', () => {
   async function deleteUser(id: number) {
     loading.value = true;
     try {
-      await api.delete(`/admin/users/${id}`);
+      await api.delete({ endpoint: `/admin/users/${id}` });
       users.value = users.value.filter((u) => u.id !== id);
       if (selectedUser.value?.id === id) {
         selectedUser.value = null;
@@ -114,7 +115,7 @@ export const useUsersStore = defineStore('users', () => {
   async function fetchUserRoles(id: number) {
     loading.value = true;
     try {
-      const response = await api.get<UserRole[]>(`/admin/users/${id}/roles`);
+      const response = await api.get<UserRole[]>({ endpoint: `/admin/users/${id}/roles` });
       userRoles.value = response;
       roleAssignments.value = response.map((r) => ({
         role_id: r.id,
@@ -128,10 +129,11 @@ export const useUsersStore = defineStore('users', () => {
     }
   }
 
-  async function saveUserRoles(id: number, assignments: { role_id: number; sso_client_id: number | null }[]) {
+  async function saveUserRoles(params: { id: number; assignments: { role_id: number; sso_client_id: number | null }[] }) {
+    const { id, assignments } = params;
     loading.value = true;
     try {
-      const response = await api.put<UserRole[]>(`/admin/users/${id}/roles`, { roles: assignments });
+      const response = await api.put<UserRole[]>({ endpoint: `/admin/users/${id}/roles`, data: { roles: assignments } });
       userRoles.value = response;
       roleAssignments.value = response.map((r) => ({
         role_id: r.id,
@@ -148,7 +150,7 @@ export const useUsersStore = defineStore('users', () => {
   async function revokeUserSessions(id: number) {
     loading.value = true;
     try {
-      await api.delete(`/admin/users/${id}/sessions`);
+      await api.delete({ endpoint: `/admin/users/${id}/sessions` });
       if (selectedUser.value) {
         selectedUser.value.sessions = [];
         selectedUser.value.active_tokens_count = 0;

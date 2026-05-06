@@ -99,13 +99,11 @@
     IonIcon,
   } from '@ionic/vue';
   import { arrowBack } from 'ionicons/icons';
-  import { useAuthStore } from '@/stores/auth';
-  import { api } from '@/services/api';
-  import { dpopService } from '@/services/dpopService';
+  import { useAuthController } from '@/controllers/authController';
 
   const router = useRouter();
   const route = useRoute();
-  const authStore = useAuthStore();
+  const authController = useAuthController();
 
   const credentials = ref({
     user: '',
@@ -143,19 +141,27 @@
     }
   });
 
-  const handleLogin = async () => {
+const handleLogin = async (): Promise<void> => {
     loading.value = true;
     error.value = '';
 
     try {
-      await authStore.login({
+      await authController.login({
         user: credentials.value.user,
         password: credentials.value.password,
         client_id: oauthParams.value.client_id || undefined,
       });
 
       if (isOAuthFlow.value) {
-        await handleOAuthAuthorize();
+        await authController.oauthAuthorize({
+          client_id: oauthParams.value.client_id,
+          redirect_uri: oauthParams.value.redirect_uri,
+          state: oauthParams.value.state,
+          response_type: oauthParams.value.response_type || 'code',
+          code_challenge: oauthParams.value.code_challenge || undefined,
+          code_challenge_method: oauthParams.value.code_challenge_method || undefined,
+          code_verifier: oauthParams.value.code_verifier || undefined,
+        });
       } else {
         router.replace('/admin/dashboard');
       }

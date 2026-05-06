@@ -32,9 +32,9 @@ export const useSessionsStore = defineStore('sessions', () => {
       if (params?.per_page) queryParams.set('per_page', String(params.per_page));
       if (params?.active !== undefined) queryParams.set('active', params.active ? '1' : '0');
 
-      const response = await api.get<PaginatedResponse<UserSession>>(
-        `/admin/sessions?${queryParams.toString()}`
-      );
+      const response = await api.get<PaginatedResponse<UserSession>>({
+        endpoint: `/admin/sessions?${queryParams.toString()}`,
+      });
 
       if (params?.page && params.page > 1) {
         sessions.value = [...sessions.value, ...response.data];
@@ -56,7 +56,7 @@ export const useSessionsStore = defineStore('sessions', () => {
   async function revokeSession(id: number) {
     loading.value = true;
     try {
-      await api.delete(`/admin/sessions/${id}`);
+      await api.delete({ endpoint: `/admin/sessions/${id}` });
       sessions.value = sessions.value.filter((s) => s.id !== id);
     } finally {
       loading.value = false;

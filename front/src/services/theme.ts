@@ -65,7 +65,8 @@ function getInitialTheme(): ThemeName {
   return 'auto';
 }
 
-function getStoredAutoTheme(key: string, fallback: ResolvedThemeName): ResolvedThemeName {
+function getStoredAutoTheme(params: { key: string; fallback: ResolvedThemeName }): ResolvedThemeName {
+  const { key, fallback } = params;
   if (typeof localStorage !== 'undefined') {
     const stored = localStorage.getItem(key);
     if (stored && themes.find(t => t.name === stored && t.name !== 'auto')) {
@@ -76,8 +77,8 @@ function getStoredAutoTheme(key: string, fallback: ResolvedThemeName): ResolvedT
 }
 
 const currentThemeName = ref<ThemeName>(getInitialTheme());
-const autoLightTheme = ref<ResolvedThemeName>(getStoredAutoTheme(STORAGE_KEY_AUTO_LIGHT, 'light'));
-const autoDarkTheme = ref<ResolvedThemeName>(getStoredAutoTheme(STORAGE_KEY_AUTO_DARK, 'dark'));
+const autoLightTheme = ref<ResolvedThemeName>(getStoredAutoTheme({ key: STORAGE_KEY_AUTO_LIGHT, fallback: 'light' }));
+const autoDarkTheme = ref<ResolvedThemeName>(getStoredAutoTheme({ key: STORAGE_KEY_AUTO_DARK, fallback: 'dark' }));
 
 const themeClasses = ['dark', 'catppuccin-latte-maroon', 'catppuccin-macchiato-maroon'];
 
