@@ -1,58 +1,85 @@
 <template>
   <ion-page>
-    <ion-content :fullscreen="true" class="login-content">
+    <ion-content :fullscreen="true">
       <div class="login-container">
-        <div class="login-header">
-          <h1>SSO Admin</h1>
-          <p>Ingresa tus credenciales</p>
-        </div>
-
-        <form class="login-form" @submit.prevent="handleLogin">
-          <ion-item>
-            <ion-label position="stacked">Usuario / Email</ion-label>
-            <ion-input
-              v-model="credentials.user"
-              type="text"
-              required
-              placeholder="Ingresa tu usuario"
-            ></ion-input>
-          </ion-item>
-
-          <ion-item>
-            <ion-label position="stacked">Contraseña</ion-label>
-            <ion-input
-              v-model="credentials.password"
-              type="password"
-              required
-              placeholder="Ingresa tu contraseña"
-            ></ion-input>
-          </ion-item>
-
-          <div v-if="error" class="error-message">
-            {{ error }}
+        <div class="login-card">
+          <div class="logo-section">
+            <img
+              alt="SSO Logo"
+              src="@/assets/images/lambda_v1.svg"
+              class="logo-image"
+            />
+            <h1 class="login-title">Iniciar Sesión</h1>
+            <p class="login-subtitle">Accede a tu cuenta</p>
           </div>
 
-          <ion-button
-            type="submit"
-            expand="block"
-            :disabled="loading"
-            class="login-button"
-          >
-            <ion-spinner v-if="loading" name="lines"></ion-spinner>
-            <span v-else>Ingresar</span>
-          </ion-button>
+          <form @submit.prevent="handleLogin" class="login-form">
+            <ion-item lines="full" class="form-item">
+              <ion-input
+                v-model="credentials.user"
+                label-placement="floating"
+                label="Usuario / Email"
+                type="text"
+                required
+                placeholder="Ingresa tu usuario"
+              ></ion-input>
+            </ion-item>
 
-          <ion-button
-            v-if="oauthParams.redirect_uri"
-            fill="clear"
-            expand="block"
-            :disabled="loading"
-            class="register-link"
-            @click="goToRegister"
-          >
-            Crear cuenta
-          </ion-button>
-        </form>
+            <ion-item lines="full" class="form-item">
+              <ion-input
+                v-model="credentials.password"
+                label="Contraseña"
+                label-placement="floating"
+                type="password"
+                required
+                placeholder="Ingresa tu contraseña"
+              ></ion-input>
+            </ion-item>
+
+            <div v-if="error" class="error-message">
+              {{ error }}
+            </div>
+
+            <div class="ion-padding-top">
+              <ion-button
+                type="submit"
+                expand="block"
+                :disabled="loading"
+                class="submit-button"
+              >
+                <ion-spinner v-if="loading" name="lines"></ion-spinner>
+                <span v-else>Ingresar</span>
+              </ion-button>
+            </div>
+
+            <div class="auth-links">
+              <ion-button
+                v-if="oauthParams.redirect_uri"
+                fill="clear"
+                expand="block"
+                :disabled="loading"
+                @click="goToRegister"
+              >
+                ¿Olvidaste tu contraseña?
+              </ion-button>
+
+              <ion-button
+                v-if="oauthParams.redirect_uri"
+                fill="clear"
+                expand="block"
+                :disabled="loading"
+                @click="goToRegister"
+              >
+                Crear cuenta
+              </ion-button>
+            </div>
+          </form>
+        </div>
+
+        <ion-button class="back-button" fill="clear" size="small" @click="goBack">
+          <ion-icon slot="start" :icon="arrowBack"></ion-icon>
+          Volver
+        </ion-button>
       </div>
     </ion-content>
   </ion-page>
@@ -64,14 +91,17 @@
   import {
     IonPage,
     IonContent,
+    IonCard,
     IonItem,
-    IonLabel,
     IonInput,
     IonButton,
     IonSpinner,
+    IonIcon,
   } from '@ionic/vue';
+  import { arrowBack } from 'ionicons/icons';
   import { auth } from '@/services/auth';
   import { api } from '@/services/api';
+  import { dpopService } from '@/services/dpopService';
 
   const router = useRouter();
   const route = useRoute();
@@ -128,8 +158,12 @@
       } else {
         router.replace('/admin/dashboard');
       }
-    } catch (err: any) {
-      error.value = err.message || 'Error al iniciar sesión';
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        error.value = err.message;
+      } else {
+        error.value = 'Error al iniciar sesión';
+      }
     } finally {
       loading.value = false;
     }
@@ -137,6 +171,21 @@
 
   const handleOAuthAuthorize = async () => {
     try {
+      const token = auth.getToken();
+      if (!token) {
+        error.value = 'Token no disponible';
+        return;
+      }
+
+      const ssoUrl =
+        import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
+      const dpopProof = await dpopService.createDpopProof(
+        'POST',
+        `${ssoUrl}/oauth/authorize`,
+        token
+      );
+      const publicKeyJwk = dpopService.getPublicKeyJwk();
+
       const response = await api.post<{ code: string; state: string | null }>(
         '/oauth/authorize',
         {
@@ -146,13 +195,19 @@
           ...(oauthParams.value.code_challenge
             ? {
                 code_challenge: oauthParams.value.code_challenge,
-                code_challenge_method: oauthParams.value.code_challenge_method,
+                code_challenge_method: oauthParams.value.code_challenge_method || 'S256',
               }
             : {}),
           ...(oauthParams.value.code_verifier
             ? {
                 code_verifier: oauthParams.value.code_verifier,
               }
+            : {}),
+        },
+        {
+          DPoP: dpopProof,
+          ...(publicKeyJwk
+            ? { 'DPoP-Public-Key': JSON.stringify(publicKeyJwk) }
             : {}),
         }
       );
@@ -163,86 +218,150 @@
         params.set('state', response.state);
       }
       window.location.href = `${oauthParams.value.redirect_uri}?${params.toString()}`;
-    } catch (err: any) {
-      error.value = err.message || 'Error en la autorización';
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        error.value = err.message;
+      } else {
+        error.value = 'Error en la autorización';
+      }
     }
   };
 
   const goToRegister = () => {
-    const params = new URLSearchParams();
-    params.set('client_id', oauthParams.value.client_id);
-    params.set('redirect_uri', oauthParams.value.redirect_uri);
+    const query: Record<string, string> = {
+      client_id: oauthParams.value.client_id,
+      redirect_uri: oauthParams.value.redirect_uri,
+      response_type: oauthParams.value.response_type || 'code',
+    };
     if (oauthParams.value.state) {
-      params.set('state', oauthParams.value.state);
+      query.state = oauthParams.value.state;
     }
-    params.set('response_type', oauthParams.value.response_type || 'code');
     if (oauthParams.value.code_challenge) {
-      params.set('code_challenge', oauthParams.value.code_challenge);
-      params.set('code_challenge_method', oauthParams.value.code_challenge_method);
+      query.code_challenge = oauthParams.value.code_challenge;
+      query.code_challenge_method = oauthParams.value.code_challenge_method;
     }
     if (oauthParams.value.code_verifier) {
-      params.set('code_verifier', oauthParams.value.code_verifier);
+      query.code_verifier = oauthParams.value.code_verifier;
     }
-    router.push(`/register?${params.toString()}`);
+    router.push({ name: 'AdminRegister', query });
+  };
+
+  const goBack = (): void => {
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
   };
 </script>
 
 <style scoped>
-  .login-content {
-    --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+.login-container {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--gradient-primary);
+}
 
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--background-contrast);
+  border-radius: var(--card-border-radius);
+  box-shadow: var(--card-shadow-light) 0px 8px 24px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
+  padding: 32px 24px;
+}
+
+.logo-section {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.logo-image {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 16px;
+}
+
+.login-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.login-subtitle {
+  margin: 8px 0 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-item {
+  --background: var(--ion-color-light);
+  --border-radius: 8px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+}
+
+.error-message {
+  color: var(--ion-color-danger);
+  text-align: center;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.submit-button {
+  --border-radius: 8px;
+  height: 48px;
+  font-weight: 600;
+}
+
+.auth-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.auth-links ion-button {
+  --color: var(--ion-color-primary);
+  font-size: 14px;
+}
+
+.back-button {
+  margin-top: 24px;
+  --color: white;
+}
+
+.back-button ion-icon {
+  margin-right: 4px;
+}
+
+@media (min-width: 768px) {
   .login-container {
-    width: 100%;
-    max-width: 400px;
-    padding: 24px;
+    padding: 48px;
   }
 
-  .login-header {
-    text-align: center;
-    color: white;
-    margin-bottom: 32px;
+  .login-card {
+    padding: 40px 32px;
   }
 
-  .login-header h1 {
-    margin: 0;
-    font-size: 32px;
-    font-weight: bold;
+  .logo-image {
+    width: 96px;
+    height: 96px;
   }
 
-  .login-header p {
-    margin: 8px 0 0;
-    opacity: 0.9;
+  .login-title {
+    font-size: 28px;
   }
-
-  .login-form {
-    background: white;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  }
-
-  .login-form ion-item {
-    --background: transparent;
-    margin-bottom: 16px;
-  }
-
-  .login-button {
-    margin-top: 16px;
-    --border-radius: 8px;
-  }
-
-  .register-link {
-    margin-top: 8px;
-  }
-
-  .error-message {
-    color: var(--ion-color-danger);
-    text-align: center;
-    margin: 8px 0;
-    font-size: 14px;
-  }
+}
 </style>

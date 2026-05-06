@@ -112,4 +112,9 @@ body.dark {
   --card-shadow-light: rgba(255, 255, 255, 0.03);
   --card-shadow-heavy: rgba(255, 255, 255, 0.1);
   --card-shadow-subtle: rgba(255, 255, 255, 0.08);
+
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+  --system-status-bg: var(--ion-background-color);
 }

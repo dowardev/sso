@@ -112,4 +112,16 @@ body.catppuccin-macchiato-maroon {
   --card-shadow-light: rgba(244, 219, 214, 0.05);
   --card-shadow-heavy: rgba(35, 35, 56, 0.3);
   --card-shadow-subtle: rgba(244, 219, 214, 0.08);
+
+  --gradient-primary: linear-gradient(135deg, #ee99a0 0%, #c9a9f6 100%);
+  --gradient-success: linear-gradient(135deg, #a6da95 0%, #8fd3a8 100%);
+  --gradient-info: linear-gradient(135deg, #8aadf4 0%, #7fc4f0 100%);
+  --gradient-warning: linear-gradient(135deg, #eed49f 0%, #d4a77d 100%);
+  --gradient-users: linear-gradient(135deg, #ee99a0 0%, #c9a9f6 100%);
+  --gradient-sessions: linear-gradient(135deg, #a6da95 0%, #8fd3a8 100%);
+  --gradient-clients: linear-gradient(135deg, #8aadf4 0%, #7fc4f0 100%);
+  --text-primary: #f4dbd6;
+  --text-secondary: #b8b8c8;
+  --text-tertiary: #6e6e8a;
+  --system-status-bg: var(--ion-background-color);
 }

@@ -1,116 +1,108 @@
 <template>
   <ion-page>
     <ion-content :fullscreen="true">
-      <ion-grid class="login-grid">
-        <ion-row class="ion-justify-content-center">
-          <ion-col size="12" size-sm="10" size-md="8" size-lg="6" size-xl="4">
-            <ion-card class="shadow1">
-              <img
-                alt="Silhouette of mountains"
-                src="@/assets/images/lambda_v1.svg"
-              />
+      <div class="register-container">
+        <div class="register-card">
+          <div class="logo-section">
+            <img
+              alt="SSO Logo"
+              src="@/assets/images/lambda_v1.svg"
+              class="logo-image"
+            />
+            <h1 class="register-title">Crear Cuenta</h1>
+            <p class="register-subtitle">Regístrate para acceder</p>
+          </div>
 
-              <ion-card-header>
-                <ion-card-title>Crear Cuenta</ion-card-title>
-                <ion-card-subtitle> Regístrate para acceder </ion-card-subtitle>
-              </ion-card-header>
+          <form @submit.prevent="handleRegister" class="register-form">
+            <ion-item lines="full" class="form-item">
+              <ion-input
+                v-model="form.name"
+                label="Nombre"
+                label-placement="floating"
+                type="text"
+                required
+                placeholder="Ingresa tu nombre"
+              ></ion-input>
+            </ion-item>
 
-              <ion-card-content>
-                <div>
-                  <form @submit.prevent="handleRegister">
-                    <ion-item lines="full">
-                      <ion-input
-                        v-model="form.name"
-                        label="Nombre"
-                        label-placement="floating"
-                        type="text"
-                        required
-                        placeholder="Ingresa tu nombre"
-                      ></ion-input>
-                    </ion-item>
+            <ion-item lines="full" class="form-item">
+              <ion-input
+                v-model="form.user"
+                label="Usuario"
+                label-placement="floating"
+                type="text"
+                required
+                placeholder="Ingresa tu usuario"
+              ></ion-input>
+            </ion-item>
 
-                    <ion-item lines="full">
-                      <ion-input
-                        v-model="form.user"
-                        label="Usuario"
-                        label-placement="floating"
-                        type="text"
-                        required
-                        placeholder="Ingresa tu usuario"
-                      ></ion-input>
-                    </ion-item>
+            <ion-item lines="full" class="form-item">
+              <ion-input
+                v-model="form.email"
+                label="Email"
+                label-placement="floating"
+                type="email"
+                required
+                placeholder="Ingresa tu email"
+              ></ion-input>
+            </ion-item>
 
-                    <ion-item lines="full">
-                      <ion-input
-                        v-model="form.email"
-                        label="Email"
-                        label-placement="floating"
-                        type="email"
-                        required
-                        placeholder="Ingresa tu email"
-                      ></ion-input>
-                    </ion-item>
+            <ion-item lines="full" class="form-item">
+              <ion-input
+                v-model="form.password"
+                label="Contraseña"
+                label-placement="floating"
+                type="password"
+                required
+                placeholder="Ingresa tu contraseña"
+              ></ion-input>
+            </ion-item>
 
-                    <ion-item lines="full">
-                      <ion-input
-                        v-model="form.password"
-                        label="Contraseña"
-                        label-placement="floating"
-                        type="password"
-                        required
-                        placeholder="Ingresa tu contraseña"
-                      ></ion-input>
-                    </ion-item>
+            <ion-item lines="full" class="form-item">
+              <ion-input
+                v-model="form.password_confirmation"
+                label="Confirmar contraseña"
+                label-placement="floating"
+                type="password"
+                required
+                placeholder="Confirma tu contraseña"
+              ></ion-input>
+            </ion-item>
 
-                    <ion-item lines="full">
-                      <ion-input
-                        v-model="form.password_confirmation"
-                        label="Confirmar contraseña"
-                        label-placement="floating"
-                        type="password"
-                        required
-                        placeholder="Confirma tu contraseña"
-                      ></ion-input>
-                    </ion-item>
+            <div v-if="error" class="error-message">
+              {{ error }}
+            </div>
 
-                    <div v-if="error" class="error-message">
-                      {{ error }}
-                    </div>
+            <div class="ion-padding-top">
+              <ion-button
+                type="submit"
+                expand="block"
+                :disabled="loading"
+                class="submit-button"
+              >
+                <ion-spinner v-if="loading" name="lines"></ion-spinner>
+                <span v-else>Registrar</span>
+              </ion-button>
+            </div>
 
-                    <div class="ion-padding-top">
-                      <ion-button
-                        type="submit"
-                        expand="block"
-                        :disabled="loading"
-                        class="no-shadow"
-                      >
-                        <ion-spinner v-if="loading" name="lines"></ion-spinner>
-                        <span v-else>Registrar</span>
-                      </ion-button>
-                    </div>
+            <div class="auth-links">
+              <ion-button
+                fill="clear"
+                expand="block"
+                :disabled="loading"
+                @click="goToLogin"
+              >
+                Ya tengo cuenta
+              </ion-button>
+            </div>
+          </form>
+        </div>
 
-                    <section>
-                      <ion-button
-                        fill="clear"
-                        expand="block"
-                        :disabled="loading"
-                        @click="goToLogin"
-                      >
-                        Ya tengo cuenta
-                      </ion-button>
-                    </section>
-                  </form>
-                </div>
-              </ion-card-content>
-            </ion-card>
-
-            <ion-button expand="full" fill="clear" size="small" @click="goBack">
-              <ion-icon slot="start" :icon="arrowBack"></ion-icon>
-              Volver
-            </ion-button>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
+        <ion-button class="back-button" fill="clear" size="small" @click="goBack">
+          <ion-icon slot="start" :icon="arrowBack"></ion-icon>
+          Volver
+        </ion-button>
+      </div>
     </ion-content>
   </ion-page>
 </template>
@@ -320,17 +312,112 @@
 </script>
 
 <style scoped>
-  .login-grid {
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+.register-container {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--gradient-primary);
+}
+
+.register-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--background-contrast);
+  border-radius: var(--card-border-radius);
+  box-shadow: var(--card-shadow-light) 0px 8px 24px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
+  padding: 32px 24px;
+}
+
+.logo-section {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.logo-image {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 16px;
+}
+
+.register-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.register-subtitle {
+  margin: 8px 0 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-item {
+  --background: var(--ion-color-light);
+  --border-radius: 8px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+}
+
+.error-message {
+  color: var(--ion-color-danger);
+  text-align: center;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.submit-button {
+  --border-radius: 8px;
+  height: 48px;
+  font-weight: 600;
+}
+
+.auth-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.auth-links ion-button {
+  --color: var(--ion-color-primary);
+  font-size: 14px;
+}
+
+.back-button {
+  margin-top: 24px;
+  --color: white;
+}
+
+.back-button ion-icon {
+  margin-right: 4px;
+}
+
+@media (min-width: 768px) {
+  .register-container {
+    padding: 48px;
   }
 
-  .error-message {
-    color: #e74c3c;
-    text-align: center;
-    margin: 8px 0;
-    font-size: 14px;
+  .register-card {
+    padding: 40px 32px;
   }
+
+  .logo-image {
+    width: 96px;
+    height: 96px;
+  }
+
+  .register-title {
+    font-size: 28px;
+  }
+}
 </style>

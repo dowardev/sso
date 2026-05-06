@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <ion-header>
+    <ion-header class="ion-no-border" mode="ios">
       <ion-toolbar>
         <ion-buttons slot="start">
           <ion-menu-button></ion-menu-button>
@@ -15,51 +15,56 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <div v-if="loading" class="loading-container">
-        <ion-spinner name="lines"></ion-spinner>
-      </div>
-
-      <div v-else-if="roles.length === 0" class="empty-container">
-        <ion-icon :icon="shieldOutline" size="large"></ion-icon>
-        <p>No se encontraron roles</p>
-      </div>
-
-      <ion-list v-else>
-        <ion-item v-for="role in roles" :key="role.id">
-          <ion-icon
-            slot="start"
-            :icon="shieldOutline"
-            :color="role.is_protected ? 'warning' : 'primary'"
-          ></ion-icon>
-          <ion-label>
-            <h2>{{ role.name }}</h2>
-            <p>{{ role.description || 'Sin descripción' }}</p>
-          </ion-label>
-          <div slot="end" class="role-badges">
-            <ion-badge v-if="role.is_protected" color="warning"
-              >Protegido</ion-badge
-            >
-            <ion-badge color="medium"
-              >{{ role.users_count || 0 }} usuarios</ion-badge
-            >
+      <div class="page-container">
+        <div class="roles-card">
+          <div v-if="loading" class="loading-container">
+            <ion-spinner name="lines"></ion-spinner>
+            <p>Cargando roles...</p>
           </div>
-          <ion-buttons slot="end">
-            <ion-button color="primary" @click="openEditModal(role)">
-              <ion-icon slot="icon-only" :icon="create"></ion-icon>
-            </ion-button>
-            <ion-button
-              v-if="!role.is_protected"
-              color="danger"
-              @click="confirmDelete(role)"
-            >
-              <ion-icon slot="icon-only" :icon="trash"></ion-icon>
-            </ion-button>
-          </ion-buttons>
-        </ion-item>
-      </ion-list>
+
+          <div v-else-if="roles.length === 0" class="empty-container">
+            <ion-icon :icon="shieldOutline" size="large"></ion-icon>
+            <p>No se encontraron roles</p>
+          </div>
+
+          <ion-list v-else class="roles-list">
+            <ion-item v-for="role in roles" :key="role.id">
+              <ion-icon
+                slot="start"
+                :icon="shieldOutline"
+                :color="role.is_protected ? 'warning' : 'primary'"
+              ></ion-icon>
+              <ion-label>
+                <h2 class="role-name">{{ role.name }}</h2>
+                <p class="role-description">{{ role.description || 'Sin descripción' }}</p>
+              </ion-label>
+              <div slot="end" class="role-badges">
+                <ion-badge v-if="role.is_protected" color="warning"
+                  >Protegido</ion-badge
+                >
+                <ion-badge color="medium"
+                  >{{ role.users_count || 0 }} usuarios</ion-badge
+                >
+              </div>
+              <ion-buttons slot="end">
+                <ion-button color="primary" @click="openEditModal(role)">
+                  <ion-icon slot="icon-only" :icon="create"></ion-icon>
+                </ion-button>
+                <ion-button
+                  v-if="!role.is_protected"
+                  color="danger"
+                  @click="confirmDelete(role)"
+                >
+                  <ion-icon slot="icon-only" :icon="trash"></ion-icon>
+                </ion-button>
+              </ion-buttons>
+            </ion-item>
+          </ion-list>
+        </div>
+      </div>
 
       <ion-modal :is-open="showModal" @did-dismiss="showModal = false">
-        <ion-header>
+        <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
             <ion-title>{{
               editingRole ? 'Editar Rol' : 'Crear Rol'
@@ -70,7 +75,7 @@
           </ion-toolbar>
         </ion-header>
         <ion-content>
-          <form @submit.prevent="saveRole">
+          <form @submit.prevent="saveRole" class="modal-form">
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre</ion-label>
@@ -239,29 +244,82 @@
 </script>
 
 <style scoped>
-  .loading-container,
-  .empty-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    color: var(--ion-color-medium);
-  }
+.page-container {
+  padding: var(--dashboard-padding);
+  max-width: 600px;
+  margin: 0 auto;
+}
 
-  .empty-container ion-icon {
-    margin-bottom: 8px;
-  }
+.roles-card {
+  background: var(--background-contrast);
+  border-radius: var(--card-border-radius);
+  box-shadow: var(--card-shadow-light) 0px 1px 3px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
+  overflow: hidden;
+}
 
-  .role-badges {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: flex-end;
-    margin-right: 8px;
-  }
+.loading-container,
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  color: var(--text-tertiary);
+}
 
-  ion-item {
-    --padding-start: 16px;
+.empty-container ion-icon {
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.loading-container p,
+.empty-container p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.roles-list {
+  background: transparent;
+}
+
+.roles-list ion-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --background: transparent;
+  border-bottom: 1px solid var(--ion-background-color-step-200);
+}
+
+.roles-list ion-item:last-child {
+  border-bottom: none;
+}
+
+.role-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.role-description {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.role-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  margin-right: 8px;
+}
+
+.modal-form {
+  padding: 16px;
+}
+
+@media (min-width: 768px) {
+  .page-container {
+    padding: var(--dashboard-padding-lg);
   }
+}
 </style>

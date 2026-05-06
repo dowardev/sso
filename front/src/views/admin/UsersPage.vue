@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <ion-header>
+    <ion-header class="ion-no-border" mode="ios">
       <ion-toolbar>
         <ion-buttons slot="start">
           <ion-menu-button></ion-menu-button>
@@ -10,70 +10,74 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <div class="search-container">
-        <ion-searchbar
-          v-model="search"
-          placeholder="Buscar usuarios..."
-          :debounce="500"
-          @ion-input="handleSearch"
-        ></ion-searchbar>
-      </div>
-
-      <div class="users-list">
-        <div v-if="loading" class="loading-container">
-          <ion-spinner name="lines"></ion-spinner>
+      <div class="page-container">
+        <div class="search-card">
+          <ion-searchbar
+            v-model="search"
+            placeholder="Buscar usuarios..."
+            :debounce="500"
+            @ion-input="handleSearch"
+          ></ion-searchbar>
         </div>
 
-        <div v-else-if="users.length === 0" class="empty-container">
-          <ion-icon :icon="personRemove" size="large"></ion-icon>
-          <p>No se encontraron usuarios</p>
-        </div>
+        <div class="users-card">
+          <div v-if="loading && users.length === 0" class="loading-container">
+            <ion-spinner name="lines"></ion-spinner>
+            <p>Cargando usuarios...</p>
+          </div>
 
-        <ion-list v-else>
-          <ion-item-sliding v-for="user in users" :key="user.id">
-            <ion-item button @click="router.push(`/admin/users/${user.id}`)">
-              <ion-avatar slot="start">
-                <div class="avatar-placeholder">
-                  {{ getInitials(user.name) }}
+          <div v-else-if="users.length === 0" class="empty-container">
+            <ion-icon :icon="personRemove" size="large"></ion-icon>
+            <p>No se encontraron usuarios</p>
+          </div>
+
+          <ion-list v-else class="users-list">
+            <ion-item-sliding v-for="user in users" :key="user.id">
+              <ion-item button @click="router.push(`/admin/users/${user.id}`)">
+                <ion-avatar slot="start">
+                  <div class="avatar-placeholder">
+                    {{ getInitials(user.name) }}
+                  </div>
+                </ion-avatar>
+                <ion-label>
+                  <h2 class="user-name">{{ user.name }}</h2>
+                  <p class="user-username">@{{ user.user }}</p>
+                  <p class="user-email">{{ user.email }}</p>
+                </ion-label>
+                <div slot="end" class="user-badges">
+                  <ion-badge v-if="user.is_admin" color="warning"
+                    >Admin</ion-badge
+                  >
+                  <ion-badge color="primary"
+                    >{{ user.sessions_count || 0 }} sesiones</ion-badge
+                  >
                 </div>
-              </ion-avatar>
-              <ion-label>
-                <h2>{{ user.name }}</h2>
-                <p>@{{ user.user }}</p>
-                <p class="email">{{ user.email }}</p>
-              </ion-label>
-              <div slot="end" class="user-badges">
-                <ion-badge v-if="user.is_admin" color="warning"
-                  >Admin</ion-badge
-                >
-                <ion-badge color="primary"
-                  >{{ user.sessions_count || 0 }} sesiones</ion-badge
-                >
-              </div>
-            </ion-item>
+              </ion-item>
 
-            <ion-item-options side="end">
-              <ion-item-option color="medium" @click="toggleAdmin(user)">
-                <ion-icon
-                  slot="icon-only"
-                  :icon="user.is_admin ? removeCircle : addCircle"
-                ></ion-icon>
-              </ion-item-option>
-              <ion-item-option color="danger" @click="confirmDelete(user)">
-                <ion-icon slot="icon-only" :icon="trash"></ion-icon>
-              </ion-item-option>
-            </ion-item-options>
-          </ion-item-sliding>
-        </ion-list>
+              <ion-item-options side="end">
+                <ion-item-option color="medium" @click="toggleAdmin(user)">
+                  <ion-icon
+                    slot="icon-only"
+                    :icon="user.is_admin ? removeCircle : addCircle"
+                  ></ion-icon>
+                </ion-item-option>
+                <ion-item-option color="danger" @click="confirmDelete(user)">
+                  <ion-icon slot="icon-only" :icon="trash"></ion-icon>
+                </ion-item-option>
+              </ion-item-options>
+            </ion-item-sliding>
+          </ion-list>
 
-        <ion-infinite-scroll
-          :disabled="!hasMore"
-          @ion-infinite="loadMore($event)"
-        >
-          <ion-infinite-scroll-content
-            loading-spinner="lines"
-          ></ion-infinite-scroll-content>
-        </ion-infinite-scroll>
+          <ion-infinite-scroll
+            v-if="users.length > 0"
+            :disabled="!hasMore"
+            @ion-infinite="loadMore($event)"
+          >
+            <ion-infinite-scroll-content
+              loading-spinner="lines"
+            ></ion-infinite-scroll-content>
+          </ion-infinite-scroll>
+        </div>
       </div>
 
       <ion-alert
@@ -233,50 +237,109 @@
 </script>
 
 <style scoped>
-  .search-container {
-    padding: 8px 16px;
-  }
+.page-container {
+  padding: var(--dashboard-padding);
+  max-width: 600px;
+  margin: 0 auto;
+}
 
-  .loading-container,
-  .empty-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    color: var(--ion-color-medium);
-  }
+.search-card {
+  background: var(--background-contrast);
+  border-radius: var(--card-border-radius);
+  box-shadow: var(--card-shadow-light) 0px 1px 3px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
+  margin-bottom: 16px;
+  padding: 8px;
+}
 
-  .empty-container ion-icon {
-    margin-bottom: 8px;
-  }
+.search-card ion-searchbar {
+  --background: var(--ion-color-light);
+  --border-radius: 8px;
+  padding: 0;
+}
 
-  .avatar-placeholder {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 14px;
-  }
+.users-card {
+  background: var(--background-contrast);
+  border-radius: var(--card-border-radius);
+  box-shadow: var(--card-shadow-light) 0px 1px 3px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
+  overflow: hidden;
+}
 
-  .user-badges {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: flex-end;
-  }
+.loading-container,
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  color: var(--text-tertiary);
+}
 
-  .email {
-    font-size: 12px;
-    color: var(--ion-color-medium);
-  }
+.empty-container ion-icon {
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
 
-  ion-item {
-    --padding-start: 16px;
+.loading-container p,
+.empty-container p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.users-list {
+  background: transparent;
+}
+
+.users-list ion-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --background: transparent;
+  border-bottom: 1px solid var(--ion-background-color-step-200);
+}
+
+.users-list ion-item:last-child {
+  border-bottom: none;
+}
+
+.avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.user-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.user-username {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.user-email {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.user-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+@media (min-width: 768px) {
+  .page-container {
+    padding: var(--dashboard-padding-lg);
   }
+}
 </style>

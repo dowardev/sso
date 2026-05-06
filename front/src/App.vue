@@ -15,38 +15,69 @@
               <span class="user-email">{{ currentUser.email }}</span>
             </div>
           </div>
-          <ion-list>
+          <ion-list class="nav-list">
             <ion-menu-toggle :auto-hide="false">
-              <ion-item button @click="navigateTo('/admin/dashboard')">
+              <ion-item
+                button
+                @click="navigateTo('/admin/dashboard')"
+                :class="{ 'active-item': isActiveRoute('/admin/dashboard') }"
+              >
                 <ion-icon slot="start" :icon="speedometer"></ion-icon>
                 <ion-label>Dashboard</ion-label>
               </ion-item>
             </ion-menu-toggle>
             <ion-menu-toggle :auto-hide="false">
-              <ion-item button @click="navigateTo('/admin/users')">
+              <ion-item
+                button
+                @click="navigateTo('/admin/users')"
+                :class="{ 'active-item': isActiveRoute('/admin/users') }"
+              >
                 <ion-icon slot="start" :icon="people"></ion-icon>
                 <ion-label>Usuarios</ion-label>
               </ion-item>
             </ion-menu-toggle>
             <ion-menu-toggle :auto-hide="false">
-              <ion-item button @click="navigateTo('/admin/sessions')">
+              <ion-item
+                button
+                @click="navigateTo('/admin/sessions')"
+                :class="{ 'active-item': isActiveRoute('/admin/sessions') }"
+              >
                 <ion-icon slot="start" :icon="key"></ion-icon>
                 <ion-label>Sesiones</ion-label>
               </ion-item>
             </ion-menu-toggle>
             <ion-menu-toggle :auto-hide="false">
-              <ion-item button @click="navigateTo('/admin/clients')">
+              <ion-item
+                button
+                @click="navigateTo('/admin/clients')"
+                :class="{ 'active-item': isActiveRoute('/admin/clients') }"
+              >
                 <ion-icon slot="start" :icon="desktop"></ion-icon>
                 <ion-label>Clientes SSO</ion-label>
               </ion-item>
             </ion-menu-toggle>
             <ion-menu-toggle :auto-hide="false">
-              <ion-item button @click="navigateTo('/admin/roles')">
+              <ion-item
+                button
+                @click="navigateTo('/admin/roles')"
+                :class="{ 'active-item': isActiveRoute('/admin/roles') }"
+              >
                 <ion-icon slot="start" :icon="shield"></ion-icon>
                 <ion-label>Roles</ion-label>
               </ion-item>
             </ion-menu-toggle>
+            <ion-menu-toggle :auto-hide="false">
+              <ion-item
+                button
+                @click="navigateTo('/admin/config')"
+                :class="{ 'active-item': isActiveRoute('/admin/config') }"
+              >
+                <ion-icon slot="start" :icon="settingsOutline"></ion-icon>
+                <ion-label>Configuración</ion-label>
+              </ion-item>
+            </ion-menu-toggle>
           </ion-list>
+          <div class="nav-divider"></div>
           <div class="logout-section">
             <ion-button expand="block" color="danger" @click="handleLogout">
               <ion-icon slot="start" :icon="logOutOutline"></ion-icon>
@@ -62,6 +93,7 @@
 </template>
 
 <script setup lang="ts">
+  import { computed } from 'vue';
   import {
     IonApp,
     IonRouterOutlet,
@@ -78,7 +110,7 @@
     IonButton,
     menuController,
   } from '@ionic/vue';
-  import { useRouter } from 'vue-router';
+  import { useRouter, useRoute } from 'vue-router';
   import {
     speedometer,
     people,
@@ -86,10 +118,16 @@
     desktop,
     shield,
     logOutOutline,
+    settingsOutline,
   } from 'ionicons/icons';
   import { isAuthenticated, currentUser, auth } from '@/services/auth';
 
   const router = useRouter();
+  const route = useRoute();
+
+  const isActiveRoute = (path: string) => {
+    return route.path === path || route.path.startsWith(path + '/');
+  };
 
   const navigateTo = async (url: string) => {
     await menuController.close();
@@ -117,8 +155,8 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 16px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px 16px;
+    background: var(--gradient-primary);
     color: white;
   }
 
@@ -126,36 +164,93 @@
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: white;
-    color: #667eea;
+    background: rgba(255, 255, 255, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
+    font-weight: 600;
     font-size: 18px;
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
   }
 
   .user-details {
     display: flex;
     flex-direction: column;
+    min-width: 0;
   }
 
   .user-name {
-    font-weight: bold;
-    font-size: 14px;
+    font-weight: 600;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .user-email {
     font-size: 12px;
-    opacity: 0.9;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .nav-list {
+    padding: 8px;
+    background: transparent;
+  }
+
+  .nav-list ion-item {
+    --border-radius: 10px;
+    --padding-start: 12px;
+    --padding-end: 12px;
+    margin-bottom: 4px;
+    --background: transparent;
+    --background-hover: var(--ion-color-light);
+    --background-activated: var(--ion-color-light);
+    transition: background 0.2s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nav-list ion-item {
+      transition: none;
+    }
+  }
+
+  .nav-list ion-item.active-item {
+    --background: var(--ion-color-primary-tint);
+    --background-hover: var(--ion-color-primary-tint);
+  }
+
+  .nav-list ion-item.active-item::part(native) {
+    background: var(--ion-color-primary-tint);
+  }
+
+  .nav-list ion-item.active-item ion-label {
+    font-weight: 600;
+    color: var(--ion-color-primary);
+  }
+
+  .nav-list ion-item.active-item ion-icon {
+    color: var(--ion-color-primary);
+  }
+
+  .nav-list ion-icon {
+    color: var(--text-secondary);
+  }
+
+  .nav-divider {
+    height: 1px;
+    background: var(--ion-background-color-step-200);
+    margin: 8px 16px;
   }
 
   .logout-section {
     padding: 16px;
-    margin-top: auto;
   }
 
   .logout-section ion-button {
-    --border-radius: 8px;
+    --border-radius: 10px;
   }
 </style>

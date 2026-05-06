@@ -77,6 +77,16 @@ const routes: Array<RouteRecordRaw> = [
         name: 'AdminRoles',
         component: () => import('../views/admin/RolesPage.vue'),
       },
+      {
+        path: 'config',
+        name: 'AdminConfig',
+        component: () => import('../views/admin/ConfigPage.vue'),
+      },
+      {
+        path: 'config/design',
+        name: 'AdminConfigDesign',
+        component: () => import('../views/admin/DesignPage.vue'),
+      },
     ],
   },
 ];

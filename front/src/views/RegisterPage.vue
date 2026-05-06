@@ -1,14 +1,14 @@
 <template>
   <ion-page>
-    <ion-content :fullscreen="true" class="login-content">
-      <div class="login-container">
-        <div class="login-header">
+    <ion-content :fullscreen="true" class="register-content">
+      <div class="register-container">
+        <div class="register-header">
           <h1>SSO Admin</h1>
           <p>Crear cuenta</p>
         </div>
 
-        <form class="login-form" @submit.prevent="handleRegister">
-          <ion-item>
+        <form class="register-form" @submit.prevent="handleRegister">
+          <ion-item class="form-item">
             <ion-label position="stacked">Nombre</ion-label>
             <ion-input
               v-model="form.name"
@@ -18,7 +18,7 @@
             ></ion-input>
           </ion-item>
 
-          <ion-item>
+          <ion-item class="form-item">
             <ion-label position="stacked">Usuario</ion-label>
             <ion-input
               v-model="form.user"
@@ -28,7 +28,7 @@
             ></ion-input>
           </ion-item>
 
-          <ion-item>
+          <ion-item class="form-item">
             <ion-label position="stacked">Email</ion-label>
             <ion-input
               v-model="form.email"
@@ -38,7 +38,7 @@
             ></ion-input>
           </ion-item>
 
-          <ion-item>
+          <ion-item class="form-item">
             <ion-label position="stacked">Contraseña</ion-label>
             <ion-input
               v-model="form.password"
@@ -48,7 +48,7 @@
             ></ion-input>
           </ion-item>
 
-          <ion-item>
+          <ion-item class="form-item">
             <ion-label position="stacked">Confirmar contraseña</ion-label>
             <ion-input
               v-model="form.password_confirmation"
@@ -66,7 +66,7 @@
             type="submit"
             expand="block"
             :disabled="loading"
-            class="login-button"
+            class="submit-button"
           >
             <ion-spinner v-if="loading" name="lines"></ion-spinner>
             <span v-else>Registrar</span>
@@ -76,7 +76,7 @@
             fill="clear"
             expand="block"
             :disabled="loading"
-            class="register-link"
+            class="login-link"
             @click="goToLogin"
           >
             Ya tengo cuenta
@@ -239,61 +239,81 @@
 </script>
 
 <style scoped>
-  .login-content {
-    --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.register-content {
+  --background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.register-container {
+  width: 100%;
+  max-width: 400px;
+  padding: 24px;
+}
+
+.register-header {
+  text-align: center;
+  color: white;
+  margin-bottom: 32px;
+}
+
+.register-header h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.register-header p {
+  margin: 8px 0 0;
+  opacity: 0.9;
+}
+
+.register-form {
+  background: var(--background-contrast);
+  border-radius: var(--card-border-radius);
+  padding: 24px;
+  box-shadow: var(--card-shadow-light) 0px 8px 24px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
+}
+
+.form-item {
+  --background: var(--ion-color-light);
+  --border-radius: 8px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  margin-bottom: 8px;
+}
+
+.submit-button {
+  margin-top: 16px;
+  --border-radius: 8px;
+  height: 48px;
+  font-weight: 600;
+}
+
+.login-link {
+  margin-top: 8px;
+  --color: var(--ion-color-primary);
+}
+
+.error-message {
+  color: var(--ion-color-danger);
+  text-align: center;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  .register-container {
+    padding: 48px;
   }
 
-  .login-container {
-    width: 100%;
-    max-width: 400px;
-    padding: 24px;
+  .register-form {
+    padding: 32px;
   }
 
-  .login-header {
-    text-align: center;
-    color: white;
-    margin-bottom: 32px;
+  .register-header h1 {
+    font-size: 40px;
   }
-
-  .login-header h1 {
-    margin: 0;
-    font-size: 32px;
-    font-weight: bold;
-  }
-
-  .login-header p {
-    margin: 8px 0 0;
-    opacity: 0.9;
-  }
-
-  .login-form {
-    background: white;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  }
-
-  .login-form ion-item {
-    --background: transparent;
-    margin-bottom: 8px;
-  }
-
-  .login-button {
-    margin-top: 16px;
-    --border-radius: 8px;
-  }
-
-  .register-link {
-    margin-top: 8px;
-  }
-
-  .error-message {
-    color: var(--ion-color-danger);
-    text-align: center;
-    margin: 8px 0;
-    font-size: 14px;
-  }
+}
 </style>

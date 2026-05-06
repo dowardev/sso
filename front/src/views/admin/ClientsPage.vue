@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <ion-header>
+    <ion-header class="ion-no-border" mode="ios">
       <ion-toolbar>
         <ion-buttons slot="start">
           <ion-menu-button></ion-menu-button>
@@ -15,46 +15,54 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <div v-if="loading" class="loading-container">
-        <ion-spinner name="lines"></ion-spinner>
+      <div class="page-container">
+        <div class="clients-card">
+          <div v-if="loading" class="loading-container">
+            <ion-spinner name="lines"></ion-spinner>
+            <p>Cargando clientes...</p>
+          </div>
+
+          <div v-else-if="clients.length === 0" class="empty-container">
+            <ion-icon :icon="desktopOutline" size="large"></ion-icon>
+            <p>No hay clientes SSO</p>
+            <ion-button @click="openCreateModal">Crear Cliente</ion-button>
+          </div>
+
+          <ion-list v-else class="clients-list">
+            <ion-item-sliding v-for="client in clients" :key="client.id">
+              <ion-item button @click="openEditModal(client)">
+                <ion-icon
+                  slot="start"
+                  :icon="desktopOutline"
+                  :color="client.active ? 'primary' : 'medium'"
+                ></ion-icon>
+                <ion-label>
+                  <h2 class="client-name">{{ client.name }}</h2>
+                  <p class="client-id">
+                    <span class="id-label">ID:</span>
+                    <code>{{ client.client_id }}</code>
+                  </p>
+                  <p v-if="client.redirect_url" class="redirect-url">
+                    {{ client.redirect_url }}
+                  </p>
+                </ion-label>
+                <ion-badge slot="end" :color="client.active ? 'success' : 'medium'">
+                  {{ client.active ? 'Activo' : 'Inactivo' }}
+                </ion-badge>
+              </ion-item>
+
+              <ion-item-options side="end">
+                <ion-item-option color="danger" @click="deleteClient(client)">
+                  <ion-icon slot="icon-only" :icon="trash"></ion-icon>
+                </ion-item-option>
+              </ion-item-options>
+            </ion-item-sliding>
+          </ion-list>
+        </div>
       </div>
-
-      <div v-else-if="clients.length === 0" class="empty-container">
-        <ion-icon :icon="desktopOutline" size="large"></ion-icon>
-        <p>No hay clientes SSO</p>
-        <ion-button @click="openCreateModal">Crear Cliente</ion-button>
-      </div>
-
-      <ion-list v-else>
-        <ion-item-sliding v-for="client in clients" :key="client.id">
-          <ion-item button @click="openEditModal(client)">
-            <ion-icon
-              slot="start"
-              :icon="desktopOutline"
-              :color="client.active ? 'primary' : 'medium'"
-            ></ion-icon>
-            <ion-label>
-              <h2>{{ client.name }}</h2>
-              <p>ID: {{ client.client_id }}</p>
-              <p v-if="client.redirect_url" class="redirect-url">
-                {{ client.redirect_url }}
-              </p>
-            </ion-label>
-            <ion-badge slot="end" :color="client.active ? 'success' : 'medium'">
-              {{ client.active ? 'Activo' : 'Inactivo' }}
-            </ion-badge>
-          </ion-item>
-
-          <ion-item-options side="end">
-            <ion-item-option color="danger" @click="deleteClient(client)">
-              <ion-icon slot="icon-only" :icon="trash"></ion-icon>
-            </ion-item-option>
-          </ion-item-options>
-        </ion-item-sliding>
-      </ion-list>
 
       <ion-modal :is-open="showModal" @did-dismiss="showModal = false">
-        <ion-header>
+        <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
             <ion-title
               >{{ editingClient ? 'Editar' : 'Crear' }} Cliente</ion-title
@@ -65,7 +73,7 @@
           </ion-toolbar>
         </ion-header>
         <ion-content>
-          <form @submit.prevent="saveClient">
+          <form @submit.prevent="saveClient" class="modal-form">
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre</ion-label>
@@ -233,27 +241,96 @@
 </script>
 
 <style scoped>
-  .loading-container,
-  .empty-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    color: var(--ion-color-medium);
-  }
+.page-container {
+  padding: var(--dashboard-padding);
+  max-width: 600px;
+  margin: 0 auto;
+}
 
-  .empty-container ion-icon {
-    margin-bottom: 8px;
-  }
+.clients-card {
+  background: var(--background-contrast);
+  border-radius: var(--card-border-radius);
+  box-shadow: var(--card-shadow-light) 0px 1px 3px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
+  overflow: hidden;
+}
 
-  .empty-container p {
-    margin-bottom: 16px;
-  }
+.loading-container,
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  color: var(--text-tertiary);
+}
 
-  .redirect-url {
-    font-size: 12px;
-    color: var(--ion-color-medium);
-    word-break: break-all;
+.empty-container ion-icon {
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.empty-container p {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+}
+
+.clients-list {
+  background: transparent;
+}
+
+.clients-list ion-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --background: transparent;
+  border-bottom: 1px solid var(--ion-background-color-step-200);
+}
+
+.clients-list ion-item:last-child {
+  border-bottom: none;
+}
+
+.client-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.client-id {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.id-label {
+  font-weight: 500;
+}
+
+.client-id code {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-size: 12px;
+  background: var(--ion-color-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+.redirect-url {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  word-break: break-all;
+  margin-top: 4px;
+}
+
+.modal-form {
+  padding: 16px;
+}
+
+@media (min-width: 768px) {
+  .page-container {
+    padding: var(--dashboard-padding-lg);
   }
+}
 </style>

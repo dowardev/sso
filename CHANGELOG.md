@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2026-05-06
+
+### Added
+- Complete theme system with 5 themes: Auto, Light, Dark, Catppuccin Latte, Catppuccin Macchiato
+- Auto theme mode that follows system preference with customizable light/dark sub-selectors
+- Configuration menu item in sidebar with Personalización link
+- Responsive ion-grid layouts in DashboardPage, UserDetailPage, and DesignPage
+- Centered desktop layout with reduced max-width (600-900px) for better presentation
+
+### Changed
+- Complete UI redesign of all admin and auth pages
+- Replaced all hardcoded colors with CSS custom properties (`--text-primary`, `--text-secondary`, `--text-tertiary`, `--background-contrast`, `--gradient-primary`, etc.)
+- Updated all card components to use `var(--card-border-radius)`, `var(--card-shadow-light)`, `var(--card-shadow-heavy)`
+- Applied `class="ion-no-border" mode="ios"` to all ion-header components
+- Migrated from `dark.system.css` to `dark.class.css` in main.ts for manual theme control
+
+### Fixed
+- Fixed `.session-date` color in SessionsPage that was invisible in dark mode (was using `var(--ion-color-light)` which is dark, now uses `var(--text-tertiary)`)
+
+### Affected Files
+- Added: `front/src/services/theme.ts`, `front/src/components/ThemePopover.vue`, `front/src/views/admin/ConfigPage.vue`, `front/src/views/admin/DesignPage.vue`, `front/src/views/admin/AdminLayout.vue`
+- Modified: `front/src/App.vue`, `front/src/main.ts`, `front/src/router/index.ts`, `front/src/theme/files/light.css`, `front/src/theme/files/dark.css`, `front/src/theme/files/catppuccin-latte-maroon.css`, `front/src/theme/files/catppuccin-macchiato-maroon.css`
+- Modified: `front/src/views/HomePage.vue`, `front/src/views/LoginPage.vue`, `front/src/views/PublicLoginPage.vue`, `front/src/views/RegisterPage.vue`, `front/src/views/PublicRegisterPage.vue`
+- Modified: `front/src/views/admin/DashboardPage.vue`, `front/src/views/admin/UsersPage.vue`, `front/src/views/admin/UserDetailPage.vue`, `front/src/views/admin/SessionsPage.vue`, `front/src/views/admin/RolesPage.vue`, `front/src/views/admin/ClientsPage.vue`
+
+---
+
 ## [0.11.2] - 2026-05-06
 
 ### Fixed
