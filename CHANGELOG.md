@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.1] - 2026-05-05
+
+### Fixed
+- Fixed JWK Thumbprint computation to use RFC 7638 canonical JSON key order (`e`, `kty`, `n` alphabetically) instead of non-standard order (`kty`, `n`, `e`) in `AuthController`, `OAuth2Controller`, and `VerifyDpopProof` middleware
+- Added `JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE` flags to PHP `json_encode` calls for consistent canonical JSON output across the ecosystem
+- Fixed JWK Thumbprint computation in frontend `dpopService.ts` to use RFC 7638 canonical key order (`e`, `kty`, `n`)
+
+### Changed
+- JWK Thumbprint computation is now RFC 7638 compliant across all 4 implementations (3 backend PHP + 1 frontend TypeScript), ensuring interoperability with the `tu-org/sso-server` package
+
+### Affected Files
+- Modified: `back/app/Http/Controllers/AuthController.php`
+- Modified: `back/app/Http/Controllers/OAuth2Controller.php`
+- Modified: `back/app/Http/Middleware/VerifyDpopProof.php`
+- Modified: `front/src/services/dpopService.ts`
+
+---
+
 ## [0.11.0] - 2026-05-04
 
 ### Added

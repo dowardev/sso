@@ -123,9 +123,9 @@ export default class DpopService {
 
   private async computeJwkThumbprint(jwk: JsonWebKey): Promise<string> {
     const canonical = JSON.stringify({
+      e: jwk.e,
       kty: jwk.kty,
       n: jwk.n,
-      e: jwk.e,
     });
 
     const encoder = new TextEncoder();

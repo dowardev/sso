@@ -249,10 +249,10 @@ class OAuth2Controller extends Controller
     private function generateJWKThumbprint(array $jwk): string
     {
         $jwkString = json_encode([
+            'e' => $jwk['e'] ?? null,
             'kty' => $jwk['kty'] ?? 'RSA',
             'n' => $jwk['n'] ?? null,
-            'e' => $jwk['e'] ?? null,
-        ]);
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         return rtrim(strtr(base64_encode(hash('sha256', $jwkString, true)), '+/', '-_'), '=');
     }
