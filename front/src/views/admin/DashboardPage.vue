@@ -34,7 +34,7 @@
                     </div>
                   </div>
                   <div class="stat-content">
-                    <span class="stat-value">{{ loading ? '...' : stats.totalUsers }}</span>
+                    <span class="stat-value">{{ isLoading ? '...' : stats.totalUsers }}</span>
                     <span class="stat-label">Usuarios</span>
                   </div>
                   <div class="stat-arrow">
@@ -52,7 +52,7 @@
                     </div>
                   </div>
                   <div class="stat-content">
-                    <span class="stat-value">{{ loading ? '...' : stats.activeSessions }}</span>
+                    <span class="stat-value">{{ isLoading ? '...' : stats.activeSessions }}</span>
                     <span class="stat-label">Sesiones Activas</span>
                   </div>
                   <div class="stat-arrow">
@@ -70,7 +70,7 @@
                     </div>
                   </div>
                   <div class="stat-content">
-                    <span class="stat-value">{{ loading ? '...' : stats.totalClients }}</span>
+                    <span class="stat-value">{{ isLoading ? '...' : stats.totalClients }}</span>
                     <span class="stat-label">Clientes SSO</span>
                   </div>
                   <div class="stat-arrow">
@@ -186,21 +186,17 @@
     pricetag,
     time,
   } from 'ionicons/icons';
-  import {
-    api,
-    type User,
-    type SsoClient,
-    type PaginatedResponse,
-  } from '@/services/api';
+  import { useUsersStore } from '@/stores/users';
+  import { useSessionsStore } from '@/stores/sessions';
+  import { useClientsStore } from '@/stores/clients';
 
   const router = useRouter();
 
+  const usersStore = useUsersStore();
+  const sessionsStore = useSessionsStore();
+  const clientsStore = useClientsStore();
+
   const loading = ref(true);
-  const stats = ref({
-    totalUsers: 0,
-    activeSessions: 0,
-    totalClients: 0,
-  });
 
   const formattedDate = computed(() => {
     const now = new Date();
@@ -213,29 +209,29 @@
     return now.toLocaleDateString('es-ES', options);
   });
 
-  const loadStats = async () => {
+  const stats = computed(() => ({
+    totalUsers: usersStore.pagination.total,
+    activeSessions: sessionsStore.activeCount,
+    totalClients: clientsStore.count,
+  }));
+
+  const isLoading = computed(() => {
+    return usersStore.loading || sessionsStore.loading || clientsStore.loading;
+  });
+
+  onMounted(async () => {
     loading.value = true;
     try {
-      const [usersRes, sessionsRes, clientsRes] = await Promise.all([
-        api.get<PaginatedResponse<User>>('/admin/users?per_page=1'),
-        api.get<PaginatedResponse<any>>('/admin/sessions?per_page=1&active=1'),
-        api.get<SsoClient[]>('/admin/clients'),
+      await Promise.all([
+        usersStore.fetchUsers({ per_page: 1 }),
+        sessionsStore.fetchSessions({ per_page: 1, active: true }),
+        clientsStore.fetchClients(),
       ]);
-
-      stats.value = {
-        totalUsers: usersRes.total,
-        activeSessions: sessionsRes.total || 0,
-        totalClients: clientsRes.length,
-      };
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
       loading.value = false;
     }
-  };
-
-  onMounted(() => {
-    loadStats();
   });
 </script>
 

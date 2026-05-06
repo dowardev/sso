@@ -289,7 +289,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
+  import { ref, onMounted, computed } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
   import {
     IonPage,
@@ -325,38 +325,38 @@
     shieldOutline,
     add,
   } from 'ionicons/icons';
-  import {
-    api,
-    type UserDetail,
-    type UserSession,
-    type Role,
-    type UserRole,
-    type SsoClient,
-  } from '@/services/api';
-
-  interface RoleAssignment {
-    role_id: number | null;
-    sso_client_id: number | null;
-    name?: string;
-    slug?: string;
-  }
+  import { useUsersStore } from '@/stores/users';
+  import { useSessionsStore } from '@/stores/sessions';
+  import { useClientsStore } from '@/stores/clients';
+  import { useRolesStore } from '@/stores/roles';
+  import { useAuthStore } from '@/stores/auth';
+  import type { UserDetail, UserSession, Role, SsoClient } from '@/types';
 
   const route = useRoute();
   const router = useRouter();
 
-  const user = ref<UserDetail | null>(null);
-  const sessions = ref<UserSession[]>([]);
-  const loading = ref(true);
+  const usersStore = useUsersStore();
+  const sessionsStore = useSessionsStore();
+  const clientsStore = useClientsStore();
+  const rolesStore = useRolesStore();
+  const authStore = useAuthStore();
+
+  const user = computed(() => usersStore.selectedUser);
+  const sessions = computed(() => user.value?.sessions || []);
+  const loading = computed(() => usersStore.loading);
   const updating = ref(false);
   const showEditModal = ref(false);
 
-  const availableRoles = ref<Role[]>([]);
-  const availableClients = ref<SsoClient[]>([]);
-  const userRoles = ref<UserRole[]>([]);
-  const roleAssignments = ref<RoleAssignment[]>([]);
+  const availableRoles = computed(() => rolesStore.roles);
+  const availableClients = computed(() => clientsStore.clients);
+  const userRoles = computed(() => usersStore.userRoles);
+  const roleAssignments = computed({
+    get: () => usersStore.roleAssignments,
+    set: (value) => { usersStore.roleAssignments = value; },
+  });
   const showRolesModal = ref(false);
   const savingRoles = ref(false);
-  const isAdmin = ref(false);
+  const isAdmin = computed(() => authStore.user?.is_admin || false);
 
   const editForm = ref({
     name: '',
@@ -369,9 +369,7 @@
 
   const loadUser = async () => {
     try {
-      const response = await api.get<UserDetail>(`/admin/users/${userId}`);
-      user.value = response;
-      sessions.value = response.sessions || [];
+      const response = await usersStore.fetchUser(userId);
       editForm.value = {
         name: response.name,
         user: response.user,
@@ -380,8 +378,6 @@
       };
     } catch (error) {
       console.error('Error loading user:', error);
-    } finally {
-      loading.value = false;
     }
   };
 
@@ -411,7 +407,7 @@
   const updateUser = async () => {
     updating.value = true;
     try {
-      const data: any = {
+      const data: { name: string; user: string; email: string; password?: string } = {
         name: editForm.value.name,
         user: editForm.value.user,
         email: editForm.value.email,
@@ -419,11 +415,9 @@
 
       if (editForm.value.password) {
         data.password = editForm.value.password;
-        data.password_confirmation = editForm.value.password;
       }
 
-      await api.put(`/admin/users/${userId}`, data);
-      user.value = { ...user.value!, ...data };
+      await usersStore.updateUser(userId, data);
       showEditModal.value = false;
     } catch (error) {
       console.error('Error updating user:', error);
@@ -434,8 +428,7 @@
 
   const revokeSession = async (session: UserSession) => {
     try {
-      await api.delete(`/admin/sessions/${session.id}`);
-      sessions.value = sessions.value.filter((s) => s.id !== session.id);
+      await sessionsStore.revokeSession(session.id);
       if (user.value) {
         user.value.active_tokens_count--;
       }
@@ -446,44 +439,29 @@
 
   const revokeAllSessions = async () => {
     try {
-      await api.delete(`/admin/users/${userId}/sessions`);
-      sessions.value = [];
-      if (user.value) {
-        user.value.active_tokens_count = 0;
-      }
+      await usersStore.revokeUserSessions(userId);
     } catch (error) {
       console.error('Error revoking sessions:', error);
     }
   };
 
-  const loadRolesData = async () => {
+  const openRolesModal = async () => {
     try {
-      const [rolesRes, clientsRes, userRolesRes, currentUserRes] =
-        await Promise.all([
-          api.get<Role[]>('/admin/roles'),
-          api.get<SsoClient[]>('/admin/clients'),
-          api.get<UserRole[]>(`/admin/users/${userId}/roles`),
-          api.get<any>('/me'),
-        ]);
-      availableRoles.value = rolesRes;
-      availableClients.value = clientsRes;
-      userRoles.value = userRolesRes;
-      isAdmin.value = currentUserRes.is_admin || false;
-
-      roleAssignments.value = userRolesRes.map((r) => ({
+      await Promise.all([
+        rolesStore.fetchRoles(),
+        clientsStore.fetchClients(),
+        usersStore.fetchUserRoles(userId),
+      ]);
+      roleAssignments.value = usersStore.userRoles.map((r) => ({
         role_id: r.id,
         sso_client_id: r.sso_client_id,
         name: r.name,
         slug: r.slug,
       }));
+      showRolesModal.value = true;
     } catch (error) {
-      console.error('Error loading roles:', error);
+      console.error('Error loading roles data:', error);
     }
-  };
-
-  const openRolesModal = async () => {
-    await loadRolesData();
-    showRolesModal.value = true;
   };
 
   const addRoleAssignment = () => {
@@ -522,27 +500,11 @@
     savingRoles.value = true;
     try {
       const rolesToSave = validAssignments.map((a) => ({
-        role_id: a.role_id,
+        role_id: a.role_id!,
         sso_client_id: a.sso_client_id,
       }));
 
-      await api.put(`/admin/users/${userId}/roles`, { roles: rolesToSave });
-
-      userRoles.value = validAssignments.map((a) => {
-        const role = availableRoles.value.find((r) => r.id === a.role_id)!;
-        const client = availableClients.value.find(
-          (c) => c.id === a.sso_client_id
-        );
-        return {
-          id: role.id,
-          name: role.name,
-          slug: role.slug,
-          description: role.description,
-          sso_client_id: a.sso_client_id,
-          sso_client_name: client?.name || null,
-        };
-      });
-
+      await usersStore.saveUserRoles(userId, rolesToSave);
       showRolesModal.value = false;
     } catch (error) {
       console.error('Error saving roles:', error);

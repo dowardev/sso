@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-05-06
+
+### Added
+- Pinia v3.0.4 state management library
+- 5 Pinia stores for centralized frontend state management:
+  - `useAuthStore` - authentication state and actions (token, user, login, logout)
+  - `useUsersStore` - users list, detail, roles, CRUD operations
+  - `useSessionsStore` - sessions list with active filter and revocation
+  - `useClientsStore` - SSO clients CRUD with computed counts
+  - `useRolesStore` - roles CRUD operations
+- Dedicated TypeScript types file (`front/src/types/index.ts`) with all interfaces
+
+### Changed
+- Refactored all admin pages to use Pinia stores instead of local state + direct API calls:
+  - UsersPage, SessionsPage, ClientsPage, RolesPage, DashboardPage, UserDetailPage
+- Refactored auth pages to use useAuthStore:
+  - LoginPage, PublicLoginPage, RegisterPage, PublicRegisterPage
+- `services/auth.ts` now delegates to useAuthStore with backward-compatible exports
+- `services/api.ts` now re-exports types from `@/types` for backward compatibility
+- App.vue and router/index.ts now use stores directly for auth state
+
+### Affected Files
+- Added: `front/src/stores/auth.ts`, `front/src/stores/users.ts`, `front/src/stores/sessions.ts`, `front/src/stores/clients.ts`, `front/src/stores/roles.ts`, `front/src/types/index.ts`
+- Modified: `front/package.json`, `front/src/main.ts`, `front/src/services/api.ts`, `front/src/services/auth.ts`, `front/src/App.vue`, `front/src/router/index.ts`
+- Modified: `front/src/views/LoginPage.vue`, `front/src/views/PublicLoginPage.vue`, `front/src/views/PublicRegisterPage.vue`, `front/src/views/RegisterPage.vue`
+- Modified: `front/src/views/admin/UsersPage.vue`, `front/src/views/admin/UserDetailPage.vue`, `front/src/views/admin/SessionsPage.vue`, `front/src/views/admin/ClientsPage.vue`, `front/src/views/admin/RolesPage.vue`, `front/src/views/admin/DashboardPage.vue`
+
+---
+
 ## [0.1.0] - 2026-05-06
 
 ### Added

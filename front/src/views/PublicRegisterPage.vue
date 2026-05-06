@@ -121,11 +121,12 @@
   } from '@ionic/vue';
   import { arrowBack } from 'ionicons/icons';
   import { api } from '@/services/api';
-  import { auth } from '@/services/auth';
+  import { useAuthStore } from '@/stores/auth';
   import { dpopService } from '@/services/dpopService';
 
   const router = useRouter();
   const route = useRoute();
+  const authStore = useAuthStore();
 
   interface ApiValidationError {
     errors: Record<string, string[]>;
@@ -187,19 +188,11 @@
       await api.post('/register', data);
 
       if (isOAuthFlow.value) {
-        interface LoginResponse {
-          token: string;
-          user: Record<string, unknown>;
-        }
-
-        const loginResponse = await api.post<LoginResponse>('/login', {
+        await authStore.login({
           user: form.value.email,
           password: form.value.password,
-          client_id: oauthParams.value.client_id,
+          client_id: oauthParams.value.client_id || undefined,
         });
-
-        localStorage.setItem('token', loginResponse.token);
-        localStorage.setItem('user', JSON.stringify(loginResponse.user));
 
         await handleOAuthAuthorize();
       } else {
@@ -226,7 +219,7 @@
 
   const handleOAuthAuthorize = async (): Promise<void> => {
     try {
-      const token = auth.getToken();
+      const token = authStore.getToken();
       if (!token) {
         error.value = 'Token no disponible';
         return;

@@ -98,12 +98,13 @@
     IonIcon,
   } from '@ionic/vue';
   import { arrowBack } from 'ionicons/icons';
-  import { auth } from '@/services/auth';
+  import { useAuthStore } from '@/stores/auth';
   import { api } from '@/services/api';
   import { dpopService } from '@/services/dpopService';
 
   const router = useRouter();
   const route = useRoute();
+  const authStore = useAuthStore();
 
   const credentials = ref({
     user: '',
@@ -146,7 +147,7 @@
     error.value = '';
 
     try {
-      await auth.login({
+      await authStore.login({
         user: credentials.value.user,
         password: credentials.value.password,
         client_id: oauthParams.value.client_id || undefined,
@@ -170,7 +171,7 @@
 
   const handleOAuthAuthorize = async (): Promise<void> => {
     try {
-      const token = auth.getToken();
+      const token = authStore.getToken();
       if (!token) {
         error.value = 'Token no disponible';
         return;

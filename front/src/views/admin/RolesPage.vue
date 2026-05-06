@@ -117,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
+  import { ref, onMounted, computed } from 'vue';
   import {
     IonPage,
     IonHeader,
@@ -140,10 +140,14 @@
     alertController,
   } from '@ionic/vue';
   import { add, create, trash, shieldOutline } from 'ionicons/icons';
-  import { api, type Role } from '@/services/api';
+  import { useRolesStore } from '@/stores/roles';
+  import type { Role } from '@/types';
 
-  const roles = ref<Role[]>([]);
-  const loading = ref(true);
+  const rolesStore = useRolesStore();
+
+  const roles = computed(() => rolesStore.roles);
+  const loading = computed(() => rolesStore.loading);
+
   const saving = ref(false);
   const showModal = ref(false);
   const showDeleteAlert = ref(false);
@@ -155,17 +159,6 @@
     slug: '',
     description: '',
   });
-
-  const loadRoles = async () => {
-    try {
-      const response = await api.get<Role[]>('/admin/roles');
-      roles.value = response;
-    } catch (error) {
-      console.error('Error loading roles:', error);
-    } finally {
-      loading.value = false;
-    }
-  };
 
   const openCreateModal = () => {
     editingRole.value = null;
@@ -187,14 +180,17 @@
     saving.value = true;
     try {
       if (editingRole.value) {
-        await api.put(`/admin/roles/${editingRole.value.id}`, {
+        await rolesStore.updateRole(editingRole.value.id, {
           name: form.value.name,
-          description: form.value.description,
+          description: form.value.description || undefined,
         });
       } else {
-        await api.post('/admin/roles', form.value);
+        await rolesStore.createRole({
+          name: form.value.name,
+          slug: form.value.slug,
+          description: form.value.description || undefined,
+        });
       }
-      await loadRoles();
       showModal.value = false;
     } catch (error) {
       console.error('Error saving role:', error);
@@ -212,8 +208,7 @@
     if (!roleToDelete.value) return;
 
     try {
-      await api.delete(`/admin/roles/${roleToDelete.value.id}`);
-      roles.value = roles.value.filter((r) => r.id !== roleToDelete.value!.id);
+      await rolesStore.deleteRole(roleToDelete.value.id);
     } catch (error) {
       console.error('Error deleting role:', error);
     } finally {
@@ -239,7 +234,7 @@
   ];
 
   onMounted(() => {
-    loadRoles();
+    rolesStore.fetchRoles();
   });
 </script>
 

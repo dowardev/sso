@@ -120,10 +120,14 @@
     logOutOutline,
     settingsOutline,
   } from 'ionicons/icons';
-  import { isAuthenticated, currentUser, auth } from '@/services/auth';
+  import { useAuthStore } from '@/stores/auth';
 
   const router = useRouter();
   const route = useRoute();
+
+  const authStore = useAuthStore();
+  const isAuthenticated = authStore.isAuthenticated;
+  const currentUser = authStore.user;
 
   const isActiveRoute = (path: string) => {
     return route.path === path || route.path.startsWith(path + '/');
@@ -145,7 +149,7 @@
 
   const handleLogout = async () => {
     await menuController.close();
-    await auth.logout();
+    await authStore.logout();
     router.replace('/login');
   };
 </script>

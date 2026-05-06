@@ -91,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
+  import { ref, onMounted, computed } from 'vue';
   import { useRouter } from 'vue-router';
   import {
     IonPage,
@@ -118,62 +118,27 @@
     alertController,
   } from '@ionic/vue';
   import { personRemove, removeCircle, addCircle, trash } from 'ionicons/icons';
-  import { api, type User, type PaginatedResponse } from '@/services/api';
+  import { useUsersStore } from '@/stores/users';
+  import type { User } from '@/types';
 
   const router = useRouter();
+  const usersStore = useUsersStore();
 
-  const users = ref<User[]>([]);
-  const loading = ref(true);
+  const users = computed(() => usersStore.users);
+  const loading = computed(() => usersStore.loading);
+  const hasMore = computed(() => usersStore.hasMore);
+
   const search = ref('');
-  const page = ref(1);
-  const hasMore = ref(true);
-
   const showDeleteAlert = ref(false);
   const userToDelete = ref<User | null>(null);
 
-  const loadUsers = async (reset = false) => {
-    if (reset) {
-      page.value = 1;
-      users.value = [];
-      hasMore.value = true;
-    }
-
-    loading.value = true;
-    try {
-      const params = new URLSearchParams({
-        page: page.value.toString(),
-        per_page: '15',
-      });
-
-      if (search.value) {
-        params.append('search', search.value);
-      }
-
-      const response = await api.get<PaginatedResponse<User>>(
-        `/admin/users?${params}`
-      );
-
-      if (reset) {
-        users.value = response.data;
-      } else {
-        users.value = [...users.value, ...response.data];
-      }
-
-      hasMore.value = response.current_page < response.last_page;
-    } catch (error) {
-      console.error('Error loading users:', error);
-    } finally {
-      loading.value = false;
-    }
-  };
-
   const handleSearch = () => {
-    loadUsers(true);
+    usersStore.setSearch(search.value);
+    usersStore.fetchUsers({ search: search.value || undefined });
   };
 
   const loadMore = (event: any) => {
-    page.value++;
-    loadUsers().then(() => {
+    usersStore.fetchUsers({ page: usersStore.pagination.currentPage + 1 }).then(() => {
       event.target.complete();
     });
   };
@@ -189,8 +154,7 @@
 
   const toggleAdmin = async (user: User) => {
     try {
-      await api.post(`/admin/users/${user.id}/toggle`);
-      user.is_admin = !user.is_admin;
+      await usersStore.toggleAdmin(user.id);
     } catch (error) {
       console.error('Error toggling admin:', error);
     }
@@ -205,8 +169,7 @@
     if (!userToDelete.value) return;
 
     try {
-      await api.delete(`/admin/users/${userToDelete.value.id}`);
-      users.value = users.value.filter((u) => u.id !== userToDelete.value!.id);
+      await usersStore.deleteUser(userToDelete.value.id);
     } catch (error) {
       console.error('Error deleting user:', error);
     } finally {
@@ -232,7 +195,7 @@
   ];
 
   onMounted(() => {
-    loadUsers();
+    usersStore.fetchUsers({ per_page: 15 });
   });
 </script>
 

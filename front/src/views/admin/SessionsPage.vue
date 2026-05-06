@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
+  import { ref, onMounted, computed } from 'vue';
   import {
     IonPage,
     IonHeader,
@@ -103,61 +103,25 @@
     IonToggle,
   } from '@ionic/vue';
   import { keyOutline, desktopOutline, trash } from 'ionicons/icons';
-  import {
-    api,
-    type UserSession,
-    type PaginatedResponse,
-  } from '@/services/api';
+  import { useSessionsStore } from '@/stores/sessions';
+  import type { UserSession } from '@/types';
 
-  const sessions = ref<UserSession[]>([]);
-  const loading = ref(true);
-  const onlyActive = ref(false);
-  const page = ref(1);
-  const hasMore = ref(true);
+  const sessionsStore = useSessionsStore();
 
-  const loadSessions = async (reset = false) => {
-    if (reset) {
-      page.value = 1;
-      sessions.value = [];
-      hasMore.value = true;
-    }
-
-    loading.value = true;
-    try {
-      const params = new URLSearchParams({
-        page: page.value.toString(),
-        per_page: '15',
-      });
-
-      if (onlyActive.value) {
-        params.append('active', '1');
-      }
-
-      const response = await api.get<PaginatedResponse<UserSession>>(
-        `/admin/sessions?${params}`
-      );
-
-      if (reset) {
-        sessions.value = response.data;
-      } else {
-        sessions.value = [...sessions.value, ...response.data];
-      }
-
-      hasMore.value = response.current_page < response.last_page;
-    } catch (error) {
-      console.error('Error loading sessions:', error);
-    } finally {
-      loading.value = false;
-    }
-  };
+  const sessions = computed(() => sessionsStore.sessions);
+  const loading = computed(() => sessionsStore.loading);
+  const hasMore = computed(() => sessionsStore.hasMore);
+  const onlyActive = computed({
+    get: () => sessionsStore.onlyActive,
+    set: (value: boolean) => sessionsStore.setOnlyActive(value),
+  });
 
   const handleFilterChange = () => {
-    loadSessions(true);
+    sessionsStore.fetchSessions({ active: sessionsStore.onlyActive });
   };
 
   const loadMore = (event: any) => {
-    page.value++;
-    loadSessions().then(() => {
+    sessionsStore.fetchSessions({ page: sessionsStore.pagination.currentPage + 1 }).then(() => {
       event.target.complete();
     });
   };
@@ -174,15 +138,14 @@
 
   const revokeSession = async (session: UserSession) => {
     try {
-      await api.delete(`/admin/sessions/${session.id}`);
-      sessions.value = sessions.value.filter((s) => s.id !== session.id);
+      await sessionsStore.revokeSession(session.id);
     } catch (error) {
       console.error('Error revoking session:', error);
     }
   };
 
   onMounted(() => {
-    loadSessions();
+    sessionsStore.fetchSessions({ per_page: 15 });
   });
 </script>
 

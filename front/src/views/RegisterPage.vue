@@ -100,9 +100,11 @@
     IonSpinner,
   } from '@ionic/vue';
   import { api } from '@/services/api';
+  import { useAuthStore } from '@/stores/auth';
 
   const router = useRouter();
   const route = useRoute();
+  const authStore = useAuthStore();
 
   const form = ref({
     name: '',
@@ -160,17 +162,11 @@
       await api.post('/register', data);
 
       if (isOAuthFlow.value) {
-        const loginResponse = await api.post<{ token: string; user: any }>(
-          '/login',
-          {
-            user: form.value.email,
-            password: form.value.password,
-            client_id: oauthParams.value.client_id,
-          }
-        );
-
-        localStorage.setItem('token', loginResponse.token);
-        localStorage.setItem('user', JSON.stringify(loginResponse.user));
+        await authStore.login({
+          user: form.value.email,
+          password: form.value.password,
+          client_id: oauthParams.value.client_id || undefined,
+        });
 
         await handleOAuthAuthorize();
       }

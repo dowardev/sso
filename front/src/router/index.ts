@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
 import HomePage from '../views/HomePage.vue';
-import { auth, isAuthenticated } from '@/services/auth';
+import { useAuthStore } from '@/stores/auth';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -97,16 +97,17 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore();
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
   const isAuthRoute = to.path.startsWith('/auth/');
 
-  if (requiresAuth && !isAuthenticated.value) {
+  if (requiresAuth && !authStore.isAuthenticated) {
     next('/login');
   } else if (isAuthRoute) {
     next();
   } else if (
     (to.path === '/login' || to.path === '/') &&
-    isAuthenticated.value
+    authStore.isAuthenticated
   ) {
     next('/admin/dashboard');
   } else {

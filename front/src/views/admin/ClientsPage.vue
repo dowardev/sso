@@ -116,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
+  import { ref, onMounted, computed } from 'vue';
   import {
     IonPage,
     IonHeader,
@@ -140,10 +140,14 @@
     IonSpinner,
   } from '@ionic/vue';
   import { add, desktopOutline, trash } from 'ionicons/icons';
-  import { api, type SsoClient } from '@/services/api';
+  import { useClientsStore } from '@/stores/clients';
+  import type { SsoClient } from '@/types';
 
-  const clients = ref<SsoClient[]>([]);
-  const loading = ref(true);
+  const clientsStore = useClientsStore();
+
+  const clients = computed(() => clientsStore.clients);
+  const loading = computed(() => clientsStore.loading);
+
   const showModal = ref(false);
   const editingClient = ref<SsoClient | null>(null);
   const saving = ref(false);
@@ -155,17 +159,6 @@
     redirect_url: '',
     active: true,
   });
-
-  const loadClients = async () => {
-    try {
-      const response = await api.get<SsoClient[]>('/admin/clients');
-      clients.value = response;
-    } catch (error) {
-      console.error('Error loading clients:', error);
-    } finally {
-      loading.value = false;
-    }
-  };
 
   const openCreateModal = () => {
     editingClient.value = null;
@@ -197,25 +190,15 @@
       const data = {
         name: clientForm.value.name,
         client_id: clientForm.value.client_id,
-        client_secret: clientForm.value.client_secret || null,
-        redirect_url: clientForm.value.redirect_url || null,
+        client_secret: clientForm.value.client_secret || '',
+        redirect_url: clientForm.value.redirect_url || undefined,
         active: clientForm.value.active,
       };
 
       if (editingClient.value) {
-        const response = await api.put<SsoClient>(
-          `/admin/clients/${editingClient.value.id}`,
-          data
-        );
-        const index = clients.value.findIndex(
-          (c) => c.id === editingClient.value!.id
-        );
-        if (index !== -1) {
-          clients.value[index] = response;
-        }
+        await clientsStore.updateClient(editingClient.value.id, data);
       } else {
-        const response = await api.post<SsoClient>('/admin/clients', data);
-        clients.value.unshift(response);
+        await clientsStore.createClient(data);
       }
 
       showModal.value = false;
@@ -228,15 +211,14 @@
 
   const deleteClient = async (client: SsoClient) => {
     try {
-      await api.delete(`/admin/clients/${client.id}`);
-      clients.value = clients.value.filter((c) => c.id !== client.id);
+      await clientsStore.deleteClient(client.id);
     } catch (error) {
       console.error('Error deleting client:', error);
     }
   };
 
   onMounted(() => {
-    loadClients();
+    clientsStore.fetchClients();
   });
 </script>
 
