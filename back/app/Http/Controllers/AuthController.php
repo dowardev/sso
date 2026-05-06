@@ -14,6 +14,9 @@ use Lcobucci\JWT\Signer\Rsa\Sha256;
 use Lcobucci\JWT\Token;
 use Lcobucci\JWT\Validation\Constraint;
 use Lcobucci\JWT\Validation\Constraint\SignedWith;
+use Lcobucci\JWT\Validation\Constraint\IssuedBy;
+use Lcobucci\JWT\Validation\Constraint\LooseValidAt;
+use Lcobucci\Clock\SystemClock;
 
 class AuthController extends Controller
 {
@@ -158,7 +161,13 @@ class AuthController extends Controller
         try {
             $token = $this->jwtConfig->parser()->parse($tokenString);
 
-            if (!$token->isValid()) {
+            $constraints = [
+                new SignedWith($this->jwtConfig->signer(), $this->jwtConfig->verificationKey()),
+                new IssuedBy($this->issuer),
+                new LooseValidAt(new SystemClock(new \DateTimeZone('UTC'))),
+            ];
+
+            if (!$this->jwtConfig->validator()->validate($token, ...$constraints)) {
                 return response()->json(['message' => 'Token inválido'], 401);
             }
 
@@ -220,7 +229,13 @@ class AuthController extends Controller
         try {
             $token = $this->jwtConfig->parser()->parse($tokenString);
 
-            if (!$token->isValid()) {
+            $constraints = [
+                new SignedWith($this->jwtConfig->signer(), $this->jwtConfig->verificationKey()),
+                new IssuedBy($this->issuer),
+                new LooseValidAt(new SystemClock(new \DateTimeZone('UTC'))),
+            ];
+
+            if (!$this->jwtConfig->validator()->validate($token, ...$constraints)) {
                 return response()->json(['authenticated' => false], 200);
             }
 
