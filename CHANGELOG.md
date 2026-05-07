@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.4] - 2026-05-07
+
+### Changed
+- Unified design across all 4 auth pages (LoginPage, RegisterPage, PublicLoginPage, PublicRegisterPage)
+- Refactored LoginPage and RegisterPage to use ion-grid/ion-card layout with logo SVG, matching the public auth pages
+- Applied consistent styling with card shadows, floating labels, and centered grid layout
+
+### Affected Files
+- Modified: front/src/views/LoginPage.vue
+- Modified: front/src/views/RegisterPage.vue
+- Modified: front/src/views/PublicLoginPage.vue
+- Modified: front/src/views/PublicRegisterPage.vue
+
+---
+
 ## [0.11.3] - 2026-05-07
 
 ### Changed

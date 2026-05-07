@@ -1,299 +1,285 @@
 <template>
   <ion-page>
-    <ion-header class="ion-no-border" mode="ios">
-      <ion-toolbar></ion-toolbar>
-    </ion-header>
+    <ion-content :fullscreen="true">
+      <ion-grid class="login-grid">
+        <ion-row class="ion-justify-content-center">
+          <ion-col size="12" size-sm="10" size-md="8" size-lg="6" size-xl="4">
+            <ion-card class="shadow1">
+              <img
+                alt="Silhouette of mountains"
+                src="@/assets/images/lambda_v1.svg"
+              />
 
-    <ion-content :fullscreen="true" class="register-content">
-      <!-- content -->
-      <div class="register-container">
-        <div class="register-header">
-          <h1>SSO Admin</h1>
-          <p>Crear cuenta</p>
-        </div>
+              <ion-card-header>
+                <ion-card-title>Crear Cuenta</ion-card-title>
+                <ion-card-subtitle> Regístrate para acceder </ion-card-subtitle>
+              </ion-card-header>
 
-        <form class="register-form" @submit.prevent="handleRegister">
-          <ion-item class="form-item">
-            <ion-label position="stacked">Nombre</ion-label>
-            <ion-input
-              v-model="form.name"
-              type="text"
-              required
-              placeholder="Ingresa tu nombre"
-            ></ion-input>
-          </ion-item>
+              <ion-card-content>
+                <div>
+                  <form @submit.prevent="handleRegister">
+                    <ion-item lines="full">
+                      <ion-input
+                        v-model="form.name"
+                        label="Nombre"
+                        label-placement="floating"
+                        type="text"
+                        required
+                        placeholder="Ingresa tu nombre"
+                      ></ion-input>
+                    </ion-item>
 
-          <ion-item class="form-item">
-            <ion-label position="stacked">Usuario</ion-label>
-            <ion-input
-              v-model="form.user"
-              type="text"
-              required
-              placeholder="Ingresa tu usuario"
-            ></ion-input>
-          </ion-item>
+                    <ion-item lines="full">
+                      <ion-input
+                        v-model="form.user"
+                        label="Usuario"
+                        label-placement="floating"
+                        type="text"
+                        required
+                        placeholder="Ingresa tu usuario"
+                      ></ion-input>
+                    </ion-item>
 
-          <ion-item class="form-item">
-            <ion-label position="stacked">Email</ion-label>
-            <ion-input
-              v-model="form.email"
-              type="email"
-              required
-              placeholder="Ingresa tu email"
-            ></ion-input>
-          </ion-item>
+                    <ion-item lines="full">
+                      <ion-input
+                        v-model="form.email"
+                        label="Email"
+                        label-placement="floating"
+                        type="email"
+                        required
+                        placeholder="Ingresa tu email"
+                      ></ion-input>
+                    </ion-item>
 
-          <ion-item class="form-item">
-            <ion-label position="stacked">Contraseña</ion-label>
-            <ion-input
-              v-model="form.password"
-              type="password"
-              required
-              placeholder="Ingresa tu contraseña"
-            ></ion-input>
-          </ion-item>
+                    <ion-item lines="full">
+                      <ion-input
+                        v-model="form.password"
+                        label="Contraseña"
+                        label-placement="floating"
+                        type="password"
+                        required
+                        placeholder="Ingresa tu contraseña"
+                      ></ion-input>
+                    </ion-item>
 
-          <ion-item class="form-item">
-            <ion-label position="stacked">Confirmar contraseña</ion-label>
-            <ion-input
-              v-model="form.password_confirmation"
-              type="password"
-              required
-              placeholder="Confirma tu contraseña"
-            ></ion-input>
-          </ion-item>
+                    <ion-item lines="full">
+                      <ion-input
+                        v-model="form.password_confirmation"
+                        label="Confirmar contraseña"
+                        label-placement="floating"
+                        type="password"
+                        required
+                        placeholder="Confirma tu contraseña"
+                      ></ion-input>
+                    </ion-item>
 
-          <div v-if="error" class="error-message">
-            {{ error }}
-          </div>
+                    <div v-if="error" class="error-message">
+                      {{ error }}
+                    </div>
 
-          <ion-button
-            type="submit"
-            expand="block"
-            :disabled="loading"
-            class="submit-button"
-          >
-            <ion-spinner v-if="loading" name="lines"></ion-spinner>
-            <span v-else>Registrar</span>
-          </ion-button>
+                    <div class="ion-padding-top">
+                      <ion-button
+                        type="submit"
+                        expand="block"
+                        :disabled="loading"
+                        class="no-shadow"
+                      >
+                        <ion-spinner v-if="loading" name="lines"></ion-spinner>
+                        <span v-else>Registrar</span>
+                      </ion-button>
+                    </div>
 
-          <ion-button
-            fill="clear"
-            expand="block"
-            :disabled="loading"
-            class="login-link"
-            @click="goToLogin"
-          >
-            Ya tengo cuenta
-          </ion-button>
-        </form>
-      </div>
-      <!-- end content -->
+                    <section>
+                      <ion-button
+                        fill="clear"
+                        expand="block"
+                        :disabled="loading"
+                        @click="goToLogin"
+                      >
+                        Ya tengo cuenta
+                      </ion-button>
+                    </section>
+                  </form>
+                </div>
+              </ion-card-content>
+            </ion-card>
 
-      <!-- modals -->
-      <!-- end modals -->
-
-      <!-- popovers -->
-      <!-- end popovers -->
-
-      <!-- alerts -->
-      <!-- end alerts -->
+            <ion-button expand="full" fill="clear" size="small" @click="goBack">
+              <ion-icon slot="start" :icon="arrowBack"></ion-icon>
+              Volver
+            </ion-button>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-// imports
-import { ref, onMounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { IonPage, IonContent, IonHeader, IonToolbar, IonItem, IonLabel, IonInput, IonButton, IonSpinner } from '@ionic/vue';
+  // imports
+  import { ref, onMounted } from 'vue';
+  import { useRouter, useRoute } from 'vue-router';
+  import {
+    IonPage,
+    IonContent,
+    IonGrid,
+    IonRow,
+    IonCol,
+    IonCard,
+    IonCardHeader,
+    IonCardTitle,
+    IonCardSubtitle,
+    IonCardContent,
+    IonItem,
+    IonInput,
+    IonButton,
+    IonSpinner,
+    IonIcon,
+  } from '@ionic/vue';
+  import { arrowBack } from 'ionicons/icons';
 
-// controllers
-import { useAuthController } from '@/controllers/authController';
-const authController = useAuthController();
+  // controllers
+  import { useAuthController } from '@/controllers/authController';
+  const authController = useAuthController();
 
-// components
-// end components
+  // components
+  // end components
 
-// interface and types imports
-// end interface and types imports
+  // interface and types imports
+  // end interface and types imports
 
-// main
-const router = useRouter();
-const route = useRoute();
-// end main
+  // main
+  const router = useRouter();
+  const route = useRoute();
+  // end main
 
-// vars and const
-const form = ref({
-  name: '',
-  user: '',
-  email: '',
-  password: '',
-  password_confirmation: '',
-});
+  // vars and const
+  const form = ref({
+    name: '',
+    user: '',
+    email: '',
+    password: '',
+    password_confirmation: '',
+  });
 
-const loading = ref(false);
-const error = ref('');
+  const loading = ref(false);
+  const error = ref('');
 
-const oauthParams = ref({
-  client_id: '',
-  redirect_uri: '',
-  state: '',
-  response_type: '',
-  code_challenge: '',
-  code_challenge_method: '',
-  code_verifier: '',
-});
+  const oauthParams = ref({
+    client_id: '',
+    redirect_uri: '',
+    state: '',
+    response_type: '',
+    code_challenge: '',
+    code_challenge_method: '',
+    code_verifier: '',
+  });
 
-const isOAuthFlow = ref(false);
-// end vars and const
+  const isOAuthFlow = ref(false);
+  // end vars and const
 
-// watch
-// end
+  // watch
+  // end
 
-// computed
-// end computed
+  // computed
+  // end computed
 
-// onmounted
-onMounted(() => {
-  const { client_id, redirect_uri, state, response_type, code_challenge, code_challenge_method, code_verifier } = route.query;
-  if (client_id && redirect_uri) {
-    isOAuthFlow.value = true;
-    oauthParams.value = {
-      client_id: client_id as string,
-      redirect_uri: redirect_uri as string,
-      state: (state as string) || '',
-      response_type: (response_type as string) || 'code',
-      code_challenge: (code_challenge as string) || '',
-      code_challenge_method: (code_challenge_method as string) || '',
-      code_verifier: (code_verifier as string) || '',
-    };
-  }
-});
-// end onmounted
+  // onmounted
+  onMounted(() => {
+    const {
+      client_id,
+      redirect_uri,
+      state,
+      response_type,
+      code_challenge,
+      code_challenge_method,
+      code_verifier,
+    } = route.query;
+    if (client_id && redirect_uri) {
+      isOAuthFlow.value = true;
+      oauthParams.value = {
+        client_id: client_id as string,
+        redirect_uri: redirect_uri as string,
+        state: (state as string) || '',
+        response_type: (response_type as string) || 'code',
+        code_challenge: (code_challenge as string) || '',
+        code_challenge_method: (code_challenge_method as string) || '',
+        code_verifier: (code_verifier as string) || '',
+      };
+    }
+  });
+  // end onmounted
 
-// functions
-const handleRegister = async (): Promise<void> => {
-  loading.value = true;
-  error.value = '';
+  // functions
+  const handleRegister = async (): Promise<void> => {
+    loading.value = true;
+    error.value = '';
 
-  try {
-    await authController.register({
-      name: form.value.name,
-      user: form.value.user,
-      email: form.value.email,
-      password: form.value.password,
-      password_confirmation: form.value.password_confirmation,
-      client_id: oauthParams.value.client_id || undefined,
-    });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Error al registrar';
-    if (typeof err === 'object' && err && 'errors' in err) {
-      const messages = Object.values((err as Record<string, unknown>).errors as Record<string, unknown>).flat().join(', ');
-      error.value = messages;
+    try {
+      await authController.register({
+        name: form.value.name,
+        user: form.value.user,
+        email: form.value.email,
+        password: form.value.password,
+        password_confirmation: form.value.password_confirmation,
+        client_id: oauthParams.value.client_id || undefined,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al registrar';
+      if (typeof err === 'object' && err && 'errors' in err) {
+        const messages = Object.values(
+          (err as Record<string, unknown>).errors as Record<string, unknown>
+        )
+          .flat()
+          .join(', ');
+        error.value = messages;
+      } else {
+        error.value = message;
+      }
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const goToLogin = (): void => {
+    const query: Record<string, string> = {};
+    if (isOAuthFlow.value) {
+      query.client_id = oauthParams.value.client_id;
+      query.redirect_uri = oauthParams.value.redirect_uri;
+      query.response_type = oauthParams.value.response_type || 'code';
+      if (oauthParams.value.state) {
+        query.state = oauthParams.value.state;
+      }
+      if (oauthParams.value.code_challenge) {
+        query.code_challenge = oauthParams.value.code_challenge;
+        query.code_challenge_method = oauthParams.value.code_challenge_method;
+      }
+    }
+    router.push({ name: 'AdminLogin', query });
+  };
+
+  const goBack = (): void => {
+    if (window.history.length > 1) {
+      router.back();
     } else {
-      error.value = message;
+      router.replace('/');
     }
-  } finally {
-    loading.value = false;
-  }
-};
-
-const goToLogin = (): void => {
-  const query: Record<string, string> = {};
-  if (isOAuthFlow.value) {
-    query.client_id = oauthParams.value.client_id;
-    query.redirect_uri = oauthParams.value.redirect_uri;
-    query.response_type = oauthParams.value.response_type || 'code';
-    if (oauthParams.value.state) {
-      query.state = oauthParams.value.state;
-    }
-    if (oauthParams.value.code_challenge) {
-      query.code_challenge = oauthParams.value.code_challenge;
-      query.code_challenge_method = oauthParams.value.code_challenge_method;
-    }
-  }
-  router.push({ name: 'AdminLogin', query });
-};
-// end functions
+  };
+  // end functions
 </script>
 
 <style scoped>
-.register-content {
-  --background: var(--gradient-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.register-container {
-  width: 100%;
-  max-width: 400px;
-  padding: 24px;
-}
-
-.register-header {
-  text-align: center;
-  color: white;
-  margin-bottom: 32px;
-}
-
-.register-header h1 {
-  margin: 0;
-  font-size: 32px;
-  font-weight: 700;
-}
-
-.register-header p {
-  margin: 8px 0 0;
-  opacity: 0.9;
-}
-
-.register-form {
-  background: var(--background-contrast);
-  border-radius: var(--card-border-radius);
-  padding: 24px;
-  box-shadow: var(--card-shadow-light) 0px 8px 24px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
-}
-
-.form-item {
-  --background: var(--ion-color-light);
-  --border-radius: 8px;
-  --padding-start: 12px;
-  --padding-end: 12px;
-  margin-bottom: 8px;
-}
-
-.submit-button {
-  margin-top: 16px;
-  --border-radius: 8px;
-  height: 48px;
-  font-weight: 600;
-}
-
-.login-link {
-  margin-top: 8px;
-  --color: var(--ion-color-primary);
-}
-
-.error-message {
-  color: var(--ion-color-danger);
-  text-align: center;
-  margin: 8px 0;
-  font-size: 14px;
-}
-
-@media (min-width: 768px) {
-  .register-container {
-    padding: 48px;
+  .login-grid {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
-  .register-form {
-    padding: 32px;
+  .error-message {
+    color: #e74c3c;
+    text-align: center;
+    margin: 8px 0;
+    font-size: 14px;
   }
-
-  .register-header h1 {
-    font-size: 40px;
-  }
-}
 </style>
