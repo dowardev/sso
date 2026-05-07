@@ -161,7 +161,7 @@ const isOAuthFlow = ref(false);
 // end computed
 
 // onmounted
-onMounted(() => {
+onMounted(async () => {
   const { client_id, redirect_uri, state, response_type, code_challenge, code_challenge_method, code_verifier } = route.query;
   if (client_id && redirect_uri) {
     isOAuthFlow.value = true;
@@ -174,6 +174,24 @@ onMounted(() => {
       code_challenge_method: (code_challenge_method as string) || '',
       code_verifier: (code_verifier as string) || '',
     };
+
+    if (authController.isAuthenticated.value) {
+      loading.value = true;
+      try {
+        await authController.oauthAuthorize({
+          client_id: oauthParams.value.client_id,
+          redirect_uri: oauthParams.value.redirect_uri,
+          state: oauthParams.value.state,
+          response_type: oauthParams.value.response_type || 'code',
+          code_challenge: oauthParams.value.code_challenge || undefined,
+          code_challenge_method: oauthParams.value.code_challenge_method || undefined,
+          code_verifier: oauthParams.value.code_verifier || undefined,
+        });
+        return;
+      } catch {
+        loading.value = false;
+      }
+    }
   }
 });
 // end onmounted

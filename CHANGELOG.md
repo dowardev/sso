@@ -210,21 +210,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Package.json removed from root (workspace structure refactoring)
 
-## [0.5.0] - 2026-05-01
+## [0.5.0] - 2026-05-07
 
 ### Added
-- Role-based access control (RBAC) system with Role model, migrations, and seeder
-- Role management CRUD endpoints (index, create, update, delete) with protected role guards
-- User-role assignment with per-application (SSO client) scoping via pivot table
-- Frontend roles management page (RolesPage.vue) with create/edit/delete modals
-- Role assignment UI in user detail page with per-application scope selection
-- Roles menu item in admin sidebar and route configuration
-- TypeScript interfaces for Role and UserRole in API service
+- Auto-authorization flow for authenticated users in OAuth2 authorization flow
+  - PublicLoginPage and PublicRegisterPage now automatically redirect authenticated users to authorization without showing login form
+  - Calls `authController.oauthAuthorize` directly when user has valid session in OAuth flow
+- SSO client demo application migrated from monolithic HTML to Vite + TypeScript
+  - New `sso-client/` directory with complete Vite project structure
+  - Uses `@tu-org/sso-client` SDK via local link
+  - Modular TypeScript code: main.ts (bootstrap), app.ts (logic), style.css (styling)
+  - Runs on port 5174 with proper Vite configuration
 
 ### Changed
-- User profile endpoint now loads associated roles
-- User model gains roles relationship and helper methods (hasRole, getEffectiveRole, isAdmin)
-- Database seeder now includes default system roles (admin, moderator, standard)
+- Made `onMounted` async in PublicLoginPage and PublicRegisterPage to support auto-authorization flow
+
+### Affected Files
+- Modified: `front/src/views/PublicLoginPage.vue`, `front/src/views/PublicRegisterPage.vue`
+- Added: `sso-client/.gitignore`, `sso-client/index.html`, `sso-client/package.json`, `sso-client/package-lock.json`
+- Added: `sso-client/src/main.ts`, `sso-client/src/app.ts`, `sso-client/src/style.css`, `sso-client/src/vite-env.d.ts`
+- Added: `sso-client/tsconfig.json`, `sso-client/vite.config.ts`
+
+---
+
+## [0.4.0] - 2026-03-29
+
+### Added
+- Username-based authentication: login now accepts either `email` or `user` (username) field
+- Optional `client_id` parameter for login endpoint - sessions can be created without specifying a client
+- Complete frontend admin panel with:
+  - Dashboard page with overview statistics
+  - Users management (list, detail view, search)
+  - Clients management (CRUD)
+  - Sessions management (view and revoke)
+- New API service and Auth service in frontend for centralized API calls
+
+### Changed
+- Login validation now allows either email or username
+- Made `client_id` nullable in login endpoint
+- Session registration now handles null client gracefully
+
+### Breaking Changes
+- None
 
 ## [0.4.0] - 2026-03-29
 
