@@ -36,7 +36,7 @@
               <ion-item button @click="router.push(`/admin/users/${user.id}`)">
                 <ion-avatar slot="start">
                   <div class="avatar-placeholder">
-                    {{ getInitials(user.name) }}
+                    {{ getInitials({ name: user.name }) }}
                   </div>
                 </ion-avatar>
                 <ion-label>
@@ -55,13 +55,13 @@
               </ion-item>
 
               <ion-item-options side="end">
-                <ion-item-option color="medium" @click="toggleAdmin(user)">
+                <ion-item-option color="medium" @click="toggleAdmin({ user })">
                   <ion-icon
                     slot="icon-only"
                     :icon="user.is_admin ? removeCircle : addCircle"
                   ></ion-icon>
                 </ion-item-option>
-                <ion-item-option color="danger" @click="confirmDelete(user)">
+                <ion-item-option color="danger" @click="confirmDelete({ user })">
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-item-option>
               </ion-item-options>
@@ -79,126 +79,160 @@
           </ion-infinite-scroll>
         </div>
       </div>
+      <!-- end content -->
 
+      <!-- modals -->
+      <!-- end modals -->
+
+      <!-- popovers -->
+      <!-- end popovers -->
+
+      <!-- alerts -->
       <ion-alert
         :is-open="showDeleteAlert"
         header="Eliminar Usuario"
         :message="`¿Estás seguro de eliminar a ${userToDelete?.name}?`"
         :buttons="deleteAlertButtons"
       ></ion-alert>
+      <!-- end alerts -->
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted, computed } from 'vue';
-  import { useRouter } from 'vue-router';
-  import {
-    IonPage,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonButtons,
-    IonMenuButton,
-    IonContent,
-    IonSearchbar,
-    IonList,
-    IonItem,
-    IonLabel,
-    IonAvatar,
-    IonBadge,
-    IonItemSliding,
-    IonItemOptions,
-    IonItemOption,
-    IonIcon,
-    IonSpinner,
-    IonInfiniteScroll,
-    IonInfiniteScrollContent,
-    IonAlert,
-    alertController,
-  } from '@ionic/vue';
-  import { personRemove, removeCircle, addCircle, trash } from 'ionicons/icons';
-  import { useUsersController } from '@/controllers/usersController';
-  import type { User } from '@/types';
+// imports
+import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonMenuButton,
+  IonContent,
+  IonSearchbar,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonAvatar,
+  IonBadge,
+  IonItemSliding,
+  IonItemOptions,
+  IonItemOption,
+  IonIcon,
+  IonSpinner,
+  IonInfiniteScroll,
+  IonInfiniteScrollContent,
+  IonAlert,
+  alertController,
+} from '@ionic/vue';
+import { personRemove, removeCircle, addCircle, trash } from 'ionicons/icons';
 
-  const router = useRouter();
-  const usersController = useUsersController();
+// controllers
+import { useUsersController } from '@/controllers/usersController';
+const usersController = useUsersController();
 
-  const users = computed(() => usersController.users.value);
-  const loading = computed(() => usersController.loading.value);
-  const hasMore = computed(() => usersController.hasMore.value);
+// components
+// end components
 
-  const search = ref('');
-  const showDeleteAlert = ref(false);
-  const userToDelete = ref<User | null>(null);
+// interface and types imports
+import type { User } from '@/types';
+// end interface and types imports
 
-  const handleSearch = (): void => {
-    usersController.setSearch(search.value);
-    usersController.fetchUsers({ search: search.value || undefined });
-  };
+// main
+const router = useRouter();
+// end main
 
-  const loadMore = (event: unknown): void => {
-    usersController.fetchUsers({ page: usersController.pagination.value.currentPage + 1 }).then(() => {
-      if (event && typeof event === 'object' && 'target' in event) {
-        (event as { target: { complete: () => void } }).target.complete();
-      }
-    });
-  };
+// vars and const
+const search = ref('');
+const showDeleteAlert = ref(false);
+const userToDelete = ref<User | null>(null);
 
-  const getInitials = (name: string): string => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
+async function deleteUser(): Promise<void> {
+  if (!userToDelete.value) return;
 
-  const toggleAdmin = async (user: User) => {
-    try {
-      await usersController.toggleAdmin(user.id);
-    } catch (error) {
-      console.error('Error toggling admin:', error);
-    }
-  };
+  try {
+    await usersController.deleteUser(userToDelete.value.id);
+  } catch (error) {
+    console.error('Error deleting user:', error);
+  } finally {
+    showDeleteAlert.value = false;
+    userToDelete.value = null;
+  }
+}
 
-  const confirmDelete = (user: User) => {
-    userToDelete.value = user;
-    showDeleteAlert.value = true;
-  };
-
-  const deleteUser = async () => {
-    if (!userToDelete.value) return;
-
-    try {
-      await usersController.deleteUser(userToDelete.value.id);
-    } catch (error) {
-      console.error('Error deleting user:', error);
-    } finally {
+const deleteAlertButtons = [
+  {
+    text: 'Cancelar',
+    role: 'cancel',
+    handler: () => {
       showDeleteAlert.value = false;
       userToDelete.value = null;
+    },
+  },
+  {
+    text: 'Eliminar',
+    role: 'destructive',
+    handler: deleteUser,
+  },
+];
+// end vars and const
+
+// watch
+// end
+
+// computed
+const users = computed(() => usersController.users.value);
+const loading = computed(() => usersController.loading.value);
+const hasMore = computed(() => usersController.hasMore.value);
+// end computed
+
+// onmounted
+onMounted(() => {
+  usersController.fetchUsers({ per_page: 15 });
+});
+// end onmounted
+
+// functions
+const handleSearch = (): void => {
+  usersController.setSearch(search.value);
+  usersController.fetchUsers({ search: search.value || undefined });
+};
+
+const loadMore = (event: unknown): void => {
+  usersController.fetchUsers({ page: usersController.pagination.value.currentPage + 1 }).then(() => {
+    if (event && typeof event === 'object' && 'target' in event) {
+      (event as { target: { complete: () => void } }).target.complete();
     }
-  };
-
-  const deleteAlertButtons = [
-    {
-      text: 'Cancelar',
-      role: 'cancel',
-      handler: () => {
-        showDeleteAlert.value = false;
-        userToDelete.value = null;
-      },
-    },
-    {
-      text: 'Eliminar',
-      role: 'destructive',
-      handler: deleteUser,
-    },
-  ];
-
-  onMounted(() => {
-    usersController.fetchUsers({ per_page: 15 });
   });
+};
+
+const getInitials = (params: { name: string }): string => {
+  const { name } = params;
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+const toggleAdmin = async (params: { user: User }): Promise<void> => {
+  const { user } = params;
+  try {
+    await usersController.toggleAdmin(user.id);
+  } catch (error) {
+    console.error('Error toggling admin:', error);
+  }
+};
+
+const confirmDelete = (params: { user: User }): void => {
+  const { user } = params;
+  userToDelete.value = user;
+  showDeleteAlert.value = true;
+};
+// end functions
 </script>
 
 <style scoped>

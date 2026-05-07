@@ -48,7 +48,7 @@
                 </p>
                 <p class="ip-address">{{ session.ip_address }}</p>
                 <p class="session-date">
-                  Último uso: {{ formatDate(session.last_used_at) }}
+                  Último uso: {{ formatDate({ dateStr: session.last_used_at }) }}
                 </p>
               </ion-label>
               <div slot="end" class="session-end">
@@ -58,7 +58,7 @@
                 <ion-button
                   fill="clear"
                   color="danger"
-                  @click="revokeSession(session)"
+                  @click="revokeSession({ session })"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-button>
@@ -77,78 +77,113 @@
           </ion-infinite-scroll>
         </div>
       </div>
+      <!-- end content -->
+
+      <!-- modals -->
+      <!-- end modals -->
+
+      <!-- popovers -->
+      <!-- end popovers -->
+
+      <!-- alerts -->
+      <!-- end alerts -->
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted, computed } from 'vue';
-  import {
-    IonPage,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonButtons,
-    IonMenuButton,
-    IonContent,
-    IonItem,
-    IonLabel,
-    IonIcon,
-    IonList,
-    IonBadge,
-    IonButton,
-    IonSpinner,
-    IonInfiniteScroll,
-    IonInfiniteScrollContent,
-    IonToggle,
-  } from '@ionic/vue';
-  import { keyOutline, desktopOutline, trash } from 'ionicons/icons';
-  import { useSessionsController } from '@/controllers/sessionsController';
-  import type { UserSession } from '@/types';
+// imports
+import { ref, onMounted, computed } from 'vue';
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonMenuButton,
+  IonContent,
+  IonItem,
+  IonLabel,
+  IonIcon,
+  IonList,
+  IonBadge,
+  IonButton,
+  IonSpinner,
+  IonInfiniteScroll,
+  IonInfiniteScrollContent,
+  IonToggle,
+} from '@ionic/vue';
+import { keyOutline, desktopOutline, trash } from 'ionicons/icons';
 
-  const sessionsController = useSessionsController();
+// controllers
+import { useSessionsController } from '@/controllers/sessionsController';
+const sessionsController = useSessionsController();
 
-  const sessions = computed(() => sessionsController.sessions.value);
-  const loading = computed(() => sessionsController.loading.value);
-  const hasMore = computed(() => sessionsController.hasMore.value);
-  const onlyActive = computed({
-    get: () => sessionsController.onlyActive.value,
-    set: (value: boolean) => sessionsController.setOnlyActive(value),
-  });
+// components
+// end components
 
-  const handleFilterChange = (): void => {
-    sessionsController.fetchSessions({ active: sessionsController.onlyActive.value });
-  };
+// interface and types imports
+import type { UserSession } from '@/types';
+// end interface and types imports
 
-  const loadMore = (event: unknown): void => {
-    sessionsController.fetchSessions({ page: sessionsController.pagination.value.currentPage + 1 }).then(() => {
-      if (event && typeof event === 'object' && 'target' in event) {
-        (event as { target: { complete: () => void } }).target.complete();
-      }
-    });
-  };
+// main
+// end main
 
-  const formatDate = (dateStr: string): string => {
-    return new Date(dateStr).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+// vars and const
+// end vars and const
 
-  const revokeSession = async (session: UserSession) => {
-    try {
-      await sessionsController.revokeSession(session.id);
-    } catch (error) {
-      console.error('Error revoking session:', error);
+// watch
+// end
+
+// computed
+const sessions = computed(() => sessionsController.sessions.value);
+const loading = computed(() => sessionsController.loading.value);
+const hasMore = computed(() => sessionsController.hasMore.value);
+const onlyActive = computed({
+  get: () => sessionsController.onlyActive.value,
+  set: (value: boolean) => sessionsController.setOnlyActive(value),
+});
+// end computed
+
+// onmounted
+onMounted(() => {
+  sessionsController.fetchSessions({ per_page: 15 });
+});
+// end onmounted
+
+// functions
+const handleFilterChange = (): void => {
+  sessionsController.fetchSessions({ active: sessionsController.onlyActive.value });
+};
+
+const loadMore = (event: unknown): void => {
+  sessionsController.fetchSessions({ page: sessionsController.pagination.value.currentPage + 1 }).then(() => {
+    if (event && typeof event === 'object' && 'target' in event) {
+      (event as { target: { complete: () => void } }).target.complete();
     }
-  };
-
-  onMounted(() => {
-    sessionsController.fetchSessions({ per_page: 15 });
   });
+};
+
+const formatDate = (params: { dateStr: string }): string => {
+  const { dateStr } = params;
+  return new Date(dateStr).toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const revokeSession = async (params: { session: UserSession }): Promise<void> => {
+  const { session } = params;
+  try {
+    await sessionsController.revokeSession(session.id);
+  } catch (error) {
+    console.error('Error revoking session:', error);
+  }
+};
+// end functions
 </script>
 
 <style scoped>

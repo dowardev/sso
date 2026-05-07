@@ -15,6 +15,7 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <!-- content -->
       <div class="page-container">
         <div class="clients-card">
           <div v-if="loading" class="loading-container">
@@ -30,7 +31,7 @@
 
           <ion-list v-else class="clients-list">
             <ion-item-sliding v-for="client in clients" :key="client.id">
-              <ion-item button @click="openEditModal(client)">
+              <ion-item button @click="openEditModal({ client })">
                 <ion-icon
                   slot="start"
                   :icon="desktopOutline"
@@ -52,7 +53,7 @@
               </ion-item>
 
               <ion-item-options side="end">
-                <ion-item-option color="danger" @click="deleteClient(client)">
+                <ion-item-option color="danger" @click="deleteClient({ client })">
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-item-option>
               </ion-item-options>
@@ -60,7 +61,9 @@
           </ion-list>
         </div>
       </div>
+      <!-- end content -->
 
+      <!-- modals -->
       <ion-modal :is-open="showModal" @did-dismiss="showModal = false">
         <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
@@ -111,115 +114,146 @@
           </form>
         </ion-content>
       </ion-modal>
+      <!-- end modals -->
+
+      <!-- popovers -->
+      <!-- end popovers -->
+
+      <!-- alerts -->
+      <!-- end alerts -->
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted, computed } from 'vue';
-  import {
-    IonPage,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonButtons,
-    IonMenuButton,
-    IonButton,
-    IonIcon,
-    IonContent,
-    IonList,
-    IonItem,
-    IonLabel,
-    IonBadge,
-    IonItemSliding,
-    IonItemOptions,
-    IonItemOption,
-    IonModal,
-    IonInput,
-    IonToggle,
-    IonSpinner,
-  } from '@ionic/vue';
-  import { add, desktopOutline, trash } from 'ionicons/icons';
-  import { useClientsController } from '@/controllers/clientsController';
-  import type { SsoClient } from '@/types';
+// imports
+import { ref, onMounted, computed } from 'vue';
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonMenuButton,
+  IonButton,
+  IonIcon,
+  IonContent,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonBadge,
+  IonItemSliding,
+  IonItemOptions,
+  IonItemOption,
+  IonModal,
+  IonInput,
+  IonToggle,
+  IonSpinner,
+} from '@ionic/vue';
+import { add, desktopOutline, trash } from 'ionicons/icons';
 
-  const clientsController = useClientsController();
+// controllers
+import { useClientsController } from '@/controllers/clientsController';
+const clientsController = useClientsController();
 
-  const clients = computed(() => clientsController.clients.value);
-  const loading = computed(() => clientsController.loading.value);
+// components
+// end components
 
-  const showModal = ref(false);
-  const editingClient = ref<SsoClient | null>(null);
-  const saving = ref(false);
+// interface and types imports
+import type { SsoClient } from '@/types';
+// end interface and types imports
 
-  const clientForm = ref({
+// main
+// end main
+
+// vars and const
+const showModal = ref(false);
+const editingClient = ref<SsoClient | null>(null);
+const saving = ref(false);
+
+const clientForm = ref({
+  name: '',
+  client_id: '',
+  client_secret: '',
+  redirect_url: '',
+  active: true,
+});
+// end vars and const
+
+// watch
+// end
+
+// computed
+const clients = computed(() => clientsController.clients.value);
+const loading = computed(() => clientsController.loading.value);
+// end computed
+
+// onmounted
+onMounted(() => {
+  clientsController.fetchClients();
+});
+// end onmounted
+
+// functions
+const openCreateModal = (): void => {
+  editingClient.value = null;
+  clientForm.value = {
     name: '',
     client_id: '',
     client_secret: '',
     redirect_url: '',
     active: true,
-  });
+  };
+  showModal.value = true;
+};
 
-  const openCreateModal = (): void => {
-    editingClient.value = null;
-    clientForm.value = {
-      name: '',
-      client_id: '',
-      client_secret: '',
-      redirect_url: '',
-      active: true,
+const openEditModal = (params: { client: SsoClient }): void => {
+  const { client } = params;
+  editingClient.value = client;
+  clientForm.value = {
+    name: client.name,
+    client_id: client.client_id,
+    client_secret: client.client_secret || '',
+    redirect_url: client.redirect_url || '',
+    active: client.active,
+  };
+  showModal.value = true;
+};
+
+const saveClient = async (): Promise<void> => {
+  saving.value = true;
+  try {
+    const data = {
+      name: clientForm.value.name,
+      client_id: clientForm.value.client_id,
+      client_secret: clientForm.value.client_secret || '',
+      redirect_url: clientForm.value.redirect_url || undefined,
+      active: clientForm.value.active,
     };
-    showModal.value = true;
-  };
 
-  const openEditModal = (client: SsoClient) => {
-    editingClient.value = client;
-    clientForm.value = {
-      name: client.name,
-      client_id: client.client_id,
-      client_secret: client.client_secret || '',
-      redirect_url: client.redirect_url || '',
-      active: client.active,
-    };
-    showModal.value = true;
-  };
-
-  const saveClient = async () => {
-    saving.value = true;
-    try {
-      const data = {
-        name: clientForm.value.name,
-        client_id: clientForm.value.client_id,
-        client_secret: clientForm.value.client_secret || '',
-        redirect_url: clientForm.value.redirect_url || undefined,
-        active: clientForm.value.active,
-      };
-
-      if (editingClient.value) {
-        await clientsController.updateClient({ id: editingClient.value.id, data });
-      } else {
-        await clientsController.createClient({ data });
-      }
-
-      showModal.value = false;
-    } catch (error) {
-      console.error('Error saving client:', error);
-    } finally {
-      saving.value = false;
+    if (editingClient.value) {
+      await clientsController.updateClient({ id: editingClient.value.id, data });
+    } else {
+      await clientsController.createClient({ data });
     }
-  };
 
-  const deleteClient = async (client: SsoClient) => {
-    try {
-      await clientsController.deleteClient(client.id);
-    } catch (error) {
-      console.error('Error deleting client:', error);
-    }
-  };
+    showModal.value = false;
+  } catch (error) {
+    console.error('Error saving client:', error);
+  } finally {
+    saving.value = false;
+  }
+};
 
-  onMounted(() => {
-    clientsController.fetchClients();
-  });
+const deleteClient = async (params: { client: SsoClient }): Promise<void> => {
+  const { client } = params;
+  try {
+    await clientsController.deleteClient(client.id);
+  } catch (error) {
+    console.error('Error deleting client:', error);
+  }
+};
+// end functions
 </script>
 
 <style scoped>

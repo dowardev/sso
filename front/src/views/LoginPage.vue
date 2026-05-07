@@ -1,6 +1,11 @@
 <template>
   <ion-page>
+    <ion-header class="ion-no-border" mode="ios">
+      <ion-toolbar></ion-toolbar>
+    </ion-header>
+
     <ion-content :fullscreen="true">
+      <!-- content -->
       <div class="login-container">
         <div class="login-card">
           <div class="logo-section">
@@ -81,185 +86,161 @@
           Volver
         </ion-button>
       </div>
+      <!-- end content -->
+
+      <!-- modals -->
+      <!-- end modals -->
+
+      <!-- popovers -->
+      <!-- end popovers -->
+
+      <!-- alerts -->
+      <!-- end alerts -->
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
-  import { useRouter, useRoute } from 'vue-router';
-  import {
-    IonPage,
-    IonContent,
-    IonCard,
-    IonItem,
-    IonInput,
-    IonButton,
-    IonSpinner,
-    IonIcon,
-  } from '@ionic/vue';
-  import { arrowBack } from 'ionicons/icons';
-  import { useAuthController } from '@/controllers/authController';
+// imports
+import { ref, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import {
+  IonPage,
+  IonContent,
+  IonHeader,
+  IonToolbar,
+  IonItem,
+  IonInput,
+  IonButton,
+  IonSpinner,
+  IonIcon,
+} from '@ionic/vue';
+import { arrowBack } from 'ionicons/icons';
 
-  const router = useRouter();
-  const route = useRoute();
-  const authController = useAuthController();
+// controllers
+import { useAuthController } from '@/controllers/authController';
+const authController = useAuthController();
 
-  const credentials = ref({
-    user: '',
-    password: '',
-  });
+// components
+// end components
 
-  const loading = ref(false);
-  const error = ref('');
+// interface and types imports
+// end interface and types imports
 
-  const oauthParams = ref({
-    client_id: '',
-    redirect_uri: '',
-    state: '',
-    response_type: '',
-    code_challenge: '',
-    code_challenge_method: '',
-    code_verifier: '',
-  });
+// main
+const router = useRouter();
+const route = useRoute();
+// end main
 
-  const isOAuthFlow = ref(false);
+// vars and const
+const credentials = ref({
+  user: '',
+  password: '',
+});
 
-  onMounted(() => {
-    const { client_id, redirect_uri, state, response_type, code_challenge, code_challenge_method, code_verifier } = route.query;
-    if (client_id && redirect_uri) {
-      isOAuthFlow.value = true;
-      oauthParams.value = {
-        client_id: client_id as string,
-        redirect_uri: redirect_uri as string,
-        state: (state as string) || '',
-        response_type: (response_type as string) || 'code',
-        code_challenge: (code_challenge as string) || '',
-        code_challenge_method: (code_challenge_method as string) || '',
-        code_verifier: (code_verifier as string) || '',
-      };
-    }
-  });
+const loading = ref(false);
+const error = ref('');
 
-const handleLogin = async (): Promise<void> => {
-    loading.value = true;
-    error.value = '';
+const oauthParams = ref({
+  client_id: '',
+  redirect_uri: '',
+  state: '',
+  response_type: '',
+  code_challenge: '',
+  code_challenge_method: '',
+  code_verifier: '',
+});
 
-    try {
-      await authController.login({
-        user: credentials.value.user,
-        password: credentials.value.password,
-        client_id: oauthParams.value.client_id || undefined,
-      });
+const isOAuthFlow = ref(false);
+// end vars and const
 
-      if (isOAuthFlow.value) {
-        await authController.oauthAuthorize({
-          client_id: oauthParams.value.client_id,
-          redirect_uri: oauthParams.value.redirect_uri,
-          state: oauthParams.value.state,
-          response_type: oauthParams.value.response_type || 'code',
-          code_challenge: oauthParams.value.code_challenge || undefined,
-          code_challenge_method: oauthParams.value.code_challenge_method || undefined,
-          code_verifier: oauthParams.value.code_verifier || undefined,
-        });
-      } else {
-        router.replace('/admin/dashboard');
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        error.value = err.message;
-      } else {
-        error.value = 'Error al iniciar sesión';
-      }
-    } finally {
-      loading.value = false;
-    }
-  };
+// watch
+// end
 
-  const handleOAuthAuthorize = async () => {
-    try {
-      const token = authStore.getToken();
-      if (!token) {
-        error.value = 'Token no disponible';
-        return;
-      }
+// computed
+// end computed
 
-      const ssoUrl =
-        import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
-      const dpopProof = await dpopService.createDpopProof(
-        'POST',
-        `${ssoUrl}/oauth/authorize`,
-        token
-      );
-      const publicKeyJwk = dpopService.getPublicKeyJwk();
-
-      const response = await api.post<{ code: string; state: string | null }>(
-        '/oauth/authorize',
-        {
-          client_id: oauthParams.value.client_id,
-          redirect_uri: oauthParams.value.redirect_uri,
-          state: oauthParams.value.state,
-          ...(oauthParams.value.code_challenge
-            ? {
-                code_challenge: oauthParams.value.code_challenge,
-                code_challenge_method: oauthParams.value.code_challenge_method || 'S256',
-              }
-            : {}),
-          ...(oauthParams.value.code_verifier
-            ? {
-                code_verifier: oauthParams.value.code_verifier,
-              }
-            : {}),
-        },
-        {
-          DPoP: dpopProof,
-          ...(publicKeyJwk
-            ? { 'DPoP-Public-Key': JSON.stringify(publicKeyJwk) }
-            : {}),
-        }
-      );
-
-      const params = new URLSearchParams();
-      params.set('code', response.code);
-      if (response.state) {
-        params.set('state', response.state);
-      }
-      window.location.href = `${oauthParams.value.redirect_uri}?${params.toString()}`;
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        error.value = err.message;
-      } else {
-        error.value = 'Error en la autorización';
-      }
-    }
-  };
-
-  const goToRegister = () => {
-    const query: Record<string, string> = {
-      client_id: oauthParams.value.client_id,
-      redirect_uri: oauthParams.value.redirect_uri,
-      response_type: oauthParams.value.response_type || 'code',
+// onmounted
+onMounted(() => {
+  const { client_id, redirect_uri, state, response_type, code_challenge, code_challenge_method, code_verifier } = route.query;
+  if (client_id && redirect_uri) {
+    isOAuthFlow.value = true;
+    oauthParams.value = {
+      client_id: client_id as string,
+      redirect_uri: redirect_uri as string,
+      state: (state as string) || '',
+      response_type: (response_type as string) || 'code',
+      code_challenge: (code_challenge as string) || '',
+      code_challenge_method: (code_challenge_method as string) || '',
+      code_verifier: (code_verifier as string) || '',
     };
-    if (oauthParams.value.state) {
-      query.state = oauthParams.value.state;
-    }
-    if (oauthParams.value.code_challenge) {
-      query.code_challenge = oauthParams.value.code_challenge;
-      query.code_challenge_method = oauthParams.value.code_challenge_method;
-    }
-    if (oauthParams.value.code_verifier) {
-      query.code_verifier = oauthParams.value.code_verifier;
-    }
-    router.push({ name: 'AdminRegister', query });
-  };
+  }
+});
+// end onmounted
 
-  const goBack = (): void => {
-    if (window.history.length > 1) {
-      router.back();
+// functions
+const handleLogin = async (): Promise<void> => {
+  loading.value = true;
+  error.value = '';
+
+  try {
+    await authController.login({
+      user: credentials.value.user,
+      password: credentials.value.password,
+      client_id: oauthParams.value.client_id || undefined,
+    });
+
+    if (isOAuthFlow.value) {
+      await authController.oauthAuthorize({
+        client_id: oauthParams.value.client_id,
+        redirect_uri: oauthParams.value.redirect_uri,
+        state: oauthParams.value.state,
+        response_type: oauthParams.value.response_type || 'code',
+        code_challenge: oauthParams.value.code_challenge || undefined,
+        code_challenge_method: oauthParams.value.code_challenge_method || undefined,
+        code_verifier: oauthParams.value.code_verifier || undefined,
+      });
     } else {
-      router.replace('/');
+      router.replace('/admin/dashboard');
     }
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      error.value = err.message;
+    } else {
+      error.value = 'Error al iniciar sesión';
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
+const goToRegister = (): void => {
+  const query: Record<string, string> = {
+    client_id: oauthParams.value.client_id,
+    redirect_uri: oauthParams.value.redirect_uri,
+    response_type: oauthParams.value.response_type || 'code',
   };
+  if (oauthParams.value.state) {
+    query.state = oauthParams.value.state;
+  }
+  if (oauthParams.value.code_challenge) {
+    query.code_challenge = oauthParams.value.code_challenge;
+    query.code_challenge_method = oauthParams.value.code_challenge_method;
+  }
+  if (oauthParams.value.code_verifier) {
+    query.code_verifier = oauthParams.value.code_verifier;
+  }
+  router.push({ name: 'AdminRegister', query });
+};
+
+const goBack = (): void => {
+  if (window.history.length > 1) {
+    router.back();
+  } else {
+    router.replace('/');
+  }
+};
+// end functions
 </script>
 
 <style scoped>

@@ -15,6 +15,7 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <!-- content -->
       <div class="page-container">
         <div v-if="loading" class="loading-container">
           <ion-spinner name="lines"></ion-spinner>
@@ -27,7 +28,7 @@
                 <div class="header-card">
                   <div class="user-header">
                     <ion-avatar class="large-avatar">
-                      <div class="avatar-placeholder">{{ getInitials(user.name) }}</div>
+                      <div class="avatar-placeholder">{{ getInitials({ name: user.name }) }}</div>
                     </ion-avatar>
                     <h2 class="user-name">{{ user.name }}</h2>
                     <p class="user-username">@{{ user.user }}</p>
@@ -47,7 +48,7 @@
                   </div>
                   <div class="info-item">
                     <span class="label">Creado</span>
-                    <span class="value">{{ formatDate(user.created_at) }}</span>
+                    <span class="value">{{ formatDate({ dateStr: user.created_at }) }}</span>
                   </div>
                   <div class="info-item">
                     <span class="label">Tokens</span>
@@ -125,7 +126,7 @@
                         <h3 class="item-title">{{ session.client?.name || 'Cliente Desconocido' }}</h3>
                         <p class="item-subtitle">{{ session.ip_address }}</p>
                         <p class="session-date">
-                          Último uso: {{ formatDate(session.last_used_at) }}
+                          Último uso: {{ formatDate({ dateStr: session.last_used_at }) }}
                         </p>
                       </ion-label>
                       <ion-badge :color="session.token_active ? 'success' : 'medium'">
@@ -135,7 +136,7 @@
                         slot="end"
                         fill="clear"
                         color="danger"
-                        @click="revokeSession(session)"
+                        @click="revokeSession({ session })"
                       >
                         <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                       </ion-button>
@@ -146,7 +147,9 @@
             </ion-row>
           </ion-grid>
       </div>
+      <!-- end content -->
 
+      <!-- modals -->
       <ion-modal :is-open="showEditModal" @did-dismiss="showEditModal = false">
         <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
@@ -254,7 +257,7 @@
                   <ion-item-options side="end">
                     <ion-item-option
                       color="danger"
-                      @click="removeRoleAssignment(index)"
+                      @click="removeRoleAssignment({ index })"
                     >
                       <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                     </ion-item-option>
@@ -284,241 +287,271 @@
           </div>
         </ion-content>
       </ion-modal>
+      <!-- end modals -->
+
+      <!-- popovers -->
+      <!-- end popovers -->
+
+      <!-- alerts -->
+      <!-- end alerts -->
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted, computed } from 'vue';
-  import { useRoute, useRouter } from 'vue-router';
-  import {
-    IonPage,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonButtons,
-    IonBackButton,
-    IonButton,
-    IonIcon,
-    IonContent,
-    IonAvatar,
-    IonBadge,
-    IonList,
-    IonItem,
-    IonLabel,
-    IonModal,
-    IonInput,
-    IonItemOptions,
-    IonItemOption,
-    IonItemSliding,
-    IonSpinner,
-    IonSelect,
-    IonSelectOption,
-    IonGrid,
-    IonRow,
-    IonCol,
-  } from '@ionic/vue';
-  import {
-    create,
-    keyOutline,
-    trash,
-    shieldOutline,
-    add,
-  } from 'ionicons/icons';
+// imports
+import { ref, onMounted, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonBackButton,
+  IonButton,
+  IonIcon,
+  IonContent,
+  IonAvatar,
+  IonBadge,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonModal,
+  IonInput,
+  IonItemOptions,
+  IonItemOption,
+  IonItemSliding,
+  IonSpinner,
+  IonSelect,
+  IonSelectOption,
+  IonGrid,
+  IonRow,
+  IonCol,
+} from '@ionic/vue';
+import {
+  create,
+  keyOutline,
+  trash,
+  shieldOutline,
+  add,
+} from 'ionicons/icons';
+
+// controllers
 import { useUsersController } from '@/controllers/usersController';
-  import { useSessionsController } from '@/controllers/sessionsController';
-  import { useClientsController } from '@/controllers/clientsController';
-  import { useRolesController } from '@/controllers/rolesController';
-  import { useAuthController } from '@/controllers/authController';
-  import type { UserDetail, UserSession, Role, SsoClient } from '@/types';
+import { useSessionsController } from '@/controllers/sessionsController';
+import { useClientsController } from '@/controllers/clientsController';
+import { useRolesController } from '@/controllers/rolesController';
+import { useAuthController } from '@/controllers/authController';
+const usersController = useUsersController();
+const sessionsController = useSessionsController();
+const clientsController = useClientsController();
+const rolesController = useRolesController();
+const authController = useAuthController();
 
-  const route = useRoute();
-  const router = useRouter();
+// components
+// end components
 
-  const usersController = useUsersController();
-  const sessionsController = useSessionsController();
-  const clientsController = useClientsController();
-  const rolesController = useRolesController();
-  const authController = useAuthController();
+// interface and types imports
+import type { UserDetail, UserSession, Role, SsoClient } from '@/types';
+// end interface and types imports
 
-  const user = computed(() => usersController.selectedUser.value);
-  const sessions = computed(() => user.value?.sessions || []);
-  const loading = computed(() => usersController.loading.value);
-  const updating = ref(false);
-  const showEditModal = ref(false);
+// main
+const route = useRoute();
+const router = useRouter();
+const userId = Number(route.params.id);
+// end main
 
-  const availableRoles = computed(() => rolesController.roles.value);
-  const availableClients = computed(() => clientsController.clients.value);
-  const userRoles = computed(() => usersController.userRoles.value);
-  const roleAssignments = computed({
-    get: () => usersController.roleAssignments.value,
-    set: (value) => { usersController.roleAssignments.value = value; },
+// vars and const
+const updating = ref(false);
+const showEditModal = ref(false);
+const showRolesModal = ref(false);
+const savingRoles = ref(false);
+
+const editForm = ref({
+  name: '',
+  user: '',
+  email: '',
+  password: '',
+});
+// end vars and const
+
+// watch
+// end
+
+// computed
+const user = computed(() => usersController.selectedUser.value);
+const sessions = computed(() => user.value?.sessions || []);
+const loading = computed(() => usersController.loading.value);
+const availableRoles = computed(() => rolesController.roles.value);
+const availableClients = computed(() => clientsController.clients.value);
+const userRoles = computed(() => usersController.userRoles.value);
+const roleAssignments = computed({
+  get: () => usersController.roleAssignments.value,
+  set: (value) => { usersController.roleAssignments.value = value; },
+});
+const isAdmin = computed(() => authController.user.value?.is_admin || false);
+// end computed
+
+// onmounted
+onMounted(() => {
+  loadUser();
+});
+// end onmounted
+
+// functions
+const loadUser = async (): Promise<void> => {
+  try {
+    const response = await usersController.fetchUser(userId);
+    editForm.value = {
+      name: response.name,
+      user: response.user,
+      email: response.email,
+      password: '',
+    };
+  } catch (error) {
+    console.error('Error loading user:', error);
+  }
+};
+
+const getInitials = (params: { name: string }): string => {
+  const { name } = params;
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+const formatDate = (params: { dateStr: string }): string => {
+  const { dateStr } = params;
+  return new Date(dateStr).toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
+};
 
-  const isAdmin = computed(() => authController.user.value?.is_admin || false);
+const openEditModal = (): void => {
+  showEditModal.value = true;
+};
 
-  const editForm = ref({
-    name: '',
-    user: '',
-    email: '',
-    password: '',
+const updateUser = async (): Promise<void> => {
+  updating.value = true;
+  try {
+    const data: { name: string; user: string; email: string; password?: string } = {
+      name: editForm.value.name,
+      user: editForm.value.user,
+      email: editForm.value.email,
+    };
+
+    if (editForm.value.password) {
+      data.password = editForm.value.password;
+    }
+
+    await usersController.updateUser({ id: userId, data });
+    showEditModal.value = false;
+  } catch (error) {
+    console.error('Error updating user:', error);
+  } finally {
+    updating.value = false;
+  }
+};
+
+const revokeSession = async (params: { session: UserSession }): Promise<void> => {
+  const { session } = params;
+  try {
+    await sessionsController.revokeSession(session.id);
+    if (user.value) {
+      user.value.active_tokens_count--;
+    }
+  } catch (error) {
+    console.error('Error revoking session:', error);
+  }
+};
+
+const revokeAllSessions = async (): Promise<void> => {
+  try {
+    await usersController.revokeUserSessions(userId);
+  } catch (error) {
+    console.error('Error revoking sessions:', error);
+  }
+};
+
+const openRolesModal = async (): Promise<void> => {
+  try {
+    await Promise.all([
+      rolesController.fetchRoles(),
+      clientsController.fetchClients(),
+      usersController.fetchUserRoles(userId),
+    ]);
+    roleAssignments.value = usersController.userRoles.value.map((r: { id: number; sso_client_id: number | null; name: string; slug: string }) => ({
+      role_id: r.id,
+      sso_client_id: r.sso_client_id,
+      name: r.name,
+      slug: r.slug,
+    }));
+    showRolesModal.value = true;
+  } catch (error) {
+    console.error('Error loading roles data:', error);
+  }
+};
+
+const addRoleAssignment = (): void => {
+  roleAssignments.value.push({
+    role_id: null,
+    sso_client_id: null,
   });
+};
 
-  const userId = Number(route.params.id);
+const removeRoleAssignment = (params: { index: number }): void => {
+  const { index } = params;
+  roleAssignments.value.splice(index, 1);
+};
 
-  const loadUser = async () => {
-    try {
-      const response = await usersController.fetchUser(userId);
-      editForm.value = {
-        name: response.name,
-        user: response.user,
-        email: response.email,
-        password: '',
-      };
-    } catch (error) {
-      console.error('Error loading user:', error);
-    }
-  };
+const onRoleChange = (params: { index: number; roleId: number }): void => {
+  const { index, roleId } = params;
+  const role = availableRoles.value.find((r) => r.id === roleId);
+  if (role) {
+    roleAssignments.value[index].name = role.name;
+    roleAssignments.value[index].slug = role.slug;
+  }
+};
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
+const onClientChange = (params: { index: number; clientId: number | null }): void => {
+  const { index, clientId } = params;
+  roleAssignments.value[index].sso_client_id = clientId;
+};
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+const saveUserRoles = async (): Promise<void> => {
+  const validAssignments = roleAssignments.value.filter(
+    (a) => a.role_id !== null
+  );
 
-  const openEditModal = () => {
-    showEditModal.value = true;
-  };
+  if (validAssignments.length === 0) {
+    console.error('Debe seleccionar al menos un rol');
+    return;
+  }
 
-  const updateUser = async () => {
-    updating.value = true;
-    try {
-      const data: { name: string; user: string; email: string; password?: string } = {
-        name: editForm.value.name,
-        user: editForm.value.user,
-        email: editForm.value.email,
-      };
+  savingRoles.value = true;
+  try {
+    const rolesToSave = validAssignments.map((a) => ({
+      role_id: a.role_id!,
+      sso_client_id: a.sso_client_id,
+    }));
 
-      if (editForm.value.password) {
-        data.password = editForm.value.password;
-      }
-
-      await usersController.updateUser({ id: userId, data });
-      showEditModal.value = false;
-    } catch (error) {
-      console.error('Error updating user:', error);
-    } finally {
-      updating.value = false;
-    }
-  };
-
-  const revokeSession = async (session: UserSession) => {
-    try {
-      await sessionsController.revokeSession(session.id);
-      if (user.value) {
-        user.value.active_tokens_count--;
-      }
-    } catch (error) {
-      console.error('Error revoking session:', error);
-    }
-  };
-
-  const revokeAllSessions = async () => {
-    try {
-      await usersController.revokeUserSessions(userId);
-    } catch (error) {
-      console.error('Error revoking sessions:', error);
-    }
-  };
-
-  const openRolesModal = async () => {
-    try {
-      await Promise.all([
-rolesController.fetchRoles(),
-
-        clientsController.fetchClients(),
-
-        usersController.fetchUserRoles(userId),
-      ]);
-      roleAssignments.value = usersController.userRoles.value.map((r: { id: number; sso_client_id: number | null; name: string; slug: string }) => ({
-        role_id: r.id,
-        sso_client_id: r.sso_client_id,
-        name: r.name,
-        slug: r.slug,
-      }));
-      showRolesModal.value = true;
-    } catch (error) {
-      console.error('Error loading roles data:', error);
-    }
-  };
-
-  const addRoleAssignment = () => {
-    roleAssignments.value.push({
-      role_id: null,
-      sso_client_id: null,
-    });
-  };
-
-  const removeRoleAssignment = (index: number) => {
-    roleAssignments.value.splice(index, 1);
-  };
-
-  const onRoleChange = (params: { index: number; roleId: number }) => {
-    const { index, roleId } = params;
-    const role = availableRoles.value.find((r) => r.id === roleId);
-    if (role) {
-      roleAssignments.value[index].name = role.name;
-      roleAssignments.value[index].slug = role.slug;
-    }
-  };
-
-  const onClientChange = (params: { index: number; clientId: number | null }) => {
-    const { index, clientId } = params;
-    roleAssignments.value[index].sso_client_id = clientId;
-  };
-
-  const saveUserRoles = async () => {
-    const validAssignments = roleAssignments.value.filter(
-      (a) => a.role_id !== null
-    );
-
-    if (validAssignments.length === 0) {
-      console.error('Debe seleccionar al menos un rol');
-      return;
-    }
-
-    savingRoles.value = true;
-    try {
-      const rolesToSave = validAssignments.map((a) => ({
-        role_id: a.role_id!,
-        sso_client_id: a.sso_client_id,
-      }));
-
-      await usersController.saveUserRoles({ id: userId, assignments: rolesToSave });
-      showRolesModal.value = false;
-    } catch (error) {
-      console.error('Error saving roles:', error);
-    } finally {
-      savingRoles.value = false;
-    }
-  };
-
-  onMounted(() => {
-    loadUser();
-  });
+    await usersController.saveUserRoles({ id: userId, assignments: rolesToSave });
+    showRolesModal.value = false;
+  } catch (error) {
+    console.error('Error saving roles:', error);
+  } finally {
+    savingRoles.value = false;
+  }
+};
+// end functions
 </script>
 
 <style scoped>

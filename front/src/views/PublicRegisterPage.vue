@@ -1,6 +1,11 @@
 <template>
   <ion-page>
+    <ion-header class="ion-no-border" mode="ios">
+      <ion-toolbar></ion-toolbar>
+    </ion-header>
+
     <ion-content :fullscreen="true">
+      <!-- content -->
       <div class="register-container">
         <div class="register-card">
           <div class="logo-section">
@@ -103,225 +108,166 @@
           Volver
         </ion-button>
       </div>
+      <!-- end content -->
+
+      <!-- modals -->
+      <!-- end modals -->
+
+      <!-- popovers -->
+      <!-- end popovers -->
+
+      <!-- alerts -->
+      <!-- end alerts -->
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
-  import { useRouter, useRoute } from 'vue-router';
-  import {
-    IonPage,
-    IonContent,
-    IonItem,
-    IonInput,
-    IonButton,
-    IonSpinner,
-    IonIcon,
-  } from '@ionic/vue';
-  import { arrowBack } from 'ionicons/icons';
-  import { useAuthController } from '@/controllers/authController';
+// imports
+import { ref, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import {
+  IonPage,
+  IonContent,
+  IonHeader,
+  IonToolbar,
+  IonItem,
+  IonInput,
+  IonButton,
+  IonSpinner,
+  IonIcon,
+} from '@ionic/vue';
+import { arrowBack } from 'ionicons/icons';
 
-  const router = useRouter();
-  const route = useRoute();
-  const authController = useAuthController();
+// controllers
+import { useAuthController } from '@/controllers/authController';
+const authController = useAuthController();
 
-  interface ApiValidationError {
-    errors: Record<string, string[]>;
+// components
+// end components
+
+// interface and types imports
+interface ApiValidationError {
+  errors: Record<string, string[]>;
+}
+// end interface and types imports
+
+// main
+const router = useRouter();
+const route = useRoute();
+// end main
+
+// vars and const
+const form = ref({
+  name: '',
+  user: '',
+  email: '',
+  password: '',
+  password_confirmation: '',
+});
+
+const loading = ref(false);
+const error = ref('');
+
+const oauthParams = ref({
+  client_id: '',
+  redirect_uri: '',
+  state: '',
+  response_type: '',
+  code_challenge: '',
+  code_challenge_method: '',
+  code_verifier: '',
+});
+
+const isOAuthFlow = ref(false);
+// end vars and const
+
+// watch
+// end
+
+// computed
+// end computed
+
+// onmounted
+onMounted(() => {
+  const { client_id, redirect_uri, state, response_type, code_challenge, code_challenge_method, code_verifier } = route.query;
+  if (client_id && redirect_uri) {
+    isOAuthFlow.value = true;
+    oauthParams.value = {
+      client_id: client_id as string,
+      redirect_uri: redirect_uri as string,
+      state: (state as string) || '',
+      response_type: (response_type as string) || 'code',
+      code_challenge: (code_challenge as string) || '',
+      code_challenge_method: (code_challenge_method as string) || '',
+      code_verifier: (code_verifier as string) || '',
+    };
   }
+});
+// end onmounted
 
-  const form = ref({
-    name: '',
-    user: '',
-    email: '',
-    password: '',
-    password_confirmation: '',
-  });
-
-  const loading = ref(false);
-  const error = ref('');
-
-  const oauthParams = ref({
-    client_id: '',
-    redirect_uri: '',
-    state: '',
-    response_type: '',
-    code_challenge: '',
-    code_challenge_method: '',
-    code_verifier: '',
-  });
-
-  const isOAuthFlow = ref(false);
-
-  onMounted(() => {
-    const { client_id, redirect_uri, state, response_type, code_challenge, code_challenge_method, code_verifier } = route.query;
-    if (client_id && redirect_uri) {
-      isOAuthFlow.value = true;
-      oauthParams.value = {
-        client_id: client_id as string,
-        redirect_uri: redirect_uri as string,
-        state: (state as string) || '',
-        response_type: (response_type as string) || 'code',
-        code_challenge: (code_challenge as string) || '',
-        code_challenge_method: (code_challenge_method as string) || '',
-        code_verifier: (code_verifier as string) || '',
-      };
-    }
-  });
-
+// functions
 const handleRegister = async (): Promise<void> => {
-    loading.value = true;
-    error.value = '';
+  loading.value = true;
+  error.value = '';
 
-    try {
-      await authController.register({
-        name: form.value.name,
-        user: form.value.user,
-        email: form.value.email,
-        password: form.value.password,
-        password_confirmation: form.value.password_confirmation,
-        client_id: oauthParams.value.client_id || undefined,
-      });
+  try {
+    await authController.register({
+      name: form.value.name,
+      user: form.value.user,
+      email: form.value.email,
+      password: form.value.password,
+      password_confirmation: form.value.password_confirmation,
+      client_id: oauthParams.value.client_id || undefined,
+    });
 
-      if (!oauthParams.value.client_id) {
-        router.replace({ name: 'AuthLogin', query: { registered: 'true' } });
-      }
-    } catch (err: unknown) {
-      if (
-        err instanceof Error &&
-        'errors' in err &&
-        typeof (err as unknown as ApiValidationError).errors === 'object'
-      ) {
-        const validationErr = err as unknown as ApiValidationError;
-        const messages = Object.values(validationErr.errors).flat().join(', ');
-        error.value = messages;
-      } else if (err instanceof Error) {
-        error.value = err.message;
-      } else {
-        error.value = 'Error al registrar';
-      }
-    } finally {
-      loading.value = false;
+    if (!oauthParams.value.client_id) {
+      router.replace({ name: 'AuthLogin', query: { registered: 'true' } });
     }
-  };
-
-      await api.post('/register', data);
-
-      if (isOAuthFlow.value) {
-        await authStore.login({
-          user: form.value.email,
-          password: form.value.password,
-          client_id: oauthParams.value.client_id || undefined,
-        });
-
-        await handleOAuthAuthorize();
-      } else {
-        router.replace({ name: 'AuthLogin', query: { registered: 'true' } });
-      }
-    } catch (err: unknown) {
-      if (
-        err instanceof Error &&
-        'errors' in err &&
-        typeof (err as unknown as ApiValidationError).errors === 'object'
-      ) {
-        const validationErr = err as unknown as ApiValidationError;
-        const messages = Object.values(validationErr.errors).flat().join(', ');
-        error.value = messages;
-      } else if (err instanceof Error) {
-        error.value = err.message;
-      } else {
-        error.value = 'Error al registrar';
-      }
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  const handleOAuthAuthorize = async (): Promise<void> => {
-    try {
-      const token = authStore.getToken();
-      if (!token) {
-        error.value = 'Token no disponible';
-        return;
-      }
-
-      const ssoUrl =
-        import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
-      const dpopProof = await dpopService.createDpopProof(
-        'POST',
-        `${ssoUrl}/oauth/authorize`,
-        token
-      );
-      const publicKeyJwk = dpopService.getPublicKeyJwk();
-
-      const response = await api.post<{ code: string; state: string | null }>(
-        '/oauth/authorize',
-        {
-          client_id: oauthParams.value.client_id,
-          redirect_uri: oauthParams.value.redirect_uri,
-          state: oauthParams.value.state,
-          ...(oauthParams.value.code_challenge
-            ? {
-                code_challenge: oauthParams.value.code_challenge,
-                code_challenge_method: oauthParams.value.code_challenge_method,
-              }
-            : {}),
-          ...(oauthParams.value.code_verifier
-            ? {
-                code_verifier: oauthParams.value.code_verifier,
-              }
-            : {}),
-        },
-        {
-          DPoP: dpopProof,
-          ...(publicKeyJwk
-            ? { 'DPoP-Public-Key': JSON.stringify(publicKeyJwk) }
-            : {}),
-        }
-      );
-
-      const params = new URLSearchParams();
-      params.set('code', response.code);
-      if (response.state) {
-        params.set('state', response.state);
-      }
-      window.location.href = `${oauthParams.value.redirect_uri}?${params.toString()}`;
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        error.value = err.message;
-      } else {
-        error.value = 'Error en la autorización';
-      }
-    }
-  };
-
-  const goToLogin = (): void => {
-    const query: Record<string, string> = {};
-    if (isOAuthFlow.value) {
-      query.client_id = oauthParams.value.client_id;
-      query.redirect_uri = oauthParams.value.redirect_uri;
-      query.response_type = oauthParams.value.response_type || 'code';
-      if (oauthParams.value.state) {
-        query.state = oauthParams.value.state;
-      }
-      if (oauthParams.value.code_challenge) {
-        query.code_challenge = oauthParams.value.code_challenge;
-        query.code_challenge_method = oauthParams.value.code_challenge_method;
-      }
-      if (oauthParams.value.code_verifier) {
-        query.code_verifier = oauthParams.value.code_verifier;
-      }
-    }
-    router.push({ name: 'AuthLogin', query });
-  };
-
-  const goBack = (): void => {
-    if (window.history.length > 1) {
-      router.back();
+  } catch (err: unknown) {
+    if (
+      err instanceof Error &&
+      'errors' in err &&
+      typeof (err as unknown as ApiValidationError).errors === 'object'
+    ) {
+      const validationErr = err as unknown as ApiValidationError;
+      const messages = Object.values(validationErr.errors).flat().join(', ');
+      error.value = messages;
+    } else if (err instanceof Error) {
+      error.value = err.message;
     } else {
-      router.replace('/');
+      error.value = 'Error al registrar';
     }
-  };
+  } finally {
+    loading.value = false;
+  }
+};
+
+const goToLogin = (): void => {
+  const query: Record<string, string> = {};
+  if (isOAuthFlow.value) {
+    query.client_id = oauthParams.value.client_id;
+    query.redirect_uri = oauthParams.value.redirect_uri;
+    query.response_type = oauthParams.value.response_type || 'code';
+    if (oauthParams.value.state) {
+      query.state = oauthParams.value.state;
+    }
+    if (oauthParams.value.code_challenge) {
+      query.code_challenge = oauthParams.value.code_challenge;
+      query.code_challenge_method = oauthParams.value.code_challenge_method;
+    }
+  }
+  router.push({ name: 'AuthLogin', query });
+};
+
+const goBack = (): void => {
+  if (window.history.length > 1) {
+    router.back();
+  } else {
+    router.replace('/');
+  }
+};
+// end functions
 </script>
 
 <style scoped>

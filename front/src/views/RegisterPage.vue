@@ -1,6 +1,11 @@
 <template>
   <ion-page>
+    <ion-header class="ion-no-border" mode="ios">
+      <ion-toolbar></ion-toolbar>
+    </ion-header>
+
     <ion-content :fullscreen="true" class="register-content">
+      <!-- content -->
       <div class="register-container">
         <div class="register-header">
           <h1>SSO Admin</h1>
@@ -83,158 +88,134 @@
           </ion-button>
         </form>
       </div>
+      <!-- end content -->
+
+      <!-- modals -->
+      <!-- end modals -->
+
+      <!-- popovers -->
+      <!-- end popovers -->
+
+      <!-- alerts -->
+      <!-- end alerts -->
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
+// imports
 import { ref, onMounted } from 'vue';
-  import { useRouter, useRoute } from 'vue-router';
-  import { IonPage, IonContent, IonItem, IonLabel, IonInput, IonButton, IonSpinner } from '@ionic/vue';
-  import { useAuthController } from '@/controllers/authController';
+import { useRouter, useRoute } from 'vue-router';
+import { IonPage, IonContent, IonHeader, IonToolbar, IonItem, IonLabel, IonInput, IonButton, IonSpinner } from '@ionic/vue';
 
-  const router = useRouter();
-  const route = useRoute();
-  const authController = useAuthController();
+// controllers
+import { useAuthController } from '@/controllers/authController';
+const authController = useAuthController();
 
-  const form = ref({
-    name: '',
-    user: '',
-    email: '',
-    password: '',
-    password_confirmation: '',
-  });
+// components
+// end components
 
-  const loading = ref(false);
-  const error = ref('');
+// interface and types imports
+// end interface and types imports
 
-  const oauthParams = ref({
-    client_id: '',
-    redirect_uri: '',
-    state: '',
-    response_type: '',
-    code_challenge: '',
-    code_challenge_method: '',
-    code_verifier: '',
-  });
+// main
+const router = useRouter();
+const route = useRoute();
+// end main
 
-  const isOAuthFlow = ref(false);
+// vars and const
+const form = ref({
+  name: '',
+  user: '',
+  email: '',
+  password: '',
+  password_confirmation: '',
+});
 
-  onMounted(() => {
-    const { client_id, redirect_uri, state, response_type, code_challenge, code_challenge_method, code_verifier } = route.query;
-    if (client_id && redirect_uri) {
-      isOAuthFlow.value = true;
-      oauthParams.value = {
-        client_id: client_id as string,
-        redirect_uri: redirect_uri as string,
-        state: (state as string) || '',
-        response_type: (response_type as string) || 'code',
-        code_challenge: (code_challenge as string) || '',
-        code_challenge_method: (code_challenge_method as string) || '',
-        code_verifier: (code_verifier as string) || '',
-      };
-    }
-  });
+const loading = ref(false);
+const error = ref('');
 
+const oauthParams = ref({
+  client_id: '',
+  redirect_uri: '',
+  state: '',
+  response_type: '',
+  code_challenge: '',
+  code_challenge_method: '',
+  code_verifier: '',
+});
+
+const isOAuthFlow = ref(false);
+// end vars and const
+
+// watch
+// end
+
+// computed
+// end computed
+
+// onmounted
+onMounted(() => {
+  const { client_id, redirect_uri, state, response_type, code_challenge, code_challenge_method, code_verifier } = route.query;
+  if (client_id && redirect_uri) {
+    isOAuthFlow.value = true;
+    oauthParams.value = {
+      client_id: client_id as string,
+      redirect_uri: redirect_uri as string,
+      state: (state as string) || '',
+      response_type: (response_type as string) || 'code',
+      code_challenge: (code_challenge as string) || '',
+      code_challenge_method: (code_challenge_method as string) || '',
+      code_verifier: (code_verifier as string) || '',
+    };
+  }
+});
+// end onmounted
+
+// functions
 const handleRegister = async (): Promise<void> => {
-    loading.value = true;
-    error.value = '';
+  loading.value = true;
+  error.value = '';
 
-    try {
-      await authController.register({
-        name: form.value.name,
-        user: form.value.user,
-        email: form.value.email,
-        password: form.value.password,
-        password_confirmation: form.value.password_confirmation,
-        client_id: oauthParams.value.client_id || undefined,
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Error al registrar';
-      if (typeof err === 'object' && err && 'errors' in err) {
-        const messages = Object.values((err as Record<string, unknown>).errors as Record<string, unknown>).flat().join(', ');
-        error.value = messages;
-      } else {
-        error.value = message;
-      }
-    } finally {
-      loading.value = false;
+  try {
+    await authController.register({
+      name: form.value.name,
+      user: form.value.user,
+      email: form.value.email,
+      password: form.value.password,
+      password_confirmation: form.value.password_confirmation,
+      client_id: oauthParams.value.client_id || undefined,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error al registrar';
+    if (typeof err === 'object' && err && 'errors' in err) {
+      const messages = Object.values((err as Record<string, unknown>).errors as Record<string, unknown>).flat().join(', ');
+      error.value = messages;
+    } else {
+      error.value = message;
     }
-  };
+  } finally {
+    loading.value = false;
+  }
+};
 
-      await api.post('/register', data);
-
-      if (isOAuthFlow.value) {
-        await authStore.login({
-          user: form.value.email,
-          password: form.value.password,
-          client_id: oauthParams.value.client_id || undefined,
-        });
-
-        await handleOAuthAuthorize();
-      }
-    } catch (err: any) {
-      const message = err?.message || 'Error al registrar';
-      if (typeof err === 'object' && err.errors) {
-        const messages = Object.values(err.errors).flat().join(', ');
-        error.value = messages;
-      } else {
-        error.value = message;
-      }
-    } finally {
-      loading.value = false;
+const goToLogin = (): void => {
+  const query: Record<string, string> = {};
+  if (isOAuthFlow.value) {
+    query.client_id = oauthParams.value.client_id;
+    query.redirect_uri = oauthParams.value.redirect_uri;
+    query.response_type = oauthParams.value.response_type || 'code';
+    if (oauthParams.value.state) {
+      query.state = oauthParams.value.state;
     }
-  };
-
-  const handleOAuthAuthorize = async () => {
-    try {
-      const response = await api.post<{ code: string; state: string | null }>(
-        '/oauth/authorize',
-        {
-          client_id: oauthParams.value.client_id,
-          redirect_uri: oauthParams.value.redirect_uri,
-          state: oauthParams.value.state,
-          ...(oauthParams.value.code_challenge
-            ? {
-                code_challenge: oauthParams.value.code_challenge,
-                code_challenge_method: oauthParams.value.code_challenge_method,
-              }
-            : {}),
-          ...(oauthParams.value.code_verifier
-            ? {
-                code_verifier: oauthParams.value.code_verifier,
-              }
-            : {}),
-        }
-      );
-
-      const params = new URLSearchParams();
-      params.set('code', response.code);
-      if (response.state) {
-        params.set('state', response.state);
-      }
-      window.location.href = `${oauthParams.value.redirect_uri}?${params.toString()}`;
-    } catch (err: any) {
-      error.value = err.message || 'Error en la autorización';
+    if (oauthParams.value.code_challenge) {
+      query.code_challenge = oauthParams.value.code_challenge;
+      query.code_challenge_method = oauthParams.value.code_challenge_method;
     }
-  };
-
-  const goToLogin = () => {
-    const query: Record<string, string> = {};
-    if (isOAuthFlow.value) {
-      query.client_id = oauthParams.value.client_id;
-      query.redirect_uri = oauthParams.value.redirect_uri;
-      query.response_type = oauthParams.value.response_type || 'code';
-      if (oauthParams.value.state) {
-        query.state = oauthParams.value.state;
-      }
-      if (oauthParams.value.code_challenge) {
-        query.code_challenge = oauthParams.value.code_challenge;
-        query.code_challenge_method = oauthParams.value.code_challenge_method;
-      }
-    }
-    router.push({ name: 'AdminLogin', query });
-  };
+  }
+  router.push({ name: 'AdminLogin', query });
+};
+// end functions
 </script>
 
 <style scoped>

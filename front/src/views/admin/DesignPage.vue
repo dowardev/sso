@@ -10,6 +10,7 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <!-- content -->
       <div class="design-container">
         <ion-grid class="design-grid">
           <ion-row>
@@ -17,7 +18,7 @@
               <ion-list class="design-list">
                 <ion-list-header class="section-header">Apariencia</ion-list-header>
 
-                <ion-item button @click="openThemePopover">
+                <ion-item button @click="openThemePopover({ event: $event })">
                   <ion-icon slot="start" :icon="colorPalette"></ion-icon>
                   <ion-label>Tema</ion-label>
                   <div slot="end" class="theme-value">
@@ -32,7 +33,7 @@
                 </ion-item>
 
                 <template v-if="isAuto">
-                  <ion-item button @click="openLightThemePopover">
+                  <ion-item button @click="openLightThemePopover({ event: $event })">
                     <ion-icon slot="start" :icon="sunnyOutline"></ion-icon>
                     <ion-label>Cuando el sistema está en claro</ion-label>
                     <div slot="end" class="theme-value">
@@ -45,7 +46,7 @@
                     </div>
                   </ion-item>
 
-                  <ion-item button @click="openDarkThemePopover">
+                  <ion-item button @click="openDarkThemePopover({ event: $event })">
                     <ion-icon slot="start" :icon="moonOutline"></ion-icon>
                     <ion-label>Cuando el sistema está en oscuro</ion-label>
                     <div slot="end" class="theme-value">
@@ -80,88 +81,127 @@
           </ion-row>
         </ion-grid>
       </div>
+      <!-- end content -->
+
+      <!-- modals -->
+      <!-- end modals -->
+
+      <!-- popovers -->
+      <!-- end popovers -->
+
+      <!-- alerts -->
+      <!-- end alerts -->
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-  import {
-    IonPage,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonButtons,
-    IonBackButton,
-    IonContent,
-    IonList,
-    IonListHeader,
-    IonItem,
-    IonIcon,
-    IonLabel,
-    IonGrid,
-    IonRow,
-    IonCol,
-    popoverController,
-  } from '@ionic/vue';
-  import { colorPalette, chevronDown, chevronForward, sunnyOutline, moonOutline } from 'ionicons/icons';
-  import { useThemeController, type ResolvedThemeName } from '@/controllers/themeController';
-  import ThemePopover from '@/components/ThemePopover.vue';
+// imports
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonBackButton,
+  IonContent,
+  IonList,
+  IonListHeader,
+  IonItem,
+  IonIcon,
+  IonLabel,
+  IonGrid,
+  IonRow,
+  IonCol,
+  popoverController,
+} from '@ionic/vue';
+import { colorPalette, chevronDown, chevronForward, sunnyOutline, moonOutline } from 'ionicons/icons';
 
-  const themeController = useThemeController();
-  const currentTheme = themeController.currentTheme;
-  const isAuto = themeController.isAuto;
-  const autoLightThemeInfo = themeController.autoLightThemeInfo;
-  const autoDarkThemeInfo = themeController.autoDarkThemeInfo;
-  const setTheme = (name: ResolvedThemeName) => themeController.setTheme({ themeName: name });
-  const setAutoLightTheme = (name: ResolvedThemeName) => themeController.setAutoLightTheme({ themeName: name });
-  const setAutoDarkTheme = (name: ResolvedThemeName) => themeController.setAutoDarkTheme({ themeName: name });
+// controllers
+import { useThemeController, type ResolvedThemeName } from '@/controllers/themeController';
+const themeController = useThemeController();
 
-  const openThemePopover = async (event: Event) => {
-    const popover = await popoverController.create({
-      component: ThemePopover,
-      event: event,
-      translucent: true,
-      breakpoints: [0, 0.5],
-      initialBreakpoint: 0.5,
-    });
-    await popover.present();
-  };
+// components
+import ThemePopover from '@/components/ThemePopover.vue';
+// end components
 
-  const openLightThemePopover = async (event: Event) => {
-    const popover = await popoverController.create({
-      component: ThemePopover,
-      componentProps: {
-        excludeAuto: true,
-        onThemeSelect: (name: ResolvedThemeName) => {
-          setAutoLightTheme(name);
-          popover.dismiss();
-        },
+// interface and types imports
+// end interface and types imports
+
+// main
+// end main
+
+// vars and const
+const currentTheme = themeController.currentTheme;
+const isAuto = themeController.isAuto;
+const autoLightThemeInfo = themeController.autoLightThemeInfo;
+const autoDarkThemeInfo = themeController.autoDarkThemeInfo;
+
+const setTheme = (name: ResolvedThemeName): void => { themeController.setTheme({ themeName: name }); };
+const setAutoLightTheme = (name: ResolvedThemeName): void => { themeController.setAutoLightTheme({ themeName: name }); };
+const setAutoDarkTheme = (name: ResolvedThemeName): void => { themeController.setAutoDarkTheme({ themeName: name }); };
+// end vars and const
+
+// watch
+// end
+
+// computed
+// end computed
+
+// onmounted
+// end onmounted
+
+// functions
+const openThemePopover = async (params: { event: Event }): Promise<void> => {
+  const { event } = params;
+  const popover = await popoverController.create({
+    component: ThemePopover,
+    event: event,
+    translucent: true,
+    breakpoints: [0, 0.5],
+    initialBreakpoint: 0.5,
+  });
+  await popover.present();
+};
+
+const openLightThemePopover = async (params: { event: Event }): Promise<void> => {
+  const { event } = params;
+  const popover = await popoverController.create({
+    component: ThemePopover,
+    componentProps: {
+      excludeAuto: true,
+      onThemeSelect: (name: ResolvedThemeName) => {
+        setAutoLightTheme(name);
+        popover.dismiss();
       },
-      event: event,
-      translucent: true,
-      breakpoints: [0, 0.5],
-      initialBreakpoint: 0.5,
-    });
-    await popover.present();
-  };
+    },
+    event: event,
+    translucent: true,
+    breakpoints: [0, 0.5],
+    initialBreakpoint: 0.5,
+  });
+  await popover.present();
+};
 
-  const openDarkThemePopover = async (event: Event) => {
-    const popover = await popoverController.create({
-      component: ThemePopover,
-      componentProps: {
-        excludeAuto: true,
-        onThemeSelect: (name: ResolvedThemeName) => {
-          setAutoDarkTheme(name);
-          popover.dismiss();
-        },
+const openDarkThemePopover = async (params: { event: Event }): Promise<void> => {
+  const { event } = params;
+  const popover = await popoverController.create({
+    component: ThemePopover,
+    componentProps: {
+      excludeAuto: true,
+      onThemeSelect: (name: ResolvedThemeName) => {
+        setAutoDarkTheme(name);
+        popover.dismiss();
       },
-      event: event,
-      translucent: true,
-      breakpoints: [0, 0.5],
-      initialBreakpoint: 0.5,
-    });
-    await popover.present();
-  };
+    },
+    event: event,
+    translucent: true,
+    breakpoints: [0, 0.5],
+    initialBreakpoint: 0.5,
+  });
+  await popover.present();
+};
+// end functions
 </script>
 
 <style scoped>

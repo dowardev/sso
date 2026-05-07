@@ -15,6 +15,7 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <!-- content -->
       <div class="page-container">
         <div class="roles-card">
           <div v-if="loading" class="loading-container">
@@ -47,13 +48,13 @@
                 >
               </div>
               <ion-buttons slot="end">
-                <ion-button color="primary" @click="openEditModal(role)">
+                <ion-button color="primary" @click="openEditModal({ role })">
                   <ion-icon slot="icon-only" :icon="create"></ion-icon>
                 </ion-button>
                 <ion-button
                   v-if="!role.is_protected"
                   color="danger"
-                  @click="confirmDelete(role)"
+                  @click="confirmDelete({ role })"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-button>
@@ -62,7 +63,9 @@
           </ion-list>
         </div>
       </div>
+      <!-- end content -->
 
+      <!-- modals -->
       <ion-modal :is-open="showModal" @did-dismiss="showModal = false">
         <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
@@ -105,142 +108,172 @@
           </form>
         </ion-content>
       </ion-modal>
+      <!-- end modals -->
 
+      <!-- popovers -->
+      <!-- end popovers -->
+
+      <!-- alerts -->
       <ion-alert
         :is-open="showDeleteAlert"
         header="Eliminar Rol"
         :message="`¿Estás seguro de eliminar el rol ${roleToDelete?.name}?`"
         :buttons="deleteAlertButtons"
       ></ion-alert>
+      <!-- end alerts -->
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted, computed } from 'vue';
-  import {
-    IonPage,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonButtons,
-    IonMenuButton,
-    IonContent,
-    IonList,
-    IonItem,
-    IonLabel,
-    IonBadge,
-    IonButton,
-    IonIcon,
-    IonSpinner,
-    IonModal,
-    IonInput,
-    IonTextarea,
-    IonAlert,
-    alertController,
-  } from '@ionic/vue';
-  import { add, create, trash, shieldOutline } from 'ionicons/icons';
-  import { useRolesController } from '@/controllers/rolesController';
-  import type { Role } from '@/types';
+// imports
+import { ref, onMounted, computed } from 'vue';
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonMenuButton,
+  IonContent,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonBadge,
+  IonButton,
+  IonIcon,
+  IonSpinner,
+  IonModal,
+  IonInput,
+  IonTextarea,
+  IonAlert,
+  alertController,
+} from '@ionic/vue';
+import { add, create, trash, shieldOutline } from 'ionicons/icons';
 
-  const rolesController = useRolesController();
+// controllers
+import { useRolesController } from '@/controllers/rolesController';
+const rolesController = useRolesController();
 
-  const roles = computed(() => rolesController.roles.value);
-  const loading = computed(() => rolesController.loading.value);
+// components
+// end components
 
-  const saving = ref(false);
-  const showModal = ref(false);
-  const showDeleteAlert = ref(false);
-  const editingRole = ref<Role | null>(null);
-  const roleToDelete = ref<Role | null>(null);
+// interface and types imports
+import type { Role } from '@/types';
+// end interface and types imports
 
-  const form = ref({
-    name: '',
-    slug: '',
-    description: '',
-  });
+// main
+// end main
 
-  const openCreateModal = (): void => {
-    editingRole.value = null;
-    form.value = { name: '', slug: '', description: '' };
-    showModal.value = true;
-  };
+// vars and const
+const saving = ref(false);
+const showModal = ref(false);
+const showDeleteAlert = ref(false);
+const editingRole = ref<Role | null>(null);
+const roleToDelete = ref<Role | null>(null);
 
-  const openEditModal = (role: Role) => {
-    editingRole.value = role;
-    form.value = {
-      name: role.name,
-      slug: role.slug,
-      description: role.description || '',
-    };
-    showModal.value = true;
-  };
+const form = ref({
+  name: '',
+  slug: '',
+  description: '',
+});
 
-  const saveRole = async () => {
-    saving.value = true;
-    try {
-      if (editingRole.value) {
-        await rolesController.updateRole({ 
-          id: editingRole.value.id, 
-          data: {
-            name: form.value.name,
-            description: form.value.description || undefined,
-          },
-        });
-      } else {
-        await rolesController.createRole({ 
-          data: {
-            name: form.value.name,
-            slug: form.value.slug,
-            description: form.value.description || undefined,
-          },
-        });
-      }
-      showModal.value = false;
-    } catch (error) {
-      console.error('Error saving role:', error);
-    } finally {
-      saving.value = false;
-    }
-  };
+async function deleteRole(): Promise<void> {
+  if (!roleToDelete.value) return;
 
-  const confirmDelete = (role: Role) => {
-    roleToDelete.value = role;
-    showDeleteAlert.value = true;
-  };
+  try {
+    await rolesController.deleteRole(roleToDelete.value.id);
+  } catch (error) {
+    console.error('Error deleting role:', error);
+  } finally {
+    showDeleteAlert.value = false;
+    roleToDelete.value = null;
+  }
+}
 
-  const deleteRole = async () => {
-    if (!roleToDelete.value) return;
-
-    try {
-      await rolesController.deleteRole(roleToDelete.value.id);
-    } catch (error) {
-      console.error('Error deleting role:', error);
-    } finally {
+const deleteAlertButtons = [
+  {
+    text: 'Cancelar',
+    role: 'cancel',
+    handler: () => {
       showDeleteAlert.value = false;
       roleToDelete.value = null;
-    }
+    },
+  },
+  {
+    text: 'Eliminar',
+    role: 'destructive',
+    handler: deleteRole,
+  },
+];
+// end vars and const
+
+// watch
+// end
+
+// computed
+const roles = computed(() => rolesController.roles.value);
+const loading = computed(() => rolesController.loading.value);
+// end computed
+
+// onmounted
+onMounted(() => {
+  rolesController.fetchRoles();
+});
+// end onmounted
+
+// functions
+const openCreateModal = (): void => {
+  editingRole.value = null;
+  form.value = { name: '', slug: '', description: '' };
+  showModal.value = true;
+};
+
+const openEditModal = (params: { role: Role }): void => {
+  const { role } = params;
+  editingRole.value = role;
+  form.value = {
+    name: role.name,
+    slug: role.slug,
+    description: role.description || '',
   };
+  showModal.value = true;
+};
 
-  const deleteAlertButtons = [
-    {
-      text: 'Cancelar',
-      role: 'cancel',
-      handler: () => {
-        showDeleteAlert.value = false;
-        roleToDelete.value = null;
-      },
-    },
-    {
-      text: 'Eliminar',
-      role: 'destructive',
-      handler: deleteRole,
-    },
-  ];
+const saveRole = async (): Promise<void> => {
+  saving.value = true;
+  try {
+    if (editingRole.value) {
+      await rolesController.updateRole({
+        id: editingRole.value.id,
+        data: {
+          name: form.value.name,
+          description: form.value.description || undefined,
+        },
+      });
+    } else {
+      await rolesController.createRole({
+        data: {
+          name: form.value.name,
+          slug: form.value.slug,
+          description: form.value.description || undefined,
+        },
+      });
+    }
+    showModal.value = false;
+  } catch (error) {
+    console.error('Error saving role:', error);
+  } finally {
+    saving.value = false;
+  }
+};
 
-  onMounted(() => {
-    rolesController.fetchRoles();
-  });
+const confirmDelete = (params: { role: Role }): void => {
+  const { role } = params;
+  roleToDelete.value = role;
+  showDeleteAlert.value = true;
+};
+// end functions
 </script>
 
 <style scoped>

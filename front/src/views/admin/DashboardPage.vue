@@ -10,6 +10,7 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <!-- content -->
       <div class="dashboard-container">
         <section class="welcome-section">
           <div class="welcome-content">
@@ -154,87 +155,117 @@
           </ion-grid>
         </section>
       </div>
+      <!-- end content -->
+
+      <!-- modals -->
+      <!-- end modals -->
+
+      <!-- popovers -->
+      <!-- end popovers -->
+
+      <!-- alerts -->
+      <!-- end alerts -->
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-  import { ref, computed, onMounted } from 'vue';
-  import { useRouter } from 'vue-router';
-  import {
-    IonPage,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonButtons,
-    IonMenuButton,
-    IonContent,
-    IonButton,
-    IonIcon,
-    IonGrid,
-    IonRow,
-    IonCol,
-  } from '@ionic/vue';
-  import {
-    people,
-    key,
-    desktop,
-    chevronForward,
-    shield,
-    personAdd,
-    addCircle,
-    pricetag,
-    time,
-  } from 'ionicons/icons';
-  import { useUsersController } from '@/controllers/usersController';
-  import { useSessionsController } from '@/controllers/sessionsController';
-  import { useClientsController } from '@/controllers/clientsController';
+// imports
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonMenuButton,
+  IonContent,
+  IonButton,
+  IonIcon,
+  IonGrid,
+  IonRow,
+  IonCol,
+} from '@ionic/vue';
+import {
+  people,
+  key,
+  desktop,
+  chevronForward,
+  shield,
+  personAdd,
+  addCircle,
+  pricetag,
+  time,
+} from 'ionicons/icons';
 
-  const router = useRouter();
+// controllers
+import { useUsersController } from '@/controllers/usersController';
+import { useSessionsController } from '@/controllers/sessionsController';
+import { useClientsController } from '@/controllers/clientsController';
+const usersController = useUsersController();
+const sessionsController = useSessionsController();
+const clientsController = useClientsController();
 
-  const usersController = useUsersController();
-  const sessionsController = useSessionsController();
-  const clientsController = useClientsController();
+// components
+// end components
 
-  const loading = ref(true);
+// interface and types imports
+// end interface and types imports
 
-  const formattedDate = computed(() => {
-    const now = new Date();
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    };
-    return now.toLocaleDateString('es-ES', options);
-  });
+// main
+const router = useRouter();
+// end main
 
-  const stats = computed(() => ({
-    totalUsers: usersController.pagination.value.total,
-    activeSessions: sessionsController.activeCount.value,
-    totalClients: clientsController.count.value,
-  }));
+// vars and const
+const loading = ref(true);
+// end vars and const
 
-  const isLoading = computed(() => {
-    return usersController.loading.value || sessionsController.loading.value || clientsController.loading.value;
-  });
+// watch
+// end
 
-  onMounted(async () => {
-    loading.value = true;
-    try {
-      await Promise.all([
-usersController.fetchUsers({ per_page: 1 }),
+// computed
+const formattedDate = computed(() => {
+  const now = new Date();
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  };
+  return now.toLocaleDateString('es-ES', options);
+});
 
-        sessionsController.fetchSessions({ per_page: 1, active: true }),
+const stats = computed(() => ({
+  totalUsers: usersController.pagination.value.total,
+  activeSessions: sessionsController.activeCount.value,
+  totalClients: clientsController.count.value,
+}));
 
-        clientsController.fetchClients(),
-      ]);
-    } catch (error) {
-      console.error('Error loading stats:', error);
-    } finally {
-      loading.value = false;
-    }
-  });
+const isLoading = computed(() => {
+  return usersController.loading.value || sessionsController.loading.value || clientsController.loading.value;
+});
+// end computed
+
+// onmounted
+onMounted(async () => {
+  loading.value = true;
+  try {
+    await Promise.all([
+      usersController.fetchUsers({ per_page: 1 }),
+      sessionsController.fetchSessions({ per_page: 1, active: true }),
+      clientsController.fetchClients(),
+    ]);
+  } catch (error) {
+    console.error('Error loading stats:', error);
+  } finally {
+    loading.value = false;
+  }
+});
+// end onmounted
+
+// functions
+// end functions
 </script>
 
 <style scoped>

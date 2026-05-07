@@ -9,7 +9,7 @@
         :key="theme.name"
         class="theme-item"
         :class="{ active: currentThemeName === theme.name }"
-        @click="selectTheme(theme.name)"
+        @click="selectTheme({ themeName: theme.name })"
       >
         <div
           class="theme-color"
@@ -28,35 +28,62 @@
 </template>
 
 <script setup lang="ts">
-  import { computed } from 'vue';
-  import { IonIcon } from '@ionic/vue';
-  import { checkmark } from 'ionicons/icons';
-  import { useThemeController, type ThemeName } from '@/controllers/themeController';
+// imports
+import { computed } from 'vue';
+import { IonIcon } from '@ionic/vue';
+import { checkmark } from 'ionicons/icons';
 
-  const props = defineProps<{
-    excludeAuto?: boolean;
-    onThemeSelect?: ((name: ThemeName) => void) | null;
-  }>();
+// controllers
+import { useThemeController, type ThemeName } from '@/controllers/themeController';
+const themeController = useThemeController();
+const themes = themeController.themes;
+const currentThemeName = themeController.currentThemeName;
+const setTheme = (params: { themeName: ThemeName }): void => {
+  const { themeName } = params;
+  themeController.setTheme({ themeName });
+};
 
-  const themeController = useThemeController();
-  const themes = themeController.themes;
-  const currentThemeName = themeController.currentThemeName;
-  const setTheme = (name: ThemeName): void => { themeController.setTheme({ themeName: name }); };
+// components
+// end components
 
-  const filteredThemes = computed(() => {
-    if (props.excludeAuto) {
-      return themes.filter(t => t.name !== 'auto');
-    }
-    return themes;
-  });
+// interface and types imports
+// end interface and types imports
 
-  const selectTheme = (themeName: ThemeName) => {
-    if (props.onThemeSelect) {
-      props.onThemeSelect(themeName);
-    } else {
-      setTheme(themeName);
-    }
-  };
+// main
+const props = defineProps<{
+  excludeAuto?: boolean;
+  onThemeSelect?: ((name: ThemeName) => void) | null;
+}>();
+// end main
+
+// vars and const
+// end vars and const
+
+// watch
+// end
+
+// computed
+const filteredThemes = computed(() => {
+  if (props.excludeAuto) {
+    return themes.filter(t => t.name !== 'auto');
+  }
+  return themes;
+});
+// end computed
+
+// onmounted
+// end onmounted
+
+// functions
+const selectTheme = (params: { themeName: ThemeName }): void => {
+  const { themeName } = params;
+  if (props.onThemeSelect) {
+    props.onThemeSelect(themeName);
+  } else {
+    setTheme({ themeName });
+  }
+};
+// end functions
 </script>
 
 <style scoped>
