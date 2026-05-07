@@ -1,101 +1,94 @@
 <template>
   <ion-page>
-    <ion-header class="ion-no-border" mode="ios">
-      <ion-toolbar></ion-toolbar>
-    </ion-header>
-
     <ion-content :fullscreen="true">
-      <!-- content -->
-      <div class="login-container">
-        <div class="login-card">
-          <div class="logo-section">
-            <img
-              alt="SSO Logo"
-              src="@/assets/images/lambda_v1.svg"
-              class="logo-image"
-            />
-            <h1 class="login-title">Iniciar Sesión</h1>
-            <p class="login-subtitle">Accede a tu cuenta</p>
-          </div>
+      <ion-grid class="login-grid">
+        <ion-row class="ion-justify-content-center">
+          <ion-col size="12" size-sm="10" size-md="8" size-lg="6" size-xl="4">
+            <ion-card class="shadow1">
+              <img
+                alt="Silhouette of mountains"
+                src="@/assets/images/lambda_v1.svg"
+              />
 
-          <form @submit.prevent="handleLogin" class="login-form">
-            <ion-item lines="full" class="form-item">
-              <ion-input
-                v-model="credentials.user"
-                label-placement="floating"
-                label="Usuario / Email"
-                type="text"
-                required
-                placeholder="Ingresa tu usuario"
-              ></ion-input>
-            </ion-item>
+              <ion-card-header>
+                <ion-card-title>Iniciar Sesión</ion-card-title>
+                <ion-card-subtitle> Accede a tu cuenta </ion-card-subtitle>
+              </ion-card-header>
 
-            <ion-item lines="full" class="form-item">
-              <ion-input
-                v-model="credentials.password"
-                label="Contraseña"
-                label-placement="floating"
-                type="password"
-                required
-                placeholder="Ingresa tu contraseña"
-              ></ion-input>
-            </ion-item>
+              <ion-card-content>
+                <div>
+                  <form @submit.prevent="handleLogin">
+                    <ion-item lines="full">
+                      <ion-input
+                        v-model="credentials.user"
+                        label-placement="floating"
+                        label="Usuario / Email"
+                        type="text"
+                        required
+                        placeholder="Ingresa tu usuario"
+                      ></ion-input>
+                    </ion-item>
 
-            <div v-if="error" class="error-message">
-              {{ error }}
-            </div>
+                    <ion-item lines="full">
+                      <ion-input
+                        v-model="credentials.password"
+                        label="Contraseña"
+                        label-placement="floating"
+                        type="password"
+                        required
+                        placeholder="Ingresa tu contraseña"
+                      ></ion-input>
+                    </ion-item>
 
-            <div class="ion-padding-top">
-              <ion-button
-                type="submit"
-                expand="block"
-                :disabled="loading"
-                class="submit-button"
-              >
-                <ion-spinner v-if="loading" name="lines"></ion-spinner>
-                <span v-else>Ingresar</span>
-              </ion-button>
-            </div>
+                    <div v-if="error" class="error-message">
+                      {{ error }}
+                    </div>
 
-            <div class="auth-links">
-              <ion-button
-                v-if="oauthParams.redirect_uri"
-                fill="clear"
-                expand="block"
-                :disabled="loading"
-                @click="goToRegister"
-              >
-                ¿Olvidaste tu contraseña?
-              </ion-button>
+                    <div class="ion-padding-top">
+                      <ion-button
+                        type="submit"
+                        expand="block"
+                        :disabled="loading"
+                        class="no-shadow"
+                      >
+                        <ion-spinner v-if="loading" name="lines"></ion-spinner>
+                        <span v-else>Ingresar</span>
+                      </ion-button>
+                    </div>
 
-              <ion-button
-                v-if="oauthParams.redirect_uri"
-                fill="clear"
-                expand="block"
-                :disabled="loading"
-                @click="goToRegister"
-              >
-                Crear cuenta
-              </ion-button>
-            </div>
-          </form>
-        </div>
+                    <section>
+                      <ion-button
+                        v-if="oauthParams.redirect_uri"
+                        fill="clear"
+                        expand="block"
+                        :disabled="loading"
+                        @click="goToRegister"
+                      >
+                        Olvidaste tu contraseña?
+                      </ion-button>
 
-        <ion-button class="back-button" fill="clear" size="small" @click="goBack">
-          <ion-icon slot="start" :icon="arrowBack"></ion-icon>
-          Volver
-        </ion-button>
-      </div>
-      <!-- end content -->
+                      <ion-button
+                        v-if="oauthParams.redirect_uri"
+                        fill="clear"
+                        expand="block"
+                        :disabled="loading"
+                        @click="goToRegister"
+                      >
+                        Crear cuenta
+                      </ion-button>
+                    </section>
+                  </form>
+                </div>
+              </ion-card-content>
+            </ion-card>
 
-      <!-- modals -->
-      <!-- end modals -->
-
-      <!-- popovers -->
-      <!-- end popovers -->
-
-      <!-- alerts -->
-      <!-- end alerts -->
+            <ion-button expand="full" fill="clear" size="small" @click="goBack">
+              <ion-icon slot="start" :icon="arrowBack"></ion-icon>
+              Volver
+            </ion-button>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
     </ion-content>
   </ion-page>
 </template>
@@ -107,8 +100,14 @@ import { useRouter, useRoute } from 'vue-router';
 import {
   IonPage,
   IonContent,
-  IonHeader,
-  IonToolbar,
+  IonGrid,
+  IonRow,
+  IonCol,
+  IonCard,
+  IonCardHeader,
+  IonCardTitle,
+  IonCardSubtitle,
+  IonCardContent,
   IonItem,
   IonInput,
   IonButton,
@@ -262,112 +261,17 @@ const goBack = (): void => {
 </script>
 
 <style scoped>
-.login-container {
+.login-grid {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  padding: 24px;
-  background: var(--gradient-primary);
-}
-
-.login-card {
-  width: 100%;
-  max-width: 400px;
-  background: var(--background-contrast);
-  border-radius: var(--card-border-radius);
-  box-shadow: var(--card-shadow-light) 0px 8px 24px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
-  padding: 32px 24px;
-}
-
-.logo-section {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.logo-image {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 16px;
-}
-
-.login-title {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.login-subtitle {
-  margin: 8px 0 0 0;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-item {
-  --background: var(--ion-color-light);
-  --border-radius: 8px;
-  --padding-start: 12px;
-  --padding-end: 12px;
 }
 
 .error-message {
-  color: var(--ion-color-danger);
+  color: #e74c3c;
   text-align: center;
   margin: 8px 0;
   font-size: 14px;
-}
-
-.submit-button {
-  --border-radius: 8px;
-  height: 48px;
-  font-weight: 600;
-}
-
-.auth-links {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-.auth-links ion-button {
-  --color: var(--ion-color-primary);
-  font-size: 14px;
-}
-
-.back-button {
-  margin-top: 24px;
-  --color: white;
-}
-
-.back-button ion-icon {
-  margin-right: 4px;
-}
-
-@media (min-width: 768px) {
-  .login-container {
-    padding: 48px;
-  }
-
-  .login-card {
-    padding: 40px 32px;
-  }
-
-  .logo-image {
-    width: 96px;
-    height: 96px;
-  }
-
-  .login-title {
-    font-size: 28px;
-  }
 }
 </style>

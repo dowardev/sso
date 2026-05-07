@@ -1,101 +1,59 @@
 <template>
   <ion-page>
-    <ion-header class="ion-no-border" mode="ios">
-      <ion-toolbar></ion-toolbar>
-    </ion-header>
-
-    <ion-content :fullscreen="true">
-      <!-- content -->
+    <ion-content :fullscreen="true" class="login-content">
       <div class="login-container">
-        <div class="login-card">
-          <div class="logo-section">
-            <img
-              alt="SSO Logo"
-              src="@/assets/images/lambda_v1.svg"
-              class="logo-image"
-            />
-            <h1 class="login-title">Iniciar Sesión</h1>
-            <p class="login-subtitle">Accede a tu cuenta</p>
-          </div>
-
-          <form @submit.prevent="handleLogin" class="login-form">
-            <ion-item lines="full" class="form-item">
-              <ion-input
-                v-model="credentials.user"
-                label-placement="floating"
-                label="Usuario / Email"
-                type="text"
-                required
-                placeholder="Ingresa tu usuario"
-              ></ion-input>
-            </ion-item>
-
-            <ion-item lines="full" class="form-item">
-              <ion-input
-                v-model="credentials.password"
-                label="Contraseña"
-                label-placement="floating"
-                type="password"
-                required
-                placeholder="Ingresa tu contraseña"
-              ></ion-input>
-            </ion-item>
-
-            <div v-if="error" class="error-message">
-              {{ error }}
-            </div>
-
-            <div class="ion-padding-top">
-              <ion-button
-                type="submit"
-                expand="block"
-                :disabled="loading"
-                class="submit-button"
-              >
-                <ion-spinner v-if="loading" name="lines"></ion-spinner>
-                <span v-else>Ingresar</span>
-              </ion-button>
-            </div>
-
-            <div class="auth-links">
-              <ion-button
-                v-if="oauthParams.redirect_uri"
-                fill="clear"
-                expand="block"
-                :disabled="loading"
-                @click="goToRegister"
-              >
-                ¿Olvidaste tu contraseña?
-              </ion-button>
-
-              <ion-button
-                v-if="oauthParams.redirect_uri"
-                fill="clear"
-                expand="block"
-                :disabled="loading"
-                @click="goToRegister"
-              >
-                Crear cuenta
-              </ion-button>
-            </div>
-          </form>
+        <div class="login-header">
+          <h1>SSO Admin</h1>
+          <p>Ingresa tus credenciales</p>
         </div>
 
-        <ion-button class="back-button" fill="clear" size="small" @click="goBack">
-          <ion-icon slot="start" :icon="arrowBack"></ion-icon>
-          Volver
-        </ion-button>
+        <form class="login-form" @submit.prevent="handleLogin">
+          <ion-item>
+            <ion-label position="stacked">Usuario / Email</ion-label>
+            <ion-input
+              v-model="credentials.user"
+              type="text"
+              required
+              placeholder="Ingresa tu usuario"
+            ></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Contraseña</ion-label>
+            <ion-input
+              v-model="credentials.password"
+              type="password"
+              required
+              placeholder="Ingresa tu contraseña"
+            ></ion-input>
+          </ion-item>
+
+          <div v-if="error" class="error-message">
+            {{ error }}
+          </div>
+
+          <ion-button
+            type="submit"
+            expand="block"
+            :disabled="loading"
+            class="login-button"
+          >
+            <ion-spinner v-if="loading" name="lines"></ion-spinner>
+            <span v-else>Ingresar</span>
+          </ion-button>
+
+          <ion-button
+            v-if="oauthParams.redirect_uri"
+            fill="clear"
+            expand="block"
+            :disabled="loading"
+            class="register-link"
+            @click="goToRegister"
+          >
+            Crear cuenta
+          </ion-button>
+        </form>
       </div>
-      <!-- end content -->
-
-      <!-- modals -->
-      <!-- end modals -->
-
-      <!-- popovers -->
-      <!-- end popovers -->
-
-      <!-- alerts -->
-      <!-- end alerts -->
     </ion-content>
   </ion-page>
 </template>
@@ -107,15 +65,12 @@ import { useRouter, useRoute } from 'vue-router';
 import {
   IonPage,
   IonContent,
-  IonHeader,
-  IonToolbar,
   IonItem,
+  IonLabel,
   IonInput,
   IonButton,
   IonSpinner,
-  IonIcon,
 } from '@ionic/vue';
-import { arrowBack } from 'ionicons/icons';
 
 // controllers
 import { useAuthController } from '@/controllers/authController';
@@ -215,89 +170,75 @@ const handleLogin = async (): Promise<void> => {
 };
 
 const goToRegister = (): void => {
-  const query: Record<string, string> = {
-    client_id: oauthParams.value.client_id,
-    redirect_uri: oauthParams.value.redirect_uri,
-    response_type: oauthParams.value.response_type || 'code',
-  };
+  const params = new URLSearchParams();
+  params.set('client_id', oauthParams.value.client_id);
+  params.set('redirect_uri', oauthParams.value.redirect_uri);
   if (oauthParams.value.state) {
-    query.state = oauthParams.value.state;
+    params.set('state', oauthParams.value.state);
   }
+  params.set('response_type', oauthParams.value.response_type || 'code');
   if (oauthParams.value.code_challenge) {
-    query.code_challenge = oauthParams.value.code_challenge;
-    query.code_challenge_method = oauthParams.value.code_challenge_method;
+    params.set('code_challenge', oauthParams.value.code_challenge);
+    params.set('code_challenge_method', oauthParams.value.code_challenge_method);
   }
   if (oauthParams.value.code_verifier) {
-    query.code_verifier = oauthParams.value.code_verifier;
+    params.set('code_verifier', oauthParams.value.code_verifier);
   }
-  router.push({ name: 'AdminRegister', query });
-};
-
-const goBack = (): void => {
-  if (window.history.length > 1) {
-    router.back();
-  } else {
-    router.replace('/');
-  }
+  router.push(`/register?${params.toString()}`);
 };
 // end functions
 </script>
 
 <style scoped>
-.login-container {
-  min-height: 100dvh;
+.login-content {
+  --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  background: var(--gradient-primary);
 }
 
-.login-card {
+.login-container {
   width: 100%;
   max-width: 400px;
-  background: var(--background-contrast);
-  border-radius: var(--card-border-radius);
-  box-shadow: var(--card-shadow-light) 0px 8px 24px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
-  padding: 32px 24px;
+  padding: 24px;
 }
 
-.logo-section {
+.login-header {
   text-align: center;
-  margin-bottom: 24px;
+  color: white;
+  margin-bottom: 32px;
 }
 
-.logo-image {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 16px;
-}
-
-.login-title {
+.login-header h1 {
   margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 32px;
+  font-weight: bold;
 }
 
-.login-subtitle {
-  margin: 8px 0 0 0;
-  font-size: 14px;
-  color: var(--text-secondary);
+.login-header p {
+  margin: 8px 0 0;
+  opacity: 0.9;
 }
 
 .login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
-.form-item {
-  --background: var(--ion-color-light);
+.login-form ion-item {
+  --background: transparent;
+  margin-bottom: 16px;
+}
+
+.login-button {
+  margin-top: 16px;
   --border-radius: 8px;
-  --padding-start: 12px;
-  --padding-end: 12px;
+}
+
+.register-link {
+  margin-top: 8px;
 }
 
 .error-message {
@@ -305,51 +246,5 @@ const goBack = (): void => {
   text-align: center;
   margin: 8px 0;
   font-size: 14px;
-}
-
-.submit-button {
-  --border-radius: 8px;
-  height: 48px;
-  font-weight: 600;
-}
-
-.auth-links {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-.auth-links ion-button {
-  --color: var(--ion-color-primary);
-  font-size: 14px;
-}
-
-.back-button {
-  margin-top: 24px;
-  --color: white;
-}
-
-.back-button ion-icon {
-  margin-right: 4px;
-}
-
-@media (min-width: 768px) {
-  .login-container {
-    padding: 48px;
-  }
-
-  .login-card {
-    padding: 40px 32px;
-  }
-
-  .logo-image {
-    width: 96px;
-    height: 96px;
-  }
-
-  .login-title {
-    font-size: 28px;
-  }
 }
 </style>
