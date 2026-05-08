@@ -303,7 +303,7 @@ const confirmDelete = (params: { user: User }): void => {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--gradient-primary);
+  background: var(--ion-color-primary);
   color: white;
   display: flex;
   align-items: center;

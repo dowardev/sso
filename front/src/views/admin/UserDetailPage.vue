@@ -588,9 +588,8 @@ const saveUserRoles = async (): Promise<void> => {
   flex-direction: column;
   align-items: center;
   padding: 24px;
-  background: var(--gradient-primary);
+  background: var(--ion-color-primary);
   color: white;
-}
 
 .large-avatar {
   width: 80px;
@@ -603,7 +602,7 @@ const saveUserRoles = async (): Promise<void> => {
   height: 100%;
   border-radius: 50%;
   background: var(--background-contrast);
-  color: var(--gradient-primary);
+  color: var(--ion-color-primary);
   display: flex;
   align-items: center;
   justify-content: center;

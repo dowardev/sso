@@ -80,7 +80,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--gradient-primary);
+  background: var(--ion-color-primary);
 }
 
 .home-card {

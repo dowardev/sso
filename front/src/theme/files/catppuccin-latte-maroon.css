@@ -1,10 +1,10 @@
 body.catppuccin-latte-maroon {
-  --ion-color-primary: #d20f39;
-  --ion-color-primary-rgb: 210, 15, 57;
+  --ion-color-primary: #e64553;
+  --ion-color-primary-rgb: 230, 69, 83;
   --ion-color-primary-contrast: #eff1f5;
   --ion-color-primary-contrast-rgb: 239, 241, 245;
-  --ion-color-primary-shade: #b80d32;
-  --ion-color-primary-tint: #d7274d;
+  --ion-color-primary-shade: #ca3d48;
+  --ion-color-primary-tint: #e95864;
 
   --ion-color-secondary: #1e66f5;
   --ion-color-secondary-rgb: 30, 102, 245;
@@ -108,20 +108,4 @@ body.catppuccin-latte-maroon {
   --ion-background-color-step-850: #39456c;
   --ion-background-color-step-900: #2e3c64;
   --ion-background-color-step-950: #23325c;
-
-  --card-shadow-light: rgba(76, 79, 105, 0.03);
-  --card-shadow-heavy: rgba(76, 79, 105, 0.15);
-  --card-shadow-subtle: rgba(76, 79, 105, 0.06);
-
-  --gradient-primary: linear-gradient(135deg, #d20f39 0%, #8839ef 100%);
-  --gradient-success: linear-gradient(135deg, #40a02b 0%, #179299 100%);
-  --gradient-info: linear-gradient(135deg, #04a5e5 0%, #2095c9 100%);
-  --gradient-warning: linear-gradient(135deg, #fe640b 0%, #df8e64 100%);
-  --gradient-users: linear-gradient(135deg, #d20f39 0%, #8839ef 100%);
-  --gradient-sessions: linear-gradient(135deg, #40a02b 0%, #179299 100%);
-  --gradient-clients: linear-gradient(135deg, #04a5e5 0%, #2095c9 100%);
-  --text-primary: #4c4f69;
-  --text-secondary: #6c6f85;
-  --text-tertiary: #9ca0b0;
-  --system-status-bg: var(--ion-background-color);
 }

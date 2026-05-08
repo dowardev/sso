@@ -268,7 +268,7 @@ const openDarkThemePopover = async (params: { event: Event }): Promise<void> => 
 }
 
 .theme-color-preview.dual-color {
-  background: linear-gradient(135deg, var(--gradient-primary) 50%, var(--gradient-secondary, #4d91ff) 50%);
+  background: linear-gradient(135deg, var(--ion-color-primary) 50%, var(--ion-color-secondary, #4d91ff) 50%);
 }
 
 .dropdown-icon {
@@ -297,7 +297,7 @@ const openDarkThemePopover = async (params: { event: Event }): Promise<void> => 
 
 .preview-header {
   height: 48px;
-  background: var(--gradient-primary);
+  background: var(--ion-color-primary);
 }
 
 .preview-body {

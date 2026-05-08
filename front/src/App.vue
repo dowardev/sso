@@ -184,7 +184,7 @@ const handleLogout = async (): Promise<void> => {
     align-items: center;
     gap: 12px;
     padding: 20px 16px;
-    background: var(--gradient-primary);
+    background: var(--ion-color-primary);
     color: white;
   }
 

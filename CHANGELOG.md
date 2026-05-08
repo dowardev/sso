@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.5] - 2026-05-08
+
+### Added
+- New dashboard design with Ionic components (ion-card, ion-list, ion-item)
+- Gradient header with icon overlay for stat cards (users, sessions, clients)
+
+### Changed
+- Replaced all custom gradient CSS variables (`--gradient-primary`, `--gradient-success`, etc.) with Ionic's built-in color system (`var(--ion-color-primary)`, `var(--ion-color-secondary)`)
+- Updated macchiato dark theme text colors for improved visibility
+- Simplified theme system by removing redundant gradient custom properties
+- Refactored stat card accents to use solid Ionic colors instead of gradient backgrounds
+
+### Affected Files
+- Modified: front/src/App.vue
+- Modified: front/src/theme/files/catppuccin-latte-maroon.css
+- Modified: front/src/theme/files/catppuccin-macchiato-maroon.css
+- Modified: front/src/theme/files/light.css
+- Modified: front/src/views/HomePage.vue
+- Modified: front/src/views/admin/DashboardPage.vue
+- Modified: front/src/views/admin/DesignPage.vue
+- Modified: front/src/views/admin/UserDetailPage.vue
+- Modified: front/src/views/admin/UsersPage.vue
+
+---
+
 ## [0.11.4] - 2026-05-07
 
 ### Changed
