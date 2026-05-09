@@ -7,6 +7,7 @@ use App\Models\SsoClient;
 use App\Models\User;
 use App\Models\UserSession;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -91,20 +92,27 @@ class AdminController extends Controller
         ]);
     }
 
-    public function toggleUser(User $user, Request $request)
+    public function toggle(Request $request, int $id): Response
     {
-        if ($user->id === $request->user()->id) {
-            return response()->json([
-                'message' => 'No puedes desactivar tu propio usuario',
-            ], 422);
+        $request->validate([
+            'action' => 'required|in:assign,remove',
+            'sso_client_id' => 'nullable|integer',
+        ]);
+
+        $user = User::findOrFail($id);
+        $action = $request->input('action');
+        $ssoClientId = $request->input('sso_client_id');
+        $adminRole = Role::where('slug', 'admin')->firstOrFail();
+
+        if ($action === 'assign') {
+            $user->roles()->attach($adminRole->id, ['sso_client_id' => $ssoClientId]);
+        } else {
+            $user->roles()->where('role_id', $adminRole->id)
+                ->where('sso_client_id', $ssoClientId ?? null)
+                ->detach();
         }
 
-        $user->update(['is_admin' => ! $user->is_admin]);
-
-        return response()->json([
-            'message' => $user->is_admin ? 'Usuario promovido a admin' : 'Permisos de admin revocados',
-            'user' => $user,
-        ]);
+        return response()->json(['message' => 'Role updated successfully']);
     }
 
     // ==================== SESIONES ====================
