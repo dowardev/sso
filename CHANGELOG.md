@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-05-08
+
+### Added
+- Filter roles by `client_id` in `/me`, `/user-auth`, `/session/check` endpoints
+
+### Changed
+- Migrated from `is_admin` boolean column to role-based system with three roles: `admin`, `editor`, `viewer`
+- Refactored `IsAdmin` middleware to use `hasRole('admin')` instead of `is_admin` attribute
+- Updated toggle endpoint to manage admin role instead of is_admin field
+- Refactored `AuthController` to filter roles by `client_id`
+
+### Breaking Changes
+- Removed `is_admin` column from users table - existing users with is_admin=true now need admin role assigned
+- Database migration required: roles table now uses slug-based system (admin/editor/viewer) instead of role names
+
+### Affected Files
+- Added: `back/database/migrations/2026_05_08_000001_update_roles_slugs.php`
+- Added: `back/database/migrations/2026_05_08_000002_drop_is_admin_column.php`
+- Modified: `back/app/Http/Controllers/AdminController.php`
+- Modified: `back/app/Http/Controllers/AuthController.php`
+- Modified: `back/app/Http/Middleware/IsAdmin.php`
+- Modified: `back/database/seeders/RoleSeeder.php`
+
+---
+
 ## [0.11.5] - 2026-05-08
 
 ### Added
