@@ -13,19 +13,19 @@ class RoleSeeder extends Seeder
             [
                 'name' => 'Administrador',
                 'slug' => 'admin',
-                'description' => 'Usuario con acceso completo al sistema',
+                'description' => 'Acceso completo al sistema',
                 'is_protected' => true,
             ],
             [
-                'name' => 'Moderador',
-                'slug' => 'moderator',
-                'description' => 'Usuario con permisos de moderación',
+                'name' => 'Editor',
+                'slug' => 'editor',
+                'description' => 'Crear y editar contenido',
                 'is_protected' => true,
             ],
             [
-                'name' => 'Estandar',
-                'slug' => 'standard',
-                'description' => 'Usuario estándar sin privilegios especiales',
+                'name' => 'Visor',
+                'slug' => 'viewer',
+                'description' => 'Solo lectura',
                 'is_protected' => true,
             ],
         ];
