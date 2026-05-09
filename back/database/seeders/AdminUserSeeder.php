@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -11,7 +12,7 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        User::updateOrCreate(
+        $user = User::updateOrCreate(
             ['email' => 'admin@sso.local'],
             [
                 'name' => 'Administrator',
@@ -20,6 +21,11 @@ class AdminUserSeeder extends Seeder
                 'is_admin' => true,
             ]
         );
+
+        $adminRole = Role::where('slug', 'admin')->first();
+        if ($adminRole && !$user->hasRole('admin')) {
+            $user->roles()->attach($adminRole->id, ['sso_client_id' => null]);
+        }
 
         $this->command->info('Admin user created: admin@sso.local / admin123');
     }
