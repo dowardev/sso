@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\OAuth2Controller;
+use App\Http\Controllers\RoleController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -10,6 +11,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/.well-known/jwks', [AuthController::class, 'jwks']);
 Route::get('/session/check', [AuthController::class, 'checkSession']);
 Route::post('/session/check', [AuthController::class, 'checkSession']);
+Route::get('/roles', [RoleController::class, 'index']);
 
 Route::post('/oauth/token', [OAuth2Controller::class, 'token']);
 
