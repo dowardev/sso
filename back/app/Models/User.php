@@ -78,7 +78,7 @@ class User extends Authenticatable
             return $globalRole;
         }
 
-        return Role::where('slug', 'standard')->first();
+        return Role::where('slug', 'viewer')->first();
     }
 
     public function isAdmin(): bool
