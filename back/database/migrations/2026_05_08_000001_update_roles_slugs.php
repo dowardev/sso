@@ -17,16 +17,21 @@ return new class extends Migration
             ->where('slug', 'moderator')
             ->delete();
 
+        $existsBefore = DB::table('roles')->where('slug', 'editor')->exists();
+
         DB::table('roles')->updateOrInsert(
             ['slug' => 'editor'],
             [
                 'name' => 'Editor',
                 'description' => 'Crear y editar contenido',
                 'is_protected' => true,
-                'created_at' => now(),
                 'updated_at' => now(),
             ]
         );
+
+        if (!$existsBefore) {
+            DB::table('roles')->where('slug', 'editor')->update(['created_at' => now()]);
+        }
     }
 
     public function down(): void
@@ -37,7 +42,7 @@ return new class extends Migration
 
         DB::table('roles')
             ->where('slug', 'viewer')
-            ->update(['slug' => 'standard', 'name' => 'Estandar', 'description' => '']);
+            ->update(['slug' => 'standard', 'name' => 'Standard', 'description' => '']);
 
         DB::table('roles')->insert([
             'name' => 'Moderador',
