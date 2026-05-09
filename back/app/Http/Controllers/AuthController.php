@@ -150,42 +150,42 @@ class AuthController extends Controller
         ]);
     }
 
-    public function me(Request $request)
+    public function me(Request $request): \Illuminate\Http\Response
     {
-        $tokenString = $request->bearerToken();
+        $ssoUserId = $request->get('sso_user_id');
+        $clientId = $request->query('client_id');
 
-        if (!$tokenString) {
-            return response()->json(['message' => 'Token no proporcionado'], 401);
+        if (!$clientId) {
+            return response()->json(['error' => 'client_id is required'], 400);
         }
 
-        try {
-            $token = $this->jwtConfig->parser()->parse($tokenString);
+        $user = User::with(['roles' => function ($query) use ($clientId) {
+            $query->where('sso_client_id', $clientId)
+                  ->orWhereNull('sso_client_id');
+        }])->find($ssoUserId);
 
-            $constraints = [
-                new SignedWith($this->jwtConfig->signer(), $this->jwtConfig->verificationKey()),
-                new IssuedBy($this->issuer),
-                new LooseValidAt(new SystemClock(new \DateTimeZone('UTC'))),
-            ];
-
-            if (!$this->jwtConfig->validator()->validate($token, ...$constraints)) {
-                return response()->json(['message' => 'Token inválido'], 401);
-            }
-
-            $userId = $token->claims()->get('sub');
-            $user = User::with('roles')->find($userId);
-
-            if (!$user) {
-                return response()->json(['message' => 'Usuario no encontrado'], 401);
-            }
-
-            $userArray = $user->toArray();
-            $userArray['roles'] = $user->roles->toArray();
-
-            return response()->json($userArray);
-
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Token inválido: ' . $e->getMessage()], 401);
+        if (!$user) {
+            return response()->json(['error' => 'User not found'], 404);
         }
+
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'user' => $user->user,
+            'email' => $user->email,
+            'roles' => $user->roles->map(function ($role) {
+                return [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                    'slug' => $role->slug,
+                    'description' => $role->description,
+                    'is_protected' => $role->is_protected,
+                    'pivot' => [
+                        'sso_client_id' => $role->pivot->sso_client_id,
+                    ],
+                ];
+            }),
+        ]);
     }
 
     public function jwks(Request $request)
@@ -214,49 +214,77 @@ class AuthController extends Controller
         ]);
     }
 
-    public function checkSession(Request $request)
+    public function checkSession(Request $request): \Illuminate\Http\Response
     {
-        $tokenString = $request->bearerToken();
+        $ssoUserId = $request->get('sso_user_id');
+        $clientId = $request->query('client_id');
 
-        if (!$tokenString) {
-            $tokenString = $request->cookie('sso_token');
-        }
+        if (!$ssoUserId) {
+            $tokenString = $request->bearerToken();
 
-        if (!$tokenString) {
-            return response()->json(['authenticated' => false], 200);
-        }
+            if (!$tokenString) {
+                $tokenString = $request->cookie('sso_token');
+            }
 
-        try {
-            $token = $this->jwtConfig->parser()->parse($tokenString);
-
-            $constraints = [
-                new SignedWith($this->jwtConfig->signer(), $this->jwtConfig->verificationKey()),
-                new IssuedBy($this->issuer),
-                new LooseValidAt(new SystemClock(new \DateTimeZone('UTC'))),
-            ];
-
-            if (!$this->jwtConfig->validator()->validate($token, ...$constraints)) {
+            if (!$tokenString) {
                 return response()->json(['authenticated' => false], 200);
             }
 
-            $userId = $token->claims()->get('sub');
-            $user = User::with('roles')->find($userId);
+            try {
+                $token = $this->jwtConfig->parser()->parse($tokenString);
 
-            if (!$user) {
+                $constraints = [
+                    new SignedWith($this->jwtConfig->signer(), $this->jwtConfig->verificationKey()),
+                    new IssuedBy($this->issuer),
+                    new LooseValidAt(new SystemClock(new \DateTimeZone('UTC'))),
+                ];
+
+                if (!$this->jwtConfig->validator()->validate($token, ...$constraints)) {
+                    return response()->json(['authenticated' => false], 200);
+                }
+
+                $ssoUserId = $token->claims()->get('sub');
+                $clientId = $request->query('client_id');
+
+            } catch (\Exception $e) {
                 return response()->json(['authenticated' => false], 200);
             }
+        }
 
-            $userArray = $user->toArray();
-            $userArray['roles'] = $user->roles->toArray();
+        if (!$clientId) {
+            return response()->json(['error' => 'client_id is required'], 400);
+        }
 
-            return response()->json([
-                'authenticated' => true,
-                'user' => $userArray,
-            ]);
+        $user = User::with(['roles' => function ($query) use ($clientId) {
+            $query->where('sso_client_id', $clientId)
+                  ->orWhereNull('sso_client_id');
+        }])->find($ssoUserId);
 
-        } catch (\Exception $e) {
+        if (!$user) {
             return response()->json(['authenticated' => false], 200);
         }
+
+        return response()->json([
+            'authenticated' => true,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'user' => $user->user,
+                'email' => $user->email,
+                'roles' => $user->roles->map(function ($role) {
+                    return [
+                        'id' => $role->id,
+                        'name' => $role->name,
+                        'slug' => $role->slug,
+                        'description' => $role->description,
+                        'is_protected' => $role->is_protected,
+                        'pivot' => [
+                            'sso_client_id' => $role->pivot->sso_client_id,
+                        ],
+                    ];
+                }),
+            ],
+        ]);
     }
 
     private function generateToken(User $user, ?string $dpopPublicKey = null): array
