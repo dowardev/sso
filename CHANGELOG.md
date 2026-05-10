@@ -2,8 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0/0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.1.0] - 2026-05-09
+
+### Added
+- Client ID validation against SsoClient table in `/me`, `/user-auth`, and `/session/check` endpoints
+- Proper internal sso_client_id mapping for role filtering
+
+### Changed
+- Refactored `AuthController.me()` to validate client_id and use internal sso_client_id for role queries
+- Refactored `AuthController.checkSession()` to validate client_id and use internal sso_client_id for role queries
+- Removed `is_admin` attribute from User model - now relies solely on role-based admin check
+- Removed `is_admin` from AdminController update validation and data handling
+- Updated AdminUserSeeder and DatabaseSeeder to work with role-based system
+
+### Fixed
+- Session check endpoint now properly validates and filters roles by client_id (was using raw client_id string in query)
+
+### Affected Files
+- Modified: `back/app/Http/Controllers/AdminController.php`
+- Modified: `back/app/Http/Controllers/AuthController.php`
+- Modified: `back/app/Models/User.php`
+- Modified: `back/database/seeders/AdminUserSeeder.php`
+- Modified: `back/database/seeders/DatabaseSeeder.php`
+
+---
 
 ## [1.0.0] - 2026-05-08
 

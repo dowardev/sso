@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\SsoClient;
 use App\Models\User;
 use App\Models\UserSession;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -150,7 +151,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function me(Request $request): \Illuminate\Http\Response
+    public function me(Request $request): JsonResponse
     {
         $ssoUserId = $request->get('sso_user_id');
         $clientId = $request->query('client_id');
@@ -159,9 +160,16 @@ class AuthController extends Controller
             return response()->json(['error' => 'client_id is required'], 400);
         }
 
-        $user = User::with(['roles' => function ($query) use ($clientId) {
-            $query->where('sso_client_id', $clientId)
-                  ->orWhereNull('sso_client_id');
+        $ssoClient = SsoClient::where('client_id', $clientId)->first();
+        if (!$ssoClient) {
+            return response()->json(['error' => 'Invalid client_id'], 400);
+        }
+
+        $ssoClientId = $ssoClient->id;
+
+        $user = User::with(['roles' => function ($query) use ($ssoClientId) {
+            $query->where('sso_client_id', $ssoClientId)
+                ->orWhereNull('sso_client_id');
         }])->find($ssoUserId);
 
         if (!$user) {
@@ -214,7 +222,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function checkSession(Request $request): \Illuminate\Http\Response
+    public function checkSession(Request $request): JsonResponse
     {
         $ssoUserId = $request->get('sso_user_id');
         $clientId = $request->query('client_id');
@@ -255,9 +263,16 @@ class AuthController extends Controller
             return response()->json(['error' => 'client_id is required'], 400);
         }
 
-        $user = User::with(['roles' => function ($query) use ($clientId) {
-            $query->where('sso_client_id', $clientId)
-                  ->orWhereNull('sso_client_id');
+        $ssoClient = \App\Models\SsoClient::where('client_id', $clientId)->first();
+        if (!$ssoClient) {
+            return response()->json(['error' => 'Invalid client_id'], 400);
+        }
+
+        $ssoClientId = $ssoClient->id;
+
+        $user = User::with(['roles' => function ($query) use ($ssoClientId) {
+            $query->where('sso_client_id', $ssoClientId)
+                ->orWhereNull('sso_client_id');
         }])->find($ssoUserId);
 
         if (!$user) {

@@ -51,7 +51,6 @@ class AdminController extends Controller
             'user' => 'sometimes|string|max:255|unique:users,user,'.$user->id,
             'email' => 'sometimes|string|email|max:255|unique:users,email,'.$user->id,
             'password' => 'sometimes|string|min:6|confirmed',
-            'is_admin' => 'sometimes|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -61,7 +60,7 @@ class AdminController extends Controller
             ], 422);
         }
 
-        $data = $request->only(['name', 'user', 'email', 'is_admin']);
+        $data = $request->only(['name', 'user', 'email']);
 
         if ($request->has('password')) {
             $data['password'] = Hash::make($request->password);
