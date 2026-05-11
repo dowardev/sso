@@ -5,13 +5,13 @@ namespace TuOrg\SsoServer\Types;
 class SsoConfig
 {
     public function __construct(
-        public readonly string $ssoUrl,
-        public readonly string $jwtIssuer,
+        public readonly string $ssoUrl = 'http://localhost:8001/api',
+        public readonly string $jwtIssuer = 'http://localhost:8001',
         public readonly int $jwksCacheTtl = 3600,
         public readonly int $rolesCacheTtl = 300,
         public readonly int $dpopReplayTtl = 120,
         public readonly int $dpopIatLeeway = 60,
-        public readonly string $clientId,
+        public readonly string $clientId = '1',
         public readonly array $roleMappings = [],
     ) {}
 
