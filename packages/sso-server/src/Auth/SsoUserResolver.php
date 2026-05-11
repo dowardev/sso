@@ -1,0 +1,65 @@
+<?php
+
+namespace TuOrg\SsoServer\Auth;
+
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use TuOrg\SsoServer\Http\SsoHttpClient;
+use TuOrg\SsoServer\Types\SsoConfig;
+
+class SsoUserResolver
+{
+    public function __construct(
+        private readonly SsoConfig $config,
+        private readonly SsoHttpClient $httpClient,
+    ) {}
+
+    public function resolve(string $userId, string $token): array
+    {
+        $cached = $this->getCachedRoles($userId);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        try {
+            $userData = $this->httpClient->get('/me', $token);
+
+            if ($userData && isset($userData['roles'])) {
+                $this->cacheRoles($userId, $userData['roles']);
+                return $userData['roles'];
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to fetch user roles from SSO: ' . $e->getMessage());
+        }
+
+        $stale = $this->getStaleRoles($userId);
+        if ($stale !== null) {
+            Log::warning("Using stale roles cache for user {$userId}");
+            return $stale;
+        }
+
+        throw new \RuntimeException(
+            "Cannot resolve roles for user {$userId}: SSO /me failed and no stale cache available"
+        );
+    }
+
+    private function cacheRoles(string $userId, array $roles): void
+    {
+        Cache::put('sso_user_roles:' . $userId, $roles, $this->config->rolesCacheTtl);
+        Cache::put(
+            'sso_user_roles_stale:' . $userId,
+            $roles,
+            $this->config->rolesCacheTtl * 6,
+        );
+    }
+
+    private function getCachedRoles(string $userId): ?array
+    {
+        return Cache::get('sso_user_roles:' . $userId);
+    }
+
+    private function getStaleRoles(string $userId): ?array
+    {
+        return Cache::get('sso_user_roles_stale:' . $userId);
+    }
+}
