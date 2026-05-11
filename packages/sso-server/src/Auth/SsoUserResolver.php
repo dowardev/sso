@@ -4,6 +4,7 @@ namespace TuOrg\SsoServer\Auth;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use TuOrg\SsoServer\Exceptions\SsoUserResolveException;
 use TuOrg\SsoServer\Http\SsoHttpClient;
 use TuOrg\SsoServer\Types\SsoConfig;
 
@@ -28,6 +29,9 @@ class SsoUserResolver
                 $this->cacheRoles($userId, $userData['roles']);
                 return $userData['roles'];
             }
+        } catch (SsoUserResolveException $e) {
+            Log::warning('SSO user resolution failed: ' . $e->getMessage());
+            throw $e;
         } catch (\Exception $e) {
             Log::warning('Failed to fetch user roles from SSO: ' . $e->getMessage());
         }
@@ -38,9 +42,7 @@ class SsoUserResolver
             return $stale;
         }
 
-        throw new \RuntimeException(
-            "Cannot resolve roles for user {$userId}: SSO /me failed and no stale cache available"
-        );
+        throw SsoUserResolveException::noRolesAvailable($userId);
     }
 
     private function cacheRoles(string $userId, array $roles): void
