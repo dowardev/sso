@@ -17,7 +17,6 @@ export interface UserDetail extends User {
 export interface UserSession {
   id: number;
   user_id: number;
-  sso_client_id: number | null;
   token_id: number;
   ip_address: string;
   user_agent: string;
@@ -79,13 +78,10 @@ export interface UserRole {
   name: string;
   slug: string;
   description: string | null;
-  sso_client_id: number | null;
-  sso_client_name: string | null;
 }
 
 export interface RoleAssignment {
   role_id: number | null;
-  sso_client_id: number | null;
   name?: string;
   slug?: string;
 }

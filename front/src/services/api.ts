@@ -48,6 +48,7 @@ async function fetchApi<T>(
       ...getHeaders(),
       ...options.headers,
     },
+    credentials: 'include',
   });
 
   if (!response.ok) {

@@ -139,16 +139,24 @@ class AuthController extends Controller
         $tokenString = $request->bearerToken();
 
         if (!$tokenString) {
+            $tokenString = $request->cookie('sso_token');
+        }
+
+        if (!$tokenString) {
             return response()->json(['message' => 'Token no proporcionado'], 401);
         }
 
-        UserSession::where('token', $tokenString)->update([
-            'last_used_at' => now(),
-        ]);
+        try {
+            UserSession::where('token', $tokenString)->delete();
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al cerrar sesión: ' . $e->getMessage(),
+            ], 500);
+        }
 
         return response()->json([
             'message' => 'Sesión cerrada correctamente',
-        ]);
+        ])->withCookie(\Cookie::forget('sso_token'));
     }
 
     public function me(Request $request): JsonResponse

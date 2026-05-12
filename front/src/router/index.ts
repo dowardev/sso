@@ -29,6 +29,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/PublicRegisterPage.vue'),
   },
   {
+    path: '/auth/logout',
+    name: 'AuthLogout',
+    component: () => import('../views/LogoutPage.vue'),
+  },
+  {
     path: '/auth/callback',
     redirect: 'http://localhost:5173/auth/callback',
   },

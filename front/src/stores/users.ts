@@ -119,7 +119,6 @@ export const useUsersStore = defineStore('users', () => {
       userRoles.value = response;
       roleAssignments.value = response.map((r) => ({
         role_id: r.id,
-        sso_client_id: r.sso_client_id,
         name: r.name,
         slug: r.slug,
       }));
@@ -129,7 +128,7 @@ export const useUsersStore = defineStore('users', () => {
     }
   }
 
-  async function saveUserRoles(params: { id: number; assignments: { role_id: number; sso_client_id: number | null }[] }) {
+  async function saveUserRoles(params: { id: number; assignments: { role_id: number }[] }) {
     const { id, assignments } = params;
     loading.value = true;
     try {
@@ -137,7 +136,6 @@ export const useUsersStore = defineStore('users', () => {
       userRoles.value = response;
       roleAssignments.value = response.map((r) => ({
         role_id: r.id,
-        sso_client_id: r.sso_client_id,
         name: r.name,
         slug: r.slug,
       }));

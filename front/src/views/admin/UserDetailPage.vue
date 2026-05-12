@@ -81,15 +81,7 @@
                       ></ion-icon>
                       <ion-label>
                         <h3 class="item-title">{{ role.name }}</h3>
-                        <p v-if="role.sso_client_name" class="item-subtitle">
-                          App: {{ role.sso_client_name }}
-                        </p>
-                        <p v-else class="item-subtitle global-role">Global</p>
                       </ion-label>
-                      <ion-badge v-if="role.sso_client_id" color="secondary"
-                        >App</ion-badge
-                      >
-                      <ion-badge v-else color="medium">Global</ion-badge>
                     </ion-item>
                   </ion-list>
                 </div>
@@ -230,27 +222,6 @@
                         :value="role.id"
                       >
                         {{ role.name }}
-                      </ion-select-option>
-                    </ion-select>
-                  </ion-item>
-                  <ion-item>
-                    <ion-label position="stacked"
-                      >Aplicación (opcional)</ion-label
-                    >
-                    <ion-select
-                      v-model="assignment.sso_client_id"
-                      placeholder="Global (todas las apps)"
-                      @ion-change="onClientChange({ index, clientId: $event.detail.value })"
-                    >
-                      <ion-select-option :value="null"
-                        >Global (todas las apps)</ion-select-option
-                      >
-                      <ion-select-option
-                        v-for="client in availableClients"
-                        :key="client.id"
-                        :value="client.id"
-                      >
-                        {{ client.name }}
                       </ion-select-option>
                     </ion-select>
                   </ion-item>
@@ -488,9 +459,8 @@ const openRolesModal = async (): Promise<void> => {
       clientsController.fetchClients(),
       usersController.fetchUserRoles(userId),
     ]);
-    roleAssignments.value = usersController.userRoles.value.map((r: { id: number; sso_client_id: number | null; name: string; slug: string }) => ({
+    roleAssignments.value = usersController.userRoles.value.map((r: { id: number; name: string; slug: string }) => ({
       role_id: r.id,
-      sso_client_id: r.sso_client_id,
       name: r.name,
       slug: r.slug,
     }));
@@ -503,7 +473,6 @@ const openRolesModal = async (): Promise<void> => {
 const addRoleAssignment = (): void => {
   roleAssignments.value.push({
     role_id: null,
-    sso_client_id: null,
   });
 };
 
@@ -521,11 +490,6 @@ const onRoleChange = (params: { index: number; roleId: number }): void => {
   }
 };
 
-const onClientChange = (params: { index: number; clientId: number | null }): void => {
-  const { index, clientId } = params;
-  roleAssignments.value[index].sso_client_id = clientId;
-};
-
 const saveUserRoles = async (): Promise<void> => {
   const validAssignments = roleAssignments.value.filter(
     (a) => a.role_id !== null
@@ -540,7 +504,6 @@ const saveUserRoles = async (): Promise<void> => {
   try {
     const rolesToSave = validAssignments.map((a) => ({
       role_id: a.role_id!,
-      sso_client_id: a.sso_client_id,
     }));
 
     await usersController.saveUserRoles({ id: userId, assignments: rolesToSave });

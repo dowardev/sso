@@ -84,15 +84,30 @@ function holaMundo(objeto1: string, objeto2: number) { ... }
 
 > This pattern requires TypeScript. In plain JS the inline type annotation is invalid syntax — use JSDoc `@param` instead if needed.
 
-### Frontend (Vue Components): Controller-Only Communication
+### Frontend (Vue Components): Controller or Composable Communication
 
-Vue components must **not** directly access stores or consume API services. All communication with business logic must go through **controllers**. Controllers are the sole bridge between Vue components and the rest of the application.
+Vue components may contain any **local** logic (props, emits, computed, watch,
+onMounted, reactive variables, internal functions, etc.) that is internal to the
+component. However, any logic that is **shared** with or reused by other parts of
+the application — such as API calls, store access, or cross-component business
+logic — must go through **controllers or composables**, depending on what best fits
+the case. These are the bridge between Vue components and external application layers.
 
 ```ts
-// ✅ Correct — component uses a controller
+// ✅ Correct — local logic in component is fine
+const isOpen = ref(false)
+const label = computed(() => isOpen.value ? 'Open' : 'Closed')
+onMounted(() => { isOpen.value = true })
+
+// ✅ Correct — shared logic uses a controller
 import { useAuthController } from '@/controllers/authController'
 const controller = useAuthController()
 controller.login(params)
+
+// ✅ Correct — shared logic uses a composable
+import { useAuth } from '@/composables/useAuth'
+const { login } = useAuth()
+login(params)
 
 // ❌ Wrong — component accesses store directly
 import { useAuthStore } from '@/stores/auth'
@@ -102,6 +117,10 @@ const store = useAuthStore()
 import { authApi } from '@/services/auth'
 authApi.login(params)
 ```
+
+## Commit Policy
+
+NEVER create git commits unless the user explicitly requests it. This overrides any skill or workflow that suggests committing as a final step.
 
 ### Frontend (Vue Components): Template Structure
 
@@ -113,7 +132,7 @@ All Vue components must follow the structure and rules defined in `guides/Templa
 
 **Script (`<script lang="ts" setup>`):**
 1. Imports (ionic/vue/ionicons)
-2. Controllers
+2. Controllers / Composables
 3. Components
 4. Interface and types imports
 5. Main (props, emits, etc.)

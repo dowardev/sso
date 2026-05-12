@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-12
+
+### Added
+- `/auth/logout` page for OAuth redirect logout flow
+- LogoutPage.vue component with auto-redirect based on redirect_uri query param
+- Credentials support for cross-origin API requests (credentials: 'include')
+
+### Fixed
+- Remove duplicate CORS middleware, use Laravel CORS config only
+- CORS now uses specific origin instead of wildcard (required for credentials)
+- Logout endpoint accepts cookie fallback and properly deletes session
+- Logout clears sso_token cookie on client side
+
+### Changed
+- Simplify role system: roles are now global-only, client-specific roles removed
+- Removed sso_client_id pivot column from user_roles table
+- Updated AGENTS.md with commit policy and composables support
+
+### Removed
+- Custom CORS middleware (Middleware/Cors.php)
+- CORS middleware registration from bootstrap/app.php
+
 ## [0.2.0] - 2026-03-29
 
 ### Added

@@ -13,12 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'cors' => \App\Http\Middleware\Cors::class,
             'admin' => \App\Http\Middleware\IsAdmin::class,
             'jwt.auth' => \App\Http\Middleware\JwtAuth::class,
             'dpop' => \App\Http\Middleware\VerifyDpopProof::class,
         ]);
-        $middleware->append(\App\Http\Middleware\Cors::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

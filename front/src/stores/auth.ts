@@ -60,6 +60,10 @@ export const useAuthStore = defineStore('auth', () => {
 
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem('sso_token');
+    localStorage.removeItem(DPOP_PUBLIC_KEY);
+
+    await dpopService.clearKeys();
 
     token.value = null;
     user.value = null;

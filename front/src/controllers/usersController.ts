@@ -38,7 +38,7 @@ export function useUsersController() {
     return usersStore.fetchUserRoles(id);
   }
 
-  async function saveUserRoles(params: { id: number; assignments: { role_id: number; sso_client_id: number | null }[] }): Promise<UserRole[]> {
+  async function saveUserRoles(params: { id: number; assignments: { role_id: number }[] }): Promise<UserRole[]> {
     return usersStore.saveUserRoles(params);
   }
 
