@@ -2,11 +2,9 @@
 
 return [
     'paths' => ['api/*'],
-    'allowed_methods' => ['*'],
-    'allowed_origins' => ['http://localhost:5173'],
-    'allowed_origins_patterns' => [],
-    'allowed_headers' => ['*'],
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    'allowed_headers' => ['Content-Type', 'Authorization', 'X-Requested-With', 'DPoP', 'DPoP-Public-Key', 'Accept'],
     'exposed_headers' => [],
-    'max_age' => 0,
+    'max_age' => 86400,
     'supports_credentials' => true,
 ];

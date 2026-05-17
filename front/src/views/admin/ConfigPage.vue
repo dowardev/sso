@@ -16,12 +16,16 @@
 
           <ion-item
             button
-            @click="router.push('/admin/config/design')"
             :class="{ 'active-item': isActiveRoute('/admin/config/design') }"
+            @click="router.push('/admin/config/design')"
           >
             <ion-icon slot="start" :icon="colorPalette"></ion-icon>
             <ion-label>Personalización</ion-label>
-            <ion-icon slot="end" :icon="chevronForward" class="end-icon"></ion-icon>
+            <ion-icon
+              slot="end"
+              :icon="chevronForward"
+              class="end-icon"
+            ></ion-icon>
           </ion-item>
         </ion-list>
 
@@ -88,68 +92,68 @@
 </script>
 
 <style scoped>
-.config-container {
-  padding: 16px;
-  max-width: 600px;
-  margin: 0 auto;
-}
+  .config-container {
+    padding: 16px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
 
-.config-list {
-  background: transparent;
-  margin-bottom: 24px;
-}
+  .config-list {
+    background: transparent;
+    margin-bottom: 24px;
+  }
 
-.section-header {
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-tertiary);
-  padding-left: 0;
-}
+  .section-header {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    padding-left: 0;
+  }
 
-.config-list ion-item {
-  --border-radius: 12px;
-  --background: var(--background-contrast);
-  margin-bottom: 8px;
-  --padding-start: 12px;
-  --padding-end: 12px;
-}
+  .config-list ion-item {
+    --border-radius: 12px;
+    --background: var(--background-contrast);
+    margin-bottom: 8px;
+    --padding-start: 12px;
+    --padding-end: 12px;
+  }
 
-.config-list ion-item:active:not([disabled]) {
-  --background: var(--ion-color-light);
-}
+  .config-list ion-item:active:not([disabled]) {
+    --background: var(--ion-color-light);
+  }
 
-.config-list ion-item.active-item {
-  --background: var(--ion-color-primary-tint);
-}
+  .config-list ion-item.active-item {
+    --background: var(--ion-color-primary-tint);
+  }
 
-.config-list ion-item[disabled] {
-  opacity: 0.5;
-}
+  .config-list ion-item[disabled] {
+    opacity: 0.5;
+  }
 
-.config-list ion-icon {
-  color: var(--text-secondary);
-}
+  .config-list ion-icon {
+    color: var(--text-secondary);
+  }
 
-.config-list ion-label {
-  color: var(--text-primary);
-}
+  .config-list ion-label {
+    color: var(--text-primary);
+  }
 
-.end-icon {
-  color: var(--text-tertiary);
-  font-size: 18px;
-}
+  .end-icon {
+    color: var(--text-tertiary);
+    font-size: 18px;
+  }
 
-.coming-soon {
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
+  .coming-soon {
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
 
-.version-info {
-  text-align: center;
-  padding: 24px;
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
+  .version-info {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-tertiary);
+    font-size: 12px;
+  }
 </style>

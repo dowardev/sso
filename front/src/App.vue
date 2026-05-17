@@ -9,7 +9,9 @@
         </ion-header>
         <ion-content>
           <div v-if="currentUser" class="user-info">
-            <div class="user-avatar">{{ getInitials({ name: currentUser.name }) }}</div>
+            <div class="user-avatar">
+              {{ getInitials({ name: currentUser.name }) }}
+            </div>
             <div class="user-details">
               <span class="user-name">{{ currentUser.name }}</span>
               <span class="user-email">{{ currentUser.email }}</span>
@@ -19,7 +21,9 @@
             <ion-menu-toggle :auto-hide="false">
               <ion-item
                 button
-                :class="{ 'active-item': isActiveRoute({ path: '/admin/dashboard' }) }"
+                :class="{
+                  'active-item': isActiveRoute({ path: '/admin/dashboard' }),
+                }"
                 @click="navigateTo({ url: '/admin/dashboard' })"
               >
                 <ion-icon slot="start" :icon="speedometer"></ion-icon>
@@ -29,7 +33,9 @@
             <ion-menu-toggle :auto-hide="false">
               <ion-item
                 button
-                :class="{ 'active-item': isActiveRoute({ path: '/admin/users' }) }"
+                :class="{
+                  'active-item': isActiveRoute({ path: '/admin/users' }),
+                }"
                 @click="navigateTo({ url: '/admin/users' })"
               >
                 <ion-icon slot="start" :icon="people"></ion-icon>
@@ -39,7 +45,9 @@
             <ion-menu-toggle :auto-hide="false">
               <ion-item
                 button
-                :class="{ 'active-item': isActiveRoute({ path: '/admin/sessions' }) }"
+                :class="{
+                  'active-item': isActiveRoute({ path: '/admin/sessions' }),
+                }"
                 @click="navigateTo({ url: '/admin/sessions' })"
               >
                 <ion-icon slot="start" :icon="key"></ion-icon>
@@ -49,7 +57,9 @@
             <ion-menu-toggle :auto-hide="false">
               <ion-item
                 button
-                :class="{ 'active-item': isActiveRoute({ path: '/admin/clients' }) }"
+                :class="{
+                  'active-item': isActiveRoute({ path: '/admin/clients' }),
+                }"
                 @click="navigateTo({ url: '/admin/clients' })"
               >
                 <ion-icon slot="start" :icon="desktop"></ion-icon>
@@ -59,7 +69,9 @@
             <ion-menu-toggle :auto-hide="false">
               <ion-item
                 button
-                :class="{ 'active-item': isActiveRoute({ path: '/admin/roles' }) }"
+                :class="{
+                  'active-item': isActiveRoute({ path: '/admin/roles' }),
+                }"
                 @click="navigateTo({ url: '/admin/roles' })"
               >
                 <ion-icon slot="start" :icon="shield"></ion-icon>
@@ -69,8 +81,10 @@
             <ion-menu-toggle :auto-hide="false">
               <ion-item
                 button
+                :class="{
+                  'active-item': isActiveRoute({ path: '/admin/config' }),
+                }"
                 @click="navigateTo({ url: '/admin/config' })"
-                :class="{ 'active-item': isActiveRoute({ path: '/admin/config' }) }"
               >
                 <ion-icon slot="start" :icon="settingsOutline"></ion-icon>
                 <ion-label>Configuración</ion-label>
@@ -93,89 +107,89 @@
 </template>
 
 <script setup lang="ts">
-// imports
-import {
-  IonApp,
-  IonRouterOutlet,
-  IonMenu,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonList,
-  IonMenuToggle,
-  IonItem,
-  IonIcon,
-  IonLabel,
-  IonButton,
-  menuController,
-} from '@ionic/vue';
-import { useRouter, useRoute } from 'vue-router';
-import {
-  speedometer,
-  people,
-  key,
-  desktop,
-  shield,
-  logOutOutline,
-  settingsOutline,
-} from 'ionicons/icons';
+  // imports
+  import {
+    IonApp,
+    IonRouterOutlet,
+    IonMenu,
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonContent,
+    IonList,
+    IonMenuToggle,
+    IonItem,
+    IonIcon,
+    IonLabel,
+    IonButton,
+    menuController,
+  } from '@ionic/vue';
+  import { useRouter, useRoute } from 'vue-router';
+  import {
+    speedometer,
+    people,
+    key,
+    desktop,
+    shield,
+    logOutOutline,
+    settingsOutline,
+  } from 'ionicons/icons';
 
-// controllers
-import { useAuthController } from '@/controllers/authController';
+  // controllers
+  import { useAuthController } from '@/controllers/authController';
 
-// components
-// end components
+  // components
+  // end components
 
-// interface and types imports
-// end interface and types imports
+  // interface and types imports
+  // end interface and types imports
 
-// main
-const router = useRouter();
-const route = useRoute();
+  // main
+  const router = useRouter();
+  const route = useRoute();
 
-// vars and const
-const authController = useAuthController();
-const isAuthenticated = authController.isAuthenticated;
-const currentUser = authController.user;
+  // vars and const
+  const authController = useAuthController();
+  const isAuthenticated = authController.isAuthenticated;
+  const currentUser = authController.user;
 
-// watch
-// end
+  // watch
+  // end
 
-// computed
-// end computed
+  // computed
+  // end computed
 
-// onmounted
-// end onmounted
+  // onmounted
+  // end onmounted
 
-// functions
-const isActiveRoute = (params: { path: string }): boolean => {
-  const { path } = params;
-  return route.path === path || route.path.startsWith(path + '/');
-};
+  // functions
+  const isActiveRoute = (params: { path: string }): boolean => {
+    const { path } = params;
+    return route.path === path || route.path.startsWith(path + '/');
+  };
 
-const navigateTo = async (params: { url: string }): Promise<void> => {
-  const { url } = params;
-  await menuController.close();
-  router.push(url);
-};
+  const navigateTo = async (params: { url: string }): Promise<void> => {
+    const { url } = params;
+    await menuController.close();
+    router.push(url);
+  };
 
-const getInitials = (params: { name: string }): string => {
-  const { name } = params;
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-};
+  const getInitials = (params: { name: string }): string => {
+    const { name } = params;
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
-const handleLogout = async (): Promise<void> => {
-  await menuController.close();
-  await authController.logout();
-  router.replace('/login');
-};
-// end functions
+  const handleLogout = async (): Promise<void> => {
+    await menuController.close();
+    await authController.logout();
+    router.replace('/login');
+  };
+  // end functions
 </script>
 
 <style scoped>

@@ -30,7 +30,11 @@ export function useAuthController() {
   const user = computed(() => authStore.user);
   const isAuthenticated = computed(() => authStore.isAuthenticated);
 
-  async function login(params: { user: string; password: string; client_id?: string }): Promise<{ token: string; user: User }> {
+  async function login(params: {
+    user: string;
+    password: string;
+    client_id?: string;
+  }): Promise<{ token: string; user: User }> {
     return authStore.login(params);
   }
 
@@ -70,7 +74,8 @@ export function useAuthController() {
 
     if (params.code_challenge) {
       requestData.code_challenge = params.code_challenge;
-      requestData.code_challenge_method = params.code_challenge_method || 'S256';
+      requestData.code_challenge_method =
+        params.code_challenge_method || 'S256';
     }
 
     if (params.code_verifier) {
@@ -122,7 +127,11 @@ export function useAuthController() {
     const isOAuthFlow = !!params.client_id;
 
     if (isOAuthFlow) {
-      await login({ user: params.email, password: params.password, client_id: params.client_id });
+      await login({
+        user: params.email,
+        password: params.password,
+        client_id: params.client_id,
+      });
 
       const oauthParams: OauthParams = {
         client_id: params.client_id,

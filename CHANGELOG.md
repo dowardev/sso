@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0/0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-17
+
+### Security
+- Fixed CORS origin validation bypass when `client_id` is omitted (ValidateClientOrigin middleware now returns 403 if Origin header is present but no client_id)
+- Added `Vary: Origin` header on all CORS responses to prevent cache poisoning
+- Added `Vary: Origin` header on 403 rejection responses
+- Mass assignment protection: replaced `$request->all()` with `$validator->validated()` in AdminController
+
+### Added
+- Dynamic CORS system with `allowed_origins` per OAuth2 client
+- `ValidateClientOrigin` middleware for client-specific origin validation
+- `HandleDynamicCors` middleware replacing Laravel's HandleCors
+- `SsoClientObserver` for automatic cache invalidation on model changes
+- URL normalization for origin comparison (handles trailing slashes, default ports, case sensitivity)
+- Frontend URL validation and normalization in ClientsPage addOrigin function
+- Per-client CORS configuration with `allowed_origins` array field and database migration
+- Named parameters pattern for `deleteClient` function
+
+### Changed
+- Refactored CORS handling to read allowed methods/headers from `config('cors.*')` instead of hardcoded values
+- Added `Access-Control-Expose-Headers` support from config
+- Replaced `Cache::forget()` calls in AdminController with automatic invalidation via observer
+- Cleaned up dead configuration keys from `cors.php` (`allowed_origins`, `allowed_origins_patterns`)
+- Updated `Vary` header handling to preserve existing values instead of overwriting
+- ValidateClientOrigin now checks `active` status of client
+- Backend origin validation now uses regex `^https?://[^/:]+(:\d+)?$/` to ensure CORS-compliant origins (no paths)
+
+### Fixed
+- Fixed cache poisoning vulnerability in HandleDynamicCors (missing Vary: Origin on non-matching origins)
+- Fixed cache poisoning vulnerability in ValidateClientOrigin (missing Vary: Origin on 403 responses)
+- Fixed inconsistent origin comparison (now normalizes URLs before comparison)
+- Fixed missing origin validation in frontend (addOrigin now validates URL format)
+
+### Affected Files
+- Added: `back/app/Http/Middleware/HandleDynamicCors.php`
+- Added: `back/app/Http/Middleware/ValidateClientOrigin.php`
+- Added: `back/app/Observers/SsoClientObserver.php`
+- Added: `back/database/migrations/2026_05_12_000000_add_allowed_origins_to_sso_clients_table.php`
+- Modified: `back/app/Http/Controllers/AdminController.php`
+- Modified: `back/app/Http/Controllers/AuthController.php`
+- Modified: `back/app/Models/SsoClient.php`
+- Modified: `back/app/Providers/AppServiceProvider.php`
+- Modified: `back/bootstrap/app.php`
+- Modified: `back/config/cors.php`
+- Modified: `front/src/controllers/clientsController.ts`
+- Modified: `front/src/stores/clients.ts`
+- Modified: `front/src/types/index.ts`
+- Modified: `front/src/views/admin/ClientsPage.vue`
+
+---
+
 ## [1.1.0] - 2026-05-09
 
 ### Added

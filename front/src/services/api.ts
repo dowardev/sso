@@ -38,9 +38,10 @@ const getHeaders = () => {
   return headers;
 };
 
-async function fetchApi<T>(
-  params: { endpoint: string; options?: RequestInit }
-): Promise<T> {
+async function fetchApi<T>(params: {
+  endpoint: string;
+  options?: RequestInit;
+}): Promise<T> {
   const { endpoint, options = {} } = params;
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
@@ -63,8 +64,15 @@ async function fetchApi<T>(
 
 export const api = {
   get: <T>(params: { endpoint: string; headers?: Record<string, string> }) =>
-    fetchApi<T>({ endpoint: params.endpoint, options: { headers: params.headers } }),
-  post: <T>(params: { endpoint: string; data?: unknown; extraHeaders?: Record<string, string> }) =>
+    fetchApi<T>({
+      endpoint: params.endpoint,
+      options: { headers: params.headers },
+    }),
+  post: <T>(params: {
+    endpoint: string;
+    data?: unknown;
+    extraHeaders?: Record<string, string>;
+  }) =>
     fetchApi<T>({
       endpoint: params.endpoint,
       options: {
@@ -73,7 +81,11 @@ export const api = {
         headers: params.extraHeaders,
       },
     }),
-  put: <T>(params: { endpoint: string; data: unknown; headers?: Record<string, string> }) =>
+  put: <T>(params: {
+    endpoint: string;
+    data: unknown;
+    headers?: Record<string, string>;
+  }) =>
     fetchApi<T>({
       endpoint: params.endpoint,
       options: {

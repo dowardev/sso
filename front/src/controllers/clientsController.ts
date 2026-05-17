@@ -14,16 +14,35 @@ export function useClientsController() {
     return clientsStore.fetchClients();
   }
 
-  async function createClient(params: { data: { name: string; client_id: string; client_secret: string; redirect_url?: string; active?: boolean } }): Promise<SsoClient> {
+  async function createClient(params: {
+    data: {
+      name: string;
+      client_id: string;
+      client_secret?: string;
+      redirect_url?: string;
+      allowed_origins?: string[];
+      active?: boolean;
+    };
+  }): Promise<SsoClient> {
     return clientsStore.createClient(params.data);
   }
 
-  async function updateClient(params: { id: number; data: { name: string; client_id: string; client_secret?: string; redirect_url?: string; active?: boolean } }): Promise<SsoClient> {
+  async function updateClient(params: {
+    id: number;
+    data: {
+      name: string;
+      client_id: string;
+      client_secret?: string;
+      redirect_url?: string;
+      allowed_origins?: string[];
+      active?: boolean;
+    };
+  }): Promise<SsoClient> {
     return clientsStore.updateClient(params);
   }
 
-  async function deleteClient(id: number): Promise<void> {
-    return clientsStore.deleteClient(id);
+  async function deleteClient(params: { id: number }): Promise<void> {
+    return clientsStore.deleteClient(params);
   }
 
   function reset(): void {

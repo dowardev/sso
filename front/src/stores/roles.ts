@@ -18,7 +18,11 @@ export const useRolesStore = defineStore('roles', () => {
     }
   }
 
-  async function createRole(data: { name: string; slug: string; description?: string }) {
+  async function createRole(data: {
+    name: string;
+    slug: string;
+    description?: string;
+  }) {
     loading.value = true;
     try {
       const response = await api.post<Role>({ endpoint: '/admin/roles', data });
@@ -29,11 +33,17 @@ export const useRolesStore = defineStore('roles', () => {
     }
   }
 
-  async function updateRole(params: { id: number; data: { name: string; description?: string } }) {
+  async function updateRole(params: {
+    id: number;
+    data: { name: string; description?: string };
+  }) {
     const { id, data } = params;
     loading.value = true;
     try {
-      const response = await api.put<Role>({ endpoint: `/admin/roles/${id}`, data });
+      const response = await api.put<Role>({
+        endpoint: `/admin/roles/${id}`,
+        data,
+      });
       const index = roles.value.findIndex((r) => r.id === id);
       if (index !== -1) {
         roles.value[index] = response;

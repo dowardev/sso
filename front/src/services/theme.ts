@@ -1,8 +1,17 @@
 import { ref, computed } from 'vue';
 
-export type ThemeName = 'auto' | 'light' | 'dark' | 'catppuccin-latte' | 'catppuccin-macchiato';
+export type ThemeName =
+  | 'auto'
+  | 'light'
+  | 'dark'
+  | 'catppuccin-latte'
+  | 'catppuccin-macchiato';
 
-export type ResolvedThemeName = 'light' | 'dark' | 'catppuccin-latte' | 'catppuccin-macchiato';
+export type ResolvedThemeName =
+  | 'light'
+  | 'dark'
+  | 'catppuccin-latte'
+  | 'catppuccin-macchiato';
 
 export interface ThemeInfo {
   name: ThemeName;
@@ -50,7 +59,9 @@ const STORAGE_KEY_AUTO_DARK = 'sso-theme-auto-dark';
 
 function getSystemTheme(): 'light' | 'dark' {
   if (typeof window !== 'undefined' && window.matchMedia) {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
   }
   return 'light';
 }
@@ -58,18 +69,21 @@ function getSystemTheme(): 'light' | 'dark' {
 function getInitialTheme(): ThemeName {
   if (typeof localStorage !== 'undefined') {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && themes.find(t => t.name === stored)) {
+    if (stored && themes.find((t) => t.name === stored)) {
       return stored as ThemeName;
     }
   }
   return 'auto';
 }
 
-function getStoredAutoTheme(params: { key: string; fallback: ResolvedThemeName }): ResolvedThemeName {
+function getStoredAutoTheme(params: {
+  key: string;
+  fallback: ResolvedThemeName;
+}): ResolvedThemeName {
   const { key, fallback } = params;
   if (typeof localStorage !== 'undefined') {
     const stored = localStorage.getItem(key);
-    if (stored && themes.find(t => t.name === stored && t.name !== 'auto')) {
+    if (stored && themes.find((t) => t.name === stored && t.name !== 'auto')) {
       return stored as ResolvedThemeName;
     }
   }
@@ -77,10 +91,18 @@ function getStoredAutoTheme(params: { key: string; fallback: ResolvedThemeName }
 }
 
 const currentThemeName = ref<ThemeName>(getInitialTheme());
-const autoLightTheme = ref<ResolvedThemeName>(getStoredAutoTheme({ key: STORAGE_KEY_AUTO_LIGHT, fallback: 'light' }));
-const autoDarkTheme = ref<ResolvedThemeName>(getStoredAutoTheme({ key: STORAGE_KEY_AUTO_DARK, fallback: 'dark' }));
+const autoLightTheme = ref<ResolvedThemeName>(
+  getStoredAutoTheme({ key: STORAGE_KEY_AUTO_LIGHT, fallback: 'light' })
+);
+const autoDarkTheme = ref<ResolvedThemeName>(
+  getStoredAutoTheme({ key: STORAGE_KEY_AUTO_DARK, fallback: 'dark' })
+);
 
-const themeClasses = ['dark', 'catppuccin-latte-maroon', 'catppuccin-macchiato-maroon'];
+const themeClasses = [
+  'dark',
+  'catppuccin-latte-maroon',
+  'catppuccin-macchiato-maroon',
+];
 
 function resolveTheme(themeName: ThemeName): ResolvedThemeName {
   if (themeName === 'auto') {
@@ -95,12 +117,12 @@ function applyTheme(themeName: ThemeName) {
 
   const body = document.body;
 
-  themeClasses.forEach(cls => {
+  themeClasses.forEach((cls) => {
     body.classList.remove(cls);
   });
 
   const resolved = resolveTheme(themeName);
-  const theme = themes.find(t => t.name === resolved);
+  const theme = themes.find((t) => t.name === resolved);
   if (theme && theme.className) {
     body.classList.add(theme.className);
   }
@@ -111,23 +133,25 @@ function applyTheme(themeName: ThemeName) {
 if (typeof window !== 'undefined') {
   applyTheme(currentThemeName.value);
 
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (currentThemeName.value === 'auto') {
-      applyTheme('auto');
-    }
-  });
+  window
+    .matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change', () => {
+      if (currentThemeName.value === 'auto') {
+        applyTheme('auto');
+      }
+    });
 }
 
 export function useTheme() {
   const currentTheme = computed(() => {
-    return themes.find(t => t.name === currentThemeName.value) || themes[0];
+    return themes.find((t) => t.name === currentThemeName.value) || themes[0];
   });
 
   const isAuto = computed(() => currentThemeName.value === 'auto');
 
   const resolvedTheme = computed(() => {
     const resolved = resolveTheme(currentThemeName.value);
-    return themes.find(t => t.name === resolved) || themes[1];
+    return themes.find((t) => t.name === resolved) || themes[1];
   });
 
   const setTheme = (themeName: ThemeName) => {
@@ -152,11 +176,11 @@ export function useTheme() {
   };
 
   const autoLightThemeInfo = computed(() => {
-    return themes.find(t => t.name === autoLightTheme.value) || themes[1];
+    return themes.find((t) => t.name === autoLightTheme.value) || themes[1];
   });
 
   const autoDarkThemeInfo = computed(() => {
-    return themes.find(t => t.name === autoDarkTheme.value) || themes[2];
+    return themes.find((t) => t.name === autoDarkTheme.value) || themes[2];
   });
 
   const isDark = computed(() => {

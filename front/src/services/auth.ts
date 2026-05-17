@@ -9,7 +9,11 @@ export const auth = {
     return useAuthStore().user;
   },
 
-  async login(credentials: { user: string; password: string; client_id?: string }) {
+  async login(credentials: {
+    user: string;
+    password: string;
+    client_id?: string;
+  }) {
     return useAuthStore().login(credentials);
   },
 

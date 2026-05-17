@@ -1,4 +1,9 @@
-import { useTheme, type ThemeName, type ResolvedThemeName, type ThemeInfo } from '@/services/theme';
+import {
+  useTheme,
+  type ThemeName,
+  type ResolvedThemeName,
+  type ThemeInfo,
+} from '@/services/theme';
 
 export function useThemeController() {
   const theme = useTheme();

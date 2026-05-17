@@ -14,7 +14,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!token.value);
 
-  async function login(params: { user: string; password: string; client_id?: string }) {
+  async function login(params: {
+    user: string;
+    password: string;
+    client_id?: string;
+  }) {
     await dpopService.initialize();
 
     const dpopPublicKey = dpopService.getPublicKeyJwk();

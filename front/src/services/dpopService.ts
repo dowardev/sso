@@ -50,9 +50,11 @@ export default class DpopService {
     return this.jkt;
   }
 
-  async createDpopProof(
-    params: { htm: string; htu: string; accessToken?: string }
-  ): Promise<string> {
+  async createDpopProof(params: {
+    htm: string;
+    htu: string;
+    accessToken?: string;
+  }): Promise<string> {
     const { htm, htu, accessToken } = params;
     if (!this.privateKey || !this.publicKeyJwk) {
       throw new Error('DPoP key pair not initialized');

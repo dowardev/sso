@@ -12,7 +12,11 @@ export function useSessionsController() {
   const hasMore = computed(() => sessionsStore.hasMore);
   const activeCount = computed(() => sessionsStore.activeCount);
 
-  async function fetchSessions(params?: { page?: number; per_page?: number; active?: boolean }): Promise<void> {
+  async function fetchSessions(params?: {
+    page?: number;
+    per_page?: number;
+    active?: boolean;
+  }): Promise<void> {
     return sessionsStore.fetchSessions(params);
   }
 

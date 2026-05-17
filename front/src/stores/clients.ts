@@ -14,7 +14,9 @@ export const useClientsStore = defineStore('clients', () => {
   async function fetchClients() {
     loading.value = true;
     try {
-      const response = await api.get<SsoClient[]>({ endpoint: '/admin/clients' });
+      const response = await api.get<SsoClient[]>({
+        endpoint: '/admin/clients',
+      });
       clients.value = response;
       return response;
     } finally {
@@ -25,15 +27,19 @@ export const useClientsStore = defineStore('clients', () => {
   async function createClient(data: {
     name: string;
     client_id: string;
-    client_secret: string;
+    client_secret?: string;
     redirect_url?: string;
+    allowed_origins?: string[];
     active?: boolean;
   }) {
     loading.value = true;
     try {
-      const response = await api.post<SsoClient>({ endpoint: '/admin/clients', data });
-      clients.value = [...clients.value, response];
-      return response;
+      const response = await api.post<{ message: string; client: SsoClient }>({
+        endpoint: '/admin/clients',
+        data,
+      });
+      clients.value = [...clients.value, response.client];
+      return response.client;
     } finally {
       loading.value = false;
     }
@@ -46,24 +52,29 @@ export const useClientsStore = defineStore('clients', () => {
       client_id: string;
       client_secret?: string;
       redirect_url?: string;
+      allowed_origins?: string[];
       active?: boolean;
     };
   }) {
     const { id, data } = params;
     loading.value = true;
     try {
-      const response = await api.put<SsoClient>({ endpoint: `/admin/clients/${id}`, data });
+      const response = await api.put<{ message: string; client: SsoClient }>({
+        endpoint: `/admin/clients/${id}`,
+        data,
+      });
       const index = clients.value.findIndex((c) => c.id === id);
       if (index !== -1) {
-        clients.value[index] = response;
+        clients.value[index] = response.client;
       }
-      return response;
+      return response.client;
     } finally {
       loading.value = false;
     }
   }
 
-  async function deleteClient(id: number) {
+  async function deleteClient(params: { id: number }) {
+    const { id } = params;
     loading.value = true;
     try {
       await api.delete({ endpoint: `/admin/clients/${id}` });

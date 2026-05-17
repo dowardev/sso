@@ -14,7 +14,11 @@ export function useUsersController() {
   const pagination = computed(() => usersStore.pagination);
   const hasMore = computed(() => usersStore.hasMore);
 
-  async function fetchUsers(params?: { page?: number; per_page?: number; search?: string }): Promise<void> {
+  async function fetchUsers(params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+  }): Promise<void> {
     return usersStore.fetchUsers(params);
   }
 
@@ -22,7 +26,10 @@ export function useUsersController() {
     return usersStore.fetchUser(id);
   }
 
-  async function updateUser(params: { id: number; data: { name: string; user: string; email: string; password?: string } }): Promise<UserDetail> {
+  async function updateUser(params: {
+    id: number;
+    data: { name: string; user: string; email: string; password?: string };
+  }): Promise<UserDetail> {
     return usersStore.updateUser(params);
   }
 
@@ -38,7 +45,10 @@ export function useUsersController() {
     return usersStore.fetchUserRoles(id);
   }
 
-  async function saveUserRoles(params: { id: number; assignments: { role_id: number }[] }): Promise<UserRole[]> {
+  async function saveUserRoles(params: {
+    id: number;
+    assignments: { role_id: number }[];
+  }): Promise<UserRole[]> {
     return usersStore.saveUserRoles(params);
   }
 
@@ -56,7 +66,12 @@ export function useUsersController() {
 
   function getInitials(params: { name: string }): string {
     const { name } = params;
-    return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   }
 
   return {

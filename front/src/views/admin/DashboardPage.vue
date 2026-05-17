@@ -225,12 +225,7 @@
     IonRow,
     IonCol,
   } from '@ionic/vue';
-  import {
-    people,
-    key,
-    desktop,
-    shield,
-  } from 'ionicons/icons';
+  import { people, key, desktop, shield } from 'ionicons/icons';
 
   // controllers
   import { useUsersController } from '@/controllers/usersController';

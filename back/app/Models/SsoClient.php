@@ -11,11 +11,13 @@ class SsoClient extends Model
         'client_id',
         'client_secret',
         'redirect_url',
+        'allowed_origins',
         'active',
     ];
 
     protected $casts = [
         'active' => 'boolean',
+        'allowed_origins' => 'array',
     ];
 
     protected $hidden = [

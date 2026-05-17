@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Middleware\HandleDynamicCors;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\HandleCors;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,10 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->replace(HandleCors::class, HandleDynamicCors::class);
         $middleware->alias([
             'admin' => \App\Http\Middleware\IsAdmin::class,
             'jwt.auth' => \App\Http\Middleware\JwtAuth::class,
             'dpop' => \App\Http\Middleware\VerifyDpopProof::class,
+            'client.origin' => \App\Http\Middleware\ValidateClientOrigin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

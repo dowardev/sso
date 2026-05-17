@@ -37,7 +37,9 @@
               ></ion-icon>
               <ion-label>
                 <h2 class="role-name">{{ role.name }}</h2>
-                <p class="role-description">{{ role.description || 'Sin descripción' }}</p>
+                <p class="role-description">
+                  {{ role.description || 'Sin descripción' }}
+                </p>
               </ion-label>
               <div slot="end" class="role-badges">
                 <ion-badge v-if="role.is_protected" color="warning"
@@ -78,7 +80,7 @@
           </ion-toolbar>
         </ion-header>
         <ion-content>
-          <form @submit.prevent="saveRole" class="modal-form">
+          <form class="modal-form" @submit.prevent="saveRole">
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre</ion-label>
@@ -126,233 +128,235 @@
 </template>
 
 <script setup lang="ts">
-// imports
-import { ref, onMounted, computed } from 'vue';
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonMenuButton,
-  IonContent,
-  IonList,
-  IonItem,
-  IonLabel,
-  IonBadge,
-  IonButton,
-  IonIcon,
-  IonSpinner,
-  IonModal,
-  IonInput,
-  IonTextarea,
-  IonAlert,
-  alertController,
-} from '@ionic/vue';
-import { add, create, trash, shieldOutline } from 'ionicons/icons';
+  // imports
+  import { ref, onMounted, computed } from 'vue';
+  import {
+    IonPage,
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonButtons,
+    IonMenuButton,
+    IonContent,
+    IonList,
+    IonItem,
+    IonLabel,
+    IonBadge,
+    IonButton,
+    IonIcon,
+    IonSpinner,
+    IonModal,
+    IonInput,
+    IonTextarea,
+    IonAlert,
+    alertController,
+  } from '@ionic/vue';
+  import { add, create, trash, shieldOutline } from 'ionicons/icons';
 
-// controllers
-import { useRolesController } from '@/controllers/rolesController';
-const rolesController = useRolesController();
+  // controllers
+  import { useRolesController } from '@/controllers/rolesController';
+  const rolesController = useRolesController();
 
-// components
-// end components
+  // components
+  // end components
 
-// interface and types imports
-import type { Role } from '@/types';
-// end interface and types imports
+  // interface and types imports
+  import type { Role } from '@/types';
+  // end interface and types imports
 
-// main
-// end main
+  // main
+  // end main
 
-// vars and const
-const saving = ref(false);
-const showModal = ref(false);
-const showDeleteAlert = ref(false);
-const editingRole = ref<Role | null>(null);
-const roleToDelete = ref<Role | null>(null);
+  // vars and const
+  const saving = ref(false);
+  const showModal = ref(false);
+  const showDeleteAlert = ref(false);
+  const editingRole = ref<Role | null>(null);
+  const roleToDelete = ref<Role | null>(null);
 
-const form = ref({
-  name: '',
-  slug: '',
-  description: '',
-});
+  const form = ref({
+    name: '',
+    slug: '',
+    description: '',
+  });
 
-async function deleteRole(): Promise<void> {
-  if (!roleToDelete.value) return;
+  async function deleteRole(): Promise<void> {
+    if (!roleToDelete.value) return;
 
-  try {
-    await rolesController.deleteRole(roleToDelete.value.id);
-  } catch (error) {
-    console.error('Error deleting role:', error);
-  } finally {
-    showDeleteAlert.value = false;
-    roleToDelete.value = null;
-  }
-}
-
-const deleteAlertButtons = [
-  {
-    text: 'Cancelar',
-    role: 'cancel',
-    handler: () => {
+    try {
+      await rolesController.deleteRole(roleToDelete.value.id);
+    } catch (error) {
+      console.error('Error deleting role:', error);
+    } finally {
       showDeleteAlert.value = false;
       roleToDelete.value = null;
-    },
-  },
-  {
-    text: 'Eliminar',
-    role: 'destructive',
-    handler: deleteRole,
-  },
-];
-// end vars and const
-
-// watch
-// end
-
-// computed
-const roles = computed(() => rolesController.roles.value);
-const loading = computed(() => rolesController.loading.value);
-// end computed
-
-// onmounted
-onMounted(() => {
-  rolesController.fetchRoles();
-});
-// end onmounted
-
-// functions
-const openCreateModal = (): void => {
-  editingRole.value = null;
-  form.value = { name: '', slug: '', description: '' };
-  showModal.value = true;
-};
-
-const openEditModal = (params: { role: Role }): void => {
-  const { role } = params;
-  editingRole.value = role;
-  form.value = {
-    name: role.name,
-    slug: role.slug,
-    description: role.description || '',
-  };
-  showModal.value = true;
-};
-
-const saveRole = async (): Promise<void> => {
-  saving.value = true;
-  try {
-    if (editingRole.value) {
-      await rolesController.updateRole({
-        id: editingRole.value.id,
-        data: {
-          name: form.value.name,
-          description: form.value.description || undefined,
-        },
-      });
-    } else {
-      await rolesController.createRole({
-        data: {
-          name: form.value.name,
-          slug: form.value.slug,
-          description: form.value.description || undefined,
-        },
-      });
     }
-    showModal.value = false;
-  } catch (error) {
-    console.error('Error saving role:', error);
-  } finally {
-    saving.value = false;
   }
-};
 
-const confirmDelete = (params: { role: Role }): void => {
-  const { role } = params;
-  roleToDelete.value = role;
-  showDeleteAlert.value = true;
-};
-// end functions
+  const deleteAlertButtons = [
+    {
+      text: 'Cancelar',
+      role: 'cancel',
+      handler: () => {
+        showDeleteAlert.value = false;
+        roleToDelete.value = null;
+      },
+    },
+    {
+      text: 'Eliminar',
+      role: 'destructive',
+      handler: deleteRole,
+    },
+  ];
+  // end vars and const
+
+  // watch
+  // end
+
+  // computed
+  const roles = computed(() => rolesController.roles.value);
+  const loading = computed(() => rolesController.loading.value);
+  // end computed
+
+  // onmounted
+  onMounted(() => {
+    rolesController.fetchRoles();
+  });
+  // end onmounted
+
+  // functions
+  const openCreateModal = (): void => {
+    editingRole.value = null;
+    form.value = { name: '', slug: '', description: '' };
+    showModal.value = true;
+  };
+
+  const openEditModal = (params: { role: Role }): void => {
+    const { role } = params;
+    editingRole.value = role;
+    form.value = {
+      name: role.name,
+      slug: role.slug,
+      description: role.description || '',
+    };
+    showModal.value = true;
+  };
+
+  const saveRole = async (): Promise<void> => {
+    saving.value = true;
+    try {
+      if (editingRole.value) {
+        await rolesController.updateRole({
+          id: editingRole.value.id,
+          data: {
+            name: form.value.name,
+            description: form.value.description || undefined,
+          },
+        });
+      } else {
+        await rolesController.createRole({
+          data: {
+            name: form.value.name,
+            slug: form.value.slug,
+            description: form.value.description || undefined,
+          },
+        });
+      }
+      showModal.value = false;
+    } catch (error) {
+      console.error('Error saving role:', error);
+    } finally {
+      saving.value = false;
+    }
+  };
+
+  const confirmDelete = (params: { role: Role }): void => {
+    const { role } = params;
+    roleToDelete.value = role;
+    showDeleteAlert.value = true;
+  };
+  // end functions
 </script>
 
 <style scoped>
-.page-container {
-  padding: var(--dashboard-padding);
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.roles-card {
-  background: var(--background-contrast);
-  border-radius: var(--card-border-radius);
-  box-shadow: var(--card-shadow-light) 0px 1px 3px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
-  overflow: hidden;
-}
-
-.loading-container,
-.empty-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 16px;
-  color: var(--text-tertiary);
-}
-
-.empty-container ion-icon {
-  margin-bottom: 12px;
-  opacity: 0.5;
-}
-
-.loading-container p,
-.empty-container p {
-  margin: 0;
-  font-size: 14px;
-}
-
-.roles-list {
-  background: transparent;
-}
-
-.roles-list ion-item {
-  --padding-start: 16px;
-  --padding-end: 16px;
-  --background: transparent;
-  border-bottom: 1px solid var(--ion-background-color-step-200);
-}
-
-.roles-list ion-item:last-child {
-  border-bottom: none;
-}
-
-.role-name {
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 15px;
-}
-
-.role-description {
-  color: var(--text-secondary);
-  font-size: 13px;
-  margin-top: 2px;
-}
-
-.role-badges {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-end;
-  margin-right: 8px;
-}
-
-.modal-form {
-  padding: 16px;
-}
-
-@media (min-width: 768px) {
   .page-container {
-    padding: var(--dashboard-padding-lg);
+    padding: var(--dashboard-padding);
+    max-width: 600px;
+    margin: 0 auto;
   }
-}
+
+  .roles-card {
+    background: var(--background-contrast);
+    border-radius: var(--card-border-radius);
+    box-shadow:
+      var(--card-shadow-light) 0px 1px 3px 0px,
+      var(--card-shadow-heavy) 0px 0px 0px 1px;
+    overflow: hidden;
+  }
+
+  .loading-container,
+  .empty-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 16px;
+    color: var(--text-tertiary);
+  }
+
+  .empty-container ion-icon {
+    margin-bottom: 12px;
+    opacity: 0.5;
+  }
+
+  .loading-container p,
+  .empty-container p {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .roles-list {
+    background: transparent;
+  }
+
+  .roles-list ion-item {
+    --padding-start: 16px;
+    --padding-end: 16px;
+    --background: transparent;
+    border-bottom: 1px solid var(--ion-background-color-step-200);
+  }
+
+  .roles-list ion-item:last-child {
+    border-bottom: none;
+  }
+
+  .role-name {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  .role-description {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-top: 2px;
+  }
+
+  .role-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-end;
+    margin-right: 8px;
+  }
+
+  .modal-form {
+    padding: 16px;
+  }
+
+  @media (min-width: 768px) {
+    .page-container {
+      padding: var(--dashboard-padding-lg);
+    }
+  }
 </style>

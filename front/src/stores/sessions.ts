@@ -15,7 +15,9 @@ export const useSessionsStore = defineStore('sessions', () => {
     total: 0,
   });
 
-  const hasMore = computed(() => pagination.value.currentPage < pagination.value.lastPage);
+  const hasMore = computed(
+    () => pagination.value.currentPage < pagination.value.lastPage
+  );
 
   const activeCount = computed(() => {
     if (pagination.value.total > 0) {
@@ -24,13 +26,19 @@ export const useSessionsStore = defineStore('sessions', () => {
     return sessions.value.filter((s) => s.token_active).length;
   });
 
-  async function fetchSessions(params?: { page?: number; per_page?: number; active?: boolean }) {
+  async function fetchSessions(params?: {
+    page?: number;
+    per_page?: number;
+    active?: boolean;
+  }) {
     loading.value = true;
     try {
       const queryParams = new URLSearchParams();
       if (params?.page) queryParams.set('page', String(params.page));
-      if (params?.per_page) queryParams.set('per_page', String(params.per_page));
-      if (params?.active !== undefined) queryParams.set('active', params.active ? '1' : '0');
+      if (params?.per_page)
+        queryParams.set('per_page', String(params.per_page));
+      if (params?.active !== undefined)
+        queryParams.set('active', params.active ? '1' : '0');
 
       const response = await api.get<PaginatedResponse<UserSession>>({
         endpoint: `/admin/sessions?${queryParams.toString()}`,

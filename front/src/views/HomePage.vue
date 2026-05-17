@@ -15,7 +15,10 @@
 
           <div class="features-section">
             <div class="feature-item">
-              <ion-icon :icon="shieldCheckmarkOutline" class="feature-icon"></ion-icon>
+              <ion-icon
+                :icon="shieldCheckmarkOutline"
+                class="feature-icon"
+              ></ion-icon>
               <span>Seguridad avanzada</span>
             </div>
             <div class="feature-item">
@@ -53,13 +56,12 @@
 
 <script setup lang="ts">
   import { useRouter } from 'vue-router';
+  import { IonContent, IonPage, IonButton, IonIcon } from '@ionic/vue';
   import {
-    IonContent,
-    IonPage,
-    IonButton,
-    IonIcon,
-  } from '@ionic/vue';
-  import { shieldCheckmarkOutline, keyOutline, globeOutline } from 'ionicons/icons';
+    shieldCheckmarkOutline,
+    keyOutline,
+    globeOutline,
+  } from 'ionicons/icons';
 
   const router = useRouter();
 
@@ -73,114 +75,116 @@
 </script>
 
 <style scoped>
-.home-container {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: var(--ion-color-primary);
-}
-
-.home-card {
-  width: 100%;
-  max-width: 400px;
-  background: var(--background-contrast);
-  border-radius: var(--card-border-radius);
-  box-shadow: var(--card-shadow-light) 0px 8px 24px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
-  padding: 32px 24px;
-  text-align: center;
-}
-
-.logo-section {
-  margin-bottom: 24px;
-}
-
-.logo-image {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 16px;
-}
-
-.home-title {
-  margin: 0;
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.home-subtitle {
-  margin: 8px 0 0 0;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.features-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 32px;
-  padding: 16px 0;
-  border-top: 1px solid var(--ion-background-color-step-200);
-  border-bottom: 1px solid var(--ion-background-color-step-200);
-}
-
-.feature-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 14px;
-}
-
-.feature-icon {
-  font-size: 20px;
-  color: var(--ion-color-primary);
-}
-
-.action-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.primary-button {
-  --border-radius: 8px;
-  height: 48px;
-  font-weight: 600;
-}
-
-.secondary-button {
-  --border-radius: 8px;
-  height: 48px;
-  font-weight: 600;
-  --border-color: var(--ion-color-primary);
-  --color: var(--ion-color-primary);
-}
-
-@media (min-width: 768px) {
   .home-container {
-    padding: 48px;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--ion-color-primary);
   }
 
   .home-card {
-    padding: 40px 32px;
+    width: 100%;
+    max-width: 400px;
+    background: var(--background-contrast);
+    border-radius: var(--card-border-radius);
+    box-shadow:
+      var(--card-shadow-light) 0px 8px 24px 0px,
+      var(--card-shadow-heavy) 0px 0px 0px 1px;
+    padding: 32px 24px;
+    text-align: center;
+  }
+
+  .logo-section {
+    margin-bottom: 24px;
   }
 
   .logo-image {
-    width: 96px;
-    height: 96px;
+    width: 80px;
+    height: 80px;
+    margin-bottom: 16px;
   }
 
   .home-title {
-    font-size: 40px;
+    margin: 0;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .home-subtitle {
+    margin: 8px 0 0 0;
+    font-size: 14px;
+    color: var(--text-secondary);
   }
 
   .features-section {
-    flex-direction: row;
-    justify-content: space-around;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 32px;
+    padding: 16px 0;
+    border-top: 1px solid var(--ion-background-color-step-200);
+    border-bottom: 1px solid var(--ion-background-color-step-200);
   }
-}
+
+  .feature-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+
+  .feature-icon {
+    font-size: 20px;
+    color: var(--ion-color-primary);
+  }
+
+  .action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .primary-button {
+    --border-radius: 8px;
+    height: 48px;
+    font-weight: 600;
+  }
+
+  .secondary-button {
+    --border-radius: 8px;
+    height: 48px;
+    font-weight: 600;
+    --border-color: var(--ion-color-primary);
+    --color: var(--ion-color-primary);
+  }
+
+  @media (min-width: 768px) {
+    .home-container {
+      padding: 48px;
+    }
+
+    .home-card {
+      padding: 40px 32px;
+    }
+
+    .logo-image {
+      width: 96px;
+      height: 96px;
+    }
+
+    .home-title {
+      font-size: 40px;
+    }
+
+    .features-section {
+      flex-direction: row;
+      justify-content: space-around;
+    }
+  }
 </style>

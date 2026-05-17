@@ -219,6 +219,8 @@ class AdminController extends Controller
             'client_id' => 'required|string|max:255|unique:sso_clients',
             'client_secret' => 'nullable|string|max:255',
             'redirect_url' => 'nullable|string|max:255|url',
+            'allowed_origins' => 'nullable|array',
+            'allowed_origins.*' => ['regex:/^https?:\/\/[^\/:]+(:\d+)?$/'],
             'active' => 'sometimes|boolean',
         ]);
 
@@ -229,7 +231,7 @@ class AdminController extends Controller
             ], 422);
         }
 
-        $client = SsoClient::create($request->all());
+        $client = SsoClient::create($validator->validated());
 
         return response()->json([
             'message' => 'Cliente SSO creado correctamente',
@@ -244,6 +246,8 @@ class AdminController extends Controller
             'client_id' => 'sometimes|string|max:255|unique:sso_clients,client_id,'.$client->id,
             'client_secret' => 'nullable|string|max:255',
             'redirect_url' => 'nullable|string|max:255|url',
+            'allowed_origins' => 'nullable|array',
+            'allowed_origins.*' => ['regex:/^https?:\/\/[^\/:]+(:\d+)?$/'],
             'active' => 'sometimes|boolean',
         ]);
 
@@ -254,7 +258,7 @@ class AdminController extends Controller
             ], 422);
         }
 
-        $client->update($request->all());
+        $client->update($validator->validated());
 
         return response()->json([
             'message' => 'Cliente SSO actualizado correctamente',

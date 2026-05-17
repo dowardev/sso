@@ -12,11 +12,16 @@ export function useRolesController() {
     return rolesStore.fetchRoles();
   }
 
-  async function createRole(params: { data: { name: string; slug: string; description?: string } }): Promise<Role> {
+  async function createRole(params: {
+    data: { name: string; slug: string; description?: string };
+  }): Promise<Role> {
     return rolesStore.createRole(params.data);
   }
 
-  async function updateRole(params: { id: number; data: { name: string; description?: string } }): Promise<Role> {
+  async function updateRole(params: {
+    id: number;
+    data: { name: string; description?: string };
+  }): Promise<Role> {
     return rolesStore.updateRole(params);
   }
 
