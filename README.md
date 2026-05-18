@@ -128,7 +128,7 @@ cd front
 pnpm i
 
 # Configure environment
-cp .env.example .env
+cp .env.development.example .env.development
 
 # Start development server
 pnpm run dev
@@ -154,9 +154,16 @@ pnpm run dev
 
 ### Frontend (`.env`)
 
-| Variable       | Description     | Example                     |
-| -------------- | --------------- | --------------------------- |
-| `VITE_API_URL` | Backend API URL | `[direccion]:[puerto]/api` |
+Vite automatically loads the correct environment file based on the command:
+
+| File | Command | Purpose |
+|------|---------|---------|
+| `.env.development` | `pnpm run dev` | Local development |
+| `.env.development.example` | — | Template for local setup |
+| `.env.production` | `pnpm run build` | **Actual** production variables |
+| `.env.production.example` | — | Template for deployment |
+
+> **Note:** `.env.production` is gitignored. For production, copy `.env.production.example` and configure with your real URLs.
 
 ---
 

@@ -124,13 +124,13 @@ php artisan serve --port=8001
 cd front
 
 # Install dependencies
-npm install
+pnpm install
 
-# Configure environment
-cp .env.example .env
+# Configure environment (development)
+cp .env.development.example .env.development
 
 # Start development server
-npm run dev
+pnpm run dev
 ```
 
 ---
@@ -145,6 +145,7 @@ npm run dev
 | `APP_ENV` | Environment | `production` |
 | `APP_DEBUG` | Debug mode | `false` |
 | `APP_URL` | Backend URL | `https://sso.tudominio.com` |
+| `FRONTEND_URL` | Frontend/panel URL (for CORS) | `https://sso-panel.tudominio.com` |
 | `DB_CONNECTION` | Database driver | `mysql` |
 | `DB_HOST` | MySQL host | `[mysql_host]` |
 | `DB_PORT` | MySQL port | `3306` |
@@ -169,9 +170,37 @@ npm run dev
 
 ### Frontend (.env)
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `VITE_API_URL` | Backend API URL | `https://sso.tudominio.com` |
+The frontend uses Vite's built-in environment file loading:
+
+| File | Mode | Purpose |
+|------|------|---------|
+| `.env.development` | Development (`vite dev`) | **Actual** local development variables — committed to git |
+| `.env.development.example` | Development (`vite dev`) | Template for local development setup |
+| `.env.production` | Production (`vite build`) | **Actual** production variables — **do NOT commit** |
+| `.env.production.example` | Production (`vite build`) | Template for production deployment |
+
+**Development:**
+```bash
+# Copy and customize environment
+cp front/.env.development.example front/.env.development
+# Edit .env.development with your local settings
+
+pnpm run dev
+```
+
+**Production deployment:**
+```bash
+# 1. Copy the example file
+cp front/.env.production.example front/.env.production
+
+# 2. Edit with your real production URL
+# VITE_API_URL=https://sso.tudominio.com/api
+
+# 3. Build
+cd front && pnpm run build
+```
+
+> **Important:** `.env.production` is gitignored. Make sure to configure it on your server before running the build.
 
 ---
 
@@ -220,6 +249,8 @@ After enabling SSL, update your `.env` files to use `https://`:
 - [ ] Database configured and migrations executed
 - [ ] Seeders executed (admin user created)
 - [ ] Environment variables configured for production
+- [ ] **Frontend:** `cp front/.env.production.example front/.env.production` and set `VITE_API_URL`
+- [ ] APP_KEY generated (`php artisan key:generate`)
 - [ ] SSL/HTTPS enabled
 - [ ] Rewrite rules working (no 404 on refresh)
 - [ ] JWKS endpoint accessible (`GET /.well-known/jwks`)
@@ -253,7 +284,29 @@ Verify that:
 
 ### CORS errors in frontend
 
-Ensure CORS middleware is correctly configured in the backend. In development it allows `*`, but in production you should restrict it to your domain.
+When frontend and backend are on different subdomains (e.g., `auth-panel.dowar.xyz` vs `auth.dowar.xyz`), the browser treats them as cross-origin and requires proper CORS headers.
+
+The SSO server uses dynamic CORS that allows origins from registered OAuth clients. For the admin login panel, you need to configure the frontend's origin explicitly.
+
+**Backend (.env) — REQUIRED when using separate subdomains:**
+```env
+APP_URL=https://auth.dowar.xyz       # Backend domain
+FRONTEND_URL=https://auth-panel.dowar.xyz  # Frontend domain (panel)
+```
+
+This adds the frontend origin to the CORS allowed list automatically.
+
+**Frontend (.env.production):**
+```env
+VITE_API_URL=https://auth.dowar.xyz/api
+```
+
+After changing `.env`, run:
+```bash
+php artisan config:clear
+```
+
+The CORS cache (`sso_cors_origins`) refreshes every 60 seconds automatically.
 
 ### OAuth2 redirect_uri mismatch
 

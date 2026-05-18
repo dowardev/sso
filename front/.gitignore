@@ -30,3 +30,6 @@ npm-debug.log*
 /platforms
 /plugins
 /www
+
+# Production environment (contains real URLs)
+.env.production

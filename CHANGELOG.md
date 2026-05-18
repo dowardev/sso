@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0/0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-05-18
+
+### Fixed
+- Fixed admin login failing with "failed to fetch" on cross-origin deployments: removed `/login` route from `client.origin` middleware group (the admin panel is not an OAuth2 client, it should not require `client_id` validation)
+- Fixed CORS errors in admin panel when frontend and backend are on different subdomains: `HandleDynamicCors` now automatically includes the SSO frontend origin from `FRONTEND_URL` env variable
+- Fixed API fallback port mismatch: corrected `VITE_API_URL` default from `http://localhost:8000` to `http://localhost:8001`
+
+### Changed
+- Simplified `IsAdmin` middleware: removed per-client role logic, now only checks for global `admin` role
+- Simplified `AuthController.me()` and `checkSession()`: removed `client_id` requirement and per-client role filtering
+- Refactored `User` model: removed `withPivot('sso_client_id')` from roles relationship and removed `getEffectiveRole()` method
+- Updated backend environment template (`.env.example`): switched from SQLite to MySQL defaults, added JWT configuration, Sanctum stateful domains, and Spanish locale
+- Updated frontend environment structure: removed deprecated `.env` and `.env.example`, replaced with proper `.env.development` / `.env.development.example` / `.env.production` / `.env.production.example` split
+- Updated `DEPLOY.md` documentation: added `FRONTEND_URL` configuration for CORS when frontend and backend are on different subdomains
+
+### Style
+- Fixed CSS syntax error in `UserDetailPage.vue` (missing closing brace)
+
+### Affected Files
+- Modified: `back/app/Http/Middleware/HandleDynamicCors.php`
+- Modified: `back/app/Http/Middleware/IsAdmin.php`
+- Modified: `back/app/Http/Controllers/AuthController.php`
+- Modified: `back/app/Models/User.php`
+- Modified: `back/config/app.php`
+- Modified: `back/routes/api.php`
+- Modified: `back/.env.example`
+- Modified: `DEPLOY.md`
+- Modified: `README.md`
+- Modified: `front/src/services/api.ts`
+- Modified: `front/src/views/admin/UserDetailPage.vue`
+- Removed: `front/.env`, `front/.env.example`, `back/.env.example.production`
+- Added: `front/.gitignore` entry for `.env.production`
+
+---
+
 ## [1.2.0] - 2026-05-17
 
 ### Security

@@ -580,6 +580,7 @@
     padding: 24px;
     background: var(--ion-color-primary);
     color: white;
+  }
 
   .large-avatar {
     width: 80px;

@@ -49,34 +49,12 @@ class User extends Authenticatable
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'user_roles')
-            ->withPivot('sso_client_id')
             ->withTimestamps();
     }
 
     public function hasRole(string $slug): bool
     {
         return $this->roles()->where('slug', $slug)->exists();
-    }
-
-    public function getEffectiveRole($ssoClientId = null)
-    {
-        $specificRole = $this->roles()
-            ->where('sso_client_id', $ssoClientId)
-            ->first();
-
-        if ($specificRole) {
-            return $specificRole;
-        }
-
-        $globalRole = $this->roles()
-            ->whereNull('sso_client_id')
-            ->first();
-
-        if ($globalRole) {
-            return $globalRole;
-        }
-
-        return Role::where('slug', 'viewer')->first();
     }
 
     public function isAdmin(): bool

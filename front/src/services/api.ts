@@ -22,7 +22,7 @@ export type {
 
 const TOKEN_KEY = 'token';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
 
 const getHeaders = () => {
   const headers: Record<string, string> = {

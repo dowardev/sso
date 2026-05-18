@@ -42,7 +42,7 @@ class HandleDynamicCors
 
     private function getAllowedOrigins(): array
     {
-        return Cache::remember('sso_cors_origins', 60, function () {
+        $origins = Cache::remember('sso_cors_origins', 60, function () {
             $clients = SsoClient::where('active', true)
                 ->whereNotNull('allowed_origins')
                 ->get(['allowed_origins']);
@@ -54,6 +54,13 @@ class HandleDynamicCors
 
             return array_unique($origins);
         });
+
+        $ssoOrigin = config('app.frontend_url') ?? config('app.url');
+        if ($ssoOrigin) {
+            $origins[] = $ssoOrigin;
+        }
+
+        return $origins;
     }
 
     private function handlePreflight(Request $request, string $origin): Response

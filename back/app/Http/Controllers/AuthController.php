@@ -162,23 +162,8 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         $ssoUserId = $request->get('sso_user_id');
-        $clientId = $request->query('client_id');
 
-        if (!$clientId) {
-            return response()->json(['error' => 'client_id is required'], 400);
-        }
-
-        $ssoClient = SsoClient::where('client_id', $clientId)->first();
-        if (!$ssoClient) {
-            return response()->json(['error' => 'Invalid client_id'], 400);
-        }
-
-        $ssoClientId = $ssoClient->id;
-
-        $user = User::with(['roles' => function ($query) use ($ssoClientId) {
-            $query->where('sso_client_id', $ssoClientId)
-                ->orWhereNull('sso_client_id');
-        }])->find($ssoUserId);
+        $user = User::with('roles')->find($ssoUserId);
 
         if (!$user) {
             return response()->json(['error' => 'User not found'], 404);
@@ -196,9 +181,6 @@ class AuthController extends Controller
                     'slug' => $role->slug,
                     'description' => $role->description,
                     'is_protected' => $role->is_protected,
-                    'pivot' => [
-                        'sso_client_id' => $role->pivot->sso_client_id,
-                    ],
                 ];
             }),
         ]);
@@ -233,7 +215,6 @@ class AuthController extends Controller
     public function checkSession(Request $request): JsonResponse
     {
         $ssoUserId = $request->get('sso_user_id');
-        $clientId = $request->query('client_id');
 
         if (!$ssoUserId) {
             $tokenString = $request->bearerToken();
@@ -260,28 +241,13 @@ class AuthController extends Controller
                 }
 
                 $ssoUserId = $token->claims()->get('sub');
-                $clientId = $request->query('client_id');
 
             } catch (\Exception $e) {
                 return response()->json(['authenticated' => false], 200);
             }
         }
 
-        if (!$clientId) {
-            return response()->json(['error' => 'client_id is required'], 400);
-        }
-
-        $ssoClient = \App\Models\SsoClient::where('client_id', $clientId)->first();
-        if (!$ssoClient) {
-            return response()->json(['error' => 'Invalid client_id'], 400);
-        }
-
-        $ssoClientId = $ssoClient->id;
-
-        $user = User::with(['roles' => function ($query) use ($ssoClientId) {
-            $query->where('sso_client_id', $ssoClientId)
-                ->orWhereNull('sso_client_id');
-        }])->find($ssoUserId);
+        $user = User::with('roles')->find($ssoUserId);
 
         if (!$user) {
             return response()->json(['authenticated' => false], 200);
@@ -301,9 +267,6 @@ class AuthController extends Controller
                         'slug' => $role->slug,
                         'description' => $role->description,
                         'is_protected' => $role->is_protected,
-                        'pivot' => [
-                            'sso_client_id' => $role->pivot->sso_client_id,
-                        ],
                     ];
                 }),
             ],

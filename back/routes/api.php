@@ -6,9 +6,10 @@ use App\Http\Controllers\OAuth2Controller;
 use App\Http\Controllers\RoleController;
 use Illuminate\Support\Facades\Route;
 
+Route::post('/login', [AuthController::class, 'login']);
+
 Route::middleware('client.origin')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
     Route::post('/oauth/token', [OAuth2Controller::class, 'token']);
 });
 
