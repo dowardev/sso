@@ -5,7 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0/0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.1] - 2026-05-18
+## [1.2.2] - 2026-05-18
+
+### Fixed
+- Add missing `FRONTEND_URL` variable to backend `.env.example` template (required for CORS dynamic middleware and Sanctum auto-derive)
+- Correct `VITE_API_URL` port in `front/.env.development.example` (8000 -> 8001)
+- Update production API URL example in `front/.env.production.example` to match actual deployment domain
+
+### Affected Files
+- Modified: `back/.env.example`
+- Modified: `front/.env.development.example`
+- Modified: `front/.env.production.example`
+
+---
+
+## [1.2.1]
 
 ### Fixed
 - Fixed admin login failing with "failed to fetch" on cross-origin deployments: removed `/login` route from `client.origin` middleware group (the admin panel is not an OAuth2 client, it should not require `client_id` validation)
