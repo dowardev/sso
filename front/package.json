@@ -1,7 +1,7 @@
 {
   "name": "sso-front",
   "private": true,
-  "version": "1.2.2",
+  "version": "0.17.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
