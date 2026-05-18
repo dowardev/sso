@@ -154,11 +154,8 @@ pnpm run dev
 | `DB_PASSWORD` | Database password | `[database_password]` |
 | `JWT_PRIVATE_KEY_PATH` | RSA private key path | `keys/private.pem` |
 | `JWT_PUBLIC_KEY_PATH` | RSA public key path | `keys/public.pem` |
-| `JWT_ISSUER` | JWT issuer (your domain) | `https://sso.tudominio.com` |
 | `JWT_TOKEN_EXPIRATION` | Token lifetime (seconds) | `3600` |
 | `JWT_REFRESH_EXPIRATION` | Refresh token lifetime (seconds) | `86400` |
-| `SANCTUM_STATEFUL_DOMAINS` | Allowed domains for cookies | `tudominio.com` |
-| `SESSION_DOMAIN` | Session cookie domain | `.tudominio.com` |
 | `MAIL_MAILER` | Mail driver | `smtp` |
 | `MAIL_HOST` | SMTP host | `smtp.gmail.com` |
 | `MAIL_PORT` | SMTP port | `587` |
@@ -167,6 +164,14 @@ pnpm run dev
 | `MAIL_ENCRYPTION` | Encryption (tls/ssl) | `tls` |
 | `MAIL_FROM_ADDRESS` | Sender email | `noreply@tudominio.com` |
 | `MAIL_FROM_NAME` | Sender name | `SSO Server` |
+
+> **Note:** The following variables are automatically derived from `APP_URL` and
+> `FRONTEND_URL` — no need to configure them manually:
+> - `JWT_ISSUER` ← derived from `APP_URL`
+> - `SESSION_DOMAIN` ← derived from `APP_URL` (with `.` prefix for subdomain sharing)
+> - `SANCTUM_STATEFUL_DOMAINS` ← derived from hosts of `APP_URL` and `FRONTEND_URL`
+>
+> They remain available as optional overrides if needed.
 
 ### Frontend (.env)
 
@@ -236,7 +241,6 @@ Enable HTTPS through your hosting panel (most providers offer free Let's Encrypt
 After enabling SSL, update your `.env` files to use `https://`:
 
 - `APP_URL=https://sso.tudominio.com`
-- `JWT_ISSUER=https://sso.tudominio.com`
 - `VITE_API_URL=https://sso.tudominio.com`
 
 ---

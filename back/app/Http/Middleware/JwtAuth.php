@@ -38,7 +38,7 @@ class JwtAuth
 
             $constraints = [
                 new SignedWith($this->jwtConfig->signer(), $this->jwtConfig->verificationKey()),
-                new \Lcobucci\JWT\Validation\Constraint\IssuedBy(env('JWT_ISSUER', 'http://localhost:8001')),
+                new \Lcobucci\JWT\Validation\Constraint\IssuedBy(config('jwt.issuer')),
                 new \Lcobucci\JWT\Validation\Constraint\LooseValidAt(
                     new \Lcobucci\Clock\SystemClock(new \DateTimeZone('UTC'))
                 ),
