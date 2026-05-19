@@ -134,6 +134,90 @@ class AuthController extends Controller
         return $response;
     }
 
+    public function refreshToken(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'token' => 'required|string',
+            'client_id' => 'nullable|string|exists:sso_clients,client_id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Error de validación',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $tokenString = $request->input('token');
+
+        try {
+            $token = $this->jwtConfig->parser()->parse($tokenString);
+
+            $constraints = [
+                new SignedWith($this->jwtConfig->signer(), $this->jwtConfig->verificationKey()),
+                new IssuedBy($this->issuer),
+            ];
+
+            if (!$this->jwtConfig->validator()->validate($token, ...$constraints)) {
+                return response()->json([
+                    'message' => 'Token inválido',
+                ], 401);
+            }
+
+            $userId = $token->claims()->get('sub');
+            $user = User::with('roles')->find($userId);
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'Usuario no encontrado',
+                ], 401);
+            }
+
+            $dpopPublicKey = null;
+            $cnfClaim = $token->claims()->get('cnf');
+            if ($cnfClaim && isset($cnfClaim['jkt'])) {
+                $existingSession = UserSession::where('user_id', $userId)
+                    ->where('token', $tokenString)
+                    ->first();
+                if ($existingSession && $existingSession->dpop_public_key) {
+                    $dpopPublicKey = $existingSession->dpop_public_key;
+                }
+            }
+
+            $newTokenData = $this->generateToken($user, $dpopPublicKey);
+
+            UserSession::where('user_id', $userId)
+                ->where('token', $tokenString)
+                ->update(['token' => $newTokenData['token'], 'last_used_at' => now()]);
+
+            return response()->json([
+                'token' => $newTokenData['token'],
+                'token_type' => $newTokenData['token_type'],
+                'expires_in' => $newTokenData['expires_in'],
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'user' => $user->user,
+                    'email' => $user->email,
+                    'roles' => $user->roles->map(function ($role) {
+                        return [
+                            'id' => $role->id,
+                            'name' => $role->name,
+                            'slug' => $role->slug,
+                            'description' => $role->description,
+                            'is_protected' => $role->is_protected,
+                        ];
+                    }),
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Token inválido o expirado: ' . $e->getMessage(),
+            ], 401);
+        }
+    }
+
     public function logout(Request $request)
     {
         $tokenString = $request->bearerToken();

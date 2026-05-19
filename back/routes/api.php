@@ -7,11 +7,10 @@ use App\Http\Controllers\RoleController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
 
-Route::middleware('client.origin')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/oauth/token', [OAuth2Controller::class, 'token']);
-});
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/oauth/token', [OAuth2Controller::class, 'token']);
 
 Route::get('/.well-known/jwks', [AuthController::class, 'jwks']);
 Route::get('/session/check', [AuthController::class, 'checkSession']);

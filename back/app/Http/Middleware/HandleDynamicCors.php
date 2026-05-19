@@ -104,7 +104,7 @@ class HandleDynamicCors
     private function normalizeOrigin(string $origin): string
     {
         $parsed = parse_url($origin);
-        $scheme = strtolower($parsed['scheme'] ?? 'https');
+        $scheme = strtolower($parsed['scheme'] ?? 'http');
         $host = strtolower($parsed['host'] ?? '');
         $port = $parsed['port'] ?? null;
 

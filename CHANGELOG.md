@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.3] - 2026-05-18
+
+### Fixed
+
+- Remove redundant `ValidateClientOrigin` middleware that was blocking login from external clients (like portfolio)
+- Fix `normalizeOrigin()` default scheme from `https` to `http` (was causing CORS failures when FRONTEND_URL had no protocol)
+- Fix `FRONTEND_URL` in `.env` to include protocol (`http://localhost:8000` instead of `localhost:8000`)
+
+### Features
+
+- Implement `/refresh-token` endpoint for token renewal (was missing - sso-client was calling it but backend didn't have it)
+
+### Refactor
+
+- Simplified CORS architecture: single `HandleDynamicCors` middleware instead of two-layer validation (ValidateClientOrigin + HandleDynamicCors)
+
+### Affected Files
+
+- Modified: `back/routes/api.php`
+- Modified: `back/app/Http/Middleware/HandleDynamicCors.php`
+- Modified: `back/.env`
+- Modified: `back/app/Http/Controllers/AuthController.php`
+- Deleted: `back/app/Http/Middleware/ValidateClientOrigin.php`
+- Modified: `back/bootstrap/app.php`
+
+---
+
 ## [0.17.2] - 2026-05-18
 
 ### Fixed
