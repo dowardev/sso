@@ -1,9 +1,9 @@
-templa<template>
+<template>
   <ion-page>
     <ion-header class="ion-no-border" mode="ios">
-      <ion-toolvar>
+      <ion-toolbar>
         <ion-title>Template</ion-title>
-      </ion-toolvar>
+      </ion-toolbar>
     </ion-header>
 
     <ion-content>
