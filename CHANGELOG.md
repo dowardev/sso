@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.18.0] - 2026-05-23
+
+### Features
+
+- Add OAuth2 `client_credentials` grant type support with `grant_types` column for SsoClient
+- Add `ClientCredentialsAuth` middleware to protect machine-to-machine API routes
+- Add `ApiUsersController` with searchable, paginated user listing endpoint (`GET /api/users`)
+- Add client secret generator and copy-to-clipboard in admin clients page
+- Add password visibility toggle for client secret input field
+- Add `grant_types` toggle UI (`authorization_code`/`client_credentials`) in client create/edit form
+
+### Refactor
+
+- Refactor `OAuth2Controller::token()` to support multiple grant types (`authorization_code`, `client_credentials`)
+- Refactor `JwtAuth` middleware to handle `client_credentials` tokens without user resolution
+
+### Infrastructure
+
+- Migrate frontend linter from ESLint 8 to ESLint 9 (flat config)
+- Replace `@vue/eslint-config-typescript` and `@vue/eslint-config-prettier` with `typescript-eslint` + `eslint-plugin-oxlint`
+- Add `oxlint` and `oxfmt` for Rust-based linting and formatting
+- Remove `prettier` and related ESLint plugins and configs
+
 ## [0.17.3] - 2026-05-18
 
 ### Fixed

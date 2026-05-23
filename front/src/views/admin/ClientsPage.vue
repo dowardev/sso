@@ -92,13 +92,32 @@
                 <ion-label position="stacked">Client ID</ion-label>
                 <ion-input v-model="clientForm.client_id" required></ion-input>
               </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Client Secret</ion-label>
-                <ion-input
-                  v-model="clientForm.client_secret"
-                  placeholder="Opcional"
-                ></ion-input>
-              </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Client Secret</ion-label>
+            <div class="secret-input-row">
+              <ion-input
+                v-model="clientForm.client_secret"
+                placeholder="Opcional"
+                type="password"
+              >
+                <ion-input-password-toggle slot="end" />
+              </ion-input>
+              <ion-button
+                fill="clear"
+                size="small"
+                @click="copySecret"
+              >
+                <ion-icon slot="icon-only" :icon="copyOutline"></ion-icon>
+              </ion-button>
+              <ion-button
+                fill="clear"
+                size="small"
+                @click="generateSecret"
+              >
+                <ion-icon slot="icon-only" :icon="keyOutline"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-item>
               <ion-item>
                 <ion-label position="stacked">Redirect URL</ion-label>
                 <ion-input
@@ -136,10 +155,27 @@
                   </ion-chip>
                 </div>
               </ion-item>
-              <ion-item>
-                <ion-label>Activo</ion-label>
-                <ion-toggle v-model="clientForm.active"></ion-toggle>
-              </ion-item>
+          <ion-item>
+            <ion-label>Activo</ion-label>
+            <ion-toggle v-model="clientForm.active"></ion-toggle>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Grant Types</ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-label>authorization_code</ion-label>
+            <ion-toggle
+              :checked="clientForm.grant_types.includes('authorization_code')"
+              @ionChange="toggleGrantType('authorization_code')"
+            ></ion-toggle>
+          </ion-item>
+          <ion-item>
+            <ion-label>client_credentials</ion-label>
+            <ion-toggle
+              :checked="clientForm.grant_types.includes('client_credentials')"
+              @ionChange="toggleGrantType('client_credentials')"
+            ></ion-toggle>
+          </ion-item>
             </ion-list>
             <div class="ion-padding">
               <ion-button type="submit" expand="block" :disabled="saving">
@@ -185,8 +221,9 @@
     IonToggle,
     IonSpinner,
     IonChip,
+    IonInputPasswordToggle,
   } from '@ionic/vue';
-  import { add, desktopOutline, trash, close } from 'ionicons/icons';
+  import { add, desktopOutline, trash, close, keyOutline, copyOutline } from 'ionicons/icons';
 
   // controllers
   import { useClientsController } from '@/controllers/clientsController';
@@ -207,14 +244,15 @@
   const editingClient = ref<SsoClient | null>(null);
   const saving = ref(false);
 
-  const clientForm = ref({
-    name: '',
-    client_id: '',
-    client_secret: '',
-    redirect_url: '',
-    allowed_origins: [] as string[],
-    active: true,
-  });
+const clientForm = ref({
+  name: '',
+  client_id: '',
+  client_secret: '',
+  redirect_url: '',
+  allowed_origins: [] as string[],
+  grant_types: ['authorization_code'] as string[],
+  active: true,
+});
 
   const newOriginInput = ref('');
   // end vars and const
@@ -234,34 +272,36 @@
   // end onmounted
 
   // functions
-  const openCreateModal = (): void => {
-    editingClient.value = null;
-    clientForm.value = {
-      name: '',
-      client_id: '',
-      client_secret: '',
-      redirect_url: '',
-      allowed_origins: [],
-      active: true,
-    };
-    newOriginInput.value = '';
-    showModal.value = true;
+const openCreateModal = (): void => {
+  editingClient.value = null;
+  clientForm.value = {
+    name: '',
+    client_id: '',
+    client_secret: '',
+    redirect_url: '',
+    allowed_origins: [],
+    grant_types: ['authorization_code'],
+    active: true,
   };
+  newOriginInput.value = '';
+  showModal.value = true;
+};
 
-  const openEditModal = (params: { client: SsoClient }): void => {
-    const { client } = params;
-    editingClient.value = client;
-    clientForm.value = {
-      name: client.name,
-      client_id: client.client_id,
-      client_secret: client.client_secret || '',
-      redirect_url: client.redirect_url || '',
-      allowed_origins: client.allowed_origins || [],
-      active: client.active,
-    };
-    newOriginInput.value = '';
-    showModal.value = true;
+const openEditModal = (params: { client: SsoClient }): void => {
+  const { client } = params;
+  editingClient.value = client;
+  clientForm.value = {
+    name: client.name,
+    client_id: client.client_id,
+    client_secret: client.client_secret || '',
+    redirect_url: client.redirect_url || '',
+    allowed_origins: client.allowed_origins || [],
+    grant_types: client.grant_types || ['authorization_code'],
+    active: client.active,
   };
+  newOriginInput.value = '';
+  showModal.value = true;
+};
 
   const saveClient = async (): Promise<void> => {
     saving.value = true;
@@ -269,11 +309,12 @@
       const data = {
         name: clientForm.value.name,
         client_id: clientForm.value.client_id,
-        client_secret: clientForm.value.client_secret || '',
+        client_secret: clientForm.value.client_secret || undefined,
         redirect_url: clientForm.value.redirect_url || undefined,
         allowed_origins: clientForm.value.allowed_origins.length
           ? clientForm.value.allowed_origins
           : undefined,
+        grant_types: clientForm.value.grant_types,
         active: clientForm.value.active,
       };
 
@@ -337,14 +378,41 @@
     clientForm.value.allowed_origins.splice(index, 1);
   };
 
-  const deleteClient = async (params: { client: SsoClient }): Promise<void> => {
-    const { client } = params;
-    try {
-      await clientsController.deleteClient({ id: client.id });
-    } catch (error) {
-      console.error('Error deleting client:', error);
-    }
-  };
+const deleteClient = async (params: { client: SsoClient }): Promise<void> => {
+  const { client } = params;
+  try {
+    await clientsController.deleteClient({ id: client.id });
+  } catch (error) {
+    console.error('Error deleting client:', error);
+  }
+};
+
+const generateSecret = (): void => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let secret = '';
+  for (let i = 0; i < 40; i++) {
+    secret += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  clientForm.value.client_secret = secret;
+};
+
+const copySecret = async (): Promise<void> => {
+  if (!clientForm.value.client_secret) return;
+  try {
+    await navigator.clipboard.writeText(clientForm.value.client_secret);
+  } catch {
+    // Ignore clipboard errors
+  }
+};
+
+const toggleGrantType = (grantType: string): void => {
+  const index = clientForm.value.grant_types.indexOf(grantType);
+  if (index === -1) {
+    clientForm.value.grant_types.push(grantType);
+  } else {
+    clientForm.value.grant_types.splice(index, 1);
+  }
+};
   // end functions
 </script>
 
@@ -466,7 +534,18 @@
     padding: 4px 0;
   }
 
-  .chips-container ion-chip {
-    cursor: pointer;
-  }
+.chips-container ion-chip {
+  cursor: pointer;
+}
+
+.secret-input-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 4px;
+}
+
+.secret-input-row ion-input {
+  flex: 1;
+}
 </style>
