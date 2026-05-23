@@ -85,12 +85,9 @@ class OAuth2Controller extends Controller
     public function token(Request $request)
     {
         $validated = $request->validate([
-            'code' => 'required|string',
+            'grant_type' => 'required|string|in:authorization_code,client_credentials',
             'client_id' => 'required|string|exists:sso_clients,client_id',
             'client_secret' => 'nullable|string',
-            'redirect_uri' => 'required|string',
-            'dpop_public_key' => 'nullable|json',
-            'code_verifier' => 'nullable|string|min:43|max:128',
         ]);
 
         $client = SsoClient::where('client_id', $validated['client_id'])->first();
@@ -101,21 +98,69 @@ class OAuth2Controller extends Controller
             ], 403);
         }
 
-        if ($client->redirect_url && $validated['redirect_uri'] !== $client->redirect_url) {
+        if ($validated['grant_type'] === 'client_credentials') {
+            return $this->handleClientCredentials($validated, $client);
+        }
+
+        return $this->handleAuthorizationCode($request, $validated, $client);
+    }
+
+    private function handleClientCredentials(array $validated, SsoClient $client)
+    {
+        $grantTypes = $client->grant_types ?? [];
+
+        if (!in_array('client_credentials', $grantTypes)) {
+            return response()->json([
+                'message' => 'Este cliente no tiene permitido el grant_type client_credentials',
+            ], 403);
+        }
+
+        if (!$client->client_secret) {
+            return response()->json([
+                'message' => 'client_secret requerido para client_credentials',
+            ], 400);
+        }
+
+        if (!isset($validated['client_secret']) || $validated['client_secret'] !== $client->client_secret) {
+            return response()->json([
+                'message' => 'client_secret inválido',
+            ], 401);
+        }
+
+        $tokenData = $this->generateClientToken($client);
+
+        return response()->json([
+            'token' => $tokenData['token'],
+            'token_type' => $tokenData['token_type'],
+            'expires_in' => $tokenData['expires_in'],
+        ]);
+    }
+
+    private function handleAuthorizationCode(Request $request, array $validated, SsoClient $client)
+    {
+        $codeValidated = $request->validate([
+            'code' => 'required|string',
+            'redirect_uri' => 'required|string',
+            'dpop_public_key' => 'nullable|json',
+            'code_verifier' => 'nullable|string|min:43|max:128',
+        ]);
+
+        if ($client->redirect_url && $codeValidated['redirect_uri'] !== $client->redirect_url) {
             return response()->json([
                 'message' => 'redirect_uri no permitida',
             ], 400);
         }
 
-        if ($client->client_secret && $validated['client_secret']) {
-            if ($validated['client_secret'] !== $client->client_secret) {
+        $providedSecret = $validated['client_secret'] ?? null;
+        if ($client->client_secret && $providedSecret) {
+            if ($providedSecret !== $client->client_secret) {
                 return response()->json([
                     'message' => 'client_secret inválido',
                 ], 401);
             }
         }
 
-        $authCode = OAuthAuthCode::where('code', $validated['code'])
+        $authCode = OAuthAuthCode::where('code', $codeValidated['code'])
             ->where('sso_client_id', $client->id)
             ->first();
 
@@ -137,14 +182,14 @@ class OAuth2Controller extends Controller
             ], 400);
         }
 
-        if ($authCode->redirect_uri !== $validated['redirect_uri']) {
+        if ($authCode->redirect_uri !== $codeValidated['redirect_uri']) {
             return response()->json([
                 'message' => 'redirect_uri no coincide',
             ], 400);
         }
 
         if ($authCode->code_challenge) {
-            $codeVerifier = $authCode->code_verifier ?? $validated['code_verifier'];
+            $codeVerifier = $authCode->code_verifier ?? $codeValidated['code_verifier'];
 
             if (!$codeVerifier) {
                 return response()->json([
@@ -179,7 +224,7 @@ class OAuth2Controller extends Controller
             ], 404);
         }
 
-        $dpopPublicKey = $validated['dpop_public_key'] ?? null;
+        $dpopPublicKey = $codeValidated['dpop_public_key'] ?? null;
         $tokenData = $this->generateToken($user, $dpopPublicKey);
 
         $this->registerSession($user, $tokenData['token'], $request, $client, $dpopPublicKey);
@@ -193,6 +238,29 @@ class OAuth2Controller extends Controller
             'expires_in' => $tokenData['expires_in'],
             'user' => $userArray,
         ]);
+    }
+
+    private function generateClientToken(SsoClient $client): array
+    {
+        $now = time();
+        $expiresAt = $now + $this->tokenExpiration;
+
+        $builder = $this->jwtConfig->builder()
+            ->issuedBy($this->issuer)
+            ->identifiedBy(bin2hex(random_bytes(16)))
+            ->issuedAt(new \DateTimeImmutable('@' . $now))
+            ->expiresAt(new \DateTimeImmutable('@' . $expiresAt))
+            ->relatedTo($client->client_id)
+            ->withClaim('grant_type', 'client_credentials')
+            ->withClaim('client_id', $client->client_id);
+
+        $token = $builder->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
+
+        return [
+            'token' => $token->toString(),
+            'token_type' => 'Bearer',
+            'expires_in' => $this->tokenExpiration,
+        ];
     }
 
     private function generateToken(User $user, ?string $dpopPublicKey = null): array

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ApiUsersController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\OAuth2Controller;
 use App\Http\Controllers\RoleController;
@@ -17,6 +18,10 @@ Route::get('/session/check', [AuthController::class, 'checkSession']);
 Route::post('/session/check', [AuthController::class, 'checkSession']);
 Route::post('/logout', [AuthController::class, 'logout']);
 Route::get('/roles', [RoleController::class, 'index']);
+
+Route::middleware(['jwt.auth', 'client.credentials'])->group(function () {
+    Route::get('/users', [ApiUsersController::class, 'index']);
+});
 
 Route::middleware('jwt.auth')->group(function () {
     Route::post('/oauth/authorize', [OAuth2Controller::class, 'authorize']);

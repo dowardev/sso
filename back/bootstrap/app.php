@@ -19,7 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\IsAdmin::class,
             'jwt.auth' => \App\Http\Middleware\JwtAuth::class,
             'dpop' => \App\Http\Middleware\VerifyDpopProof::class,
-            
+            'client.credentials' => \App\Http\Middleware\ClientCredentialsAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -221,6 +221,8 @@ class AdminController extends Controller
             'redirect_url' => 'nullable|string|max:255|url',
             'allowed_origins' => 'nullable|array',
             'allowed_origins.*' => ['regex:/^https?:\/\/[^\/:]+(:\d+)?$/'],
+            'grant_types' => 'nullable|array',
+            'grant_types.*' => 'string|in:authorization_code,client_credentials',
             'active' => 'sometimes|boolean',
         ]);
 
@@ -231,7 +233,13 @@ class AdminController extends Controller
             ], 422);
         }
 
-        $client = SsoClient::create($validator->validated());
+        $data = $validator->validated();
+
+        if (!isset($data['grant_types'])) {
+            $data['grant_types'] = ['authorization_code'];
+        }
+
+        $client = SsoClient::create($data);
 
         return response()->json([
             'message' => 'Cliente SSO creado correctamente',
@@ -248,6 +256,8 @@ class AdminController extends Controller
             'redirect_url' => 'nullable|string|max:255|url',
             'allowed_origins' => 'nullable|array',
             'allowed_origins.*' => ['regex:/^https?:\/\/[^\/:]+(:\d+)?$/'],
+            'grant_types' => 'nullable|array',
+            'grant_types.*' => 'string|in:authorization_code,client_credentials',
             'active' => 'sometimes|boolean',
         ]);
 

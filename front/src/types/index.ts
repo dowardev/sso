@@ -45,6 +45,7 @@ export interface SsoClient {
   client_secret?: string;
   redirect_url: string | null;
   allowed_origins: string[] | null;
+  grant_types: string[];
   active: boolean;
   created_at: string;
   sessions_count?: number;
