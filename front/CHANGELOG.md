@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.18.1] - 2026-05-26
+
+### Fixed
+- **Session Not Closing on Token Expiry**: JWT expiry detection across multiple layers
+  - Added 401 status interceptor in `fetchApi` (`services/api.ts`) that auto-logs out and redirects to `/login` on expired token responses
+  - Added `isTokenExpired()` helper in auth store that decodes JWT payload to verify `exp` claim against current time
+  - Updated `isAuthenticated` computed to return `false` for expired tokens regardless of string existence
+  - Updated `init()` to discard expired tokens restored from localStorage on page refresh
+  - Extracted `clearAuthData()` helper in auth store to eliminate duplication in `logout()` and `init()`
+
+### Added
+- **Periodic Session Health Check**: App.vue now calls `/session/check` every 5 minutes via `checkSession()` in authController, auto-logging out if the server reports an unauthenticated session
+- **package.json**: Fixed trailing comma JSON syntax error preventing `pnpm run build`
+
 ## [0.4.0] - 2026-05-06
 
 ### Added

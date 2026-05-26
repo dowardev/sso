@@ -12,7 +12,25 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem(TOKEN_KEY));
   const user = ref<User | null>(null);
 
-  const isAuthenticated = computed(() => !!token.value);
+  function isTokenExpired(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  }
+
+  const isAuthenticated = computed(() => !!token.value && !isTokenExpired(token.value));
+
+  function clearAuthData() {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem('sso_token');
+    localStorage.removeItem(DPOP_PUBLIC_KEY);
+    token.value = null;
+    user.value = null;
+  }
 
   async function login(params: {
     user: string;
@@ -62,15 +80,8 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('Logout error:', error);
     }
 
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    localStorage.removeItem('sso_token');
-    localStorage.removeItem(DPOP_PUBLIC_KEY);
-
+    clearAuthData();
     await dpopService.clearKeys();
-
-    token.value = null;
-    user.value = null;
   }
 
   async function getUser() {
@@ -105,6 +116,10 @@ export const useAuthStore = defineStore('auth', () => {
     const userStr = localStorage.getItem(USER_KEY);
 
     if (storedToken && userStr) {
+      if (isTokenExpired(storedToken)) {
+        clearAuthData();
+        return;
+      }
       token.value = storedToken;
       user.value = JSON.parse(userStr);
     }
