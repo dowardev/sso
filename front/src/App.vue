@@ -135,7 +135,7 @@
     settingsOutline,
   } from 'ionicons/icons';
 
-  // controllers
+  import { onMounted, onUnmounted } from 'vue';
   import { useAuthController } from '@/controllers/authController';
 
   // components
@@ -152,6 +152,7 @@
   const authController = useAuthController();
   const isAuthenticated = authController.isAuthenticated;
   const currentUser = authController.user;
+  let sessionCheckInterval: ReturnType<typeof setInterval> | null = null;
 
   // watch
   // end
@@ -160,7 +161,18 @@
   // end computed
 
   // onmounted
+  onMounted(() => {
+    sessionCheckInterval = setInterval(checkSession, 5 * 60 * 1000);
+  });
   // end onmounted
+
+  // onunmounted
+  onUnmounted(() => {
+    if (sessionCheckInterval) {
+      clearInterval(sessionCheckInterval);
+    }
+  });
+  // end onunmounted
 
   // functions
   const isActiveRoute = (params: { path: string }): boolean => {
@@ -188,6 +200,18 @@
     await menuController.close();
     await authController.logout();
     router.replace('/login');
+  };
+
+  const checkSession = async (): Promise<void> => {
+    if (!authController.isAuthenticated) return;
+    try {
+      const authenticated = await authController.checkSession();
+      if (!authenticated) {
+        await handleLogout();
+      }
+    } catch {
+      // Ignore network errors
+    }
   };
   // end functions
 </script>

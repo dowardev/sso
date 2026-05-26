@@ -106,6 +106,17 @@ export function useAuthController() {
     window.location.href = `${params.redirect_uri}?${urlParams.toString()}`;
   }
 
+  async function checkSession(): Promise<boolean> {
+    try {
+      const result = await api.get<{ authenticated: boolean }>({
+        endpoint: '/session/check',
+      });
+      return result.authenticated;
+    } catch {
+      return false;
+    }
+  }
+
   async function register(params: RegisterParams): Promise<void> {
     const requestData: Record<string, unknown> = {
       name: params.name,
@@ -154,5 +165,6 @@ export function useAuthController() {
     init,
     oauthAuthorize,
     register,
+    checkSession,
   };
 }

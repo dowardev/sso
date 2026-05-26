@@ -1,7 +1,8 @@
 {
   "name": "sso-front",
+  "version": "0.18.1",
   "private": true,
-  "version": "0.18.0",
+  "description": "An Ionic project",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +14,7 @@
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
     "format": "oxfmt src/",
-    "format:check": "oxfmt --check src/",
+    "format:check": "oxfmt --check src/"
   },
   "dependencies": {
     "@capacitor/app": "8.1.0",
@@ -49,6 +50,5 @@
     "vite": "^5.0.0",
     "vitest": "^0.34.6",
     "vue-tsc": "^2.1.10"
-  },
-  "description": "An Ionic project"
+  }
 }

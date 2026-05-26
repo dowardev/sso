@@ -52,11 +52,20 @@ async function fetchApi<T>(params: {
     credentials: 'include',
   });
 
+  if (response.status === 401) {
+    const { useAuthStore } = await import('@/stores/auth');
+    const authStore = useAuthStore();
+    await authStore.logout();
+    const routerModule = await import('@/router');
+    routerModule.default.push('/login');
+    throw new Error('Sesión expirada');
+  }
+
   if (!response.ok) {
     const error = await response
       .json()
       .catch(() => ({ message: 'Error de conexión' }));
-    throw new Error(error.message || error.message || 'Error en la solicitud');
+    throw new Error(error.message || 'Error en la solicitud');
   }
 
   return response.json();
