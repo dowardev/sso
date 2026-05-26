@@ -30,14 +30,16 @@
                     </ion-item>
 
                     <ion-item lines="full">
-                      <ion-input
-                        v-model="credentials.password"
-                        label="Contraseña"
-                        label-placement="floating"
-                        type="password"
-                        required
-                        placeholder="Ingresa tu contraseña"
-                      ></ion-input>
+          <ion-input
+            v-model="credentials.password"
+            label="Contraseña"
+            label-placement="floating"
+            type="password"
+            required
+            placeholder="Ingresa tu contraseña"
+          >
+            <ion-input-password-toggle slot="end" />
+          </ion-input>
                     </ion-item>
 
                     <div v-if="error" class="error-message">
