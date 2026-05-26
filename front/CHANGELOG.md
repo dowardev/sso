@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.18.2] - 2026-05-26
+
+### Added
+- **Password Visibility Toggle**: Added `<ion-input-password-toggle>` to password fields in admin login (`LoginPage.vue`) and application login (`PublicLoginPage.vue`), allowing users to show/hide their password
+
 ## [0.18.1] - 2026-05-26
 
 ### Fixed
