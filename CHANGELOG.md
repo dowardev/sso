@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.19.0] - 2026-05-27
+
+### Features
+
+- Add delete confirmation dialog (`ion-alert`) before removing an SSO client in the admin panel
+- Add inline delete button (trash icon) next to client status badge for quick access
+
+### Refactor
+
+- Split `deleteClient` into `confirmDelete` + `deleteClient` two-step flow with alert state management
+
+### Affected Files
+
+- Modified: `front/src/views/admin/ClientsPage.vue`
+
+---
+
 ## [0.18.0] - 2026-05-23
 
 ### Features
