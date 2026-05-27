@@ -47,18 +47,27 @@
                     {{ client.redirect_url }}
                   </p>
                 </ion-label>
-                <ion-badge
-                  slot="end"
-                  :color="client.active ? 'success' : 'medium'"
-                >
-                  {{ client.active ? 'Activo' : 'Inactivo' }}
-                </ion-badge>
+                <div slot="end" class="client-actions">
+                  <ion-badge
+                    :color="client.active ? 'success' : 'medium'"
+                  >
+                    {{ client.active ? 'Activo' : 'Inactivo' }}
+                  </ion-badge>
+                  <ion-button
+                    fill="clear"
+                    color="danger"
+                    size="small"
+                    @click.stop="confirmDelete({ client })"
+                  >
+                    <ion-icon slot="icon-only" :icon="trash"></ion-icon>
+                  </ion-button>
+                </div>
               </ion-item>
 
               <ion-item-options side="end">
                 <ion-item-option
                   color="danger"
-                  @click="deleteClient({ client })"
+                  @click="confirmDelete({ client })"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-item-option>
@@ -191,6 +200,12 @@
       <!-- end popovers -->
 
       <!-- alerts -->
+      <ion-alert
+        :is-open="showDeleteAlert"
+        header="Eliminar Cliente"
+        :message="`¿Estás seguro de eliminar el cliente ${clientToDelete?.name}?`"
+        :buttons="deleteAlertButtons"
+      ></ion-alert>
       <!-- end alerts -->
     </ion-content>
   </ion-page>
@@ -222,6 +237,7 @@
     IonSpinner,
     IonChip,
     IonInputPasswordToggle,
+    IonAlert,
   } from '@ionic/vue';
   import { add, desktopOutline, trash, close, keyOutline, copyOutline } from 'ionicons/icons';
 
@@ -255,6 +271,8 @@ const clientForm = ref({
 });
 
   const newOriginInput = ref('');
+  const showDeleteAlert = ref(false);
+  const clientToDelete = ref<SsoClient | null>(null);
   // end vars and const
 
   // watch
@@ -378,14 +396,39 @@ const openEditModal = (params: { client: SsoClient }): void => {
     clientForm.value.allowed_origins.splice(index, 1);
   };
 
-const deleteClient = async (params: { client: SsoClient }): Promise<void> => {
+const confirmDelete = (params: { client: SsoClient }): void => {
   const { client } = params;
+  clientToDelete.value = client;
+  showDeleteAlert.value = true;
+};
+
+const deleteClient = async (): Promise<void> => {
+  if (!clientToDelete.value) return;
   try {
-    await clientsController.deleteClient({ id: client.id });
+    await clientsController.deleteClient({ id: clientToDelete.value.id });
   } catch (error) {
     console.error('Error deleting client:', error);
+  } finally {
+    showDeleteAlert.value = false;
+    clientToDelete.value = null;
   }
 };
+
+const deleteAlertButtons = [
+  {
+    text: 'Cancelar',
+    role: 'cancel',
+    handler: () => {
+      showDeleteAlert.value = false;
+      clientToDelete.value = null;
+    },
+  },
+  {
+    text: 'Eliminar',
+    role: 'destructive',
+    handler: deleteClient,
+  },
+];
 
 const generateSecret = (): void => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -500,6 +543,12 @@ const toggleGrantType = (grantType: string): void => {
     color: var(--text-tertiary);
     word-break: break-all;
     margin-top: 4px;
+  }
+
+  .client-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
   .modal-form {

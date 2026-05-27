@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.19.0] - 2026-05-27
+
+### Added
+- **Delete Confirmation Dialog**: Added `ion-alert` confirmation before deleting an SSO client in admin clients page (`ClientsPage.vue`), preventing accidental deletions
+- **Inline Delete Button**: Added trash icon button next to each client's status badge for quick access, alongside the existing swipe-to-delete option
+
+### Changed
+- **Refactored delete flow**: Split `deleteClient` into `confirmDelete` (sets alert state) and `deleteClient` (performs API call), using reactive `showDeleteAlert` and `clientToDelete` refs with alert button handlers
+
 ## [0.18.3] - 2026-05-26
 
 ### Fixed
