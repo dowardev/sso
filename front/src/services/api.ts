@@ -52,7 +52,7 @@ async function fetchApi<T>(params: {
     credentials: 'include',
   });
 
-  if (response.status === 401) {
+  if (response.status === 401 && endpoint !== '/logout') {
     const { useAuthStore } = await import('@/stores/auth');
     const authStore = useAuthStore();
     await authStore.logout();

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.3] - 2026-05-26
+
+### Fixed
+- **Infinite 401 Loop on Logout**: Prevented recursion when `/logout` endpoint itself returns 401
+  - Added `endpoint !== '/logout'` guard in `fetchApi` 401 interceptor (`services/api.ts`) to exclude the logout call from triggering another logout cycle
+  - Reordered `logout()` in auth store to clear local auth data and DPoP keys before calling the remote `/logout` API, ensuring immediate state cleanup regardless of server response
+
 ## [0.18.2] - 2026-05-26
 
 ### Added

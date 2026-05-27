@@ -74,14 +74,13 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
+    clearAuthData();
+    await dpopService.clearKeys();
     try {
       await api.post({ endpoint: '/logout' });
     } catch (error) {
       console.error('Logout error:', error);
     }
-
-    clearAuthData();
-    await dpopService.clearKeys();
   }
 
   async function getUser() {
