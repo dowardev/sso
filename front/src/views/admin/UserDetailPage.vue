@@ -3,11 +3,11 @@
     <ion-header class="ion-no-border" mode="ios">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button default-href="/admin/users"></ion-back-button>
+          <ion-back-button default-href="/admin/users" aria-label="Volver a usuarios"></ion-back-button>
         </ion-buttons>
         <ion-title>Detalle de Usuario</ion-title>
         <ion-buttons slot="end">
-          <ion-button color="primary" @click="openEditModal">
+          <ion-button color="primary" @click="openEditModal" aria-label="Editar usuario">
             <ion-icon slot="icon-only" :icon="create"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -16,8 +16,8 @@
 
     <ion-content :fullscreen="true">
       <!-- content -->
-      <div class="page-container">
-        <div v-if="loading" class="loading-container">
+      <div class="page-container-wide">
+        <div v-if="loading" class="loading-container" role="status" aria-live="polite">
           <ion-spinner name="lines"></ion-spinner>
           <p>Cargando usuario...</p>
         </div>
@@ -26,6 +26,8 @@
           <ion-row>
             <ion-col size="12">
               <div class="header-card">
+                <div class="header-bg-circle hc-1"></div>
+                <div class="header-bg-circle hc-2"></div>
                 <div class="user-header">
                   <ion-avatar class="large-avatar">
                     <div class="avatar-placeholder">
@@ -34,9 +36,7 @@
                   </ion-avatar>
                   <h2 class="user-name">{{ user.name }}</h2>
                   <p class="user-username">@{{ user.user }}</p>
-                  <ion-badge v-if="user.is_admin" color="warning"
-                    >Administrador</ion-badge
-                  >
+                  <ion-badge v-if="user.is_admin" color="warning">Administrador</ion-badge>
                 </div>
               </div>
             </ion-col>
@@ -45,20 +45,16 @@
               <div class="info-card">
                 <h3 class="section-title">Información</h3>
                 <div class="info-item">
-                  <span class="label">Email</span>
+                  <ion-icon :icon="mailOutline" class="info-icon"></ion-icon>
                   <span class="value">{{ user.email }}</span>
                 </div>
                 <div class="info-item">
-                  <span class="label">Creado</span>
-                  <span class="value">{{
-                    formatDate({ dateStr: user.created_at })
-                  }}</span>
+                  <ion-icon :icon="calendarOutline" class="info-icon"></ion-icon>
+                  <span class="value">{{ formatDate({ dateStr: user.created_at }) }}</span>
                 </div>
                 <div class="info-item">
-                  <span class="label">Tokens</span>
-                  <span class="value"
-                    >{{ user.active_tokens_count }} activos</span
-                  >
+                  <ion-icon :icon="keyOutline" class="info-icon"></ion-icon>
+                  <span class="value">{{ user.active_tokens_count }} tokens activos</span>
                 </div>
               </div>
             </ion-col>
@@ -67,7 +63,7 @@
               <div class="roles-card">
                 <div class="section-header">
                   <h3 class="section-title">Roles</h3>
-                  <ion-button size="small" @click="openRolesModal">
+                  <ion-button size="small" @click="openRolesModal" aria-label="Editar roles">
                     <ion-icon slot="icon-only" :icon="create"></ion-icon>
                   </ion-button>
                 </div>
@@ -75,21 +71,15 @@
                 <div v-if="userRoles.length === 0" class="empty-state">
                   <ion-icon :icon="shieldOutline" size="large"></ion-icon>
                   <p>Sin roles asignados</p>
-                  <span class="empty-hint">(rol: Estándar)</span>
+                  <span class="empty-hint">(rol: Est&aacute;ndar)</span>
                 </div>
 
-                <ion-list v-else class="detail-list">
-                  <ion-item v-for="(role, index) in userRoles" :key="index">
-                    <ion-icon
-                      slot="start"
-                      :icon="shieldOutline"
-                      color="primary"
-                    ></ion-icon>
-                    <ion-label>
-                      <h3 class="item-title">{{ role.name }}</h3>
-                    </ion-label>
-                  </ion-item>
-                </ion-list>
+                <div v-else class="roles-chips">
+                  <ion-chip v-for="(role, index) in userRoles" :key="index" color="primary">
+                    <ion-icon :icon="shieldOutline"></ion-icon>
+                    <ion-label>{{ role.name }}</ion-label>
+                  </ion-chip>
+                </div>
               </div>
             </ion-col>
 
@@ -140,6 +130,7 @@
                       fill="clear"
                       color="danger"
                       @click="revokeSession({ session })"
+                      aria-label="Revocar sesión"
                     >
                       <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                     </ion-button>
@@ -191,7 +182,7 @@
               </ion-item>
             </ion-list>
             <div class="ion-padding">
-              <ion-button type="submit" expand="block" :disabled="updating">
+              <ion-button type="submit" expand="block" class="gradient-btn" :disabled="updating">
                 {{ updating ? 'Guardando...' : 'Guardar Cambios' }}
               </ion-button>
             </div>
@@ -242,6 +233,7 @@
                     <ion-item-option
                       color="danger"
                       @click="removeRoleAssignment({ index })"
+                      aria-label="Eliminar asignación de rol"
                     >
                       <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                     </ion-item-option>
@@ -261,6 +253,7 @@
               </ion-button>
               <ion-button
                 expand="block"
+                class="gradient-btn"
                 :disabled="savingRoles"
                 style="margin-top: 8px"
                 @click="saveUserRoles"
@@ -312,6 +305,7 @@
     IonGrid,
     IonRow,
     IonCol,
+    IonChip,
   } from '@ionic/vue';
   import {
     create,
@@ -319,6 +313,8 @@
     trash,
     shieldOutline,
     add,
+    mailOutline,
+    calendarOutline,
   } from 'ionicons/icons';
 
   // controllers
@@ -332,6 +328,10 @@
   const clientsController = useClientsController();
   const rolesController = useRolesController();
   const authController = useAuthController();
+
+  // composables
+  import { useToast } from '@/composables/useToast';
+  const { showSuccess, showError } = useToast();
 
   // components
   // end components
@@ -396,7 +396,7 @@
         password: '',
       };
     } catch (error) {
-      console.error('Error loading user:', error);
+      showError({ message: 'Error al cargar usuario' });
     }
   };
 
@@ -445,8 +445,9 @@
 
       await usersController.updateUser({ id: userId, data });
       showEditModal.value = false;
+      showSuccess({ message: 'Usuario actualizado correctamente' });
     } catch (error) {
-      console.error('Error updating user:', error);
+      showError({ message: 'Error al actualizar usuario' });
     } finally {
       updating.value = false;
     }
@@ -461,16 +462,18 @@
       if (user.value) {
         user.value.active_tokens_count--;
       }
+      showSuccess({ message: 'Sesión revocada correctamente' });
     } catch (error) {
-      console.error('Error revoking session:', error);
+      showError({ message: 'Error al revocar sesión' });
     }
   };
 
   const revokeAllSessions = async (): Promise<void> => {
     try {
       await usersController.revokeUserSessions(userId);
+      showSuccess({ message: 'Todas las sesiones fueron revocadas' });
     } catch (error) {
-      console.error('Error revoking sessions:', error);
+      showError({ message: 'Error al revocar sesiones' });
     }
   };
 
@@ -490,7 +493,7 @@
       );
       showRolesModal.value = true;
     } catch (error) {
-      console.error('Error loading roles data:', error);
+      showError({ message: 'Error al cargar datos de roles' });
     }
   };
 
@@ -520,7 +523,7 @@
     );
 
     if (validAssignments.length === 0) {
-      console.error('Debe seleccionar al menos un rol');
+      showError({ message: 'Debe seleccionar al menos un rol' });
       return;
     }
 
@@ -535,8 +538,9 @@
         assignments: rolesToSave,
       });
       showRolesModal.value = false;
+      showSuccess({ message: 'Roles guardados correctamente' });
     } catch (error) {
-      console.error('Error saving roles:', error);
+      showError({ message: 'Error al guardar roles' });
     } finally {
       savingRoles.value = false;
     }
@@ -545,12 +549,6 @@
 </script>
 
 <style scoped>
-  .page-container {
-    padding: var(--dashboard-padding);
-    max-width: 900px;
-    margin: 0 auto;
-  }
-
   .loading-container {
     display: flex;
     flex-direction: column;
@@ -566,21 +564,42 @@
   }
 
   .header-card {
-    background: var(--background-contrast);
     border-radius: var(--card-border-radius);
-    box-shadow: var(--card-shadow-light) 0px 1px 3px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
     margin-bottom: 16px;
     overflow: hidden;
+    position: relative;
   }
 
-  .user-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px;
-    background: var(--ion-color-primary);
-    color: white;
+  .header-bg-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
   }
+
+  .hc-1 {
+    width: 200px;
+    height: 200px;
+    top: -60px;
+    right: -40px;
+  }
+
+  .hc-2 {
+    width: 120px;
+    height: 120px;
+    bottom: -30px;
+    left: -20px;
+  }
+
+.user-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #8B5CF6, #06B6D4);
+  color: white;
+  position: relative;
+  z-index: 1;
+}
 
   .large-avatar {
     width: 80px;
@@ -592,8 +611,8 @@
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background: var(--background-contrast);
-    color: var(--ion-color-primary);
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -603,13 +622,14 @@
 
   .user-name {
     margin: 0;
-    font-size: 24px;
-    font-weight: 600;
+    font-size: 22px;
+    font-weight: 700;
+    color: white;
   }
 
   .user-username {
     margin: 4px 0 8px 0;
-    opacity: 0.9;
+    opacity: 0.85;
     font-size: 14px;
   }
 
@@ -622,22 +642,24 @@
     padding: 0 0 16px 0;
   }
 
-  .info-card,
-  .roles-card,
-  .sessions-card {
-    background: var(--background-contrast);
-    border-radius: var(--card-border-radius);
-    box-shadow: var(--card-shadow-light) 0px 1px 3px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
-    padding: 16px;
-    height: 100%;
-  }
+.info-card,
+.roles-card,
+.sessions-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--card-border-radius);
+  padding: 16px;
+  height: 100%;
+}
 
   .section-title {
     margin: 0 0 16px 0;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.8px;
     color: var(--text-tertiary);
   }
 
@@ -652,24 +674,33 @@
     margin: 0;
   }
 
-  .info-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--ion-background-color-step-200);
-  }
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--glass-border);
+}
 
-  .info-item:last-child {
-    border-bottom: none;
-  }
+.info-item:last-child {
+  border-bottom: none;
+}
 
-  .info-item .label {
-    font-weight: 500;
-    color: var(--text-secondary);
+  .info-icon {
+    font-size: 18px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
   }
 
   .info-item .value {
     color: var(--text-primary);
+    font-size: 14px;
+  }
+
+  .roles-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .empty-state {
@@ -703,16 +734,21 @@
     padding: 0;
   }
 
-  .detail-list ion-item {
-    --padding-start: 16px;
-    --padding-end: 16px;
-    --background: transparent;
-    border-bottom: 1px solid var(--ion-background-color-step-200);
-  }
+.detail-list ion-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --background: transparent;
+  border-bottom: 1px solid var(--glass-border);
+  transition: background 0.2s ease;
+}
 
-  .detail-list ion-item:last-child {
-    border-bottom: none;
-  }
+.detail-list ion-item:hover {
+  --background: var(--glass-bg-hover);
+}
+
+.detail-list ion-item:last-child {
+  border-bottom: none;
+}
 
   .item-title {
     color: var(--text-primary);
@@ -748,14 +784,40 @@
   }
 
   @media (min-width: 768px) {
-    .page-container {
-      padding: var(--dashboard-padding-lg);
+    .info-card,
+    .roles-card,
+    .sessions-card {
+      padding: 24px;
+    }
+  }
+
+  @media (max-width: 374px) {
+    .user-header {
+      padding: 16px;
+    }
+
+    .user-name {
+      font-size: 20px;
+    }
+
+    .user-username {
+      font-size: 13px;
+    }
+
+    .large-avatar {
+      width: 64px;
+      height: 64px;
+    }
+
+    .info-item {
+      padding: 8px 0;
+      gap: 8px;
     }
 
     .info-card,
     .roles-card,
     .sessions-card {
-      padding: 24px;
+      padding: 12px;
     }
   }
 </style>

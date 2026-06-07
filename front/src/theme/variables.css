@@ -4,6 +4,33 @@
 @import url('./files/catppuccin-latte-maroon.css');
 @import url('./files/catppuccin-macchiato-maroon.css');
 
+:root {
+  --font-heading: 'Poppins', sans-serif;
+  --font-body: 'Open Sans', sans-serif;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-modal: 30;
+  --z-toast: 50;
+  --ion-menu-background: var(--glass-bg);
+}
+
+ion-menu {
+  --background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4, h5, h6,
+ion-title,
+ion-card-title,
+ion-list-header {
+  font-family: var(--font-heading);
+}
+
 .main-card-content {
   height: calc(100dvh - 80px);
 }
@@ -60,6 +87,216 @@ hr {
   border-top: 1px solid var(--ion-background-color-step-200);
 }
 /* end hr */
+
+/* globals */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  color: var(--text-tertiary);
+}
+
+.empty-state ion-icon {
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+}
+
+/* ion-badge pill */
+ion-badge {
+  --padding-top: 4px;
+  --padding-bottom: 4px;
+  --padding-start: 10px;
+  --padding-end: 10px;
+  border-radius: 999px !important;
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+}
+
+/* ion-searchbar */
+ion-searchbar {
+  --border-radius: 999px !important;
+  --box-shadow: none !important;
+  --background: var(--glass-bg) !important;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+}
+
+/* ion-button */
+ion-button {
+  --border-radius: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  text-transform: none;
+}
+
+ion-button.subtle {
+  --background: transparent;
+  --color: var(--text-secondary);
+  font-size: 13px;
+}
+
+ion-button.gradient-btn {
+  --background: var(--gradient-primary);
+  --box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+  --border-radius: 12px;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+ion-button.gradient-btn:hover {
+  transform: translateY(-1px);
+  --box-shadow: 0 6px 20px rgba(139, 92, 246, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ion-button.gradient-btn {
+    transition: none;
+  }
+
+  ion-button.gradient-btn:hover {
+    transform: none;
+  }
+}
+
+/* ion-toolbar */
+ion-toolbar {
+  --background: var(--glass-bg);
+  --border-width: 0 0 1px 0;
+  --border-color: var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+/* ion-modal */
+ion-modal {
+  --width: calc(100% - 32px);
+  --max-width: 520px;
+  --border-radius: 16px;
+}
+
+ion-modal ion-header ion-toolbar:first-child {
+  --border-width: 0;
+}
+
+/* ion-list-header */
+ion-list-header {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-tertiary);
+  padding-left: 16px;
+  min-height: 36px;
+}
+
+/* ion-item containing ion-input */
+ion-item.input-item {
+  --background: var(--glass-bg);
+  --border-radius: 12px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --inner-padding-end: 16px;
+  --min-height: 56px;
+  --border-color: transparent;
+  --highlight-height: 0;
+  margin-bottom: 10px;
+  border: 1.5px solid var(--glass-border);
+  border-radius: 12px;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+ion-item.input-item.item-has-focus {
+  border-color: var(--ion-color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--ion-color-primary-rgb), 0.15);
+}
+
+ion-item.input-item ion-label {
+  font-weight: 500;
+  color: var(--text-secondary) !important;
+}
+
+/* page header pattern */
+.page-container {
+  padding: var(--dashboard-padding);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.page-container-wide {
+  padding: var(--dashboard-padding);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .page-container,
+  .page-container-wide {
+    padding: var(--dashboard-padding-lg);
+  }
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* card-list pattern (for list pages) */
+.card-list {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--card-border-radius);
+  overflow: hidden;
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--card-border-radius);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.glass-card:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+}
+
+.glass-card-static {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--card-border-radius);
+}
+
+.gradient-header {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(6, 182, 212, 0.08));
+  border-bottom: 1px solid var(--glass-border);
+}
+
+/* end globals */
 
 /* border-color items */
 .border-primary {
