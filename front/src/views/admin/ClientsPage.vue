@@ -3,11 +3,11 @@
     <ion-header class="ion-no-border" mode="ios">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Menú de navegación"></ion-menu-button>
         </ion-buttons>
         <ion-title>Clientes SSO</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="openCreateModal">
+          <ion-button @click="openCreateModal" aria-label="Crear cliente">
             <ion-icon slot="icon-only" :icon="add"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -15,18 +15,20 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
+        <ion-refresher-content pulling-text="Tira para actualizar..." refreshing-text="Actualizando..."></ion-refresher-content>
+      </ion-refresher>
       <!-- content -->
       <div class="page-container">
-        <div class="clients-card">
-          <div v-if="loading" class="loading-container">
-            <ion-spinner name="lines"></ion-spinner>
-            <p>Cargando clientes...</p>
+        <div class="card-list">
+          <div v-if="loading" class="skeleton-container">
+            <SkeletonListItem v-for="n in 4" :key="n" />
           </div>
 
-          <div v-else-if="clients.length === 0" class="empty-container">
+          <div v-else-if="clients.length === 0" class="empty-state">
             <ion-icon :icon="desktopOutline" size="large"></ion-icon>
             <p>No hay clientes SSO</p>
-            <ion-button @click="openCreateModal">Crear Cliente</ion-button>
+            <ion-button @click="openCreateModal" class="gradient-btn" size="small">Crear Cliente</ion-button>
           </div>
 
           <ion-list v-else class="clients-list">
@@ -58,6 +60,7 @@
                     color="danger"
                     size="small"
                     @click.stop="confirmDelete({ client })"
+                    aria-label="Eliminar cliente"
                   >
                     <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                   </ion-button>
@@ -68,6 +71,7 @@
                 <ion-item-option
                   color="danger"
                   @click="confirmDelete({ client })"
+                  aria-label="Eliminar cliente"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-item-option>
@@ -115,6 +119,7 @@
                 fill="clear"
                 size="small"
                 @click="copySecret"
+                aria-label="Copiar secret"
               >
                 <ion-icon slot="icon-only" :icon="copyOutline"></ion-icon>
               </ion-button>
@@ -122,6 +127,7 @@
                 fill="clear"
                 size="small"
                 @click="generateSecret"
+                aria-label="Generar secret"
               >
                 <ion-icon slot="icon-only" :icon="keyOutline"></ion-icon>
               </ion-button>
@@ -144,7 +150,7 @@
                     placeholder="https://ejemplo.com"
                     @keydown.enter.prevent="addOrigin"
                   ></ion-input>
-                  <ion-button fill="clear" size="small" @click="addOrigin">
+                  <ion-button fill="clear" size="small" @click="addOrigin" aria-label="Agregar origen">
                     <ion-icon slot="icon-only" :icon="add"></ion-icon>
                   </ion-button>
                 </div>
@@ -187,7 +193,7 @@
           </ion-item>
             </ion-list>
             <div class="ion-padding">
-              <ion-button type="submit" expand="block" :disabled="saving">
+              <ion-button type="submit" expand="block" class="gradient-btn" :disabled="saving">
                 {{ saving ? 'Guardando...' : 'Guardar' }}
               </ion-button>
             </div>
@@ -237,6 +243,8 @@
     IonSpinner,
     IonChip,
     IonInputPasswordToggle,
+    IonRefresher,
+    IonRefresherContent,
     IonAlert,
   } from '@ionic/vue';
   import { add, desktopOutline, trash, close, keyOutline, copyOutline } from 'ionicons/icons';
@@ -245,7 +253,12 @@
   import { useClientsController } from '@/controllers/clientsController';
   const clientsController = useClientsController();
 
+  // composables
+  import { useToast } from '@/composables/useToast';
+  const { showSuccess, showError } = useToast();
+
   // components
+  import SkeletonListItem from '@/components/SkeletonListItem.vue';
   // end components
 
   // interface and types imports
@@ -321,7 +334,7 @@ const openEditModal = (params: { client: SsoClient }): void => {
   showModal.value = true;
 };
 
-  const saveClient = async (): Promise<void> => {
+      const saveClient = async (): Promise<void> => {
     saving.value = true;
     try {
       const data = {
@@ -341,13 +354,15 @@ const openEditModal = (params: { client: SsoClient }): void => {
           id: editingClient.value.id,
           data,
         });
+        showSuccess({ message: 'Cliente actualizado correctamente' });
       } else {
         await clientsController.createClient({ data });
+        showSuccess({ message: 'Cliente creado correctamente' });
       }
 
       showModal.value = false;
     } catch (error) {
-      console.error('Error saving client:', error);
+      showError({ message: 'Error al guardar cliente' });
     } finally {
       saving.value = false;
     }
@@ -406,8 +421,9 @@ const deleteClient = async (): Promise<void> => {
   if (!clientToDelete.value) return;
   try {
     await clientsController.deleteClient({ id: clientToDelete.value.id });
+    showSuccess({ message: 'Cliente eliminado correctamente' });
   } catch (error) {
-    console.error('Error deleting client:', error);
+    showError({ message: 'Error al eliminar cliente' });
   } finally {
     showDeleteAlert.value = false;
     clientToDelete.value = null;
@@ -456,55 +472,34 @@ const toggleGrantType = (grantType: string): void => {
     clientForm.value.grant_types.splice(index, 1);
   }
 };
+
+const handleRefresh = async (event: CustomEvent): Promise<void> => {
+  await clientsController.fetchClients();
+  event.detail.complete();
+};
   // end functions
 </script>
 
 <style scoped>
-  .page-container {
-    padding: var(--dashboard-padding);
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  .clients-card {
-    background: var(--background-contrast);
-    border-radius: var(--card-border-radius);
-    box-shadow:
-      var(--card-shadow-light) 0px 1px 3px 0px,
-      var(--card-shadow-heavy) 0px 0px 0px 1px;
-    overflow: hidden;
-  }
-
-  .loading-container,
-  .empty-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 16px;
-    color: var(--text-tertiary);
-  }
-
-  .empty-container ion-icon {
-    margin-bottom: 12px;
-    opacity: 0.5;
-  }
-
-  .empty-container p {
-    margin: 0 0 16px 0;
-    font-size: 14px;
+  .skeleton-container {
+    padding: 8px 0;
   }
 
   .clients-list {
     background: transparent;
   }
 
-  .clients-list ion-item {
-    --padding-start: 16px;
-    --padding-end: 16px;
-    --background: transparent;
-    border-bottom: 1px solid var(--ion-background-color-step-200);
-  }
+.clients-list ion-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --background: transparent;
+  border-bottom: 1px solid var(--glass-border);
+  transition: background 0.2s ease;
+}
+
+.clients-list ion-item:hover {
+  --background: var(--glass-bg-hover);
+}
 
   .clients-list ion-item:last-child {
     border-bottom: none;
@@ -558,6 +553,34 @@ const toggleGrantType = (grantType: string): void => {
   @media (min-width: 768px) {
     .page-container {
       padding: var(--dashboard-padding-lg);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-container {
+      max-width: 800px;
+    }
+  }
+
+  @media (max-width: 374px) {
+    .page-container {
+      padding: 8px;
+    }
+
+    .client-name {
+      font-size: 14px;
+    }
+
+    .client-id {
+      font-size: 12px;
+    }
+
+    .client-id code {
+      font-size: 11px;
+    }
+
+    .redirect-url {
+      font-size: 11px;
     }
   }
 

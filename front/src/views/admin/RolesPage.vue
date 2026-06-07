@@ -3,11 +3,11 @@
     <ion-header class="ion-no-border" mode="ios">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Menú de navegación"></ion-menu-button>
         </ion-buttons>
         <ion-title>Roles</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="openCreateModal">
+          <ion-button @click="openCreateModal" aria-label="Crear rol">
             <ion-icon slot="icon-only" :icon="add"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -15,15 +15,17 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
+        <ion-refresher-content pulling-text="Tira para actualizar..." refreshing-text="Actualizando..."></ion-refresher-content>
+      </ion-refresher>
       <!-- content -->
       <div class="page-container">
-        <div class="roles-card">
-          <div v-if="loading" class="loading-container">
-            <ion-spinner name="lines"></ion-spinner>
-            <p>Cargando roles...</p>
+        <div class="card-list">
+          <div v-if="loading" class="skeleton-container">
+            <SkeletonListItem v-for="n in 4" :key="n" />
           </div>
 
-          <div v-else-if="roles.length === 0" class="empty-container">
+          <div v-else-if="roles.length === 0" class="empty-state">
             <ion-icon :icon="shieldOutline" size="large"></ion-icon>
             <p>No se encontraron roles</p>
           </div>
@@ -50,13 +52,14 @@
                 >
               </div>
               <ion-buttons slot="end">
-                <ion-button color="primary" @click="openEditModal({ role })">
+                <ion-button color="primary" @click="openEditModal({ role })" aria-label="Editar rol">
                   <ion-icon slot="icon-only" :icon="create"></ion-icon>
                 </ion-button>
                 <ion-button
                   v-if="!role.is_protected"
                   color="danger"
                   @click="confirmDelete({ role })"
+                  aria-label="Eliminar rol"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-button>
@@ -103,7 +106,7 @@
               </ion-item>
             </ion-list>
             <div class="ion-padding">
-              <ion-button type="submit" expand="block" :disabled="saving">
+              <ion-button type="submit" expand="block" class="gradient-btn" :disabled="saving">
                 {{ saving ? 'Guardando...' : 'Guardar' }}
               </ion-button>
             </div>
@@ -148,6 +151,8 @@
     IonModal,
     IonInput,
     IonTextarea,
+    IonRefresher,
+    IonRefresherContent,
     IonAlert,
     alertController,
   } from '@ionic/vue';
@@ -157,7 +162,12 @@
   import { useRolesController } from '@/controllers/rolesController';
   const rolesController = useRolesController();
 
+  // composables
+  import { useToast } from '@/composables/useToast';
+  const { showSuccess, showError } = useToast();
+
   // components
+  import SkeletonListItem from '@/components/SkeletonListItem.vue';
   // end components
 
   // interface and types imports
@@ -185,8 +195,9 @@
 
     try {
       await rolesController.deleteRole(roleToDelete.value.id);
+      showSuccess({ message: 'Rol eliminado correctamente' });
     } catch (error) {
-      console.error('Error deleting role:', error);
+      showError({ message: 'Error al eliminar rol' });
     } finally {
       showDeleteAlert.value = false;
       roleToDelete.value = null;
@@ -242,7 +253,7 @@
     showModal.value = true;
   };
 
-  const saveRole = async (): Promise<void> => {
+      const saveRole = async (): Promise<void> => {
     saving.value = true;
     try {
       if (editingRole.value) {
@@ -253,6 +264,7 @@
             description: form.value.description || undefined,
           },
         });
+        showSuccess({ message: 'Rol actualizado correctamente' });
       } else {
         await rolesController.createRole({
           data: {
@@ -261,10 +273,11 @@
             description: form.value.description || undefined,
           },
         });
+        showSuccess({ message: 'Rol creado correctamente' });
       }
       showModal.value = false;
     } catch (error) {
-      console.error('Error saving role:', error);
+      showError({ message: 'Error al guardar rol' });
     } finally {
       saving.value = false;
     }
@@ -275,56 +288,34 @@
     roleToDelete.value = role;
     showDeleteAlert.value = true;
   };
+
+  const handleRefresh = async (event: CustomEvent): Promise<void> => {
+    await rolesController.fetchRoles();
+    event.detail.complete();
+  };
   // end functions
 </script>
 
 <style scoped>
-  .page-container {
-    padding: var(--dashboard-padding);
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  .roles-card {
-    background: var(--background-contrast);
-    border-radius: var(--card-border-radius);
-    box-shadow:
-      var(--card-shadow-light) 0px 1px 3px 0px,
-      var(--card-shadow-heavy) 0px 0px 0px 1px;
-    overflow: hidden;
-  }
-
-  .loading-container,
-  .empty-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 16px;
-    color: var(--text-tertiary);
-  }
-
-  .empty-container ion-icon {
-    margin-bottom: 12px;
-    opacity: 0.5;
-  }
-
-  .loading-container p,
-  .empty-container p {
-    margin: 0;
-    font-size: 14px;
+  .skeleton-container {
+    padding: 8px 0;
   }
 
   .roles-list {
     background: transparent;
   }
 
-  .roles-list ion-item {
-    --padding-start: 16px;
-    --padding-end: 16px;
-    --background: transparent;
-    border-bottom: 1px solid var(--ion-background-color-step-200);
-  }
+.roles-list ion-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --background: transparent;
+  border-bottom: 1px solid var(--glass-border);
+  transition: background 0.2s ease;
+}
+
+.roles-list ion-item:hover {
+  --background: var(--glass-bg-hover);
+}
 
   .roles-list ion-item:last-child {
     border-bottom: none;
@@ -357,6 +348,31 @@
   @media (min-width: 768px) {
     .page-container {
       padding: var(--dashboard-padding-lg);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-container {
+      max-width: 800px;
+    }
+  }
+
+  @media (max-width: 374px) {
+    .page-container {
+      padding: 8px;
+    }
+
+    .role-name {
+      font-size: 14px;
+    }
+
+    .role-description {
+      font-size: 12px;
+    }
+
+    .role-badges {
+      flex-direction: row;
+      margin-right: 4px;
     }
   }
 </style>

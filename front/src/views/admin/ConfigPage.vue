@@ -10,7 +10,7 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <div class="config-container">
+      <div class="page-container">
         <ion-list class="config-list">
           <ion-list-header class="section-header">Apariencia</ion-list-header>
 
@@ -19,8 +19,10 @@
             :class="{ 'active-item': isActiveRoute('/admin/config/design') }"
             @click="router.push('/admin/config/design')"
           >
-            <ion-icon slot="start" :icon="colorPalette"></ion-icon>
-            <ion-label>Personalización</ion-label>
+            <div slot="start" class="config-icon-wrapper">
+              <ion-icon :icon="colorPalette"></ion-icon>
+            </div>
+            <ion-label>Personalizaci&oacute;n</ion-label>
             <ion-icon
               slot="end"
               :icon="chevronForward"
@@ -33,9 +35,27 @@
           <ion-list-header class="section-header">Sistema</ion-list-header>
 
           <ion-item button disabled>
-            <ion-icon slot="start" :icon="shield"></ion-icon>
+            <div slot="start" class="config-icon-wrapper">
+              <ion-icon :icon="shield"></ion-icon>
+            </div>
             <ion-label>Seguridad</ion-label>
-            <span class="coming-soon">Próximamente</span>
+            <span class="coming-soon">Pr&oacute;ximamente</span>
+          </ion-item>
+
+          <ion-item button disabled>
+            <div slot="start" class="config-icon-wrapper">
+              <ion-icon :icon="notifications"></ion-icon>
+            </div>
+            <ion-label>Notificaciones</ion-label>
+            <span class="coming-soon">Pr&oacute;ximamente</span>
+          </ion-item>
+
+          <ion-item button disabled>
+            <div slot="start" class="config-icon-wrapper">
+              <ion-icon :icon="globe"></ion-icon>
+            </div>
+            <ion-label>Idioma</ion-label>
+            <span class="coming-soon">Pr&oacute;ximamente</span>
           </ion-item>
 
           <ion-item button disabled>
@@ -92,52 +112,60 @@
 </script>
 
 <style scoped>
-  .config-container {
-    padding: 16px;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
   .config-list {
     background: transparent;
     margin-bottom: 24px;
   }
 
-  .section-header {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-tertiary);
-    padding-left: 0;
-  }
+.config-list ion-item {
+  --border-radius: 12px;
+  --background: var(--glass-bg);
+  margin-bottom: 8px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --min-height: 52px;
+  transition: background 0.2s ease;
+  border: 1px solid var(--glass-border);
+}
 
-  .config-list ion-item {
-    --border-radius: 12px;
-    --background: var(--background-contrast);
-    margin-bottom: 8px;
-    --padding-start: 12px;
-    --padding-end: 12px;
-  }
+.config-list ion-item:hover:not([disabled]) {
+  --background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+}
 
-  .config-list ion-item:active:not([disabled]) {
-    --background: var(--ion-color-light);
-  }
+.config-list ion-item.active-item {
+  --background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.2);
+}
 
-  .config-list ion-item.active-item {
-    --background: var(--ion-color-primary-tint);
-  }
+.config-list ion-item.active-item ion-label {
+  font-weight: 600;
+  color: #A78BFA;
+}
 
   .config-list ion-item[disabled] {
     opacity: 0.5;
   }
 
-  .config-list ion-icon {
-    color: var(--text-secondary);
-  }
+.config-icon-wrapper {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradient-primary);
+  flex-shrink: 0;
+}
+
+.config-icon-wrapper ion-icon {
+  font-size: 18px;
+  color: #ffffff;
+}
 
   .config-list ion-label {
     color: var(--text-primary);
+    font-size: 14px;
   }
 
   .end-icon {
@@ -146,8 +174,12 @@
   }
 
   .coming-soon {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-tertiary);
+    border-radius: 999px;
+    background: var(--ion-background-color-step-100);
+    padding: 3px 10px;
+    font-weight: 500;
   }
 
   .version-info {

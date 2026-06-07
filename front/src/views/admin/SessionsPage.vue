@@ -3,13 +3,16 @@
     <ion-header class="ion-no-border" mode="ios">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Menú de navegación"></ion-menu-button>
         </ion-buttons>
         <ion-title>Sesiones</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
+        <ion-refresher-content pulling-text="Tira para actualizar..." refreshing-text="Actualizando..."></ion-refresher-content>
+      </ion-refresher>
       <div class="page-container">
         <div class="filter-card">
           <ion-item lines="none">
@@ -17,20 +20,20 @@
             <ion-toggle
               v-model="onlyActive"
               @ion-change="handleFilterChange"
+              aria-label="Filtrar solo sesiones activas"
             ></ion-toggle>
           </ion-item>
         </div>
 
-        <div class="sessions-card">
+        <div class="card-list">
           <div
             v-if="loading && sessions.length === 0"
-            class="loading-container"
+            class="skeleton-container"
           >
-            <ion-spinner name="lines"></ion-spinner>
-            <p>Cargando sesiones...</p>
+            <SkeletonListItem v-for="n in 5" :key="n" />
           </div>
 
-          <div v-else-if="sessions.length === 0" class="empty-container">
+          <div v-else-if="sessions.length === 0" class="empty-state">
             <ion-icon :icon="keyOutline" size="large"></ion-icon>
             <p>No se encontraron sesiones</p>
           </div>
@@ -65,6 +68,7 @@
                   fill="clear"
                   color="danger"
                   @click="revokeSession({ session })"
+                  aria-label="Revocar sesión"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-button>
@@ -76,6 +80,7 @@
             v-if="sessions.length > 0"
             :disabled="!hasMore"
             @ion-infinite="loadMore($event)"
+            aria-label="Cargar más sesiones"
           >
             <ion-infinite-scroll-content
               loading-spinner="lines"
@@ -118,6 +123,8 @@
     IonInfiniteScroll,
     IonInfiniteScrollContent,
     IonToggle,
+    IonRefresher,
+    IonRefresherContent,
   } from '@ionic/vue';
   import { keyOutline, desktopOutline, trash } from 'ionicons/icons';
 
@@ -125,7 +132,12 @@
   import { useSessionsController } from '@/controllers/sessionsController';
   const sessionsController = useSessionsController();
 
+  // composables
+  import { useToast } from '@/composables/useToast';
+  const { showSuccess, showError } = useToast();
+
   // components
+  import SkeletonListItem from '@/components/SkeletonListItem.vue';
   // end components
 
   // interface and types imports
@@ -193,74 +205,53 @@
     const { session } = params;
     try {
       await sessionsController.revokeSession(session.id);
+      showSuccess({ message: 'Sesión revocada correctamente' });
     } catch (error) {
-      console.error('Error revoking session:', error);
+      showError({ message: 'Error al revocar sesión' });
     }
+  };
+
+  const handleRefresh = async (event: CustomEvent): Promise<void> => {
+    await sessionsController.fetchSessions({ per_page: 15 });
+    event.detail.complete();
   };
   // end functions
 </script>
 
 <style scoped>
-  .page-container {
-    padding: var(--dashboard-padding);
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  .filter-card {
-    background: var(--background-contrast);
-    border-radius: var(--card-border-radius);
-    box-shadow:
-      var(--card-shadow-light) 0px 1px 3px 0px,
-      var(--card-shadow-heavy) 0px 0px 0px 1px;
-    margin-bottom: 16px;
-    padding: 8px 16px;
-  }
+.filter-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--card-border-radius);
+  margin-bottom: 16px;
+  padding: 8px 16px;
+}
 
   .filter-card ion-item {
     --background: transparent;
   }
 
-  .sessions-card {
-    background: var(--background-contrast);
-    border-radius: var(--card-border-radius);
-    box-shadow:
-      var(--card-shadow-light) 0px 1px 3px 0px,
-      var(--card-shadow-heavy) 0px 0px 0px 1px;
-    overflow: hidden;
-  }
-
-  .loading-container,
-  .empty-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 16px;
-    color: var(--text-tertiary);
-  }
-
-  .empty-container ion-icon {
-    margin-bottom: 12px;
-    opacity: 0.5;
-  }
-
-  .loading-container p,
-  .empty-container p {
-    margin: 0;
-    font-size: 14px;
+  .skeleton-container {
+    padding: 8px 0;
   }
 
   .sessions-list {
     background: transparent;
   }
 
-  .sessions-list ion-item {
-    --padding-start: 16px;
-    --padding-end: 16px;
-    --background: transparent;
-    border-bottom: 1px solid var(--ion-background-color-step-200);
-  }
+.sessions-list ion-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --background: transparent;
+  border-bottom: 1px solid var(--glass-border);
+  transition: background 0.2s ease;
+}
+
+.sessions-list ion-item:hover {
+  --background: var(--glass-bg-hover);
+}
 
   .sessions-list ion-item:last-child {
     border-bottom: none;
@@ -308,6 +299,38 @@
   @media (min-width: 768px) {
     .page-container {
       padding: var(--dashboard-padding-lg);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-container {
+      max-width: 800px;
+    }
+  }
+
+  @media (max-width: 374px) {
+    .page-container {
+      padding: 8px;
+    }
+
+    .user-name {
+      font-size: 14px;
+    }
+
+    .user-email {
+      font-size: 12px;
+    }
+
+    .client-name {
+      font-size: 12px;
+    }
+
+    .ip-address {
+      font-size: 11px;
+    }
+
+    .session-date {
+      font-size: 11px;
     }
   }
 </style>

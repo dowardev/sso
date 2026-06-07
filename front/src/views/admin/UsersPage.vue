@@ -3,13 +3,16 @@
     <ion-header class="ion-no-border" mode="ios">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Menú de navegación"></ion-menu-button>
         </ion-buttons>
         <ion-title>Usuarios</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
+        <ion-refresher-content pulling-text="Tira para actualizar..." refreshing-text="Actualizando..."></ion-refresher-content>
+      </ion-refresher>
       <div class="page-container">
         <div class="search-card">
           <ion-searchbar
@@ -17,16 +20,16 @@
             placeholder="Buscar usuarios..."
             :debounce="500"
             @ion-input="handleSearch"
+            aria-label="Buscar usuarios"
           ></ion-searchbar>
         </div>
 
-        <div class="users-card">
-          <div v-if="loading && users.length === 0" class="loading-container">
-            <ion-spinner name="lines"></ion-spinner>
-            <p>Cargando usuarios...</p>
+        <div class="card-list">
+          <div v-if="loading && users.length === 0" class="skeleton-container">
+            <SkeletonListItem v-for="n in 5" :key="n" />
           </div>
 
-          <div v-else-if="users.length === 0" class="empty-container">
+          <div v-else-if="users.length === 0" class="empty-state">
             <ion-icon :icon="personRemove" size="large"></ion-icon>
             <p>No se encontraron usuarios</p>
           </div>
@@ -55,7 +58,7 @@
               </ion-item>
 
               <ion-item-options side="end">
-                <ion-item-option color="medium" @click="toggleAdmin({ user })">
+                <ion-item-option color="medium" @click="toggleAdmin({ user })" aria-label="Alternar rol administrador">
                   <ion-icon
                     slot="icon-only"
                     :icon="user.is_admin ? removeCircle : addCircle"
@@ -64,6 +67,7 @@
                 <ion-item-option
                   color="danger"
                   @click="confirmDelete({ user })"
+                  aria-label="Eliminar usuario"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-item-option>
@@ -75,6 +79,7 @@
             v-if="users.length > 0"
             :disabled="!hasMore"
             @ion-infinite="loadMore($event)"
+            aria-label="Cargar más usuarios"
           >
             <ion-infinite-scroll-content
               loading-spinner="lines"
@@ -96,6 +101,7 @@
         header="Eliminar Usuario"
         :message="`¿Estás seguro de eliminar a ${userToDelete?.name}?`"
         :buttons="deleteAlertButtons"
+        aria-live="assertive"
       ></ion-alert>
       <!-- end alerts -->
     </ion-content>
@@ -127,6 +133,8 @@
     IonSpinner,
     IonInfiniteScroll,
     IonInfiniteScrollContent,
+    IonRefresher,
+    IonRefresherContent,
     IonAlert,
     alertController,
   } from '@ionic/vue';
@@ -136,7 +144,12 @@
   import { useUsersController } from '@/controllers/usersController';
   const usersController = useUsersController();
 
+  // composables
+  import { useToast } from '@/composables/useToast';
+  const { showSuccess, showError } = useToast();
+
   // components
+  import SkeletonListItem from '@/components/SkeletonListItem.vue';
   // end components
 
   // interface and types imports
@@ -157,8 +170,9 @@
 
     try {
       await usersController.deleteUser(userToDelete.value.id);
+      showSuccess({ message: 'Usuario eliminado correctamente' });
     } catch (error) {
-      console.error('Error deleting user:', error);
+      showError({ message: 'Error al eliminar usuario' });
     } finally {
       showDeleteAlert.value = false;
       userToDelete.value = null;
@@ -227,8 +241,9 @@
     const { user } = params;
     try {
       await usersController.toggleAdmin(user.id);
+      showSuccess({ message: `Admin ${user.is_admin ? 'removido' : 'asignado'} correctamente` });
     } catch (error) {
-      console.error('Error toggling admin:', error);
+      showError({ message: 'Error al cambiar rol de administrador' });
     }
   };
 
@@ -237,89 +252,51 @@
     userToDelete.value = user;
     showDeleteAlert.value = true;
   };
+
+  const handleRefresh = async (event: CustomEvent): Promise<void> => {
+    await usersController.fetchUsers({ per_page: 15 });
+    event.detail.complete();
+  };
   // end functions
 </script>
 
 <style scoped>
-  .page-container {
-    padding: var(--dashboard-padding);
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  .search-card {
-    background: var(--background-contrast);
-    border-radius: var(--card-border-radius);
-    box-shadow:
-      var(--card-shadow-light) 0px 1px 3px 0px,
-      var(--card-shadow-heavy) 0px 0px 0px 1px;
-    margin-bottom: 16px;
-    padding: 8px;
-  }
-
-  .search-card ion-searchbar {
-    --background: var(--ion-color-light);
-    --border-radius: 8px;
-    padding: 0;
-  }
-
-  .users-card {
-    background: var(--background-contrast);
-    border-radius: var(--card-border-radius);
-    box-shadow:
-      var(--card-shadow-light) 0px 1px 3px 0px,
-      var(--card-shadow-heavy) 0px 0px 0px 1px;
-    overflow: hidden;
-  }
-
-  .loading-container,
-  .empty-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 16px;
-    color: var(--text-tertiary);
-  }
-
-  .empty-container ion-icon {
-    margin-bottom: 12px;
-    opacity: 0.5;
-  }
-
-  .loading-container p,
-  .empty-container p {
-    margin: 0;
-    font-size: 14px;
+.skeleton-container {
+    padding: 8px 0;
   }
 
   .users-list {
     background: transparent;
   }
 
-  .users-list ion-item {
-    --padding-start: 16px;
-    --padding-end: 16px;
-    --background: transparent;
-    border-bottom: 1px solid var(--ion-background-color-step-200);
-  }
+.users-list ion-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --background: transparent;
+  border-bottom: 1px solid var(--glass-border);
+  transition: background 0.2s ease;
+}
+
+.users-list ion-item:hover {
+  --background: var(--glass-bg-hover);
+}
 
   .users-list ion-item:last-child {
     border-bottom: none;
   }
 
-  .avatar-placeholder {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--ion-color-primary);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 14px;
-  }
+.avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
 
   .user-name {
     color: var(--text-primary);
@@ -348,6 +325,40 @@
   @media (min-width: 768px) {
     .page-container {
       padding: var(--dashboard-padding-lg);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-container {
+      max-width: 800px;
+    }
+  }
+
+  @media (max-width: 374px) {
+    .page-container {
+      padding: 8px;
+    }
+
+    .user-name {
+      font-size: 14px;
+    }
+
+    .user-username {
+      font-size: 12px;
+    }
+
+    .user-email {
+      font-size: 11px;
+    }
+
+    .avatar-placeholder {
+      width: 32px;
+      height: 32px;
+      font-size: 12px;
+    }
+
+    .user-badges {
+      flex-direction: row;
     }
   }
 </style>
