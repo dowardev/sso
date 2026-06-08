@@ -15,10 +15,12 @@ class UserSession extends Model
         'last_used_at',
         'token',
         'dpop_public_key',
+        'remember_me',
     ];
 
     protected $casts = [
         'last_used_at' => 'datetime',
+        'remember_me' => 'boolean',
     ];
 
     public function user()
