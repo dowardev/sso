@@ -7,19 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.19.0] - 2026-05-27
+## [0.19.0] - 2026-06-08
 
 ### Features
 
+- Add "Remember Me" toggle to login form for persistent session across browser closes
+- Add `remember_me` column to `user_sessions` table with migration
+- Add `remember_me` claim to JWT tokens for server-side session awareness
+- Add automatic token refresh mechanism (50 min interval) when Remember Me is enabled
+- Add token refresh on app init if existing token is near expiry (within 10 min threshold)
 - Add delete confirmation dialog (`ion-alert`) before removing an SSO client in the admin panel
 - Add inline delete button (trash icon) next to client status badge for quick access
 
 ### Refactor
 
+- Refactor `registerSession` and `generateToken` to accept `rememberMe` parameter
+- Refactor `refreshToken` to propagate `dpop_public_key` and `remember_me` from existing session
 - Split `deleteClient` into `confirmDelete` + `deleteClient` two-step flow with alert state management
+
+### Infrastructure
+
+- Add `.gitignore` entries for planning, skills, and superpowers directories
 
 ### Affected Files
 
+- Modified: `back/app/Http/Controllers/AuthController.php`
+- Modified: `back/app/Models/UserSession.php`
+- New: `back/database/migrations/2026_06_07_000001_add_remember_me_to_user_sessions.php`
+- Modified: `front/src/components/AuthLoginForm.vue`
+- Modified: `front/src/controllers/authController.ts`
+- Modified: `front/src/stores/auth.ts`
 - Modified: `front/src/views/admin/ClientsPage.vue`
 
 ---

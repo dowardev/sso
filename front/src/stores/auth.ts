@@ -7,10 +7,14 @@ import { dpopService } from '@/services/dpopService';
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
 const DPOP_PUBLIC_KEY = 'dpop_public_key';
+const REMEMBER_KEY = 'remember_me';
+const AUTO_REFRESH_INTERVAL = 3000000; // 50 min (5/6 of 3600s)
+const REFRESH_THRESHOLD = 600; // 10 min threshold to refresh on init
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem(TOKEN_KEY));
   const user = ref<User | null>(null);
+  let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   function isTokenExpired(token: string): boolean {
     try {
@@ -28,6 +32,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem('sso_token');
     localStorage.removeItem(DPOP_PUBLIC_KEY);
+    localStorage.removeItem(REMEMBER_KEY);
     token.value = null;
     user.value = null;
   }
@@ -36,6 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
     user: string;
     password: string;
     client_id?: string;
+    rememberMe?: boolean;
   }) {
     await dpopService.initialize();
 
@@ -54,6 +60,10 @@ export const useAuthStore = defineStore('auth', () => {
       loginData.dpop_public_key = JSON.stringify(dpopPublicKey);
     }
 
+    if (params.rememberMe) {
+      loginData.remember_me = true;
+    }
+
     const response = await api.post<{ token: string; user: User }>({
       endpoint: '/login',
       data: loginData,
@@ -70,10 +80,17 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = response.token;
     user.value = response.user;
 
+    if (params.rememberMe) {
+      localStorage.setItem(REMEMBER_KEY, 'true');
+      startAutoRefresh();
+    }
+
     return response;
   }
 
   async function logout() {
+    stopAutoRefresh();
+    localStorage.removeItem(REMEMBER_KEY);
     clearAuthData();
     await dpopService.clearKeys();
     try {
@@ -110,7 +127,37 @@ export const useAuthStore = defineStore('auth', () => {
     return null;
   }
 
-  function init() {
+  function startAutoRefresh(): void {
+    stopAutoRefresh();
+    autoRefreshTimer = setInterval(async () => {
+      const currentToken = token.value || localStorage.getItem(TOKEN_KEY);
+      if (!currentToken) {
+        stopAutoRefresh();
+        return;
+      }
+      try {
+        const response = await api.post<{ token: string }>({
+          endpoint: '/refresh-token',
+          data: { token: currentToken },
+        });
+        localStorage.setItem(TOKEN_KEY, response.token);
+        localStorage.setItem('sso_token', response.token);
+        token.value = response.token;
+      } catch {
+        stopAutoRefresh();
+        clearAuthData();
+      }
+    }, AUTO_REFRESH_INTERVAL);
+  }
+
+  function stopAutoRefresh(): void {
+    if (autoRefreshTimer !== null) {
+      clearInterval(autoRefreshTimer);
+      autoRefreshTimer = null;
+    }
+  }
+
+  async function init() {
     const storedToken = localStorage.getItem(TOKEN_KEY);
     const userStr = localStorage.getItem(USER_KEY);
 
@@ -122,9 +169,39 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = storedToken;
       user.value = JSON.parse(userStr);
     }
+
+    const rememberMe = localStorage.getItem(REMEMBER_KEY) === 'true';
+    if (!rememberMe) return;
+
+    const tokenToRefresh = token.value || storedToken;
+    if (tokenToRefresh && isTokenNearExpiry(tokenToRefresh, REFRESH_THRESHOLD)) {
+      try {
+        const response = await api.post<{ token: string }>({
+          endpoint: '/refresh-token',
+          data: { token: tokenToRefresh },
+        });
+        localStorage.setItem(TOKEN_KEY, response.token);
+        localStorage.setItem('sso_token', response.token);
+        token.value = response.token;
+      } catch {
+        clearAuthData();
+        return;
+      }
+    }
+
+    startAutoRefresh();
   }
 
   init();
+
+  function isTokenNearExpiry(token: string, thresholdSeconds: number): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return (payload.exp * 1000 - Date.now()) < thresholdSeconds * 1000;
+    } catch {
+      return false;
+    }
+  }
 
   return {
     token,

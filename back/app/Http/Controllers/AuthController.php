@@ -66,9 +66,9 @@ class AuthController extends Controller
         ]);
 
         $dpopPublicKey = $request->input('dpop_public_key');
-        $tokenData = $this->generateToken($user, $dpopPublicKey);
+        $tokenData = $this->generateToken($user, $dpopPublicKey, false);
 
-        $this->registerSession($user, $tokenData['token'], $request);
+        $this->registerSession($user, $tokenData['token'], $request, $dpopPublicKey, false);
 
         return response()->json([
             'user' => $user,
@@ -86,6 +86,7 @@ class AuthController extends Controller
             'password' => 'required|string',
             'client_id' => 'nullable|string|exists:sso_clients,client_id',
             'dpop_public_key' => 'nullable|json',
+            'remember_me' => 'nullable|boolean',
         ], [
             'client_id.exists' => 'La aplicación ":value" no está registrada en el SSO. '
                 . 'Por favor, contacta al administrador del sistema.',
@@ -118,9 +119,10 @@ class AuthController extends Controller
         }
 
         $dpopPublicKey = $request->input('dpop_public_key');
-        $tokenData = $this->generateToken($user, $dpopPublicKey);
+        $rememberMe = $request->boolean('remember_me');
+        $tokenData = $this->generateToken($user, $dpopPublicKey, $rememberMe);
 
-        $this->registerSession($user, $tokenData['token'], $request, $dpopPublicKey);
+        $this->registerSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
 
         $response = response()->json([
             'user' => $user,
@@ -174,17 +176,21 @@ class AuthController extends Controller
             }
 
             $dpopPublicKey = null;
+            $rememberMe = false;
             $cnfClaim = $token->claims()->get('cnf');
             if ($cnfClaim && isset($cnfClaim['jkt'])) {
                 $existingSession = UserSession::where('user_id', $userId)
                     ->where('token', $tokenString)
                     ->first();
-                if ($existingSession && $existingSession->dpop_public_key) {
-                    $dpopPublicKey = $existingSession->dpop_public_key;
+                if ($existingSession) {
+                    if ($existingSession->dpop_public_key) {
+                        $dpopPublicKey = $existingSession->dpop_public_key;
+                    }
+                    $rememberMe = $existingSession->remember_me ?? false;
                 }
             }
 
-            $newTokenData = $this->generateToken($user, $dpopPublicKey);
+            $newTokenData = $this->generateToken($user, $dpopPublicKey, $rememberMe);
 
             UserSession::where('user_id', $userId)
                 ->where('token', $tokenString)
@@ -357,7 +363,7 @@ class AuthController extends Controller
         ]);
     }
 
-    private function generateToken(User $user, ?string $dpopPublicKey = null): array
+    private function generateToken(User $user, ?string $dpopPublicKey = null, bool $rememberMe = false): array
     {
         $now = time();
         $expiresAt = $now + $this->tokenExpiration;
@@ -374,6 +380,10 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'user' => $user->user,
             ]);
+
+        if ($rememberMe) {
+            $builder->withClaim('remember_me', true);
+        }
 
         if ($dpopPublicKey) {
             $publicKeyData = json_decode($dpopPublicKey, true);
@@ -422,7 +432,7 @@ class AuthController extends Controller
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
     }
 
-    private function registerSession(User $user, string $token, Request $request, ?string $dpopPublicKey = null)
+    private function registerSession(User $user, string $token, Request $request, ?string $dpopPublicKey = null, bool $rememberMe = false)
     {
         $client = null;
         
@@ -435,6 +445,7 @@ class AuthController extends Controller
             'sso_client_id' => $client?->id,
             'token' => $token,
             'dpop_public_key' => $dpopPublicKey,
+            'remember_me' => $rememberMe,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'last_used_at' => now(),

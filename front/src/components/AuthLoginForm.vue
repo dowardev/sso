@@ -38,6 +38,15 @@
           </ion-input>
         </ion-item>
 
+        <ion-item class="input-item remember-item" lines="none">
+          <ion-toggle
+            v-model="rememberMe"
+            slot="start"
+            color="primary"
+          />
+          <ion-label class="remember-label">Mantener sesión abierta</ion-label>
+        </ion-item>
+
         <div v-if="error" class="error-message" role="alert" aria-live="assertive">
           <ion-icon :icon="alertCircle" size="small"></ion-icon>
           {{ error }}
@@ -93,6 +102,8 @@
     IonSpinner,
     IonIcon,
     IonInputPasswordToggle,
+    IonToggle,
+    IonLabel,
   } from '@ionic/vue';
   import {
     arrowBack,
@@ -126,6 +137,7 @@
   });
 
   const isOAuthFlow = ref(false);
+  const rememberMe = ref(false);
 
   onMounted(async () => {
     const {
@@ -178,6 +190,7 @@
         user: credentials.value.user,
         password: credentials.value.password,
         client_id: oauthParams.value.client_id || undefined,
+        rememberMe: rememberMe.value,
       });
       if (isOAuthFlow.value) {
         await authController.oauthAuthorize({
@@ -385,6 +398,18 @@
   .auth-card-header h2 {
     font-size: 20px;
   }
+}
+
+.remember-item {
+  --background: transparent;
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  margin-top: 4px;
+}
+
+.remember-label {
+  font-size: 13px;
+  color: var(--text-tertiary);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -34,6 +34,7 @@ export function useAuthController() {
     user: string;
     password: string;
     client_id?: string;
+    rememberMe?: boolean;
   }): Promise<{ token: string; user: User }> {
     return authStore.login(params);
   }
