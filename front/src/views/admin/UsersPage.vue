@@ -10,7 +10,7 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
+      <ion-refresher slot="fixed" @ion-refresh="handleRefresh($event)">
         <ion-refresher-content pulling-text="Tira para actualizar..." refreshing-text="Actualizando..."></ion-refresher-content>
       </ion-refresher>
       <div class="page-container">
@@ -19,8 +19,8 @@
             v-model="search"
             placeholder="Buscar usuarios..."
             :debounce="500"
-            @ion-input="handleSearch"
             aria-label="Buscar usuarios"
+            @ion-input="handleSearch"
           ></ion-searchbar>
         </div>
 
@@ -58,7 +58,7 @@
               </ion-item>
 
               <ion-item-options side="end">
-                <ion-item-option color="medium" @click="toggleAdmin({ user })" aria-label="Alternar rol administrador">
+                <ion-item-option color="medium" aria-label="Alternar rol administrador" @click="toggleAdmin({ user })">
                   <ion-icon
                     slot="icon-only"
                     :icon="user.is_admin ? removeCircle : addCircle"
@@ -66,8 +66,8 @@
                 </ion-item-option>
                 <ion-item-option
                   color="danger"
-                  @click="confirmDelete({ user })"
                   aria-label="Eliminar usuario"
+                  @click="confirmDelete({ user })"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-item-option>
@@ -78,8 +78,8 @@
           <ion-infinite-scroll
             v-if="users.length > 0"
             :disabled="!hasMore"
-            @ion-infinite="loadMore($event)"
             aria-label="Cargar más usuarios"
+            @ion-infinite="loadMore($event)"
           >
             <ion-infinite-scroll-content
               loading-spinner="lines"
@@ -130,13 +130,11 @@
     IonItemOptions,
     IonItemOption,
     IonIcon,
-    IonSpinner,
     IonInfiniteScroll,
     IonInfiniteScrollContent,
     IonRefresher,
     IonRefresherContent,
     IonAlert,
-    alertController,
   } from '@ionic/vue';
   import { personRemove, removeCircle, addCircle, trash } from 'ionicons/icons';
 
@@ -171,7 +169,7 @@
     try {
       await usersController.deleteUser(userToDelete.value.id);
       showSuccess({ message: 'Usuario eliminado correctamente' });
-    } catch (error) {
+    } catch {
       showError({ message: 'Error al eliminar usuario' });
     } finally {
       showDeleteAlert.value = false;
@@ -242,7 +240,7 @@
     try {
       await usersController.toggleAdmin(user.id);
       showSuccess({ message: `Admin ${user.is_admin ? 'removido' : 'asignado'} correctamente` });
-    } catch (error) {
+    } catch {
       showError({ message: 'Error al cambiar rol de administrador' });
     }
   };

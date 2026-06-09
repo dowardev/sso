@@ -1,6 +1,5 @@
 import { computed } from 'vue';
 import { useSessionsStore } from '@/stores/sessions';
-import type { UserSession } from '@/types';
 
 export function useSessionsController() {
   const sessionsStore = useSessionsStore();

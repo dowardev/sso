@@ -7,7 +7,7 @@
         </ion-buttons>
         <ion-title>Roles</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="openCreateModal" aria-label="Crear rol">
+          <ion-button aria-label="Crear rol" @click="openCreateModal">
             <ion-icon slot="icon-only" :icon="add"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -15,7 +15,7 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
+      <ion-refresher slot="fixed" @ion-refresh="handleRefresh($event)">
         <ion-refresher-content pulling-text="Tira para actualizar..." refreshing-text="Actualizando..."></ion-refresher-content>
       </ion-refresher>
       <!-- content -->
@@ -52,14 +52,14 @@
                 >
               </div>
               <ion-buttons slot="end">
-                <ion-button color="primary" @click="openEditModal({ role })" aria-label="Editar rol">
+                <ion-button color="primary" aria-label="Editar rol" @click="openEditModal({ role })">
                   <ion-icon slot="icon-only" :icon="create"></ion-icon>
                 </ion-button>
                 <ion-button
                   v-if="!role.is_protected"
                   color="danger"
-                  @click="confirmDelete({ role })"
                   aria-label="Eliminar rol"
+                  @click="confirmDelete({ role })"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-button>
@@ -147,14 +147,12 @@
     IonBadge,
     IonButton,
     IonIcon,
-    IonSpinner,
     IonModal,
     IonInput,
     IonTextarea,
     IonRefresher,
     IonRefresherContent,
     IonAlert,
-    alertController,
   } from '@ionic/vue';
   import { add, create, trash, shieldOutline } from 'ionicons/icons';
 
@@ -196,7 +194,7 @@
     try {
       await rolesController.deleteRole(roleToDelete.value.id);
       showSuccess({ message: 'Rol eliminado correctamente' });
-    } catch (error) {
+    } catch {
       showError({ message: 'Error al eliminar rol' });
     } finally {
       showDeleteAlert.value = false;
@@ -276,7 +274,7 @@
         showSuccess({ message: 'Rol creado correctamente' });
       }
       showModal.value = false;
-    } catch (error) {
+    } catch {
       showError({ message: 'Error al guardar rol' });
     } finally {
       saving.value = false;

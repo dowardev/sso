@@ -126,7 +126,6 @@
     IonMenu,
     IonHeader,
     IonToolbar,
-    IonTitle,
     IonContent,
     IonList,
     IonListHeader,

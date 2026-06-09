@@ -185,7 +185,7 @@ export default class DpopService {
     publicKeyJwk: JsonWebKey;
     jkt: string;
   } | null> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const request = indexedDB.open('dpop_keys', 1);
       request.onupgradeneeded = () => {
         const db = request.result;
