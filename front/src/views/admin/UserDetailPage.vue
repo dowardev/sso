@@ -7,7 +7,7 @@
         </ion-buttons>
         <ion-title>Detalle de Usuario</ion-title>
         <ion-buttons slot="end">
-          <ion-button color="primary" @click="openEditModal" aria-label="Editar usuario">
+          <ion-button color="primary" aria-label="Editar usuario" @click="openEditModal">
             <ion-icon slot="icon-only" :icon="create"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -63,7 +63,7 @@
               <div class="roles-card">
                 <div class="section-header">
                   <h3 class="section-title">Roles</h3>
-                  <ion-button size="small" @click="openRolesModal" aria-label="Editar roles">
+                  <ion-button size="small" aria-label="Editar roles" @click="openRolesModal">
                     <ion-icon slot="icon-only" :icon="create"></ion-icon>
                   </ion-button>
                 </div>
@@ -129,8 +129,8 @@
                       slot="end"
                       fill="clear"
                       color="danger"
-                      @click="revokeSession({ session })"
                       aria-label="Revocar sesión"
+                      @click="revokeSession({ session })"
                     >
                       <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                     </ion-button>
@@ -232,8 +232,8 @@
                   <ion-item-options side="end">
                     <ion-item-option
                       color="danger"
-                      @click="removeRoleAssignment({ index })"
                       aria-label="Eliminar asignación de rol"
+                      @click="removeRoleAssignment({ index })"
                     >
                       <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                     </ion-item-option>
@@ -278,7 +278,7 @@
 <script setup lang="ts">
   // imports
   import { ref, onMounted, computed } from 'vue';
-  import { useRoute, useRouter } from 'vue-router';
+  import { useRoute } from 'vue-router';
   import {
     IonPage,
     IonHeader,
@@ -337,12 +337,11 @@
   // end components
 
   // interface and types imports
-  import type { UserDetail, UserSession, Role, SsoClient } from '@/types';
+  import type { UserSession } from '@/types';
   // end interface and types imports
 
   // main
   const route = useRoute();
-  const router = useRouter();
   const userId = Number(route.params.id);
   // end main
 
@@ -368,7 +367,6 @@
   const sessions = computed(() => user.value?.sessions || []);
   const loading = computed(() => usersController.loading.value);
   const availableRoles = computed(() => rolesController.roles.value);
-  const availableClients = computed(() => clientsController.clients.value);
   const userRoles = computed(() => usersController.userRoles.value);
   const roleAssignments = computed({
     get: () => usersController.roleAssignments.value,
@@ -395,7 +393,7 @@
         email: response.email,
         password: '',
       };
-    } catch (error) {
+    } catch {
       showError({ message: 'Error al cargar usuario' });
     }
   };
@@ -446,7 +444,7 @@
       await usersController.updateUser({ id: userId, data });
       showEditModal.value = false;
       showSuccess({ message: 'Usuario actualizado correctamente' });
-    } catch (error) {
+    } catch {
       showError({ message: 'Error al actualizar usuario' });
     } finally {
       updating.value = false;
@@ -463,7 +461,7 @@
         user.value.active_tokens_count--;
       }
       showSuccess({ message: 'Sesión revocada correctamente' });
-    } catch (error) {
+    } catch {
       showError({ message: 'Error al revocar sesión' });
     }
   };
@@ -472,7 +470,7 @@
     try {
       await usersController.revokeUserSessions(userId);
       showSuccess({ message: 'Todas las sesiones fueron revocadas' });
-    } catch (error) {
+    } catch {
       showError({ message: 'Error al revocar sesiones' });
     }
   };
@@ -492,7 +490,7 @@
         })
       );
       showRolesModal.value = true;
-    } catch (error) {
+    } catch {
       showError({ message: 'Error al cargar datos de roles' });
     }
   };
@@ -539,7 +537,7 @@
       });
       showRolesModal.value = false;
       showSuccess({ message: 'Roles guardados correctamente' });
-    } catch (error) {
+    } catch {
       showError({ message: 'Error al guardar roles' });
     } finally {
       savingRoles.value = false;

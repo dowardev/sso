@@ -10,7 +10,7 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
+      <ion-refresher slot="fixed" @ion-refresh="handleRefresh($event)">
         <ion-refresher-content pulling-text="Tira para actualizar..." refreshing-text="Actualizando..."></ion-refresher-content>
       </ion-refresher>
       <div class="page-container">
@@ -19,8 +19,8 @@
             <ion-label>Solo activas</ion-label>
             <ion-toggle
               v-model="onlyActive"
-              @ion-change="handleFilterChange"
               aria-label="Filtrar solo sesiones activas"
+              @ion-change="handleFilterChange"
             ></ion-toggle>
           </ion-item>
         </div>
@@ -67,8 +67,8 @@
                 <ion-button
                   fill="clear"
                   color="danger"
-                  @click="revokeSession({ session })"
                   aria-label="Revocar sesión"
+                  @click="revokeSession({ session })"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-button>
@@ -79,8 +79,8 @@
           <ion-infinite-scroll
             v-if="sessions.length > 0"
             :disabled="!hasMore"
-            @ion-infinite="loadMore($event)"
             aria-label="Cargar más sesiones"
+            @ion-infinite="loadMore($event)"
           >
             <ion-infinite-scroll-content
               loading-spinner="lines"
@@ -104,7 +104,7 @@
 
 <script setup lang="ts">
   // imports
-  import { ref, onMounted, computed } from 'vue';
+  import { onMounted, computed } from 'vue';
   import {
     IonPage,
     IonHeader,
@@ -119,7 +119,6 @@
     IonList,
     IonBadge,
     IonButton,
-    IonSpinner,
     IonInfiniteScroll,
     IonInfiniteScrollContent,
     IonToggle,
@@ -206,7 +205,7 @@
     try {
       await sessionsController.revokeSession(session.id);
       showSuccess({ message: 'Sesión revocada correctamente' });
-    } catch (error) {
+    } catch {
       showError({ message: 'Error al revocar sesión' });
     }
   };

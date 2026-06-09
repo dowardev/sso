@@ -7,7 +7,7 @@
         </ion-buttons>
         <ion-title>Clientes SSO</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="openCreateModal" aria-label="Crear cliente">
+          <ion-button aria-label="Crear cliente" @click="openCreateModal">
             <ion-icon slot="icon-only" :icon="add"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -15,7 +15,7 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
+      <ion-refresher slot="fixed" @ion-refresh="handleRefresh($event)">
         <ion-refresher-content pulling-text="Tira para actualizar..." refreshing-text="Actualizando..."></ion-refresher-content>
       </ion-refresher>
       <!-- content -->
@@ -28,7 +28,7 @@
           <div v-else-if="clients.length === 0" class="empty-state">
             <ion-icon :icon="desktopOutline" size="large"></ion-icon>
             <p>No hay clientes SSO</p>
-            <ion-button @click="openCreateModal" class="gradient-btn" size="small">Crear Cliente</ion-button>
+            <ion-button class="gradient-btn" size="small" @click="openCreateModal">Crear Cliente</ion-button>
           </div>
 
           <ion-list v-else class="clients-list">
@@ -59,8 +59,8 @@
                     fill="clear"
                     color="danger"
                     size="small"
-                    @click.stop="confirmDelete({ client })"
                     aria-label="Eliminar cliente"
+                    @click.stop="confirmDelete({ client })"
                   >
                     <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                   </ion-button>
@@ -70,8 +70,8 @@
               <ion-item-options side="end">
                 <ion-item-option
                   color="danger"
-                  @click="confirmDelete({ client })"
                   aria-label="Eliminar cliente"
+                  @click="confirmDelete({ client })"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-item-option>
@@ -118,16 +118,16 @@
               <ion-button
                 fill="clear"
                 size="small"
-                @click="copySecret"
                 aria-label="Copiar secret"
+                @click="copySecret"
               >
                 <ion-icon slot="icon-only" :icon="copyOutline"></ion-icon>
               </ion-button>
               <ion-button
                 fill="clear"
                 size="small"
-                @click="generateSecret"
                 aria-label="Generar secret"
+                @click="generateSecret"
               >
                 <ion-icon slot="icon-only" :icon="keyOutline"></ion-icon>
               </ion-button>
@@ -150,7 +150,7 @@
                     placeholder="https://ejemplo.com"
                     @keydown.enter.prevent="addOrigin"
                   ></ion-input>
-                  <ion-button fill="clear" size="small" @click="addOrigin" aria-label="Agregar origen">
+                  <ion-button fill="clear" size="small" aria-label="Agregar origen" @click="addOrigin">
                     <ion-icon slot="icon-only" :icon="add"></ion-icon>
                   </ion-button>
                 </div>
@@ -181,14 +181,14 @@
             <ion-label>authorization_code</ion-label>
             <ion-toggle
               :checked="clientForm.grant_types.includes('authorization_code')"
-              @ionChange="toggleGrantType('authorization_code')"
+              @ion-change="toggleGrantType('authorization_code')"
             ></ion-toggle>
           </ion-item>
           <ion-item>
             <ion-label>client_credentials</ion-label>
             <ion-toggle
               :checked="clientForm.grant_types.includes('client_credentials')"
-              @ionChange="toggleGrantType('client_credentials')"
+              @ion-change="toggleGrantType('client_credentials')"
             ></ion-toggle>
           </ion-item>
             </ion-list>
@@ -240,7 +240,6 @@
     IonModal,
     IonInput,
     IonToggle,
-    IonSpinner,
     IonChip,
     IonInputPasswordToggle,
     IonRefresher,
@@ -361,7 +360,7 @@ const openEditModal = (params: { client: SsoClient }): void => {
       }
 
       showModal.value = false;
-    } catch (error) {
+    } catch {
       showError({ message: 'Error al guardar cliente' });
     } finally {
       saving.value = false;
@@ -422,7 +421,7 @@ const deleteClient = async (): Promise<void> => {
   try {
     await clientsController.deleteClient({ id: clientToDelete.value.id });
     showSuccess({ message: 'Cliente eliminado correctamente' });
-  } catch (error) {
+  } catch {
     showError({ message: 'Error al eliminar cliente' });
   } finally {
     showDeleteAlert.value = false;

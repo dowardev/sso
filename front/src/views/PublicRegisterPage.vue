@@ -136,7 +136,7 @@
   const authController = useAuthController();
 
   import { useToast } from '@/composables/useToast';
-  const { showSuccess, showError } = useToast();
+  const { showSuccess } = useToast();
 
   const router = useRouter();
   const route = useRoute();
