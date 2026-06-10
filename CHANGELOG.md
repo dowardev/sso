@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.20.0] - 2026-06-10
+
+### Features
+
+- Add 12 Form Request validation classes for Auth, Admin, and OAuth controllers (LoginRequest, RegisterRequest, RefreshTokenRequest, TokenRequest, AuthorizeRequest, StoreClientRequest, UpdateClientRequest, StoreRoleRequest, UpdateRoleRequest, UpdateUserRequest, UpdateUserRolesRequest, ToggleUserRequest)
+- Add Vuelidate validation composable (`useValidation.ts`) with Spanish messages for frontend forms
+- Add form validation to 6 components: AuthLoginForm, RegisterPage, PublicRegisterPage, UserDetailPage, RolesPage, ClientsPage
+
+### Refactor
+
+- Refactor `AdminController`, `AuthController`, and `OAuth2Controller` to use Form Request validation instead of inline `$request->validate()` calls
+
+### Fixed
+
+- Fix 65+ ESLint errors across 13 frontend files (unused imports, kebab-case event names, caught error naming, attribute ordering)
+- Fix 2 TypeScript errors (readonly mutation on services import, missing `useRouter` export)
+
+### Infrastructure
+
+- Add `node_modules`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` to `.gitignore` files
+
+### Affected Files
+
+- New: `back/app/Http/Requests/Admin/StoreClientRequest.php`, `StoreRoleRequest.php`, `ToggleUserRequest.php`, `UpdateClientRequest.php`, `UpdateRoleRequest.php`, `UpdateUserRequest.php`, `UpdateUserRolesRequest.php`
+- New: `back/app/Http/Requests/Auth/LoginRequest.php`, `RegisterRequest.php`, `RefreshTokenRequest.php`
+- New: `back/app/Http/Requests/OAuth/AuthorizeRequest.php`, `TokenRequest.php`
+- New: `front/src/composables/useValidation.ts`
+- Modified: `back/app/Http/Controllers/AdminController.php`, `AuthController.php`, `OAuth2Controller.php`
+- Modified: `front/src/components/AuthLoginForm.vue`, `front/src/views/RegisterPage.vue`, `front/src/views/PublicRegisterPage.vue`
+- Modified: `front/src/views/admin/UserDetailPage.vue`, `front/src/views/admin/RolesPage.vue`, `front/src/views/admin/ClientsPage.vue`
+- Modified: `front/src/App.vue`, `front/src/controllers/authController.ts`, `front/src/controllers/sessionsController.ts`, `front/src/controllers/usersController.ts`, `front/src/controllers/themeController.ts`, `front/src/services/dpopService.ts`, `front/src/theme/variables.css`
+- Modified: `front/src/views/admin/DashboardPage.vue`, `front/src/views/admin/DesignPage.vue`, `front/src/views/admin/SessionsPage.vue`, `front/src/views/admin/UsersPage.vue`, `front/package.json`
+- Modified: `.gitignore`, `front/.gitignore`
+
+---
+
 ## [0.19.0] - 2026-06-08
 
 ### Features
