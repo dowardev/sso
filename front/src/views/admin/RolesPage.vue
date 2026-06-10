@@ -7,7 +7,7 @@
         </ion-buttons>
         <ion-title>Roles</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="openCreateModal" aria-label="Crear rol">
+          <ion-button aria-label="Crear rol" @click="openCreateModal">
             <ion-icon slot="icon-only" :icon="add"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -15,7 +15,7 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
+      <ion-refresher slot="fixed" @ion-refresh="handleRefresh($event)">
         <ion-refresher-content pulling-text="Tira para actualizar..." refreshing-text="Actualizando..."></ion-refresher-content>
       </ion-refresher>
       <!-- content -->
@@ -52,14 +52,14 @@
                 >
               </div>
               <ion-buttons slot="end">
-                <ion-button color="primary" @click="openEditModal({ role })" aria-label="Editar rol">
+                <ion-button aria-label="Editar rol" color="primary" @click="openEditModal({ role })">
                   <ion-icon slot="icon-only" :icon="create"></ion-icon>
                 </ion-button>
                 <ion-button
                   v-if="!role.is_protected"
+                  aria-label="Eliminar rol"
                   color="danger"
                   @click="confirmDelete({ role })"
-                  aria-label="Eliminar rol"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-button>
@@ -87,16 +87,18 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre</ion-label>
-                <ion-input v-model="form.name" required></ion-input>
+                <ion-input v-model="form.name" @ion-blur="v$.name.$touch()"></ion-input>
               </ion-item>
+              <div v-if="v$.name.$error" class="field-error">{{ v$.name.$errors[0].$message }}</div>
               <ion-item v-if="!editingRole">
                 <ion-label position="stacked">Slug</ion-label>
                 <ion-input
                   v-model="form.slug"
                   placeholder="ej: editor"
-                  required
+                  @ion-blur="v$.slug.$touch()"
                 ></ion-input>
               </ion-item>
+              <div v-if="v$.slug.$error" class="field-error">{{ v$.slug.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Descripción</ion-label>
                 <ion-textarea
@@ -133,6 +135,11 @@
 <script setup lang="ts">
   // imports
   import { ref, onMounted, computed } from 'vue';
+  import useVuelidate from '@vuelidate/core';
+  import { required } from '@vuelidate/validators';
+
+  import { useValidation, withMsg } from '@/composables/useValidation';
+  const { handleApiError } = useValidation();
   import {
     IonPage,
     IonHeader,
@@ -147,14 +154,12 @@
     IonBadge,
     IonButton,
     IonIcon,
-    IonSpinner,
     IonModal,
     IonInput,
     IonTextarea,
     IonRefresher,
     IonRefresherContent,
     IonAlert,
-    alertController,
   } from '@ionic/vue';
   import { add, create, trash, shieldOutline } from 'ionicons/icons';
 
@@ -190,13 +195,20 @@
     description: '',
   });
 
+  const rules = computed(() => ({
+    name: { required: withMsg('El nombre es requerido', required) },
+    slug: { required: withMsg('El slug es requerido', required) },
+  }));
+
+  const v$ = useVuelidate(rules, form);
+
   async function deleteRole(): Promise<void> {
     if (!roleToDelete.value) return;
 
     try {
       await rolesController.deleteRole(roleToDelete.value.id);
       showSuccess({ message: 'Rol eliminado correctamente' });
-    } catch (error) {
+    } catch (_error) {
       showError({ message: 'Error al eliminar rol' });
     } finally {
       showDeleteAlert.value = false;
@@ -238,22 +250,27 @@
   // functions
   const openCreateModal = (): void => {
     editingRole.value = null;
-    form.value = { name: '', slug: '', description: '' };
-    showModal.value = true;
+  form.value = { name: '', slug: '', description: '' };
+  v$.value.$reset();
+  showModal.value = true;
   };
 
   const openEditModal = (params: { role: Role }): void => {
     const { role } = params;
     editingRole.value = role;
-    form.value = {
-      name: role.name,
-      slug: role.slug,
-      description: role.description || '',
-    };
-    showModal.value = true;
+  form.value = {
+  name: role.name,
+  slug: role.slug,
+  description: role.description || '',
+};
+  v$.value.$reset();
+  showModal.value = true;
   };
 
       const saveRole = async (): Promise<void> => {
+    const isValid = await v$.value.$validate();
+    if (!isValid) return;
+
     saving.value = true;
     try {
       if (editingRole.value) {
@@ -277,7 +294,8 @@
       }
       showModal.value = false;
     } catch (error) {
-      showError({ message: 'Error al guardar rol' });
+      console.error('[Save Role Error]', error);
+      handleApiError(error);
     } finally {
       saving.value = false;
     }

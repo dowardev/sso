@@ -5,6 +5,8 @@ import {
   type ThemeInfo,
 } from '@/services/theme';
 
+export type { ThemeName, ResolvedThemeName };
+
 export function useThemeController() {
   const theme = useTheme();
 

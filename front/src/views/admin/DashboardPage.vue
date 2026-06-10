@@ -44,7 +44,7 @@
               <button class="card-link" @click="router.push({ name: 'AdminSessions' })">Ver todas →</button>
             </div>
             <div v-if="recentSessions.length === 0" class="card-empty">No hay sesiones activas</div>
-            <div v-else v-for="session in recentSessions" :key="session.id" class="session-row">
+            <div v-for="session in recentSessions" v-else :key="session.id" class="session-row">
               <div class="session-avatar">{{ getInitials({ name: session.user?.name || '?' }) }}</div>
               <div class="session-info">
                 <div class="session-user">{{ session.user?.name || 'Desconocido' }}</div>
@@ -65,7 +65,7 @@
               <button class="card-link" @click="router.push({ name: 'AdminRoles' })">Ver roles →</button>
             </div>
             <div v-if="rolesWithCount.length === 0" class="card-empty">No hay roles configurados</div>
-            <div v-else v-for="(role, index) in rolesWithCount" :key="role.id" class="bar-row">
+            <div v-for="(role, index) in rolesWithCount" v-else :key="role.id" class="bar-row">
               <span class="bar-label">{{ role.name }}</span>
               <div class="bar-track">
                 <div class="bar-fill" :style="{ width: barWidth({ count: role.users_count || 0 }) }" :class="barColorClass({ index })"></div>
@@ -80,7 +80,7 @@
               <button class="card-link" @click="router.push({ name: 'AdminClients' })">Ver todos →</button>
             </div>
             <div v-if="clients.length === 0" class="card-empty">No hay clientes registrados</div>
-            <div v-else v-for="client in clients.slice(0, 6)" :key="client.id" class="client-row">
+            <div v-for="client in clients.slice(0, 6)" v-else :key="client.id" class="client-row">
               <div class="client-icon-wrapper">
                 <ion-icon :icon="desktopOutline"></ion-icon>
               </div>
@@ -214,7 +214,7 @@
         clientsController.fetchClients(),
         rolesController.fetchRoles(),
       ]);
-    } catch (error) {
+    } catch (_error) {
       // Silent fail - UI will show default values
     } finally {
       loading.value = false;

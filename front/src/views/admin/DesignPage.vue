@@ -167,9 +167,6 @@
   const autoLightThemeInfo = themeController.autoLightThemeInfo;
   const autoDarkThemeInfo = themeController.autoDarkThemeInfo;
 
-  const setTheme = (name: ResolvedThemeName): void => {
-    themeController.setTheme({ themeName: name });
-  };
   const setAutoLightTheme = (name: ResolvedThemeName): void => {
     themeController.setAutoLightTheme({ themeName: name });
   };
@@ -194,8 +191,7 @@
       component: ThemePopover,
       event: event,
       translucent: true,
-      breakpoints: [0, 0.5],
-      initialBreakpoint: 0.5,
+      ...({ breakpoints: [0, 0.5], initialBreakpoint: 0.5 } as Record<string, unknown>),
     });
     await popover.present();
   };
@@ -215,8 +211,7 @@
       },
       event: event,
       translucent: true,
-      breakpoints: [0, 0.5],
-      initialBreakpoint: 0.5,
+      ...({ breakpoints: [0, 0.5], initialBreakpoint: 0.5 } as Record<string, unknown>),
     });
     await popover.present();
   };
@@ -236,8 +231,7 @@
       },
       event: event,
       translucent: true,
-      breakpoints: [0, 0.5],
-      initialBreakpoint: 0.5,
+      ...({ breakpoints: [0, 0.5], initialBreakpoint: 0.5 } as Record<string, unknown>),
     });
     await popover.present();
   };

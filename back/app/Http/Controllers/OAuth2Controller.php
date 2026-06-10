@@ -9,6 +9,9 @@ use App\Models\UserSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Lcobucci\JWT\Configuration;
+
+use App\Http\Requests\OAuth\AuthorizeRequest;
+use App\Http\Requests\OAuth\TokenRequest;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
 
@@ -31,35 +34,28 @@ class OAuth2Controller extends Controller
         $this->issuer = config('jwt.issuer', 'http://localhost:8001');
     }
 
-    public function authorize(Request $request)
+    public function authorize(AuthorizeRequest $request)
     {
-        $validated = $request->validate([
-            'client_id' => 'required|string|exists:sso_clients,client_id',
-            'redirect_uri' => 'required|string',
-            'state' => 'nullable|string',
-            'code_challenge' => 'nullable|string',
-            'code_challenge_method' => 'nullable|string|in:S256,plain',
-            'code_verifier' => 'nullable|string|min:43|max:128',
-        ]);
+        $validated = $request->validated();
 
         $client = SsoClient::where('client_id', $validated['client_id'])->first();
 
         if (!$client->active) {
             return response()->json([
-                'message' => 'Cliente desactivado',
+                'message' => 'Client is disabled',
             ], 403);
         }
 
         if ($client->redirect_url && $validated['redirect_uri'] !== $client->redirect_url) {
             return response()->json([
-                'message' => 'redirect_uri no permitida',
+                'message' => 'redirect_uri not allowed',
             ], 400);
         }
 
         $user = $request->user();
         if (!$user) {
             return response()->json([
-                'message' => 'No autenticado',
+                'message' => 'Not authenticated',
             ], 401);
         }
 
@@ -82,19 +78,15 @@ class OAuth2Controller extends Controller
         ]);
     }
 
-    public function token(Request $request)
+    public function token(TokenRequest $request)
     {
-        $validated = $request->validate([
-            'grant_type' => 'required|string|in:authorization_code,client_credentials',
-            'client_id' => 'required|string|exists:sso_clients,client_id',
-            'client_secret' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
         $client = SsoClient::where('client_id', $validated['client_id'])->first();
 
         if (!$client->active) {
             return response()->json([
-                'message' => 'Cliente desactivado',
+                'message' => 'Client is disabled',
             ], 403);
         }
 
@@ -111,19 +103,19 @@ class OAuth2Controller extends Controller
 
         if (!in_array('client_credentials', $grantTypes)) {
             return response()->json([
-                'message' => 'Este cliente no tiene permitido el grant_type client_credentials',
+                'message' => 'This client does not have the client_credentials grant type',
             ], 403);
         }
 
         if (!$client->client_secret) {
             return response()->json([
-                'message' => 'client_secret requerido para client_credentials',
+                'message' => 'client_secret is required for client_credentials',
             ], 400);
         }
 
         if (!isset($validated['client_secret']) || $validated['client_secret'] !== $client->client_secret) {
             return response()->json([
-                'message' => 'client_secret inválido',
+                'message' => 'Invalid client_secret',
             ], 401);
         }
 
@@ -138,16 +130,9 @@ class OAuth2Controller extends Controller
 
     private function handleAuthorizationCode(Request $request, array $validated, SsoClient $client)
     {
-        $codeValidated = $request->validate([
-            'code' => 'required|string',
-            'redirect_uri' => 'required|string',
-            'dpop_public_key' => 'nullable|json',
-            'code_verifier' => 'nullable|string|min:43|max:128',
-        ]);
-
-        if ($client->redirect_url && $codeValidated['redirect_uri'] !== $client->redirect_url) {
+        if ($client->redirect_url && $validated['redirect_uri'] !== $client->redirect_url) {
             return response()->json([
-                'message' => 'redirect_uri no permitida',
+                'message' => 'redirect_uri not allowed',
             ], 400);
         }
 
@@ -155,45 +140,45 @@ class OAuth2Controller extends Controller
         if ($client->client_secret && $providedSecret) {
             if ($providedSecret !== $client->client_secret) {
                 return response()->json([
-                    'message' => 'client_secret inválido',
+                    'message' => 'Invalid client_secret',
                 ], 401);
             }
         }
 
-        $authCode = OAuthAuthCode::where('code', $codeValidated['code'])
+        $authCode = OAuthAuthCode::where('code', $validated['code'])
             ->where('sso_client_id', $client->id)
             ->first();
 
         if (!$authCode) {
             return response()->json([
-                'message' => 'Código de autorización inválido',
+                'message' => 'Invalid authorization code',
             ], 400);
         }
 
         if ($authCode->isExpired()) {
             return response()->json([
-                'message' => 'Código de autorización expirado',
+                'message' => 'Authorization code has expired',
             ], 400);
         }
 
         if ($authCode->isUsed()) {
             return response()->json([
-                'message' => 'Código de autorización ya utilizado',
+                'message' => 'Authorization code has already been used',
             ], 400);
         }
 
-        if ($authCode->redirect_uri !== $codeValidated['redirect_uri']) {
+        if ($authCode->redirect_uri !== $validated['redirect_uri']) {
             return response()->json([
-                'message' => 'redirect_uri no coincide',
+                'message' => 'redirect_uri does not match',
             ], 400);
         }
 
         if ($authCode->code_challenge) {
-            $codeVerifier = $authCode->code_verifier ?? $codeValidated['code_verifier'];
+            $codeVerifier = $authCode->code_verifier ?? $validated['code_verifier'];
 
             if (!$codeVerifier) {
                 return response()->json([
-                    'message' => 'code_verifier requerido',
+                    'message' => 'code_verifier is required',
                 ], 400);
             }
 
@@ -204,15 +189,15 @@ class OAuth2Controller extends Controller
             );
 
             if ($challengeFromVerifier !== $authCode->code_challenge) {
+                    return response()->json([
+                        'message' => 'Invalid code_verifier',
+                    ], 400);
+                }
+            } else {
                 return response()->json([
-                    'message' => 'code_verifier inválido',
+                    'message' => 'PKCE required: code_challenge not found',
                 ], 400);
             }
-        } else {
-            return response()->json([
-                'message' => 'PKCE requerido: code_challenge no encontrado',
-            ], 400);
-        }
 
         $authCode->update(['used_at' => now()]);
 
@@ -220,11 +205,11 @@ class OAuth2Controller extends Controller
 
         if (!$user) {
             return response()->json([
-                'message' => 'Usuario no encontrado',
+                'message' => 'User not found',
             ], 404);
         }
 
-        $dpopPublicKey = $codeValidated['dpop_public_key'] ?? null;
+        $dpopPublicKey = $validated['dpop_public_key'] ?? null;
         $tokenData = $this->generateToken($user, $dpopPublicKey);
 
         $this->registerSession($user, $tokenData['token'], $request, $client, $dpopPublicKey);

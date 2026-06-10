@@ -7,7 +7,7 @@
         </ion-buttons>
         <ion-title>Clientes SSO</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="openCreateModal" aria-label="Crear cliente">
+          <ion-button aria-label="Crear cliente" @click="openCreateModal">
             <ion-icon slot="icon-only" :icon="add"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -15,7 +15,7 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
+      <ion-refresher slot="fixed" @ion-refresh="handleRefresh($event)">
         <ion-refresher-content pulling-text="Tira para actualizar..." refreshing-text="Actualizando..."></ion-refresher-content>
       </ion-refresher>
       <!-- content -->
@@ -28,7 +28,7 @@
           <div v-else-if="clients.length === 0" class="empty-state">
             <ion-icon :icon="desktopOutline" size="large"></ion-icon>
             <p>No hay clientes SSO</p>
-            <ion-button @click="openCreateModal" class="gradient-btn" size="small">Crear Cliente</ion-button>
+            <ion-button class="gradient-btn" size="small" @click="openCreateModal">Crear Cliente</ion-button>
           </div>
 
           <ion-list v-else class="clients-list">
@@ -56,11 +56,11 @@
                     {{ client.active ? 'Activo' : 'Inactivo' }}
                   </ion-badge>
                   <ion-button
+                    aria-label="Eliminar cliente"
                     fill="clear"
                     color="danger"
                     size="small"
                     @click.stop="confirmDelete({ client })"
-                    aria-label="Eliminar cliente"
                   >
                     <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                   </ion-button>
@@ -69,9 +69,9 @@
 
               <ion-item-options side="end">
                 <ion-item-option
+                  aria-label="Eliminar cliente"
                   color="danger"
                   @click="confirmDelete({ client })"
-                  aria-label="Eliminar cliente"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                 </ion-item-option>
@@ -99,12 +99,14 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre</ion-label>
-                <ion-input v-model="clientForm.name" required></ion-input>
+                <ion-input v-model="clientForm.name" @ion-blur="v$.clientForm.name.$touch()"></ion-input>
               </ion-item>
+              <div v-if="v$.clientForm.name.$error" class="field-error">{{ v$.clientForm.name.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Client ID</ion-label>
-                <ion-input v-model="clientForm.client_id" required></ion-input>
+                <ion-input v-model="clientForm.client_id" @ion-blur="v$.clientForm.client_id.$touch()"></ion-input>
               </ion-item>
+              <div v-if="v$.clientForm.client_id.$error" class="field-error">{{ v$.clientForm.client_id.$errors[0].$message }}</div>
           <ion-item>
             <ion-label position="stacked">Client Secret</ion-label>
             <div class="secret-input-row">
@@ -116,18 +118,18 @@
                 <ion-input-password-toggle slot="end" />
               </ion-input>
               <ion-button
+                aria-label="Copiar secret"
                 fill="clear"
                 size="small"
                 @click="copySecret"
-                aria-label="Copiar secret"
               >
                 <ion-icon slot="icon-only" :icon="copyOutline"></ion-icon>
               </ion-button>
               <ion-button
+                aria-label="Generar secret"
                 fill="clear"
                 size="small"
                 @click="generateSecret"
-                aria-label="Generar secret"
               >
                 <ion-icon slot="icon-only" :icon="keyOutline"></ion-icon>
               </ion-button>
@@ -139,8 +141,10 @@
                   v-model="clientForm.redirect_url"
                   type="url"
                   placeholder="https://"
+                  @ion-blur="v$.clientForm.redirect_url.$touch()"
                 ></ion-input>
               </ion-item>
+              <div v-if="v$.clientForm.redirect_url.$error" class="field-error">{{ v$.clientForm.redirect_url.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Orígenes Permitidos</ion-label>
                 <div class="origins-input-row">
@@ -150,7 +154,7 @@
                     placeholder="https://ejemplo.com"
                     @keydown.enter.prevent="addOrigin"
                   ></ion-input>
-                  <ion-button fill="clear" size="small" @click="addOrigin" aria-label="Agregar origen">
+                  <ion-button aria-label="Agregar origen" fill="clear" size="small" @click="addOrigin">
                     <ion-icon slot="icon-only" :icon="add"></ion-icon>
                   </ion-button>
                 </div>
@@ -181,14 +185,14 @@
             <ion-label>authorization_code</ion-label>
             <ion-toggle
               :checked="clientForm.grant_types.includes('authorization_code')"
-              @ionChange="toggleGrantType('authorization_code')"
+              @ion-change="toggleGrantType('authorization_code')"
             ></ion-toggle>
           </ion-item>
           <ion-item>
             <ion-label>client_credentials</ion-label>
             <ion-toggle
               :checked="clientForm.grant_types.includes('client_credentials')"
-              @ionChange="toggleGrantType('client_credentials')"
+              @ion-change="toggleGrantType('client_credentials')"
             ></ion-toggle>
           </ion-item>
             </ion-list>
@@ -220,6 +224,11 @@
 <script setup lang="ts">
   // imports
   import { ref, onMounted, computed } from 'vue';
+  import useVuelidate from '@vuelidate/core';
+  import { required, url } from '@vuelidate/validators';
+
+  import { useValidation, withMsg } from '@/composables/useValidation';
+  const { handleApiError } = useValidation();
   import {
     IonPage,
     IonHeader,
@@ -240,7 +249,6 @@
     IonModal,
     IonInput,
     IonToggle,
-    IonSpinner,
     IonChip,
     IonInputPasswordToggle,
     IonRefresher,
@@ -283,6 +291,16 @@ const clientForm = ref({
   active: true,
 });
 
+const clientRules = computed(() => ({
+  clientForm: {
+    name: { required: withMsg('El nombre es requerido', required) },
+    client_id: { required: withMsg('El Client ID es requerido', required) },
+    redirect_url: { url: withMsg('La URL de redirección debe ser una URL válida', url) },
+  },
+}));
+
+const v$ = useVuelidate(clientRules, { clientForm });
+
   const newOriginInput = ref('');
   const showDeleteAlert = ref(false);
   const clientToDelete = ref<SsoClient | null>(null);
@@ -315,6 +333,7 @@ const openCreateModal = (): void => {
     active: true,
   };
   newOriginInput.value = '';
+  v$.value.$reset();
   showModal.value = true;
 };
 
@@ -331,10 +350,14 @@ const openEditModal = (params: { client: SsoClient }): void => {
     active: client.active,
   };
   newOriginInput.value = '';
+  v$.value.$reset();
   showModal.value = true;
 };
 
       const saveClient = async (): Promise<void> => {
+    const isValid = await v$.value.$validate();
+    if (!isValid) return;
+
     saving.value = true;
     try {
       const data = {
@@ -362,7 +385,8 @@ const openEditModal = (params: { client: SsoClient }): void => {
 
       showModal.value = false;
     } catch (error) {
-      showError({ message: 'Error al guardar cliente' });
+      console.error('[Save Client Error]', error);
+      handleApiError(error);
     } finally {
       saving.value = false;
     }
@@ -422,7 +446,7 @@ const deleteClient = async (): Promise<void> => {
   try {
     await clientsController.deleteClient({ id: clientToDelete.value.id });
     showSuccess({ message: 'Cliente eliminado correctamente' });
-  } catch (error) {
+  } catch (_error) {
     showError({ message: 'Error al eliminar cliente' });
   } finally {
     showDeleteAlert.value = false;

@@ -1,6 +1,6 @@
 import { computed } from 'vue';
 import { useUsersStore } from '@/stores/users';
-import type { User, UserDetail, UserRole, RoleAssignment } from '@/types';
+import type { UserDetail, UserRole, RoleAssignment } from '@/types';
 
 export function useUsersController() {
   const usersStore = useUsersStore();
@@ -56,6 +56,10 @@ export function useUsersController() {
     return usersStore.revokeUserSessions(id);
   }
 
+  function setRoleAssignments(value: RoleAssignment[]): void {
+    usersStore.roleAssignments = value;
+  }
+
   function setSearch(value: string): void {
     usersStore.setSearch(value);
   }
@@ -91,6 +95,7 @@ export function useUsersController() {
     fetchUserRoles,
     saveUserRoles,
     revokeUserSessions,
+    setRoleAssignments,
     setSearch,
     reset,
     getInitials,

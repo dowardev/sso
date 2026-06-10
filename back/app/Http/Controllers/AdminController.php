@@ -9,7 +9,14 @@ use App\Models\UserSession;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+
+use App\Http\Requests\Admin\UpdateUserRequest;
+use App\Http\Requests\Admin\StoreClientRequest;
+use App\Http\Requests\Admin\UpdateClientRequest;
+use App\Http\Requests\Admin\StoreRoleRequest;
+use App\Http\Requests\Admin\UpdateRoleRequest;
+use App\Http\Requests\Admin\UpdateUserRolesRequest;
+use App\Http\Requests\Admin\ToggleUserRequest;
 
 class AdminController extends Controller
 {
@@ -44,32 +51,22 @@ class AdminController extends Controller
         return response()->json($user);
     }
 
-    public function updateUser(Request $request, User $user)
+    public function updateUser(UpdateUserRequest $request, User $user)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255',
-            'user' => 'sometimes|string|max:255|unique:users,user,'.$user->id,
-            'email' => 'sometimes|string|email|max:255|unique:users,email,'.$user->id,
-            'password' => 'sometimes|string|min:6|confirmed',
-        ]);
+        $validated = $request->validated();
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $data = $request->only(['name', 'user', 'email']);
-
-        if ($request->has('password')) {
-            $data['password'] = Hash::make($request->password);
+        $data = [];
+        if (isset($validated['name'])) $data['name'] = $validated['name'];
+        if (isset($validated['user'])) $data['user'] = $validated['user'];
+        if (isset($validated['email'])) $data['email'] = $validated['email'];
+        if (isset($validated['password'])) {
+            $data['password'] = Hash::make($validated['password']);
         }
 
         $user->update($data);
 
         return response()->json([
-            'message' => 'Usuario actualizado correctamente',
+            'message' => 'User updated successfully',
             'user' => $user,
         ]);
     }
@@ -78,7 +75,7 @@ class AdminController extends Controller
     {
         if ($user->id === $request->user()->id) {
             return response()->json([
-                'message' => 'No puedes eliminar tu propio usuario',
+                'message' => 'You cannot delete your own user',
             ], 422);
         }
 
@@ -87,27 +84,24 @@ class AdminController extends Controller
         $user->delete();
 
         return response()->json([
-            'message' => 'Usuario eliminado correctamente',
+            'message' => 'User deleted successfully',
         ]);
     }
 
-    public function toggle(Request $request, int $id): Response
+    public function toggle(ToggleUserRequest $request, int $id): Response
     {
-        $request->validate([
-            'action' => 'required|in:assign,remove',
-            'sso_client_id' => 'nullable|integer',
-        ]);
+        $validated = $request->validated();
 
         $user = User::findOrFail($id);
-        $action = $request->input('action');
-        $ssoClientId = $request->input('sso_client_id');
+        $action = $validated['action'];
+        $ssoClientId = $validated['sso_client_id'] ?? null;
         $adminRole = Role::where('slug', 'admin')->firstOrFail();
 
         if ($action === 'assign') {
             $user->roles()->attach($adminRole->id, ['sso_client_id' => $ssoClientId]);
         } else {
             $user->roles()->where('role_id', $adminRole->id)
-                ->where('sso_client_id', $ssoClientId ?? null)
+                ->where('sso_client_id', $ssoClientId)
                 ->detach();
         }
 
@@ -176,7 +170,7 @@ class AdminController extends Controller
         $session->delete();
 
         return response()->json([
-            'message' => 'Sesión revocada correctamente',
+            'message' => 'Session revoked successfully',
         ]);
     }
 
@@ -184,7 +178,7 @@ class AdminController extends Controller
     {
         if ($user->id === $request->user()->id) {
             return response()->json([
-                'message' => 'No puedes revocar tus propias sesiones desde admin',
+                'message' => 'You cannot revoke your own sessions from admin',
             ], 422);
         }
 
@@ -197,7 +191,7 @@ class AdminController extends Controller
         $user->sessions()->delete();
 
         return response()->json([
-            'message' => 'Todas las sesiones del usuario han sido revocadas',
+            'message' => 'All user sessions have been revoked',
         ]);
     }
 
@@ -212,28 +206,9 @@ class AdminController extends Controller
         return response()->json($clients);
     }
 
-    public function storeClient(Request $request)
+    public function storeClient(StoreClientRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'client_id' => 'required|string|max:255|unique:sso_clients',
-            'client_secret' => 'nullable|string|max:255',
-            'redirect_url' => 'nullable|string|max:255|url',
-            'allowed_origins' => 'nullable|array',
-            'allowed_origins.*' => ['regex:/^https?:\/\/[^\/:]+(:\d+)?$/'],
-            'grant_types' => 'nullable|array',
-            'grant_types.*' => 'string|in:authorization_code,client_credentials',
-            'active' => 'sometimes|boolean',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $data = $validator->validated();
+        $data = $request->validated();
 
         if (!isset($data['grant_types'])) {
             $data['grant_types'] = ['authorization_code'];
@@ -242,36 +217,17 @@ class AdminController extends Controller
         $client = SsoClient::create($data);
 
         return response()->json([
-            'message' => 'Cliente SSO creado correctamente',
+            'message' => 'SSO client created successfully',
             'client' => $client,
         ], 201);
     }
 
-    public function updateClient(Request $request, SsoClient $client)
+    public function updateClient(UpdateClientRequest $request, SsoClient $client)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255',
-            'client_id' => 'sometimes|string|max:255|unique:sso_clients,client_id,'.$client->id,
-            'client_secret' => 'nullable|string|max:255',
-            'redirect_url' => 'nullable|string|max:255|url',
-            'allowed_origins' => 'nullable|array',
-            'allowed_origins.*' => ['regex:/^https?:\/\/[^\/:]+(:\d+)?$/'],
-            'grant_types' => 'nullable|array',
-            'grant_types.*' => 'string|in:authorization_code,client_credentials',
-            'active' => 'sometimes|boolean',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $client->update($validator->validated());
+        $client->update($request->validated());
 
         return response()->json([
-            'message' => 'Cliente SSO actualizado correctamente',
+            'message' => 'SSO client updated successfully',
             'client' => $client,
         ]);
     }
@@ -282,7 +238,7 @@ class AdminController extends Controller
         $client->delete();
 
         return response()->json([
-            'message' => 'Cliente SSO eliminado correctamente',
+            'message' => 'SSO client deleted successfully',
         ]);
     }
 
@@ -298,58 +254,35 @@ class AdminController extends Controller
         return response()->json($roles);
     }
 
-    public function storeRole(Request $request)
+    public function storeRole(StoreRoleRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:roles',
-            'description' => 'nullable|string|max:500',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+        $validated = $request->validated();
 
         $role = Role::create([
-            'name' => $request->name,
-            'slug' => $request->slug,
-            'description' => $request->description,
+            'name' => $validated['name'],
+            'slug' => $validated['slug'],
+            'description' => $validated['description'] ?? null,
             'is_protected' => false,
         ]);
 
         return response()->json([
-            'message' => 'Rol creado correctamente',
+            'message' => 'Role created successfully',
             'role' => $role,
         ], 201);
     }
 
-    public function updateRole(Request $request, Role $role)
+    public function updateRole(UpdateRoleRequest $request, Role $role)
     {
         if ($role->is_protected) {
             return response()->json([
-                'message' => 'No puedes modificar un rol protegido',
+                'message' => 'You cannot modify a protected role',
             ], 422);
         }
 
-        $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255',
-            'description' => 'nullable|string|max:500',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $role->update($request->only(['name', 'description']));
+        $role->update($request->validated());
 
         return response()->json([
-            'message' => 'Rol actualizado correctamente',
+            'message' => 'Role updated successfully',
             'role' => $role,
         ]);
     }
@@ -358,20 +291,20 @@ class AdminController extends Controller
     {
         if ($role->is_protected) {
             return response()->json([
-                'message' => 'No puedes eliminar un rol protegido',
+                'message' => 'You cannot delete a protected role',
             ], 422);
         }
 
         if ($role->users()->count() > 0) {
             return response()->json([
-                'message' => 'No puedes eliminar un rol que tiene usuarios asignados',
+                'message' => 'You cannot delete a role that has assigned users',
             ], 422);
         }
 
         $role->delete();
 
         return response()->json([
-            'message' => 'Rol eliminado correctamente',
+            'message' => 'Role deleted successfully',
         ]);
     }
 
@@ -396,31 +329,20 @@ class AdminController extends Controller
         return response()->json($roles);
     }
 
-    public function updateUserRoles(Request $request, User $user)
+    public function updateUserRoles(UpdateUserRolesRequest $request, User $user)
     {
-        $validator = Validator::make($request->all(), [
-            'roles' => 'required|array',
-            'roles.*.role_id' => 'required|exists:roles,id',
-            'roles.*.sso_client_id' => 'nullable|exists:sso_clients,id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+        $validated = $request->validated();
 
         $user->roles()->detach();
 
-        foreach ($request->roles as $roleData) {
+        foreach ($validated['roles'] as $roleData) {
             $user->roles()->attach($roleData['role_id'], [
                 'sso_client_id' => $roleData['sso_client_id'] ?? null,
             ]);
         }
 
         return response()->json([
-            'message' => 'Roles actualizados correctamente',
+            'message' => 'Roles updated successfully',
             'roles' => $this->indexUserRoles($user)->getData(true),
         ]);
     }

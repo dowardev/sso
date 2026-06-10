@@ -8,8 +8,11 @@ use App\Models\UserSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 use Lcobucci\JWT\Configuration;
+
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\RefreshTokenRequest;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
 use Lcobucci\JWT\Token;
@@ -37,35 +40,18 @@ class AuthController extends Controller
         $this->issuer = config('jwt.issuer', 'http://localhost:8001');
     }
 
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'user' => 'required|string|max:255|unique:users',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-            'client_id' => 'required|string|exists:sso_clients,client_id',
-            'dpop_public_key' => 'nullable|json',
-        ], [
-            'client_id.exists' => 'La aplicación ":value" no está registrada en el SSO. '
-                . 'Por favor, contacta al administrador del sistema.',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+        $validated = $request->validated();
 
         $user = User::create([
-            'name' => $request->name,
-            'user' => $request->user,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name' => $validated['name'],
+            'user' => $validated['user'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
         ]);
 
-        $dpopPublicKey = $request->input('dpop_public_key');
+        $dpopPublicKey = $validated['dpop_public_key'] ?? null;
         $tokenData = $this->generateToken($user, $dpopPublicKey, false);
 
         $this->registerSession($user, $tokenData['token'], $request, $dpopPublicKey, false);
@@ -78,33 +64,16 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'email' => 'nullable|string',
-            'user' => 'nullable|string',
-            'password' => 'required|string',
-            'client_id' => 'nullable|string|exists:sso_clients,client_id',
-            'dpop_public_key' => 'nullable|json',
-            'remember_me' => 'nullable|boolean',
-        ], [
-            'client_id.exists' => 'La aplicación ":value" no está registrada en el SSO. '
-                . 'Por favor, contacta al administrador del sistema.',
-        ]);
+        $validated = $request->validated();
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $loginField = $request->email ?? $request->user;
+        $loginField = $validated['email'] ?? $validated['user'];
         
         if (!$loginField) {
             return response()->json([
-                'message' => 'Error de validación',
-                'errors' => ['email' => ['El email o usuario es requerido']],
+                'message' => 'Validation error',
+                'errors' => ['email' => ['The email or username is required.']],
             ], 422);
         }
 
@@ -112,14 +81,14 @@ class AuthController extends Controller
             ->orWhere('user', $loginField)
             ->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
             return response()->json([
-                'message' => 'Credenciales inválidas',
+                'message' => 'Invalid credentials',
             ], 401);
         }
 
-        $dpopPublicKey = $request->input('dpop_public_key');
-        $rememberMe = $request->boolean('remember_me');
+        $dpopPublicKey = $validated['dpop_public_key'] ?? null;
+        $rememberMe = $validated['remember_me'] ?? false;
         $tokenData = $this->generateToken($user, $dpopPublicKey, $rememberMe);
 
         $this->registerSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
@@ -136,21 +105,9 @@ class AuthController extends Controller
         return $response;
     }
 
-    public function refreshToken(Request $request): JsonResponse
+    public function refreshToken(RefreshTokenRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'token' => 'required|string',
-            'client_id' => 'nullable|string|exists:sso_clients,client_id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $tokenString = $request->input('token');
+        $tokenString = $request->validated('token');
 
         try {
             $token = $this->jwtConfig->parser()->parse($tokenString);
@@ -162,8 +119,8 @@ class AuthController extends Controller
 
             if (!$this->jwtConfig->validator()->validate($token, ...$constraints)) {
                 return response()->json([
-                    'message' => 'Token inválido',
-                ], 401);
+                'message' => 'Invalid token',
+            ], 401);
             }
 
             $userId = $token->claims()->get('sub');
@@ -171,7 +128,7 @@ class AuthController extends Controller
 
             if (!$user) {
                 return response()->json([
-                    'message' => 'Usuario no encontrado',
+                    'message' => 'User not found',
                 ], 401);
             }
 
@@ -219,7 +176,7 @@ class AuthController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Token inválido o expirado: ' . $e->getMessage(),
+                'message' => 'Invalid or expired token: ' . $e->getMessage(),
             ], 401);
         }
     }
@@ -233,19 +190,19 @@ class AuthController extends Controller
         }
 
         if (!$tokenString) {
-            return response()->json(['message' => 'Token no proporcionado'], 401);
+            return response()->json(['message' => 'Token not provided'], 401);
         }
 
         try {
             UserSession::where('token', $tokenString)->delete();
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Error al cerrar sesión: ' . $e->getMessage(),
+                'message' => 'Error closing session: ' . $e->getMessage(),
             ], 500);
         }
 
         return response()->json([
-            'message' => 'Sesión cerrada correctamente',
+            'message' => 'Session closed successfully',
         ])->withCookie(\Cookie::forget('sso_token'));
     }
 
@@ -390,14 +347,14 @@ class AuthController extends Controller
             if ($publicKeyData) {
                 if (!isset($publicKeyData['kty']) || !isset($publicKeyData['n']) || !isset($publicKeyData['e'])) {
                     return response()->json([
-                        'message' => 'Error de validación',
-                        'errors' => ['dpop_public_key' => ['JWK incompleto: se requieren los campos kty, n y e']],
+                        'message' => 'Validation error',
+                        'errors' => ['dpop_public_key' => ['Incomplete JWK: kty, n, and e fields are required']],
                     ], 422);
                 }
                 if (($publicKeyData['kty'] ?? '') !== 'RSA') {
                     return response()->json([
-                        'message' => 'Error de validación',
-                        'errors' => ['dpop_public_key' => ['Tipo de clave JWK no soportado: se requiere RSA']],
+                        'message' => 'Validation error',
+                        'errors' => ['dpop_public_key' => ['Unsupported JWK key type: RSA is required']],
                     ], 422);
                 }
                 $jkt = $this->generateJWKThumbprint($publicKeyData);

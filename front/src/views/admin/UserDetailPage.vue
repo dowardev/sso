@@ -7,7 +7,7 @@
         </ion-buttons>
         <ion-title>Detalle de Usuario</ion-title>
         <ion-buttons slot="end">
-          <ion-button color="primary" @click="openEditModal" aria-label="Editar usuario">
+          <ion-button aria-label="Editar usuario" color="primary" @click="openEditModal">
             <ion-icon slot="icon-only" :icon="create"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -63,7 +63,7 @@
               <div class="roles-card">
                 <div class="section-header">
                   <h3 class="section-title">Roles</h3>
-                  <ion-button size="small" @click="openRolesModal" aria-label="Editar roles">
+                  <ion-button aria-label="Editar roles" size="small" @click="openRolesModal">
                     <ion-icon slot="icon-only" :icon="create"></ion-icon>
                   </ion-button>
                 </div>
@@ -127,10 +127,10 @@
                     </ion-badge>
                     <ion-button
                       slot="end"
+                      aria-label="Revocar sesión"
                       fill="clear"
                       color="danger"
                       @click="revokeSession({ session })"
-                      aria-label="Revocar sesión"
                     >
                       <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                     </ion-button>
@@ -154,32 +154,37 @@
           </ion-toolbar>
         </ion-header>
         <ion-content>
-          <form class="modal-form" @submit.prevent="updateUser">
+           <form class="modal-form" @submit.prevent="updateUser">
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre</ion-label>
-                <ion-input v-model="editForm.name" required></ion-input>
+                <ion-input v-model="editForm.name" @ion-blur="v$.editForm.name.$touch()"></ion-input>
               </ion-item>
+              <div v-if="v$.editForm.name.$error" class="field-error">{{ v$.editForm.name.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Usuario</ion-label>
-                <ion-input v-model="editForm.user" required></ion-input>
+                <ion-input v-model="editForm.user" @ion-blur="v$.editForm.user.$touch()"></ion-input>
               </ion-item>
+              <div v-if="v$.editForm.user.$error" class="field-error">{{ v$.editForm.user.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Email</ion-label>
                 <ion-input
                   v-model="editForm.email"
                   type="email"
-                  required
+                  @ion-blur="v$.editForm.email.$touch()"
                 ></ion-input>
               </ion-item>
+              <div v-if="v$.editForm.email.$error" class="field-error">{{ v$.editForm.email.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Nueva Contraseña</ion-label>
                 <ion-input
                   v-model="editForm.password"
                   type="password"
                   placeholder="Dejar vacío para mantener"
+                  @ion-blur="v$.editForm.password.$touch()"
                 ></ion-input>
               </ion-item>
+              <div v-if="v$.editForm.password.$error" class="field-error">{{ v$.editForm.password.$errors[0].$message }}</div>
             </ion-list>
             <div class="ion-padding">
               <ion-button type="submit" expand="block" class="gradient-btn" :disabled="updating">
@@ -231,9 +236,9 @@
                   </ion-item>
                   <ion-item-options side="end">
                     <ion-item-option
+                      aria-label="Eliminar asignación de rol"
                       color="danger"
                       @click="removeRoleAssignment({ index })"
-                      aria-label="Eliminar asignación de rol"
                     >
                       <ion-icon slot="icon-only" :icon="trash"></ion-icon>
                     </ion-item-option>
@@ -278,7 +283,12 @@
 <script setup lang="ts">
   // imports
   import { ref, onMounted, computed } from 'vue';
-  import { useRoute, useRouter } from 'vue-router';
+  import { useRoute } from 'vue-router';
+  import useVuelidate from '@vuelidate/core';
+  import { required, email } from '@vuelidate/validators';
+
+  import { useValidation, withMsg } from '@/composables/useValidation';
+  const { handleApiError } = useValidation();
   import {
     IonPage,
     IonHeader,
@@ -337,12 +347,11 @@
   // end components
 
   // interface and types imports
-  import type { UserDetail, UserSession, Role, SsoClient } from '@/types';
+  import type { UserSession } from '@/types';
   // end interface and types imports
 
   // main
   const route = useRoute();
-  const router = useRouter();
   const userId = Number(route.params.id);
   // end main
 
@@ -358,6 +367,20 @@
     email: '',
     password: '',
   });
+
+  const editRules = computed(() => ({
+    editForm: {
+      name: { required: withMsg('El nombre es requerido', required) },
+      user: { required: withMsg('El usuario es requerido', required) },
+      email: {
+        required: withMsg('El email es requerido', required),
+        email: withMsg('Debe ser un email válido', email),
+      },
+      password: {},
+    },
+  }));
+
+  const v$ = useVuelidate(editRules, { editForm });
   // end vars and const
 
   // watch
@@ -368,14 +391,8 @@
   const sessions = computed(() => user.value?.sessions || []);
   const loading = computed(() => usersController.loading.value);
   const availableRoles = computed(() => rolesController.roles.value);
-  const availableClients = computed(() => clientsController.clients.value);
   const userRoles = computed(() => usersController.userRoles.value);
-  const roleAssignments = computed({
-    get: () => usersController.roleAssignments.value,
-    set: (value) => {
-      usersController.roleAssignments.value = value;
-    },
-  });
+  const roleAssignments = computed(() => usersController.roleAssignments.value);
   const isAdmin = computed(() => authController.user.value?.is_admin || false);
   // end computed
 
@@ -395,7 +412,7 @@
         email: response.email,
         password: '',
       };
-    } catch (error) {
+    } catch (_error) {
       showError({ message: 'Error al cargar usuario' });
     }
   };
@@ -421,11 +438,15 @@
     });
   };
 
-  const openEditModal = (): void => {
-    showEditModal.value = true;
-  };
+const openEditModal = (): void => {
+  v$.value.$reset();
+  showEditModal.value = true;
+};
 
   const updateUser = async (): Promise<void> => {
+    const isValid = await v$.value.$validate();
+    if (!isValid) return;
+
     updating.value = true;
     try {
       const data: {
@@ -447,7 +468,7 @@
       showEditModal.value = false;
       showSuccess({ message: 'Usuario actualizado correctamente' });
     } catch (error) {
-      showError({ message: 'Error al actualizar usuario' });
+      handleApiError(error);
     } finally {
       updating.value = false;
     }
@@ -458,12 +479,10 @@
   }): Promise<void> => {
     const { session } = params;
     try {
-      await sessionsController.revokeSession(session.id);
-      if (user.value) {
-        user.value.active_tokens_count--;
-      }
-      showSuccess({ message: 'Sesión revocada correctamente' });
-    } catch (error) {
+    await sessionsController.revokeSession(session.id);
+    await loadUser();
+    showSuccess({ message: 'Sesión revocada correctamente' });
+    } catch (_error) {
       showError({ message: 'Error al revocar sesión' });
     }
   };
@@ -472,7 +491,7 @@
     try {
       await usersController.revokeUserSessions(userId);
       showSuccess({ message: 'Todas las sesiones fueron revocadas' });
-    } catch (error) {
+    } catch (_error) {
       showError({ message: 'Error al revocar sesiones' });
     }
   };
@@ -484,15 +503,16 @@
         clientsController.fetchClients(),
         usersController.fetchUserRoles(userId),
       ]);
-      roleAssignments.value = usersController.userRoles.value.map(
+      const roleMappings = usersController.userRoles.value.map(
         (r: { id: number; name: string; slug: string }) => ({
           role_id: r.id,
           name: r.name,
           slug: r.slug,
         })
       );
+      usersController.setRoleAssignments(roleMappings);
       showRolesModal.value = true;
-    } catch (error) {
+    } catch (_error) {
       showError({ message: 'Error al cargar datos de roles' });
     }
   };
@@ -539,7 +559,7 @@
       });
       showRolesModal.value = false;
       showSuccess({ message: 'Roles guardados correctamente' });
-    } catch (error) {
+    } catch (_error) {
       showError({ message: 'Error al guardar roles' });
     } finally {
       savingRoles.value = false;
