@@ -65,9 +65,9 @@
                   {{ session.token_active ? 'Activa' : 'Inactiva' }}
                 </ion-badge>
                 <ion-button
-                  aria-label="Revocar sesión"
                   fill="clear"
                   color="danger"
+                  aria-label="Revocar sesión"
                   @click="revokeSession({ session })"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
@@ -78,8 +78,8 @@
 
           <ion-infinite-scroll
             v-if="sessions.length > 0"
-            aria-label="Cargar más sesiones"
             :disabled="!hasMore"
+            aria-label="Cargar más sesiones"
             @ion-infinite="loadMore($event)"
           >
             <ion-infinite-scroll-content
@@ -205,7 +205,7 @@
     try {
       await sessionsController.revokeSession(session.id);
       showSuccess({ message: 'Sesión revocada correctamente' });
-    } catch (_error) {
+    } catch {
       showError({ message: 'Error al revocar sesión' });
     }
   };

@@ -52,13 +52,13 @@
                 >
               </div>
               <ion-buttons slot="end">
-                <ion-button aria-label="Editar rol" color="primary" @click="openEditModal({ role })">
+                <ion-button color="primary" aria-label="Editar rol" @click="openEditModal({ role })">
                   <ion-icon slot="icon-only" :icon="create"></ion-icon>
                 </ion-button>
                 <ion-button
                   v-if="!role.is_protected"
-                  aria-label="Eliminar rol"
                   color="danger"
+                  aria-label="Eliminar rol"
                   @click="confirmDelete({ role })"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
@@ -87,18 +87,16 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre</ion-label>
-                <ion-input v-model="form.name" @ion-blur="v$.name.$touch()"></ion-input>
+                <ion-input v-model="form.name" required></ion-input>
               </ion-item>
-              <div v-if="v$.name.$error" class="field-error">{{ v$.name.$errors[0].$message }}</div>
               <ion-item v-if="!editingRole">
                 <ion-label position="stacked">Slug</ion-label>
                 <ion-input
                   v-model="form.slug"
                   placeholder="ej: editor"
-                  @ion-blur="v$.slug.$touch()"
+                  required
                 ></ion-input>
               </ion-item>
-              <div v-if="v$.slug.$error" class="field-error">{{ v$.slug.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Descripción</ion-label>
                 <ion-textarea
@@ -135,11 +133,6 @@
 <script setup lang="ts">
   // imports
   import { ref, onMounted, computed } from 'vue';
-  import useVuelidate from '@vuelidate/core';
-  import { required } from '@vuelidate/validators';
-
-  import { useValidation, withMsg } from '@/composables/useValidation';
-  const { handleApiError } = useValidation();
   import {
     IonPage,
     IonHeader,
@@ -195,20 +188,13 @@
     description: '',
   });
 
-  const rules = computed(() => ({
-    name: { required: withMsg('El nombre es requerido', required) },
-    slug: { required: withMsg('El slug es requerido', required) },
-  }));
-
-  const v$ = useVuelidate(rules, form);
-
   async function deleteRole(): Promise<void> {
     if (!roleToDelete.value) return;
 
     try {
       await rolesController.deleteRole(roleToDelete.value.id);
       showSuccess({ message: 'Rol eliminado correctamente' });
-    } catch (_error) {
+    } catch {
       showError({ message: 'Error al eliminar rol' });
     } finally {
       showDeleteAlert.value = false;
@@ -250,27 +236,22 @@
   // functions
   const openCreateModal = (): void => {
     editingRole.value = null;
-  form.value = { name: '', slug: '', description: '' };
-  v$.value.$reset();
-  showModal.value = true;
+    form.value = { name: '', slug: '', description: '' };
+    showModal.value = true;
   };
 
   const openEditModal = (params: { role: Role }): void => {
     const { role } = params;
     editingRole.value = role;
-  form.value = {
-  name: role.name,
-  slug: role.slug,
-  description: role.description || '',
-};
-  v$.value.$reset();
-  showModal.value = true;
+    form.value = {
+      name: role.name,
+      slug: role.slug,
+      description: role.description || '',
+    };
+    showModal.value = true;
   };
 
       const saveRole = async (): Promise<void> => {
-    const isValid = await v$.value.$validate();
-    if (!isValid) return;
-
     saving.value = true;
     try {
       if (editingRole.value) {
@@ -293,9 +274,8 @@
         showSuccess({ message: 'Rol creado correctamente' });
       }
       showModal.value = false;
-    } catch (error) {
-      console.error('[Save Role Error]', error);
-      handleApiError(error);
+    } catch {
+      showError({ message: 'Error al guardar rol' });
     } finally {
       saving.value = false;
     }

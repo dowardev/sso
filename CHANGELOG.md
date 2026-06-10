@@ -9,37 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.20.0] - 2026-06-10
 
-### Features
+### Added
 
-- Add 12 Form Request validation classes for Auth, Admin, and OAuth controllers (LoginRequest, RegisterRequest, RefreshTokenRequest, TokenRequest, AuthorizeRequest, StoreClientRequest, UpdateClientRequest, StoreRoleRequest, UpdateRoleRequest, UpdateUserRequest, UpdateUserRolesRequest, ToggleUserRequest)
-- Add Vuelidate validation composable (`useValidation.ts`) with Spanish messages for frontend forms
-- Add form validation to 6 components: AuthLoginForm, RegisterPage, PublicRegisterPage, UserDetailPage, RolesPage, ClientsPage
+- Service layer classes for all business logic: `AuthService`, `JwtService`, `OAuth2Service`, `RoleService`, `SessionService`, `SsoClientService`, `UserService`, `UserSessionService`
+- Dedicated controllers replacing monolithic `AdminController`: `SsoClientController`, `UserController`, `UserSessionController`
+- API Resource transformers for consistent JSON responses (`RoleResource`, `SsoClientResource`, `UserDetailResource`, `UserResource`, `UserRoleResource`, `UserSessionResource`)
+- FormRequest validation classes for all endpoints (`AuthorizeRequest`, `LoginRequest`, `RefreshTokenRequest`, `RegisterRequest`, `StoreRoleRequest`, `StoreSsoClientRequest`, `StoreUserRequest`, `TokenRequest`, `UpdateRoleRequest`, `UpdateSsoClientRequest`, `UpdateUserRequest`)
+- Pinia theme store (`stores/theme.ts`) as single source of truth for theme state
+- Vuelidate validation composable (`useValidation.ts`) with Spanish messages for frontend forms
+- Form validation on 6 components: AuthLoginForm, RegisterPage, PublicRegisterPage, UserDetailPage, RolesPage, ClientsPage
 
-### Refactor
+### Changed
 
-- Refactor `AdminController`, `AuthController`, and `OAuth2Controller` to use Form Request validation instead of inline `$request->validate()` calls
+- Refactored `AdminController` into single-responsibility controllers (`UserController`, `UserSessionController`, `SsoClientController`, `RoleController`)
+- Extracted business logic from controllers into dedicated service layer
+- Moved request validation from inline code into FormRequest classes with centralized validation rules
+- Updated `AuthController`, `OAuth2Controller`, and `RoleController` to use services and Form Requests
+- Moved theme management from `services/theme.ts` to `stores/theme.ts` (Pinia store)
 
 ### Fixed
 
 - Fix 65+ ESLint errors across 13 frontend files (unused imports, kebab-case event names, caught error naming, attribute ordering)
 - Fix 2 TypeScript errors (readonly mutation on services import, missing `useRouter` export)
+- Enforce PKCE as mandatory in OAuth2 authorization code flow — authorization codes without `code_challenge` are now rejected
+- Use authenticated user identity (`$request->user()->id`) instead of user-supplied `sso_user_id` for self-delete and self-revoke protection
 
 ### Infrastructure
 
 - Add `node_modules`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` to `.gitignore` files
 
+### Removed
+
+- `AdminController` (replaced by dedicated controllers)
+- `ApiUsersController` (replaced by `UserController::apiIndex`)
+- `front/src/services/auth.ts` (deprecated store proxy, superseded by Pinia stores)
+
 ### Affected Files
 
-- New: `back/app/Http/Requests/Admin/StoreClientRequest.php`, `StoreRoleRequest.php`, `ToggleUserRequest.php`, `UpdateClientRequest.php`, `UpdateRoleRequest.php`, `UpdateUserRequest.php`, `UpdateUserRolesRequest.php`
-- New: `back/app/Http/Requests/Auth/LoginRequest.php`, `RegisterRequest.php`, `RefreshTokenRequest.php`
-- New: `back/app/Http/Requests/OAuth/AuthorizeRequest.php`, `TokenRequest.php`
-- New: `front/src/composables/useValidation.ts`
-- Modified: `back/app/Http/Controllers/AdminController.php`, `AuthController.php`, `OAuth2Controller.php`
-- Modified: `front/src/components/AuthLoginForm.vue`, `front/src/views/RegisterPage.vue`, `front/src/views/PublicRegisterPage.vue`
-- Modified: `front/src/views/admin/UserDetailPage.vue`, `front/src/views/admin/RolesPage.vue`, `front/src/views/admin/ClientsPage.vue`
-- Modified: `front/src/App.vue`, `front/src/controllers/authController.ts`, `front/src/controllers/sessionsController.ts`, `front/src/controllers/usersController.ts`, `front/src/controllers/themeController.ts`, `front/src/services/dpopService.ts`, `front/src/theme/variables.css`
-- Modified: `front/src/views/admin/DashboardPage.vue`, `front/src/views/admin/DesignPage.vue`, `front/src/views/admin/SessionsPage.vue`, `front/src/views/admin/UsersPage.vue`, `front/package.json`
+- Added: 8 Services, 11 FormRequests, 6 Resources, 3 Controllers, `front/src/stores/theme.ts`, `front/src/composables/useValidation.ts`
+- Modified: Backend controllers, routes, frontend controllers, views, services
 - Modified: `.gitignore`, `front/.gitignore`
+- Deleted: `back/app/Http/Controllers/AdminController.php`, `ApiUsersController.php`, `front/src/services/auth.ts`
 
 ---
 

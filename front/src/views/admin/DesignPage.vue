@@ -191,7 +191,6 @@
       component: ThemePopover,
       event: event,
       translucent: true,
-      ...({ breakpoints: [0, 0.5], initialBreakpoint: 0.5 } as Record<string, unknown>),
     });
     await popover.present();
   };
@@ -211,7 +210,6 @@
       },
       event: event,
       translucent: true,
-      ...({ breakpoints: [0, 0.5], initialBreakpoint: 0.5 } as Record<string, unknown>),
     });
     await popover.present();
   };
@@ -231,7 +229,6 @@
       },
       event: event,
       translucent: true,
-      ...({ breakpoints: [0, 0.5], initialBreakpoint: 0.5 } as Record<string, unknown>),
     });
     await popover.present();
   };

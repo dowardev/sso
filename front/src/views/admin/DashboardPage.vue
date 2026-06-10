@@ -214,7 +214,7 @@
         clientsController.fetchClients(),
         rolesController.fetchRoles(),
       ]);
-    } catch (_error) {
+    } catch {
       // Silent fail - UI will show default values
     } finally {
       loading.value = false;

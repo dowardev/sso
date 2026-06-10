@@ -1,34 +1,32 @@
-import {
-  useTheme,
-  type ThemeName,
-  type ResolvedThemeName,
-  type ThemeInfo,
-} from '@/services/theme';
+import { useThemeStore } from '@/stores/theme'
+import type { ThemeName, ResolvedThemeName } from '@/stores/theme'
+
+export type { ThemeName, ResolvedThemeName }
 
 export type { ThemeName, ResolvedThemeName };
 
 export function useThemeController() {
-  const theme = useTheme();
+  const themeStore = useThemeStore()
 
   return {
-    currentTheme: theme.currentTheme,
-    currentThemeName: theme.currentThemeName,
-    resolvedTheme: theme.resolvedTheme,
+    currentTheme: themeStore.currentTheme,
+    currentThemeName: themeStore.currentThemeName,
+    resolvedTheme: themeStore.resolvedTheme,
     setTheme: (params: { themeName: ThemeName }): void => {
-      theme.setTheme(params.themeName);
+      themeStore.setTheme(params.themeName)
     },
-    isDark: theme.isDark,
-    isAuto: theme.isAuto,
-    themes: theme.themes as ThemeInfo[],
-    autoLightTheme: theme.autoLightTheme,
-    autoDarkTheme: theme.autoDarkTheme,
-    autoLightThemeInfo: theme.autoLightThemeInfo,
-    autoDarkThemeInfo: theme.autoDarkThemeInfo,
+    isDark: themeStore.isDark,
+    isAuto: themeStore.isAuto,
+    themes: themeStore.themes,
+    autoLightTheme: themeStore.autoLightTheme,
+    autoDarkTheme: themeStore.autoDarkTheme,
+    autoLightThemeInfo: themeStore.autoLightThemeInfo,
+    autoDarkThemeInfo: themeStore.autoDarkThemeInfo,
     setAutoLightTheme: (params: { themeName: ResolvedThemeName }): void => {
-      theme.setAutoLightTheme(params.themeName);
+      themeStore.setAutoLightTheme(params.themeName)
     },
     setAutoDarkTheme: (params: { themeName: ResolvedThemeName }): void => {
-      theme.setAutoDarkTheme(params.themeName);
+      themeStore.setAutoDarkTheme(params.themeName)
     },
-  };
+  }
 }

@@ -56,10 +56,10 @@
                     {{ client.active ? 'Activo' : 'Inactivo' }}
                   </ion-badge>
                   <ion-button
-                    aria-label="Eliminar cliente"
                     fill="clear"
                     color="danger"
                     size="small"
+                    aria-label="Eliminar cliente"
                     @click.stop="confirmDelete({ client })"
                   >
                     <ion-icon slot="icon-only" :icon="trash"></ion-icon>
@@ -69,8 +69,8 @@
 
               <ion-item-options side="end">
                 <ion-item-option
-                  aria-label="Eliminar cliente"
                   color="danger"
+                  aria-label="Eliminar cliente"
                   @click="confirmDelete({ client })"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
@@ -99,14 +99,12 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre</ion-label>
-                <ion-input v-model="clientForm.name" @ion-blur="v$.clientForm.name.$touch()"></ion-input>
+                <ion-input v-model="clientForm.name" required></ion-input>
               </ion-item>
-              <div v-if="v$.clientForm.name.$error" class="field-error">{{ v$.clientForm.name.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Client ID</ion-label>
-                <ion-input v-model="clientForm.client_id" @ion-blur="v$.clientForm.client_id.$touch()"></ion-input>
+                <ion-input v-model="clientForm.client_id" required></ion-input>
               </ion-item>
-              <div v-if="v$.clientForm.client_id.$error" class="field-error">{{ v$.clientForm.client_id.$errors[0].$message }}</div>
           <ion-item>
             <ion-label position="stacked">Client Secret</ion-label>
             <div class="secret-input-row">
@@ -118,17 +116,17 @@
                 <ion-input-password-toggle slot="end" />
               </ion-input>
               <ion-button
-                aria-label="Copiar secret"
                 fill="clear"
                 size="small"
+                aria-label="Copiar secret"
                 @click="copySecret"
               >
                 <ion-icon slot="icon-only" :icon="copyOutline"></ion-icon>
               </ion-button>
               <ion-button
-                aria-label="Generar secret"
                 fill="clear"
                 size="small"
+                aria-label="Generar secret"
                 @click="generateSecret"
               >
                 <ion-icon slot="icon-only" :icon="keyOutline"></ion-icon>
@@ -141,10 +139,8 @@
                   v-model="clientForm.redirect_url"
                   type="url"
                   placeholder="https://"
-                  @ion-blur="v$.clientForm.redirect_url.$touch()"
                 ></ion-input>
               </ion-item>
-              <div v-if="v$.clientForm.redirect_url.$error" class="field-error">{{ v$.clientForm.redirect_url.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Orígenes Permitidos</ion-label>
                 <div class="origins-input-row">
@@ -154,7 +150,7 @@
                     placeholder="https://ejemplo.com"
                     @keydown.enter.prevent="addOrigin"
                   ></ion-input>
-                  <ion-button aria-label="Agregar origen" fill="clear" size="small" @click="addOrigin">
+                  <ion-button fill="clear" size="small" aria-label="Agregar origen" @click="addOrigin">
                     <ion-icon slot="icon-only" :icon="add"></ion-icon>
                   </ion-button>
                 </div>
@@ -224,11 +220,6 @@
 <script setup lang="ts">
   // imports
   import { ref, onMounted, computed } from 'vue';
-  import useVuelidate from '@vuelidate/core';
-  import { required, url } from '@vuelidate/validators';
-
-  import { useValidation, withMsg } from '@/composables/useValidation';
-  const { handleApiError } = useValidation();
   import {
     IonPage,
     IonHeader,
@@ -291,16 +282,6 @@ const clientForm = ref({
   active: true,
 });
 
-const clientRules = computed(() => ({
-  clientForm: {
-    name: { required: withMsg('El nombre es requerido', required) },
-    client_id: { required: withMsg('El Client ID es requerido', required) },
-    redirect_url: { url: withMsg('La URL de redirección debe ser una URL válida', url) },
-  },
-}));
-
-const v$ = useVuelidate(clientRules, { clientForm });
-
   const newOriginInput = ref('');
   const showDeleteAlert = ref(false);
   const clientToDelete = ref<SsoClient | null>(null);
@@ -333,7 +314,6 @@ const openCreateModal = (): void => {
     active: true,
   };
   newOriginInput.value = '';
-  v$.value.$reset();
   showModal.value = true;
 };
 
@@ -350,14 +330,10 @@ const openEditModal = (params: { client: SsoClient }): void => {
     active: client.active,
   };
   newOriginInput.value = '';
-  v$.value.$reset();
   showModal.value = true;
 };
 
       const saveClient = async (): Promise<void> => {
-    const isValid = await v$.value.$validate();
-    if (!isValid) return;
-
     saving.value = true;
     try {
       const data = {
@@ -384,9 +360,8 @@ const openEditModal = (params: { client: SsoClient }): void => {
       }
 
       showModal.value = false;
-    } catch (error) {
-      console.error('[Save Client Error]', error);
-      handleApiError(error);
+    } catch {
+      showError({ message: 'Error al guardar cliente' });
     } finally {
       saving.value = false;
     }
@@ -446,7 +421,7 @@ const deleteClient = async (): Promise<void> => {
   try {
     await clientsController.deleteClient({ id: clientToDelete.value.id });
     showSuccess({ message: 'Cliente eliminado correctamente' });
-  } catch (_error) {
+  } catch {
     showError({ message: 'Error al eliminar cliente' });
   } finally {
     showDeleteAlert.value = false;

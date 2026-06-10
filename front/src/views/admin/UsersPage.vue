@@ -17,9 +17,9 @@
         <div class="search-card">
           <ion-searchbar
             v-model="search"
-            aria-label="Buscar usuarios"
             placeholder="Buscar usuarios..."
             :debounce="500"
+            aria-label="Buscar usuarios"
             @ion-input="handleSearch"
           ></ion-searchbar>
         </div>
@@ -58,15 +58,15 @@
               </ion-item>
 
               <ion-item-options side="end">
-                <ion-item-option aria-label="Alternar rol administrador" color="medium" @click="toggleAdmin({ user })">
+                <ion-item-option color="medium" aria-label="Alternar rol administrador" @click="toggleAdmin({ user })">
                   <ion-icon
                     slot="icon-only"
                     :icon="user.is_admin ? removeCircle : addCircle"
                   ></ion-icon>
                 </ion-item-option>
                 <ion-item-option
-                  aria-label="Eliminar usuario"
                   color="danger"
+                  aria-label="Eliminar usuario"
                   @click="confirmDelete({ user })"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
@@ -77,8 +77,8 @@
 
           <ion-infinite-scroll
             v-if="users.length > 0"
-            aria-label="Cargar más usuarios"
             :disabled="!hasMore"
+            aria-label="Cargar más usuarios"
             @ion-infinite="loadMore($event)"
           >
             <ion-infinite-scroll-content
@@ -169,7 +169,7 @@
     try {
       await usersController.deleteUser(userToDelete.value.id);
       showSuccess({ message: 'Usuario eliminado correctamente' });
-    } catch (_error) {
+    } catch {
       showError({ message: 'Error al eliminar usuario' });
     } finally {
       showDeleteAlert.value = false;
@@ -240,7 +240,7 @@
     try {
       await usersController.toggleAdmin(user.id);
       showSuccess({ message: `Admin ${user.is_admin ? 'removido' : 'asignado'} correctamente` });
-    } catch (_error) {
+    } catch {
       showError({ message: 'Error al cambiar rol de administrador' });
     }
   };
