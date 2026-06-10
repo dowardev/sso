@@ -146,8 +146,8 @@ export function useAuthController() {
       });
 
       const oauthParams: OauthParams = {
-        client_id: params.client_id!,
-        redirect_uri: '',
+  client_id: params.client_id || '',
+  redirect_uri: '',
         state: '',
         response_type: 'code',
       };

@@ -1,6 +1,6 @@
 import { computed } from 'vue';
 import { useUsersStore } from '@/stores/users';
-import type { RoleAssignment, UserDetail, UserRole } from '@/types';
+import type { UserDetail, UserRole, RoleAssignment } from '@/types';
 
 export function useUsersController() {
   const usersStore = useUsersStore();
@@ -8,12 +8,7 @@ export function useUsersController() {
   const users = computed(() => usersStore.users);
   const selectedUser = computed(() => usersStore.selectedUser);
   const userRoles = computed(() => usersStore.userRoles);
-  const roleAssignments = computed({
-    get: () => usersStore.roleAssignments,
-    set: (value: RoleAssignment[]) => {
-      usersStore.roleAssignments = value;
-    },
-  });
+  const roleAssignments = computed(() => usersStore.roleAssignments);
   const loading = computed(() => usersStore.loading);
   const search = computed(() => usersStore.search);
   const pagination = computed(() => usersStore.pagination);
@@ -61,6 +56,10 @@ export function useUsersController() {
     return usersStore.revokeUserSessions(id);
   }
 
+  function setRoleAssignments(value: RoleAssignment[]): void {
+    usersStore.roleAssignments = value;
+  }
+
   function setSearch(value: string): void {
     usersStore.setSearch(value);
   }
@@ -96,6 +95,7 @@ export function useUsersController() {
     fetchUserRoles,
     saveUserRoles,
     revokeUserSessions,
+    setRoleAssignments,
     setSearch,
     reset,
     getInitials,

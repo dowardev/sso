@@ -3,6 +3,8 @@ import type { ThemeName, ResolvedThemeName } from '@/stores/theme'
 
 export type { ThemeName, ResolvedThemeName }
 
+export type { ThemeName, ResolvedThemeName };
+
 export function useThemeController() {
   const themeStore = useThemeStore()
 

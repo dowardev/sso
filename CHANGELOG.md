@@ -7,25 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.20.0] - 2026-06-09
+## [0.20.0] - 2026-06-10
 
 ### Added
 
 - Service layer classes for all business logic: `AuthService`, `JwtService`, `OAuth2Service`, `RoleService`, `SessionService`, `SsoClientService`, `UserService`, `UserSessionService`
-- FormRequest validation classes for all endpoints (`AuthorizeRequest`, `LoginRequest`, `RefreshTokenRequest`, `RegisterRequest`, `StoreRoleRequest`, `StoreSsoClientRequest`, `StoreUserRequest`, `TokenRequest`, `UpdateRoleRequest`, `UpdateSsoClientRequest`, `UpdateUserRequest`)
+- Dedicated controllers replacing monolithic `AdminController`: `SsoClientController`, `UserController`, `UserSessionController`
 - API Resource transformers for consistent JSON responses (`RoleResource`, `SsoClientResource`, `UserDetailResource`, `UserResource`, `UserRoleResource`, `UserSessionResource`)
-- Dedicated controllers replacing monolithic AdminController: `SsoClientController`, `UserController`, `UserSessionController`
+- FormRequest validation classes for all endpoints (`AuthorizeRequest`, `LoginRequest`, `RefreshTokenRequest`, `RegisterRequest`, `StoreRoleRequest`, `StoreSsoClientRequest`, `StoreUserRequest`, `TokenRequest`, `UpdateRoleRequest`, `UpdateSsoClientRequest`, `UpdateUserRequest`)
 - Pinia theme store (`stores/theme.ts`) as single source of truth for theme state
+- Vuelidate validation composable (`useValidation.ts`) with Spanish messages for frontend forms
+- Form validation on 6 components: AuthLoginForm, RegisterPage, PublicRegisterPage, UserDetailPage, RolesPage, ClientsPage
 
 ### Changed
 
 - Refactored `AdminController` into single-responsibility controllers (`UserController`, `UserSessionController`, `SsoClientController`, `RoleController`)
 - Extracted business logic from controllers into dedicated service layer
 - Moved request validation from inline code into FormRequest classes with centralized validation rules
-- Moved OAuth2 authorization code flow from `OAuth2Controller` to `OAuth2Service`
+- Updated `AuthController`, `OAuth2Controller`, and `RoleController` to use services and Form Requests
 - Moved theme management from `services/theme.ts` to `stores/theme.ts` (Pinia store)
-- Updated `AuthController`, `OAuth2Controller` to delegate to service layer
-- Updated `RoleController` with full CRUD operations (`adminIndex`, `store`, `update`, `destroy`)
+
+### Fixed
+
+- Fix 65+ ESLint errors across 13 frontend files (unused imports, kebab-case event names, caught error naming, attribute ordering)
+- Fix 2 TypeScript errors (readonly mutation on services import, missing `useRouter` export)
+- Enforce PKCE as mandatory in OAuth2 authorization code flow — authorization codes without `code_challenge` are now rejected
+- Use authenticated user identity (`$request->user()->id`) instead of user-supplied `sso_user_id` for self-delete and self-revoke protection
+
+### Infrastructure
+
+- Add `node_modules`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` to `.gitignore` files
 
 ### Removed
 
@@ -33,24 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ApiUsersController` (replaced by `UserController::apiIndex`)
 - `front/src/services/auth.ts` (deprecated store proxy, superseded by Pinia stores)
 
-### Fixed
-
-- Enforce PKCE as mandatory in OAuth2 authorization code flow — authorization codes without `code_challenge` are now rejected
-- Use authenticated user identity (`$request->user()->id`) instead of user-supplied `sso_user_id` request parameter for self-delete and self-revoke protection
-
 ### Affected Files
 
-- Added: `back/app/Http/Controllers/SsoClientController.php`, `UserController.php`, `UserSessionController.php`
-- Added: `back/app/Http/Requests/*.php` (11 FormRequest classes)
-- Added: `back/app/Http/Resources/*.php` (6 Resource classes)
-- Added: `back/app/Services/*.php` (8 Service classes)
-- Added: `front/src/stores/theme.ts`
-- Modified: `back/app/Http/Controllers/AuthController.php`, `OAuth2Controller.php`, `RoleController.php`
-- Modified: `back/routes/api.php`
-- Modified: `front/src/controllers/*.ts`, `front/src/views/admin/*.vue`
-- Modified: `front/src/services/theme.ts`, `front/src/services/dpopService.ts`
-- Deleted: `back/app/Http/Controllers/AdminController.php`, `ApiUsersController.php`
-- Deleted: `front/src/services/auth.ts`
+- Added: 8 Services, 11 FormRequests, 6 Resources, 3 Controllers, `front/src/stores/theme.ts`, `front/src/composables/useValidation.ts`
+- Modified: Backend controllers, routes, frontend controllers, views, services
+- Modified: `.gitignore`, `front/.gitignore`
+- Deleted: `back/app/Http/Controllers/AdminController.php`, `ApiUsersController.php`, `front/src/services/auth.ts`
 
 ---
 

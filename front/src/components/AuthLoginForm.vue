@@ -20,10 +20,13 @@
             label-placement="floating"
             label="Usuario / Email"
             type="text"
-            required
             placeholder="Ingresa tu usuario"
+            @ion-blur="v$.user.$touch()"
           />
         </ion-item>
+        <div v-if="v$.user.$error" class="field-error">
+          {{ v$.user.$errors[0].$message }}
+        </div>
 
         <ion-item class="input-item" lines="none">
           <ion-input
@@ -31,12 +34,15 @@
             label="Contraseña"
             label-placement="floating"
             type="password"
-            required
             placeholder="Ingresa tu contraseña"
+            @ion-blur="v$.password.$touch()"
           >
             <ion-input-password-toggle slot="end" />
           </ion-input>
         </ion-item>
+        <div v-if="v$.password.$error" class="field-error">
+          {{ v$.password.$errors[0].$message }}
+        </div>
 
         <ion-item class="input-item remember-item" lines="none">
           <ion-toggle
@@ -93,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
+  import { ref, onMounted, computed } from 'vue';
   import { useRouter, useRoute } from 'vue-router';
   import {
     IonItem,
@@ -109,9 +115,13 @@
     arrowBack,
     alertCircle,
   } from 'ionicons/icons';
+  import useVuelidate from '@vuelidate/core';
+  import { required } from '@vuelidate/validators';
 
   import { useAuthController } from '@/controllers/authController';
+  import { useValidation, withMsg } from '@/composables/useValidation';
   const authController = useAuthController();
+  const { handleApiError } = useValidation();
 
   const router = useRouter();
   const route = useRoute();
@@ -125,6 +135,13 @@
   const credentials = ref({ user: '', password: '' });
   const loading = ref(false);
   const error = ref('');
+
+  const rules = computed(() => ({
+    user: { required: withMsg('El usuario o email es requerido', required) },
+    password: { required: withMsg('La contraseña es requerida', required) },
+  }));
+
+  const v$ = useVuelidate(rules, credentials);
 
   const oauthParams = ref({
     client_id: '',
@@ -183,6 +200,9 @@
   });
 
   const handleLogin = async (): Promise<void> => {
+    const isValid = await v$.value.$validate();
+    if (!isValid) return;
+
     loading.value = true;
     error.value = '';
     try {
@@ -207,11 +227,8 @@
         router.replace(isPublic ? '/' : '/admin/dashboard');
       }
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        error.value = err.message;
-      } else {
-        error.value = 'Error al iniciar sesi&oacute;n';
-      }
+      console.error('[Login Error]', err);
+      error.value = handleApiError(err);
     } finally {
       loading.value = false;
     }

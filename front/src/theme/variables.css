@@ -298,6 +298,14 @@ ion-item.input-item ion-label {
 
 /* end globals */
 
+/* field-error */
+.field-error {
+  color: var(--ion-color-danger);
+  font-size: 12px;
+  padding: 0 0 8px 0;
+}
+/* end field-error */
+
 /* border-color items */
 .border-primary {
   border: 1px solid var(--ion-color-primary);

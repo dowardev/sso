@@ -22,10 +22,11 @@
                 label="Nombre"
                 label-placement="floating"
                 type="text"
-                required
                 placeholder="Ingresa tu nombre"
+                @ion-blur="v$.name.$touch()"
               />
             </ion-item>
+            <div v-if="v$.name.$error" class="field-error">{{ v$.name.$errors[0].$message }}</div>
 
             <ion-item class="input-item" lines="none">
               <ion-input
@@ -33,10 +34,11 @@
                 label="Usuario"
                 label-placement="floating"
                 type="text"
-                required
                 placeholder="Ingresa tu usuario"
+                @ion-blur="v$.user.$touch()"
               />
             </ion-item>
+            <div v-if="v$.user.$error" class="field-error">{{ v$.user.$errors[0].$message }}</div>
 
             <ion-item class="input-item" lines="none">
               <ion-input
@@ -44,12 +46,11 @@
                 label="Email"
                 label-placement="floating"
                 type="email"
-                required
                 placeholder="Ingresa tu email"
-                @ion-blur="validateEmail"
+                @ion-blur="v$.email.$touch()"
               />
             </ion-item>
-            <div v-if="emailError" class="field-error">{{ emailError }}</div>
+            <div v-if="v$.email.$error" class="field-error">{{ v$.email.$errors[0].$message }}</div>
 
             <ion-item class="input-item" lines="none">
               <ion-input
@@ -57,8 +58,8 @@
                 label="Contraseña"
                 label-placement="floating"
                 type="password"
-                required
                 placeholder="Ingresa tu contraseña"
+                @ion-blur="v$.password.$touch()"
               />
             </ion-item>
 
@@ -70,6 +71,7 @@
               ></div>
               <span class="strength-label">{{ passwordStrength.label }}</span>
             </div>
+            <div v-if="v$.password.$error" class="field-error">{{ v$.password.$errors[0].$message }}</div>
 
             <ion-item class="input-item" lines="none">
               <ion-input
@@ -77,12 +79,11 @@
                 label="Confirmar contraseña"
                 label-placement="floating"
                 type="password"
-                required
                 placeholder="Confirma tu contraseña"
-                @ion-blur="validatePasswordMatch"
+                @ion-blur="v$.password_confirmation.$touch()"
               />
             </ion-item>
-            <div v-if="passwordConfirmError" class="field-error">{{ passwordConfirmError }}</div>
+            <div v-if="v$.password_confirmation.$error" class="field-error">{{ v$.password_confirmation.$errors[0].$message }}</div>
 
             <div v-if="error" class="error-message" role="alert" aria-live="assertive">
               <ion-icon :icon="alertCircle" size="small"></ion-icon>
@@ -131,19 +132,19 @@
     loadingController,
   } from '@ionic/vue';
   import { arrowBack, alertCircle } from 'ionicons/icons';
+  import useVuelidate from '@vuelidate/core';
+  import { required, email, minLength, sameAs } from '@vuelidate/validators';
 
   import { useAuthController } from '@/controllers/authController';
+  import { useValidation, withMsg } from '@/composables/useValidation';
   const authController = useAuthController();
+  const { handleApiError } = useValidation();
 
   import { useToast } from '@/composables/useToast';
   const { showSuccess } = useToast();
 
   const router = useRouter();
   const route = useRoute();
-
-  interface ApiValidationError {
-    errors: Record<string, string[]>;
-  }
 
   const form = ref({
     name: '',
@@ -155,8 +156,28 @@
 
   const loading = ref(false);
   const error = ref('');
-  const emailError = ref('');
-  const passwordConfirmError = ref('');
+
+  const rules = computed(() => ({
+    name: { required: withMsg('El nombre es requerido', required) },
+    user: {
+      required: withMsg('El usuario es requerido', required),
+      minLength: withMsg('El usuario debe tener al menos 3 caracteres', minLength(3)),
+    },
+    email: {
+      required: withMsg('El email es requerido', required),
+      email: withMsg('Debe ser un email válido', email),
+    },
+    password: {
+      required: withMsg('La contraseña es requerida', required),
+      minLength: withMsg('La contraseña debe tener al menos 8 caracteres', minLength(8)),
+    },
+    password_confirmation: {
+      required: withMsg('Debe confirmar la contraseña', required),
+      sameAs: withMsg('Las contraseñas no coinciden', sameAs(computed(() => form.value.password))),
+    },
+  }));
+
+  const v$ = useVuelidate(rules, form);
 
   const passwordStrength = computed(() => {
     const pwd = form.value.password;
@@ -176,26 +197,6 @@
     if (score >= 45) return { percent: 50, level: 'medium', label: 'Media' };
     return { percent: 25, level: 'weak', label: 'Débil' };
   });
-
-  function validateEmail(): void {
-    const email = form.value.email.trim();
-    if (email.length === 0) {
-      emailError.value = '';
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    emailError.value = emailRegex.test(email) ? '' : 'Ingresa un email válido';
-  }
-
-  function validatePasswordMatch(): void {
-    const pwd = form.value.password;
-    const confirm = form.value.password_confirmation;
-    if (confirm.length === 0) {
-      passwordConfirmError.value = '';
-      return;
-    }
-    passwordConfirmError.value = pwd === confirm ? '' : 'Las contraseñas no coinciden';
-  }
 
   const oauthParams = ref({
     client_id: '',
@@ -253,6 +254,9 @@
   });
 
   const handleRegister = async (): Promise<void> => {
+    const isValid = await v$.value.$validate();
+    if (!isValid) return;
+
     loading.value = true;
     error.value = '';
 
@@ -279,19 +283,8 @@
       }
     } catch (err: unknown) {
       await loader.dismiss();
-      if (
-        err instanceof Error &&
-        'errors' in err &&
-        typeof (err as unknown as ApiValidationError).errors === 'object'
-      ) {
-        const validationErr = err as unknown as ApiValidationError;
-        const messages = Object.values(validationErr.errors).flat().join(', ');
-        error.value = messages;
-      } else if (err instanceof Error) {
-        error.value = err.message;
-      } else {
-        error.value = 'Error al registrar';
-      }
+      console.error('[Register Error]', err);
+      error.value = handleApiError(err);
     } finally {
       loading.value = false;
     }
@@ -461,12 +454,6 @@
   color: var(--ion-color-danger);
   font-size: 13px;
   padding: 8px 0;
-}
-
-.field-error {
-  color: var(--ion-color-danger);
-  font-size: 12px;
-  padding: 0 0 8px 0;
 }
 
 .strength-bar-container {
