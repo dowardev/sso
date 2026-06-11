@@ -14,6 +14,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/LoginPage.vue'),
   },
   {
+    path: '/setup',
+    name: 'Setup',
+    component: () => import('../views/SetupPage.vue'),
+  },
+  {
     path: '/register',
     name: 'AdminRegister',
     component: () => import('../views/RegisterPage.vue'),
@@ -101,7 +106,7 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
   const isAuthRoute = to.path.startsWith('/auth/');
@@ -110,11 +115,31 @@ router.beforeEach((to, from, next) => {
     next('/login');
   } else if (isAuthRoute) {
     next();
+  } else if (to.path === '/setup') {
+    next();
   } else if (
     (to.path === '/login' || to.path === '/') &&
     authStore.isAuthenticated
   ) {
     next('/admin/dashboard');
+  } else if (to.path === '/login' || to.path === '/') {
+    const setupCompleted = localStorage.getItem('setup_completed');
+    if (setupCompleted === 'true') {
+      next();
+    } else {
+      try {
+        const { api } = await import('@/services/api');
+        const status = await api.get<{ setup_completed: boolean }>({ endpoint: '/setup/status' });
+        if (!status.setup_completed) {
+          next('/setup');
+        } else {
+          localStorage.setItem('setup_completed', 'true');
+          next();
+        }
+      } catch {
+        next();
+      }
+    }
   } else {
     next();
   }

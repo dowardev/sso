@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'jwt.auth' => \App\Http\Middleware\JwtAuth::class,
             'dpop' => \App\Http\Middleware\VerifyDpopProof::class,
             'client.credentials' => \App\Http\Middleware\ClientCredentialsAuth::class,
+            'setup.not_completed' => \App\Http\Middleware\EnsureSetupNotCompleted::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

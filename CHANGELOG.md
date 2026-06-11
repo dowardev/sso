@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.0] - 2026-06-10
+
+### Added
+
+- First-run setup flow: new `SetupPage.vue` guides the first admin through initial registration
+- `GET /api/setup/status` (public) endpoint to check if any users exist
+- `POST /api/setup/admin` (public) endpoint to create the first admin user
+- `EnsureSetupNotCompleted` middleware to block setup POST when users already exist
+- Router guard that caches setup status in localStorage and redirects to `/setup` on first run
+- `setupController.ts` with `checkSetupStatus` and `createFirstAdmin` functions
+
+### Affected Files
+
+- Added: `back/app/Http/Controllers/SetupController.php`, `back/app/Http/Middleware/EnsureSetupNotCompleted.php`, `back/app/Http/Requests/SetupAdminRequest.php`, `front/src/controllers/setupController.ts`, `front/src/views/SetupPage.vue`
+- Modified: `back/bootstrap/app.php`, `back/routes/api.php`, `front/src/router/index.ts`
+
+---
+
 ## [0.20.0] - 2026-06-10
 
 ### Added
