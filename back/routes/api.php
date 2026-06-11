@@ -3,10 +3,14 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\OAuth2Controller;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SetupController;
 use App\Http\Controllers\SsoClientController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserSessionController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/setup/status', [SetupController::class, 'status']);
+Route::post('/setup/admin', [SetupController::class, 'storeAdmin'])->middleware('setup.not_completed');
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
