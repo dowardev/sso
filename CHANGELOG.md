@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.1] - 2026-06-11
+
+### Fixed
+
+- Sidebar no longer appears on auth pages (login, register, setup)
+- Route redirect now awaits completion after login, preventing a flash of unauthenticated state
+
+### Changed
+
+- Sidebar visibility computed uses route `meta.requiresAuth` instead of hardcoded path strings
+
+---
+
 ## [0.21.0] - 2026-06-10
 
 ### Added

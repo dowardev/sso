@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.19.1] - 2026-06-11
+
+### Fixed
+- Sidebar no longer appears on auth pages (login, register, setup) when authenticated
+- Login route redirect now awaits completion, preventing a flash of the unauthenticated state
+
+### Changed
+- Sidebar visibility computed uses `route.meta.requiresAuth` instead of hardcoded path strings
+
+---
+
 ## [0.19.0] - 2026-05-27
 
 ### Added
