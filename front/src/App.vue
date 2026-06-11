@@ -160,11 +160,7 @@ import { useAuthController } from '@/controllers/authController';
 
   const showSidebar = computed(() => {
     if (!isAuthenticated.value) return false;
-    const path = route.path;
-    return !path.startsWith('/login')
-      && !path.startsWith('/auth/')
-      && !path.startsWith('/setup')
-      && !path.startsWith('/register');
+    return route.matched.some(record => record.meta.requiresAuth);
   });
   let sessionCheckInterval: ReturnType<typeof setInterval> | null = null;
 
