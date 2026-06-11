@@ -224,7 +224,7 @@
           code_verifier: oauthParams.value.code_verifier || undefined,
         });
       } else {
-        router.replace(isPublic ? '/' : '/admin/dashboard');
+        await router.replace(isPublic ? '/' : '/admin/dashboard');
       }
     } catch (err: unknown) {
       console.error('[Login Error]', err);

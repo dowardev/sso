@@ -1,6 +1,6 @@
 <template>
   <ion-app>
-    <template v-if="isAuthenticated">
+    <template v-if="showSidebar">
       <ion-split-pane when="md" content-id="main-content">
       <ion-menu side="start" content-id="main-content">
         <ion-header class="ion-no-border">
@@ -148,8 +148,8 @@
     settingsOutline,
   } from 'ionicons/icons';
 
-  import { onMounted, onUnmounted } from 'vue';
-  import { useAuthController } from '@/controllers/authController';
+import { computed, onMounted, onUnmounted } from 'vue';
+import { useAuthController } from '@/controllers/authController';
 
   const router = useRouter();
   const route = useRoute();
@@ -157,6 +157,15 @@
   const authController = useAuthController();
   const isAuthenticated = authController.isAuthenticated;
   const currentUser = authController.user;
+
+  const showSidebar = computed(() => {
+    if (!isAuthenticated.value) return false;
+    const path = route.path;
+    return !path.startsWith('/login')
+      && !path.startsWith('/auth/')
+      && !path.startsWith('/setup')
+      && !path.startsWith('/register');
+  });
   let sessionCheckInterval: ReturnType<typeof setInterval> | null = null;
 
   onMounted(() => {
