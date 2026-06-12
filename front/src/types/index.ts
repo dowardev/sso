@@ -94,3 +94,12 @@ export interface Pagination {
   perPage: number;
   total: number;
 }
+
+export interface Setting {
+  id: number;
+  key: string;
+  value: string;
+  type: string;
+  description: string | null;
+  updated_at: string;
+}

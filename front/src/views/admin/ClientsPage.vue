@@ -55,6 +55,12 @@
                   >
                     {{ client.active ? 'Activo' : 'Inactivo' }}
                   </ion-badge>
+                  <ion-icon
+                    v-if="hasSslViolation({ redirectUrl: client.redirect_url })"
+                    :icon="warningOutline"
+                    color="warning"
+                    class="ssl-warning-icon"
+                  ></ion-icon>
                   <ion-button
                     fill="clear"
                     color="danger"
@@ -135,12 +141,19 @@
           </ion-item>
               <ion-item>
                 <ion-label position="stacked">Redirect URL</ion-label>
-                <ion-input
-                  v-model="clientForm.redirect_url"
-                  type="url"
-                  placeholder="https://"
-                ></ion-input>
-              </ion-item>
+                  <ion-input
+                    v-model="clientForm.redirect_url"
+                    type="url"
+                    placeholder="https://"
+                  ></ion-input>
+                  <ion-note
+                    v-if="securityController.requireSsl.value"
+                    color="warning"
+                    class="ssl-note"
+                  >
+                    Solo se permiten URLs con HTTPS (excepto hosts excluidos)
+                  </ion-note>
+                </ion-item>
               <ion-item>
                 <ion-label position="stacked">Orígenes Permitidos</ion-label>
                 <div class="origins-input-row">
@@ -242,15 +255,19 @@
     IonToggle,
     IonChip,
     IonInputPasswordToggle,
+    IonNote,
     IonRefresher,
     IonRefresherContent,
     IonAlert,
   } from '@ionic/vue';
-  import { add, desktopOutline, trash, close, keyOutline, copyOutline } from 'ionicons/icons';
+  import { add, desktopOutline, trash, close, keyOutline, copyOutline, warningOutline } from 'ionicons/icons';
 
   // controllers
   import { useClientsController } from '@/controllers/clientsController';
   const clientsController = useClientsController();
+
+  import { useSecurityController } from '@/controllers/securityController';
+  const securityController = useSecurityController();
 
   // composables
   import { useToast } from '@/composables/useToast';
@@ -296,7 +313,8 @@ const clientForm = ref({
   // end computed
 
   // onmounted
-  onMounted(() => {
+  onMounted(async () => {
+    await securityController.fetchSettings();
     clientsController.fetchClients();
   });
   // end onmounted
@@ -476,6 +494,21 @@ const handleRefresh = async (event: CustomEvent): Promise<void> => {
   await clientsController.fetchClients();
   event.detail.complete();
 };
+const hasSslViolation = (params: { redirectUrl: string | null }): boolean => {
+  const { redirectUrl } = params;
+  if (!redirectUrl || !securityController.requireSsl.value) return false;
+  if (redirectUrl.startsWith('https://')) return false;
+
+  const defaultExclusions = ['localhost', '127.0.0.1', '::1'];
+  const host = (() => {
+    try { return new URL(redirectUrl).hostname; } catch { return ''; }
+  })();
+
+  if (defaultExclusions.includes(host)) return false;
+  if (securityController.sslExclusions.value.includes(host)) return false;
+
+  return true;
+};
   // end functions
 </script>
 
@@ -618,5 +651,16 @@ const handleRefresh = async (event: CustomEvent): Promise<void> => {
 
 .secret-input-row ion-input {
   flex: 1;
+}
+
+.ssl-warning-icon {
+  font-size: 18px;
+  margin-right: 8px;
+}
+
+.ssl-note {
+  display: block;
+  font-size: 12px;
+  padding: 4px 16px 8px;
 }
 </style>

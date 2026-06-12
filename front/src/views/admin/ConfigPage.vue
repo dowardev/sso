@@ -34,12 +34,20 @@
         <ion-list class="config-list">
           <ion-list-header class="section-header">Sistema</ion-list-header>
 
-          <ion-item button disabled>
+          <ion-item
+            button
+            :class="{ 'active-item': isActiveRoute('/admin/config/security') }"
+            @click="router.push('/admin/config/security')"
+          >
             <div slot="start" class="config-icon-wrapper">
               <ion-icon :icon="shield"></ion-icon>
             </div>
             <ion-label>Seguridad</ion-label>
-            <span class="coming-soon">Pr&oacute;ximamente</span>
+            <ion-icon
+              slot="end"
+              :icon="chevronForward"
+              class="end-icon"
+            ></ion-icon>
           </ion-item>
 
           <ion-item button disabled>
@@ -58,17 +66,6 @@
             <span class="coming-soon">Pr&oacute;ximamente</span>
           </ion-item>
 
-          <ion-item button disabled>
-            <ion-icon slot="start" :icon="notifications"></ion-icon>
-            <ion-label>Notificaciones</ion-label>
-            <span class="coming-soon">Próximamente</span>
-          </ion-item>
-
-          <ion-item button disabled>
-            <ion-icon slot="start" :icon="globe"></ion-icon>
-            <ion-label>Idioma</ion-label>
-            <span class="coming-soon">Próximamente</span>
-          </ion-item>
         </ion-list>
 
         <div class="version-info">
