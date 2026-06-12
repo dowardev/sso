@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.0] - 2026-06-11
+
+### Added
+
+- SSL Security Panel at `/admin/config/security` with toggle to require HTTPS on OAuth2 redirect URIs
+- Configurable exclusion list for non-HTTPS redirect URIs (localhost excluded by default)
+- Persistent key-value settings system via database (`settings` table, Setting model, SettingService, SettingController)
+- SSL validation on OAuth2 client create/update (store/update request forms)
+- SSL validation in OAuth2 authorization flow (rejects non-HTTPS redirect URIs when SSL toggle is active)
+- SSL warning indicators in ClientsPage — warning icon on client rows and contextual note in the modal form
+- Security frontend stack: `securityStore`, `securityController`, `Setting` type, route, and ConfigPage integration
+
+### Fixed
+
+- Missing `IonNote` import in ClientsPage causing runtime rendering failure for SSL form note
+- Hyphenated event name in SecurityPage (`@ionChange` → `@ion-change`) to comply with ESLint rules
+
+---
+
 ## [0.21.1] - 2026-06-11
 
 ### Fixed

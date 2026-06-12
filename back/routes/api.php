@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\OAuth2Controller;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\SsoClientController;
 use App\Http\Controllers\UserController;
@@ -56,5 +57,8 @@ Route::middleware('jwt.auth')->group(function () {
         Route::post('/roles', [RoleController::class, 'store']);
         Route::put('/roles/{role}', [RoleController::class, 'update']);
         Route::delete('/roles/{role}', [RoleController::class, 'destroy']);
+
+        Route::get('/settings', [SettingController::class, 'index']);
+        Route::put('/settings/{key}', [SettingController::class, 'update']);
     });
 });

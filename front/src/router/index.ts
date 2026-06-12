@@ -97,6 +97,11 @@ const routes: Array<RouteRecordRaw> = [
         name: 'AdminConfigDesign',
         component: () => import('../views/admin/DesignPage.vue'),
       },
+      {
+        path: 'config/security',
+        name: 'AdminConfigSecurity',
+        component: () => import('../views/admin/SecurityPage.vue'),
+      },
     ],
   },
 ];
