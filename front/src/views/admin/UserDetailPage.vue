@@ -157,29 +157,36 @@
           <form class="modal-form" @submit.prevent="updateUser">
             <ion-list>
               <ion-item>
-                <ion-label position="stacked">Nombre</ion-label>
-                <ion-input v-model="editForm.name" required></ion-input>
+                <ion-label position="stacked">Nombre *</ion-label>
+                <ion-input v-model="editForm.name" @ion-blur="userV$.name.$touch()" :aria-invalid="userV$.name.$dirty ? userV$.name.$invalid : undefined"></ion-input>
               </ion-item>
+              <div v-if="userV$.name.$error" class="field-error">{{ userV$.name.$errors[0].$message }}</div>
               <ion-item>
-                <ion-label position="stacked">Usuario</ion-label>
-                <ion-input v-model="editForm.user" required></ion-input>
+                <ion-label position="stacked">Usuario *</ion-label>
+                <ion-input v-model="editForm.user" @ion-blur="userV$.user.$touch()" :aria-invalid="userV$.user.$dirty ? userV$.user.$invalid : undefined"></ion-input>
               </ion-item>
+              <div v-if="userV$.user.$error" class="field-error">{{ userV$.user.$errors[0].$message }}</div>
               <ion-item>
-                <ion-label position="stacked">Email</ion-label>
+                <ion-label position="stacked">Email *</ion-label>
                 <ion-input
                   v-model="editForm.email"
                   type="email"
-                  required
+                  @ion-blur="userV$.email.$touch()"
+                  :aria-invalid="userV$.email.$dirty ? userV$.email.$invalid : undefined"
                 ></ion-input>
               </ion-item>
+              <div v-if="userV$.email.$error" class="field-error">{{ userV$.email.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Nueva Contraseña</ion-label>
                 <ion-input
                   v-model="editForm.password"
                   type="password"
                   placeholder="Dejar vacío para mantener"
+                  @ion-blur="userV$.password.$touch()"
+                  :aria-invalid="userV$.password.$dirty ? userV$.password.$invalid : undefined"
                 ></ion-input>
               </ion-item>
+              <div v-if="userV$.password.$error" class="field-error">{{ userV$.password.$errors[0].$message }}</div>
             </ion-list>
             <div class="ion-padding">
               <ion-button type="submit" expand="block" class="gradient-btn" :disabled="updating">
@@ -330,6 +337,11 @@
   const authController = useAuthController();
 
   // composables
+  import { useFormValidation } from '@/composables/useFormValidation';
+  import { useValidation, validators } from '@/composables/useValidation';
+  const { handleApiError } = useValidation();
+  const v = validators;
+
   import { useToast } from '@/composables/useToast';
   const { showSuccess, showError } = useToast();
 
@@ -375,6 +387,28 @@
     },
   });
   const isAdmin = computed(() => authController.user.value?.is_admin || false);
+
+  const userRules = computed(() => ({
+    name: { required: v.required('Nombre'), maxLength: v.maxLength('Nombre', 255) },
+    user: {
+      required: v.required('Usuario'),
+      minLength: v.minLength('Usuario', 3),
+      maxLength: v.maxLength('Usuario', 255),
+      alphaNum: v.alphaNum('Usuario'),
+    },
+    email: {
+      required: v.required('Email'),
+      email: v.email('Email'),
+      maxLength: v.maxLength('Email', 255),
+    },
+    password: {
+      minLength: v.minLength('Nueva Contrase\u00f1a', 8),
+      passwordComplex: v.passwordComplex('Nueva Contrase\u00f1a'),
+    },
+  }));
+
+  const { v$: userV$, validate: validateUser, touchAll: touchUser } =
+    useFormValidation(userRules, editForm);
   // end computed
 
   // onmounted
@@ -424,6 +458,12 @@
   };
 
   const updateUser = async (): Promise<void> => {
+    const isValid = await validateUser();
+    if (!isValid) {
+      touchUser();
+      return;
+    }
+
     updating.value = true;
     try {
       const data: {
@@ -444,8 +484,8 @@
       await usersController.updateUser({ id: userId, data });
       showEditModal.value = false;
       showSuccess({ message: 'Usuario actualizado correctamente' });
-    } catch {
-      showError({ message: 'Error al actualizar usuario' });
+    } catch (err) {
+      handleApiError(err);
     } finally {
       updating.value = false;
     }

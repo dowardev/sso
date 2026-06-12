@@ -1,0 +1,29 @@
+.field-error {
+  color: var(--ion-color-danger);
+  font-size: 12px;
+  padding: 4px 0 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.field-error::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ion-color-danger);
+  flex-shrink: 0;
+}
+
+/* Input border highlighting based on Vuelidate error state */
+ion-input[aria-invalid="true"],
+ion-textarea[aria-invalid="true"] {
+  --border-color: var(--ion-color-danger);
+}
+
+ion-input[aria-invalid="false"],
+ion-textarea[aria-invalid="false"] {
+  --border-color: var(--ion-color-success);
+}

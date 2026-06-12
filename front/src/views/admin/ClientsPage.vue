@@ -104,13 +104,15 @@
           <form class="modal-form" @submit.prevent="saveClient">
             <ion-list>
               <ion-item>
-                <ion-label position="stacked">Nombre</ion-label>
-                <ion-input v-model="clientForm.name" required></ion-input>
+                <ion-label position="stacked">Nombre *</ion-label>
+                <ion-input v-model="clientForm.name" @ion-blur="clientV$.name.$touch()" :aria-invalid="clientV$.name.$dirty ? clientV$.name.$invalid : undefined"></ion-input>
               </ion-item>
+              <div v-if="clientV$.name.$error" class="field-error">{{ clientV$.name.$errors[0].$message }}</div>
               <ion-item>
-                <ion-label position="stacked">Client ID</ion-label>
-                <ion-input v-model="clientForm.client_id" required></ion-input>
+                <ion-label position="stacked">Client ID *</ion-label>
+                <ion-input v-model="clientForm.client_id" @ion-blur="clientV$.client_id.$touch()" :aria-invalid="clientV$.client_id.$dirty ? clientV$.client_id.$invalid : undefined"></ion-input>
               </ion-item>
+              <div v-if="clientV$.client_id.$error" class="field-error">{{ clientV$.client_id.$errors[0].$message }}</div>
           <ion-item>
             <ion-label position="stacked">Client Secret</ion-label>
             <div class="secret-input-row">
@@ -118,6 +120,8 @@
                 v-model="clientForm.client_secret"
                 placeholder="Opcional"
                 type="password"
+                @ion-blur="clientV$.client_secret.$touch()"
+                :aria-invalid="clientV$.client_secret.$dirty ? clientV$.client_secret.$invalid : undefined"
               >
                 <ion-input-password-toggle slot="end" />
               </ion-input>
@@ -139,12 +143,15 @@
               </ion-button>
             </div>
           </ion-item>
+          <div v-if="clientV$.client_secret.$error" class="field-error">{{ clientV$.client_secret.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Redirect URL</ion-label>
                   <ion-input
                     v-model="clientForm.redirect_url"
                     type="url"
                     placeholder="https://"
+                    @ion-blur="clientV$.redirect_url.$touch()"
+                    :aria-invalid="clientV$.redirect_url.$dirty ? clientV$.redirect_url.$invalid : undefined"
                   ></ion-input>
                   <ion-note
                     v-if="securityController.requireSsl.value"
@@ -154,6 +161,7 @@
                     Solo se permiten URLs con HTTPS (excepto hosts excluidos)
                   </ion-note>
                 </ion-item>
+                <div v-if="clientV$.redirect_url.$error" class="field-error">{{ clientV$.redirect_url.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Orígenes Permitidos</ion-label>
                 <div class="origins-input-row">
@@ -188,7 +196,7 @@
             <ion-toggle v-model="clientForm.active"></ion-toggle>
           </ion-item>
           <ion-item>
-            <ion-label position="stacked">Grant Types</ion-label>
+            <ion-label position="stacked">Grant Types *</ion-label>
           </ion-item>
           <ion-item>
             <ion-label>authorization_code</ion-label>
@@ -270,6 +278,11 @@
   const securityController = useSecurityController();
 
   // composables
+  import { useFormValidation } from '@/composables/useFormValidation';
+  import { useValidation, validators } from '@/composables/useValidation';
+  const { handleApiError } = useValidation();
+  const v = validators;
+
   import { useToast } from '@/composables/useToast';
   const { showSuccess, showError } = useToast();
 
@@ -310,6 +323,32 @@ const clientForm = ref({
   // computed
   const clients = computed(() => clientsController.clients.value);
   const loading = computed(() => clientsController.loading.value);
+
+  const clientRules = computed(() => ({
+    name: { required: v.required('Nombre') },
+    client_id: {
+      required: v.required('Client ID'),
+      minLength: v.minLength('Client ID', 3),
+      maxLength: v.maxLength('Client ID', 255),
+      alphaNum: v.alphaNum('Client ID'),
+    },
+    client_secret: {
+      minLength: v.minLength('Client Secret', 10),
+      maxLength: v.maxLength('Client Secret', 255),
+    },
+    redirect_url: {
+      maxLength: v.maxLength('Redirect URL', 255),
+      url: v.url('Redirect URL'),
+    },
+    allowed_origins: {},
+    grant_types: {
+      required: v.required('Grant Types'),
+    },
+    active: {},
+  }));
+
+  const { v$: clientV$, validate: validateClient, touchAll: touchClient } =
+    useFormValidation(clientRules, clientForm);
   // end computed
 
   // onmounted
@@ -352,6 +391,12 @@ const openEditModal = (params: { client: SsoClient }): void => {
 };
 
       const saveClient = async (): Promise<void> => {
+    const isValid = await validateClient();
+    if (!isValid) {
+      touchClient();
+      return;
+    }
+
     saving.value = true;
     try {
       const data = {
@@ -378,8 +423,8 @@ const openEditModal = (params: { client: SsoClient }): void => {
       }
 
       showModal.value = false;
-    } catch {
-      showError({ message: 'Error al guardar cliente' });
+    } catch (err) {
+      handleApiError(err);
     } finally {
       saving.value = false;
     }

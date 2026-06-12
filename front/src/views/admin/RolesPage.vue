@@ -86,24 +86,30 @@
           <form class="modal-form" @submit.prevent="saveRole">
             <ion-list>
               <ion-item>
-                <ion-label position="stacked">Nombre</ion-label>
-                <ion-input v-model="form.name" required></ion-input>
+                <ion-label position="stacked">Nombre *</ion-label>
+                <ion-input v-model="form.name" @ion-blur="roleV$.name.$touch()" :aria-invalid="roleV$.name.$dirty ? roleV$.name.$invalid : undefined"></ion-input>
               </ion-item>
+              <div v-if="roleV$.name.$error" class="field-error">{{ roleV$.name.$errors[0].$message }}</div>
               <ion-item v-if="!editingRole">
-                <ion-label position="stacked">Slug</ion-label>
+                <ion-label position="stacked">Slug *</ion-label>
                 <ion-input
                   v-model="form.slug"
                   placeholder="ej: editor"
-                  required
+                  @ion-blur="roleV$.slug.$touch()"
+                  :aria-invalid="roleV$.slug.$dirty ? roleV$.slug.$invalid : undefined"
                 ></ion-input>
               </ion-item>
+              <div v-if="roleV$.slug.$error" class="field-error">{{ roleV$.slug.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Descripción</ion-label>
                 <ion-textarea
                   v-model="form.description"
-                  placeholder="Descripción opcional"
+                  placeholder="Máx 500 caracteres"
+                  @ion-blur="roleV$.description.$touch()"
+                  :aria-invalid="roleV$.description.$dirty ? roleV$.description.$invalid : undefined"
                 ></ion-textarea>
               </ion-item>
+              <div v-if="roleV$.description.$error" class="field-error">{{ roleV$.description.$errors[0].$message }}</div>
             </ion-list>
             <div class="ion-padding">
               <ion-button type="submit" expand="block" class="gradient-btn" :disabled="saving">
@@ -161,6 +167,11 @@
   const rolesController = useRolesController();
 
   // composables
+  import { useFormValidation } from '@/composables/useFormValidation';
+  import { useValidation, validators } from '@/composables/useValidation';
+  const { handleApiError } = useValidation();
+  const v = validators;
+
   import { useToast } from '@/composables/useToast';
   const { showSuccess, showError } = useToast();
 
@@ -225,6 +236,22 @@
   // computed
   const roles = computed(() => rolesController.roles.value);
   const loading = computed(() => rolesController.loading.value);
+
+  const roleRules = computed(() => ({
+    name: { required: v.required('Nombre'), maxLength: v.maxLength('Nombre', 255) },
+    slug: editingRole.value
+      ? {}
+      : {
+          required: v.required('Slug'),
+          minLength: v.minLength('Slug', 2),
+          maxLength: v.maxLength('Slug', 255),
+          alphaNum: v.alphaNum('Slug'),
+        },
+    description: { maxLength: v.maxLength('Descripci\u00f3n', 500) },
+  }));
+
+  const { v$: roleV$, validate: validateRole, touchAll: touchRole } =
+    useFormValidation(roleRules, form);
   // end computed
 
   // onmounted
@@ -252,6 +279,12 @@
   };
 
       const saveRole = async (): Promise<void> => {
+    const isValid = await validateRole();
+    if (!isValid) {
+      touchRole();
+      return;
+    }
+
     saving.value = true;
     try {
       if (editingRole.value) {
@@ -274,8 +307,8 @@
         showSuccess({ message: 'Rol creado correctamente' });
       }
       showModal.value = false;
-    } catch {
-      showError({ message: 'Error al guardar rol' });
+    } catch (err) {
+      handleApiError(err);
     } finally {
       saving.value = false;
     }
