@@ -78,7 +78,7 @@
 
               <ion-chip
                 class="exclusion-chip add-chip"
-                @click="showAddExclusionAlert()"
+                @click="showAddExclusionModal = true"
               >
                 <ion-icon :icon="addCircleOutline"></ion-icon>
                 <ion-label>Agregar</ion-label>
@@ -90,6 +90,37 @@
       <!-- end content -->
 
       <!-- modals -->
+      <ion-modal :is-open="showAddExclusionModal" @did-dismiss="showAddExclusionModal = false">
+        <ion-header class="ion-no-border" mode="ios">
+          <ion-toolbar>
+            <ion-title>Agregar Exclusi\u00f3n SSL</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="showAddExclusionModal = false">Cancelar</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <form class="modal-form" @submit.prevent="addExclusionValidated">
+            <ion-list>
+              <ion-item>
+                <ion-label position="stacked">Host / IP *</ion-label>
+                <ion-input
+                  v-model="exclusionForm.host"
+                  placeholder="ej: mi-servidor.local, 192.168.1.50"
+                  @ion-blur="exclusionV$.host.$touch()"
+                  :aria-invalid="exclusionV$.host.$dirty ? exclusionV$.host.$invalid : undefined"
+                ></ion-input>
+              </ion-item>
+              <div v-if="exclusionV$.host.$error" class="field-error">{{ exclusionV$.host.$errors[0].$message }}</div>
+            </ion-list>
+            <div class="ion-padding">
+              <ion-button type="submit" expand="block" class="gradient-btn" :disabled="addingExclusion">
+                {{ addingExclusion ? 'Agregando...' : 'Agregar' }}
+              </ion-button>
+            </div>
+          </form>
+        </ion-content>
+      </ion-modal>
       <!-- end modals -->
 
       <!-- popovers -->
@@ -103,7 +134,7 @@
 
 <script setup lang="ts">
 // imports
-import { onMounted, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import {
   IonPage,
   IonHeader,
@@ -111,14 +142,17 @@ import {
   IonTitle,
   IonButtons,
   IonBackButton,
+  IonButton,
   IonContent,
   IonList,
   IonListHeader,
   IonItem,
   IonIcon,
   IonLabel,
+  IonInput,
   IonToggle,
   IonChip,
+  IonModal,
   alertController,
 } from '@ionic/vue';
 import {
@@ -133,6 +167,12 @@ import {
 import { useSecurityController } from '@/controllers/securityController';
 const securityController = useSecurityController();
 
+// composables
+import { useFormValidation } from '@/composables/useFormValidation';
+import { useValidation, validators } from '@/composables/useValidation';
+const { handleApiError } = useValidation();
+const v = validators;
+
 // components
 // end components
 
@@ -146,6 +186,20 @@ const securityController = useSecurityController();
 const requireSsl = securityController.requireSsl;
 const sslExclusions = securityController.sslExclusions;
 const loading = securityController.loading;
+
+const showAddExclusionModal = ref(false);
+const addingExclusion = ref(false);
+const exclusionForm = ref({ host: '' });
+
+const exclusionRules = computed(() => ({
+  host: {
+    required: v.required('Host / IP'),
+    hostOrIp: v.hostOrIp('Host / IP'),
+  },
+}));
+
+const { v$: exclusionV$, validate: validateExclusion, touchAll: touchExclusion } =
+  useFormValidation(exclusionRules, exclusionForm);
 
 const defaultExclusions = ['localhost', '127.0.0.1', '::1'];
 
@@ -193,30 +247,23 @@ const onRemoveExclusion = async (params: {
   await alert.present();
 };
 
-const showAddExclusionAlert = async (): Promise<void> => {
-  const alert = await alertController.create({
-    header: 'Agregar exclusión SSL',
-    inputs: [
-      {
-        name: 'host',
-        type: 'text',
-        placeholder: 'ej: mi-servidor.local, 192.168.1.50',
-      },
-    ],
-    buttons: [
-      { text: 'Cancelar', role: 'cancel' },
-      {
-        text: 'Agregar',
-        handler: async (data: { host: string }) => {
-          const host = data.host?.trim();
-          if (host) {
-            await securityController.addExclusion({ host });
-          }
-        },
-      },
-    ],
-  });
-  await alert.present();
+const addExclusionValidated = async (): Promise<void> => {
+  const isValid = await validateExclusion();
+  if (!isValid) {
+    touchExclusion();
+    return;
+  }
+
+  addingExclusion.value = true;
+  try {
+    await securityController.addExclusion({ host: exclusionForm.value.host });
+    exclusionForm.value.host = '';
+    showAddExclusionModal.value = false;
+  } catch (err) {
+    handleApiError(err);
+  } finally {
+    addingExclusion.value = false;
+  }
 };
 // end functions
 </script>

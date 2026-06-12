@@ -1,5 +1,6 @@
-import { helpers } from '@vuelidate/validators'
+import { helpers, required, email, minLength, maxLength, sameAs, url as urlValidator } from '@vuelidate/validators'
 import type { ValidationRule } from '@vuelidate/core'
+import type { ComputedRef } from 'vue'
 
 import { useToast } from '@/composables/useToast'
 
@@ -79,4 +80,39 @@ export function useValidation() {
   }
 
   return { handleApiError, translateServerError, withMsg, fieldLabels }
+}
+
+export const validators = {
+  required: (label: string) => withMsg(`El campo ${label} es requerido`, required),
+  email: (label: string) => withMsg(`El campo ${label} debe ser un email v\u00e1lido`, email),
+  minLength: (label: string, min: number) =>
+    withMsg(`El campo ${label} debe tener al menos ${min} caracteres`, minLength(min)),
+  maxLength: (label: string, max: number) =>
+    withMsg(`El campo ${label} no puede exceder ${max} caracteres`, maxLength(max)),
+  url: (label: string) =>
+    withMsg(`El campo ${label} debe ser una URL v\u00e1lida`, urlValidator),
+  sameAs: (label: string, target: ComputedRef<string>) =>
+    withMsg(`El campo ${label} no coincide`, sameAs(target)),
+  alphaNum: (label: string) =>
+    withMsg(`El campo ${label} solo permite letras, n\u00fameros, guiones y guiones bajos`, helpers.regex(/^[a-zA-Z0-9_-]+$/)),
+  passwordComplex: (label: string) =>
+    withMsg(`El campo ${label} debe tener 8+ caracteres, una may\u00fascula, un n\u00famero y un car\u00e1cter especial`, helpers.regex(/^(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).+$/)),
+  hostOrIp: (label: string) => {
+    const isValidHostOrIp = (value: string): boolean => {
+      if (!value) return true
+
+      const ipv4Octet = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
+      const ipMatch = value.match(ipv4Octet)
+      if (ipMatch) {
+        return ipMatch.slice(1).every((octet) => {
+          const n = Number.parseInt(octet, 10)
+          return n >= 0 && n <= 255
+        })
+      }
+
+      return /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(value)
+    }
+
+    return withMsg(`El campo ${label} debe ser un host o IP v\u00e1lido`, isValidHostOrIp)
+  },
 }

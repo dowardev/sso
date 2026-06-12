@@ -35,6 +35,9 @@ import '@ionic/vue/css/palettes/dark.class.css';
 /* Theme variables */
 import './theme/variables.css';
 
+/* Validation styles */
+import './styles/validation.css';
+
 const app = createApp(App).use(createPinia()).use(IonicVue).use(router);
 
 router.isReady().then(() => {
