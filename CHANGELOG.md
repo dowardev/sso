@@ -4,8 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.24.0] - 2026-06-13
 
----
+### Added
+- useFormValidation composable with validate(), touchAll(), reset() API
+- useValidation.ts with 9 reusable Spanish-localized validators: required, email, minLength, maxLength, url, sameAs, alphaNum, passwordComplex, hostOrIp
+- Validation stylesheet with input border color feedback
+- Client-side form validation on SSO Clients create/edit modal (name, client_id, client_secret, redirect_url, grant_types)
+- Client-side form validation on Roles create/edit modal (name, slug, description)
+- Client-side form validation on Users edit modal (name, user, email, password)
+- Client-side form validation on SSL Exclusions modal (host/IP)
+- .field-error visual error indicators with red dot prefix on all validated forms
+- aria-invalid based input border highlighting (red for error, green for success)
+- Unit tests for useFormValidation — 22 tests covering all validators and edge cases
+
+### Fixed
+- Added missing show endpoints for SSO clients and roles
+- Fixed toggle v-model binding in ClientsPage and AuthLoginForm components
+- Resolved token column conflict by renaming to plain_token and updating related code
+- Fixed UpdateSsoClientRequest client_id unique validation to use correct model ID
+- Fixed toggleAdmin to properly send action parameter and return correct is_admin state
+- Fixed UserSessionResource token_active validation to use whenLoaded properly
+
 
 ## [0.23.0] - 2026-06-12
 

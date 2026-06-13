@@ -13,7 +13,8 @@ class UpdateSsoClientRequest extends FormRequest
 
     public function rules(): array
     {
-        $clientId = $this->route('client');
+        $client = $this->route('client');
+        $clientId = $client instanceof \App\Models\SsoClient ? $client->id : $client;
 
         return [
             'name' => 'sometimes|string|max:255',

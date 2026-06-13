@@ -31,8 +31,10 @@ class UserSessionResource extends JsonResource
                     'client_id' => $this->client->client_id,
                 ];
             }),
-            'token_active' => $this->token &&
-                ($this->token->expires_at === null || $this->token->expires_at->isFuture()),
+            'token_active' => $this->whenLoaded('token', function () {
+                return $this->token &&
+                    ($this->token->expires_at === null || $this->token->expires_at->isFuture());
+            }) ?? false,
         ];
     }
 }

@@ -71,7 +71,9 @@ class UserController extends Controller
             $request->input('sso_client_id')
         );
 
-        return response()->json(['message' => 'Role updated successfully']);
+        $user->refresh();
+
+        return response()->json(['is_admin' => $user->isAdmin()]);
     }
 
     public function indexRoles(User $user): JsonResponse

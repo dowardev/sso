@@ -238,8 +238,12 @@
   const toggleAdmin = async (params: { user: User }): Promise<void> => {
     const { user } = params;
     try {
-      await usersController.toggleAdmin(user.id);
-      showSuccess({ message: `Admin ${user.is_admin ? 'removido' : 'asignado'} correctamente` });
+      const response = await usersController.toggleAdmin({
+        id: user.id,
+        action: user.is_admin ? 'remove' : 'assign',
+      });
+      user.is_admin = response.is_admin;
+      showSuccess({ message: `Admin ${response.is_admin ? 'asignado' : 'removido'} correctamente` });
     } catch {
       showError({ message: 'Error al cambiar rol de administrador' });
     }

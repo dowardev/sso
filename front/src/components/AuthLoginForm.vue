@@ -47,8 +47,9 @@
         <ion-item class="input-item remember-item" lines="none">
           <ion-toggle
             slot="start"
-            v-model="rememberMe"
+            :checked="rememberMe"
             color="primary"
+            @ion-change="rememberMe = !rememberMe"
           />
           <ion-label class="remember-label">Mantener sesión abierta</ion-label>
         </ion-item>

@@ -33,8 +33,8 @@ export function useUsersController() {
     return usersStore.updateUser(params);
   }
 
-  async function toggleAdmin(id: number): Promise<{ is_admin: boolean }> {
-    return usersStore.toggleAdmin(id);
+  async function toggleAdmin(params: { id: number; action: string }): Promise<{ is_admin: boolean }> {
+    return usersStore.toggleAdmin(params);
   }
 
   async function deleteUser(id: number): Promise<void> {

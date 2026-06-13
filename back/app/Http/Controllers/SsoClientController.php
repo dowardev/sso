@@ -24,6 +24,11 @@ class SsoClientController extends Controller
         return response()->json(SsoClientResource::collection($clients));
     }
 
+    public function show(SsoClient $client): JsonResponse
+    {
+        return response()->json(new SsoClientResource($client));
+    }
+
     public function store(StoreSsoClientRequest $request): JsonResponse
     {
         $client = $this->clientService->create($request->validated());

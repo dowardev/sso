@@ -18,7 +18,7 @@ class SessionService
         return UserSession::create([
             'user_id' => $user->id,
             'sso_client_id' => $client?->id,
-            'token' => $token,
+            'plain_token' => $token,
             'dpop_public_key' => $dpopPublicKey,
             'remember_me' => $rememberMe,
             'ip_address' => $request->ip(),
@@ -29,7 +29,7 @@ class SessionService
 
     public function revokeSessionByToken(string $tokenString): void
     {
-        UserSession::where('token', $tokenString)->delete();
+        UserSession::where('plain_token', $tokenString)->delete();
     }
 
     public function revokeAllUserSessions(User $user): void
@@ -44,6 +44,6 @@ class SessionService
 
     public function getActiveSessionData(string $tokenString): ?UserSession
     {
-        return UserSession::where('token', $tokenString)->first();
+        return UserSession::where('plain_token', $tokenString)->first();
     }
 }
