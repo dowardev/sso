@@ -30,6 +30,11 @@ class RoleController extends Controller
         return response()->json(RoleResource::collection($roles));
     }
 
+    public function show(Role $role): JsonResponse
+    {
+        return response()->json(new RoleResource($role));
+    }
+
     public function store(StoreRoleRequest $request): JsonResponse
     {
         $role = $this->roleService->create($request->validated());

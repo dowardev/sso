@@ -49,11 +49,13 @@ Route::middleware('jwt.auth')->group(function () {
         Route::delete('/users/{user}/sessions', [UserSessionController::class, 'destroyUserSessions']);
 
         Route::get('/clients', [SsoClientController::class, 'index']);
+        Route::get('/clients/{client}', [SsoClientController::class, 'show']);
         Route::post('/clients', [SsoClientController::class, 'store']);
         Route::put('/clients/{client}', [SsoClientController::class, 'update']);
         Route::delete('/clients/{client}', [SsoClientController::class, 'destroy']);
 
         Route::get('/roles', [RoleController::class, 'adminIndex']);
+        Route::get('/roles/{role}', [RoleController::class, 'show']);
         Route::post('/roles', [RoleController::class, 'store']);
         Route::put('/roles/{role}', [RoleController::class, 'update']);
         Route::delete('/roles/{role}', [RoleController::class, 'destroy']);

@@ -97,11 +97,13 @@ export const useUsersStore = defineStore('users', () => {
     }
   }
 
-  async function toggleAdmin(id: number) {
+  async function toggleAdmin(params: { id: number; action: string }) {
+    const { id, action } = params;
     loading.value = true;
     try {
       const response = await api.post<{ is_admin: boolean }>({
         endpoint: `/admin/users/${id}/toggle`,
+        data: { action },
       });
       const index = users.value.findIndex((u) => u.id === id);
       if (index !== -1) {

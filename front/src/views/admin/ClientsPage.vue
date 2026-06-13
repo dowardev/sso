@@ -105,12 +105,12 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre *</ion-label>
-                <ion-input v-model="clientForm.name" @ion-blur="clientV$.name.$touch()" :aria-invalid="clientV$.name.$dirty ? clientV$.name.$invalid : undefined"></ion-input>
+                <ion-input v-model="clientForm.name" :aria-invalid="clientV$.name.$dirty ? clientV$.name.$invalid : undefined" @ion-blur="clientV$.name.$touch()"></ion-input>
               </ion-item>
               <div v-if="clientV$.name.$error" class="field-error">{{ clientV$.name.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Client ID *</ion-label>
-                <ion-input v-model="clientForm.client_id" @ion-blur="clientV$.client_id.$touch()" :aria-invalid="clientV$.client_id.$dirty ? clientV$.client_id.$invalid : undefined"></ion-input>
+                <ion-input v-model="clientForm.client_id" :aria-invalid="clientV$.client_id.$dirty ? clientV$.client_id.$invalid : undefined" @ion-blur="clientV$.client_id.$touch()"></ion-input>
               </ion-item>
               <div v-if="clientV$.client_id.$error" class="field-error">{{ clientV$.client_id.$errors[0].$message }}</div>
           <ion-item>
@@ -120,8 +120,8 @@
                 v-model="clientForm.client_secret"
                 placeholder="Opcional"
                 type="password"
-                @ion-blur="clientV$.client_secret.$touch()"
                 :aria-invalid="clientV$.client_secret.$dirty ? clientV$.client_secret.$invalid : undefined"
+                @ion-blur="clientV$.client_secret.$touch()"
               >
                 <ion-input-password-toggle slot="end" />
               </ion-input>
@@ -150,8 +150,8 @@
                     v-model="clientForm.redirect_url"
                     type="url"
                     placeholder="https://"
-                    @ion-blur="clientV$.redirect_url.$touch()"
                     :aria-invalid="clientV$.redirect_url.$dirty ? clientV$.redirect_url.$invalid : undefined"
+                    @ion-blur="clientV$.redirect_url.$touch()"
                   ></ion-input>
                   <ion-note
                     v-if="securityController.requireSsl.value"
@@ -193,7 +193,10 @@
               </ion-item>
           <ion-item>
             <ion-label>Activo</ion-label>
-            <ion-toggle v-model="clientForm.active"></ion-toggle>
+            <ion-toggle
+              :checked="clientForm.active"
+              @ion-change="clientForm.active = !clientForm.active"
+            ></ion-toggle>
           </ion-item>
           <ion-item>
             <ion-label position="stacked">Grant Types *</ion-label>

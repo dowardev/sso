@@ -83,8 +83,8 @@ class AuthService
         $newTokenData = $this->jwtService->generateToken($user, $dpopPublicKey, $rememberMe);
 
         UserSession::where('user_id', $userId)
-            ->where('token', $tokenString)
-            ->update(['token' => $newTokenData['token'], 'last_used_at' => now()]);
+            ->where('plain_token', $tokenString)
+            ->update(['plain_token' => $newTokenData['token'], 'last_used_at' => now()]);
 
         return [
             'token' => $newTokenData['token'],
