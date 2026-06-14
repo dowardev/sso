@@ -138,6 +138,10 @@
                 </ion-list>
               </div>
             </ion-col>
+
+            <ion-col size="12">
+              <UserAuthorizationsList :user-id="userId" />
+            </ion-col>
           </ion-row>
         </ion-grid>
       </div>
@@ -346,6 +350,7 @@
   const { showSuccess, showError } = useToast();
 
   // components
+  import UserAuthorizationsList from '@/components/UserAuthorizationsList.vue';
   // end components
 
   // interface and types imports

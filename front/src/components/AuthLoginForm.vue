@@ -182,7 +182,7 @@
       if (isPublic && authController.isAuthenticated.value) {
         loading.value = true;
         try {
-          await authController.oauthAuthorize({
+          const oauthResult = await authController.oauthAuthorize({
             client_id: oauthParams.value.client_id,
             redirect_uri: oauthParams.value.redirect_uri,
             state: oauthParams.value.state,
@@ -192,13 +192,53 @@
               oauthParams.value.code_challenge_method || undefined,
             code_verifier: oauthParams.value.code_verifier || undefined,
           });
-          return;
+
+          if (!(await handleOAuthResponse(oauthResult))) {
+            return;
+          }
         } catch {
           loading.value = false;
         }
       }
     }
   });
+
+  async function handleOAuthResponse(response: {
+    authorization_required?: boolean;
+    code?: string;
+    state?: string | null;
+    client?: { id: number; name: string; client_id: string };
+  }): Promise<boolean> {
+    if (response.authorization_required && response.client) {
+      const query: Record<string, string> = {
+        client_id: oauthParams.value.client_id,
+        redirect_uri: oauthParams.value.redirect_uri,
+        client_name: response.client.name,
+        state: oauthParams.value.state,
+        response_type: oauthParams.value.response_type || 'code',
+      };
+      if (oauthParams.value.code_challenge) {
+        query.code_challenge = oauthParams.value.code_challenge;
+        query.code_challenge_method = oauthParams.value.code_challenge_method;
+      }
+      if (oauthParams.value.code_verifier) {
+        query.code_verifier = oauthParams.value.code_verifier;
+      }
+      router.replace({ name: 'OAuthAuthorize', query });
+      return false;
+    }
+
+    if (response.code) {
+      await authController.redirectOAuthCode({
+        code: response.code,
+        state: response.state || null,
+        redirect_uri: oauthParams.value.redirect_uri,
+      });
+      return false;
+    }
+
+    return true;
+  }
 
   const handleLogin = async (): Promise<void> => {
     const isValid = await v$.value.$validate();
@@ -214,7 +254,7 @@
         rememberMe: rememberMe.value,
       });
       if (isOAuthFlow.value) {
-        await authController.oauthAuthorize({
+        const oauthResult = await authController.oauthAuthorize({
           client_id: oauthParams.value.client_id,
           redirect_uri: oauthParams.value.redirect_uri,
           state: oauthParams.value.state,
@@ -224,6 +264,10 @@
             oauthParams.value.code_challenge_method || undefined,
           code_verifier: oauthParams.value.code_verifier || undefined,
         });
+
+        if (!(await handleOAuthResponse(oauthResult))) {
+          return;
+        }
       } else {
         await router.replace(isPublic ? '/' : '/admin/dashboard');
       }

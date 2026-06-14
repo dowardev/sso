@@ -39,6 +39,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/LogoutPage.vue'),
   },
   {
+    path: '/auth/authorize',
+    name: 'OAuthAuthorize',
+    component: () => import('../views/OAuthAuthorizationPage.vue'),
+  },
+  {
     path: '/auth/callback',
     redirect: 'http://localhost:5173/auth/callback',
   },
@@ -81,6 +86,11 @@ const routes: Array<RouteRecordRaw> = [
         path: 'clients',
         name: 'AdminClients',
         component: () => import('../views/admin/ClientsPage.vue'),
+      },
+      {
+        path: 'clients/:id',
+        name: 'AdminClientDetail',
+        component: () => import('../views/admin/ClientDetailPage.vue'),
       },
       {
         path: 'roles',

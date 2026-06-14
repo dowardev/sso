@@ -31,9 +31,9 @@
             <ion-button class="gradient-btn" size="small" @click="openCreateModal">Crear Cliente</ion-button>
           </div>
 
-          <ion-list v-else class="clients-list">
+           <ion-list v-else class="clients-list">
             <ion-item-sliding v-for="client in clients" :key="client.id">
-              <ion-item button @click="openEditModal({ client })">
+              <ion-item @click="goToClientDetail({ clientId: client.id })">
                 <ion-icon
                   slot="start"
                   :icon="desktopOutline"
@@ -61,6 +61,15 @@
                     color="warning"
                     class="ssl-warning-icon"
                   ></ion-icon>
+                  <ion-button
+                    fill="clear"
+                    color="primary"
+                    size="small"
+                    @click.stop="openEditModal({ client })"
+                    aria-label="Editar cliente"
+                  >
+                    <ion-icon slot="icon-only" :icon="create"></ion-icon>
+                  </ion-button>
                   <ion-button
                     fill="clear"
                     color="danger"
@@ -271,11 +280,14 @@
     IonRefresherContent,
     IonAlert,
   } from '@ionic/vue';
-  import { add, desktopOutline, trash, close, keyOutline, copyOutline, warningOutline } from 'ionicons/icons';
+  import { add, desktopOutline, trash, close, keyOutline, copyOutline, warningOutline, create } from 'ionicons/icons';
 
   // controllers
-  import { useClientsController } from '@/controllers/clientsController';
-  const clientsController = useClientsController();
+import { useClientsController } from '@/controllers/clientsController';
+const clientsController = useClientsController();
+
+import { useRouter } from 'vue-router';
+const router = useRouter();
 
   import { useSecurityController } from '@/controllers/securityController';
   const securityController = useSecurityController();
@@ -541,6 +553,10 @@ const toggleGrantType = (grantType: string): void => {
 const handleRefresh = async (event: CustomEvent): Promise<void> => {
   await clientsController.fetchClients();
   event.detail.complete();
+};
+
+const goToClientDetail = (params: { clientId: number }): void => {
+  router.push({ name: 'AdminClientDetail', params: { id: params.clientId } });
 };
 const hasSslViolation = (params: { redirectUrl: string | null }): boolean => {
   const { redirectUrl } = params;

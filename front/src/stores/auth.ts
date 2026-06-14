@@ -8,12 +8,23 @@ const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
 const DPOP_PUBLIC_KEY = 'dpop_public_key';
 const REMEMBER_KEY = 'remember_me';
+const AUTHORIZED_CLIENTS_KEY = 'authorized_clients';
 const AUTO_REFRESH_INTERVAL = 3000000; // 50 min (5/6 of 3600s)
 const REFRESH_THRESHOLD = 600; // 10 min threshold to refresh on init
+
+function loadAuthorizedClients(): string[] {
+  try {
+    const stored = localStorage.getItem(AUTHORIZED_CLIENTS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem(TOKEN_KEY));
   const user = ref<User | null>(null);
+  const authorizedClients = ref<string[]>(loadAuthorizedClients());
   let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   function isTokenExpired(token: string): boolean {
@@ -33,8 +44,29 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('sso_token');
     localStorage.removeItem(DPOP_PUBLIC_KEY);
     localStorage.removeItem(REMEMBER_KEY);
+    localStorage.removeItem(AUTHORIZED_CLIENTS_KEY);
     token.value = null;
     user.value = null;
+    authorizedClients.value = [];
+  }
+
+  function addAuthorizedClient(clientId: string): void {
+    const clients = loadAuthorizedClients();
+    if (!clients.includes(clientId)) {
+      clients.push(clientId);
+      localStorage.setItem(AUTHORIZED_CLIENTS_KEY, JSON.stringify(clients));
+      authorizedClients.value = clients;
+    }
+  }
+
+  function removeAuthorizedClient(clientId: string): void {
+    const clients = loadAuthorizedClients().filter((id) => id !== clientId);
+    localStorage.setItem(AUTHORIZED_CLIENTS_KEY, JSON.stringify(clients));
+    authorizedClients.value = clients;
+  }
+
+  function isClientAuthorized(clientId: string): boolean {
+    return authorizedClients.value.includes(clientId);
   }
 
   async function login(params: {
@@ -207,11 +239,15 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     user,
     isAuthenticated,
+    authorizedClients,
     login,
     logout,
     getUser,
     getToken,
     getDpopPublicKey,
     init,
+    addAuthorizedClient,
+    removeAuthorizedClient,
+    isClientAuthorized,
   };
 });

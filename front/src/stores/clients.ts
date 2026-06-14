@@ -5,6 +5,7 @@ import type { SsoClient } from '@/types';
 
 export const useClientsStore = defineStore('clients', () => {
   const clients = ref<SsoClient[]>([]);
+  const selectedClient = ref<SsoClient | null>(null);
   const loading = ref(false);
 
   const count = computed(() => clients.value.length);
@@ -18,6 +19,19 @@ export const useClientsStore = defineStore('clients', () => {
         endpoint: '/admin/clients',
       });
       clients.value = response;
+      return response;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchClient(id: number) {
+    loading.value = true;
+    try {
+      const response = await api.get<SsoClient>({
+        endpoint: `/admin/clients/${id}`,
+      });
+      selectedClient.value = response;
       return response;
     } finally {
       loading.value = false;
@@ -90,10 +104,12 @@ export const useClientsStore = defineStore('clients', () => {
 
   return {
     clients,
+    selectedClient,
     loading,
     count,
     activeClients,
     fetchClients,
+    fetchClient,
     createClient,
     updateClient,
     deleteClient,

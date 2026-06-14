@@ -29,6 +29,11 @@ Route::middleware(['jwt.auth', 'client.credentials'])->group(function () {
 
 Route::middleware('jwt.auth')->group(function () {
     Route::post('/oauth/authorize', [OAuth2Controller::class, 'authorize']);
+    Route::post('/oauth/authorize/approve', [OAuth2Controller::class, 'approveAuthorization']);
+    Route::post('/oauth/authorize/deny', [OAuth2Controller::class, 'denyAuthorization']);
+    Route::post('/oauth/authorize/revoke', [OAuth2Controller::class, 'revokeAuthorization']);
+
+    Route::get('/oauth/authorizations', [OAuth2Controller::class, 'userAuthorizations']);
 
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/user-auth', [AuthController::class, 'me']);
@@ -50,6 +55,7 @@ Route::middleware('jwt.auth')->group(function () {
 
         Route::get('/clients', [SsoClientController::class, 'index']);
         Route::get('/clients/{client}', [SsoClientController::class, 'show']);
+        Route::get('/clients/{client}/authorizations', [OAuth2Controller::class, 'clientAuthorizations']);
         Route::post('/clients', [SsoClientController::class, 'store']);
         Route::put('/clients/{client}', [SsoClientController::class, 'update']);
         Route::delete('/clients/{client}', [SsoClientController::class, 'destroy']);

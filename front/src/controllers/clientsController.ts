@@ -6,12 +6,17 @@ export function useClientsController() {
   const clientsStore = useClientsStore();
 
   const clients = computed(() => clientsStore.clients);
+  const selectedClient = computed(() => clientsStore.selectedClient);
   const loading = computed(() => clientsStore.loading);
   const count = computed(() => clientsStore.count);
   const activeClients = computed(() => clientsStore.activeClients);
 
   async function fetchClients(): Promise<SsoClient[]> {
     return clientsStore.fetchClients();
+  }
+
+  async function fetchClient(id: number): Promise<SsoClient> {
+    return clientsStore.fetchClient(id);
   }
 
   async function createClient(params: {
@@ -51,10 +56,12 @@ export function useClientsController() {
 
   return {
     clients,
+    selectedClient,
     loading,
     count,
     activeClients,
     fetchClients,
+    fetchClient,
     createClient,
     updateClient,
     deleteClient,
