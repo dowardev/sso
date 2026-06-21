@@ -65,8 +65,8 @@
                     fill="clear"
                     color="primary"
                     size="small"
-                    @click.stop="openEditModal({ client })"
                     aria-label="Editar cliente"
+                    @click.stop="openEditModal({ client })"
                   >
                     <ion-icon slot="icon-only" :icon="create"></ion-icon>
                   </ion-button>

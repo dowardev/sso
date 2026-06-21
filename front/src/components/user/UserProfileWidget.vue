@@ -1,12 +1,12 @@
 <template>
   <ion-page>
-    <ion-header class="ion-no-border" mode="ios" v-if="!embedMode">
+    <ion-header v-if="!embedMode" class="ion-no-border" mode="ios">
       <ion-toolbar>
-        <ion-buttons slot="start" v-if="!embedMode && !hideBackButton">
+        <ion-buttons v-if="!embedMode && !hideBackButton" slot="start">
           <ion-back-button default-href="/" aria-label="Volver al inicio" />
         </ion-buttons>
         <ion-title>{{ title }}</ion-title>
-        <ion-buttons slot="end" v-if="externalRedirect && !embedMode">
+        <ion-buttons v-if="externalRedirect && !embedMode" slot="end">
           <!-- For external links, we might want to show different buttons -->
         </ion-buttons>
       </ion-toolbar>
@@ -16,7 +16,7 @@
       <div class="profile-container">
         <!-- Header del perfil -->
         <div class="profile-header">
-          <ion-avatar class="large-avatar" v-if="!embedMode || showAvatar !== false">
+          <ion-avatar v-if="!embedMode || showAvatar !== false" class="large-avatar">
             <div class="avatar-placeholder">
               {{ getInitials(user?.name || '') }}
             </div>
@@ -34,8 +34,8 @@
         <ion-segment 
           v-if="showSegments && showSegments.length > 0"
           value="activeSegment"
-          @ion-change="segmentChanged($event)"
           class="profile-segment"
+          @ion-change="segmentChanged($event)"
         >
           <!-- Profile tab -->
           <ion-segment-button 
@@ -93,7 +93,7 @@
         </ion-segment>
 
         <!-- Segment content -->
-        <div class="segment-content" v-if="showSegments && showSegments.length > 0">
+        <div v-if="showSegments && showSegments.length > 0" class="segment-content">
           <!-- Profile -->
           <div v-if="activeSegment === 'profile'" class="segment-panel">
             <ProfileForm 
@@ -108,8 +108,8 @@
             <AuthorizationsList
               v-if="showTabs.includes('applications')"
               :authorizations="authorizations"
-              @revoke="handleRevokeAuthorization"
               :loading="loadingAuthorizations"
+              @revoke="handleRevokeAuthorization"
             />
           </div>
 
@@ -118,9 +118,9 @@
             <SessionsList
               v-if="showTabs.includes('sessions')"
               :sessions="sessions"
+              :loading="loadingSessions"
               @revoke="handleRevokeSession"
               @revoke-all="handleRevokeAllSessions"
-              :loading="loadingSessions"
             />
           </div>
 

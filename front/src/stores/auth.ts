@@ -9,8 +9,6 @@ const USER_KEY = 'user';
 const DPOP_PUBLIC_KEY = 'dpop_public_key';
 const REMEMBER_KEY = 'remember_me';
 const AUTHORIZED_CLIENTS_KEY = 'authorized_clients';
-const AUTO_REFRESH_INTERVAL = 3000000; // 50 min (5/6 of 3600s)
-const REFRESH_THRESHOLD = 600; // 10 min threshold to refresh on init
 
 function loadAuthorizedClients(): string[] {
   try {
@@ -25,7 +23,6 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem(TOKEN_KEY));
   const user = ref<User | null>(null);
   const authorizedClients = ref<string[]>(loadAuthorizedClients());
-  let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   function isTokenExpired(token: string): boolean {
     try {
@@ -114,14 +111,12 @@ export const useAuthStore = defineStore('auth', () => {
 
     if (params.rememberMe) {
       localStorage.setItem(REMEMBER_KEY, 'true');
-      startAutoRefresh();
     }
 
     return response;
   }
 
   async function logout() {
-    stopAutoRefresh();
     localStorage.removeItem(REMEMBER_KEY);
     clearAuthData();
     await dpopService.clearKeys();
@@ -159,36 +154,6 @@ export const useAuthStore = defineStore('auth', () => {
     return null;
   }
 
-  function startAutoRefresh(): void {
-    stopAutoRefresh();
-    autoRefreshTimer = setInterval(async () => {
-      const currentToken = token.value || localStorage.getItem(TOKEN_KEY);
-      if (!currentToken) {
-        stopAutoRefresh();
-        return;
-      }
-      try {
-        const response = await api.post<{ token: string }>({
-          endpoint: '/refresh-token',
-          data: { token: currentToken },
-        });
-        localStorage.setItem(TOKEN_KEY, response.token);
-        localStorage.setItem('sso_token', response.token);
-        token.value = response.token;
-      } catch {
-        stopAutoRefresh();
-        clearAuthData();
-      }
-    }, AUTO_REFRESH_INTERVAL);
-  }
-
-  function stopAutoRefresh(): void {
-    if (autoRefreshTimer !== null) {
-      clearInterval(autoRefreshTimer);
-      autoRefreshTimer = null;
-    }
-  }
-
   function restoreAuth() {
     const storedToken = localStorage.getItem(TOKEN_KEY);
     const userStr = localStorage.getItem(USER_KEY);
@@ -205,44 +170,11 @@ export const useAuthStore = defineStore('auth', () => {
     return storedToken;
   }
 
-  async function refreshTokenAsync(currentToken: string) {
-    try {
-      const response = await api.post<{ token: string }>({
-        endpoint: '/refresh-token',
-        data: { token: currentToken },
-      });
-      localStorage.setItem(TOKEN_KEY, response.token);
-      localStorage.setItem('sso_token', response.token);
-      token.value = response.token;
-    } catch {
-      clearAuthData();
-    }
-  }
-
   function init() {
-    const storedToken = restoreAuth();
-    if (!storedToken) return;
-
-    const rememberMe = localStorage.getItem(REMEMBER_KEY) === 'true';
-    if (!rememberMe) return;
-
-    if (isTokenNearExpiry(storedToken, REFRESH_THRESHOLD)) {
-      refreshTokenAsync(storedToken);
-    }
-
-    startAutoRefresh();
+    restoreAuth();
   }
 
   init();
-
-  function isTokenNearExpiry(token: string, thresholdSeconds: number): boolean {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return (payload.exp * 1000 - Date.now()) < thresholdSeconds * 1000;
-    } catch {
-      return false;
-    }
-  }
 
   return {
     token,

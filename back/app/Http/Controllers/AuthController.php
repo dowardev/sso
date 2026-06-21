@@ -78,53 +78,85 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Eager load roles so they're included in the JSON response
         $user->load('roles');
 
         $dpopPublicKey = $request->input('dpop_public_key');
         $rememberMe = $request->boolean('remember_me');
-        $tokenData = $this->authService->generateAuthToken($user, $dpopPublicKey, $rememberMe);
+
+        $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
 
         $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
 
-        // Load roles so they're included in the JSON response
-        $user->load('roles');
-
         $expirationMinutes = config('jwt.token_expiration', 3600) / 60;
-        $response = response()->json([
+        $responseData = [
             'user' => $user,
             'token' => $tokenData['token'],
             'token_type' => $tokenData['token_type'],
             'expires_in' => $tokenData['expires_in'],
-        ]);
+        ];
 
-        $response->withCookie(cookie('sso_token', $tokenData['token'], $expirationMinutes, '/', null, false, false));
+        $response = response()->json($responseData);
+
+        if ($rememberMe && isset($tokenData['refresh_token'])) {
+            $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
+            $response->withCookie(cookie(
+                'refresh_token',
+                $tokenData['refresh_token'],
+                $refreshExpirationDays * 1440,
+                '/',
+                null,
+                true,
+                true,
+                false,
+                'Lax'
+            ));
+        }
 
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_LOGIN,
             'Inicio de sesión',
-            ['login_method' => 'password'],
+            ['login_method' => 'password', 'remember_me' => $rememberMe],
             $request,
         );
 
         return $response;
     }
 
-    public function refreshToken(RefreshTokenRequest $request): JsonResponse
+    public function refreshToken(Request $request): JsonResponse
     {
-        $result = $this->authService->refreshToken(
-            $request->input('token'),
-            $request->input('client_id')
-        );
+        $plainRefreshToken = $request->get('refresh_token_value');
 
-        if (!$result) {
+        if (!$plainRefreshToken) {
             return response()->json([
-                'message' => 'Token inválido o expirado',
+                'message' => 'Refresh token no proporcionado',
             ], 401);
         }
 
-        return response()->json($result);
+        $result = $this->authService->refreshAccessToken($plainRefreshToken, $request);
+
+        if (!$result) {
+            return response()->json([
+                'message' => 'Refresh token inválido, expirado o revocado',
+            ], 401)->withCookie(Cookie::forget('refresh_token', '/', null, true, true));
+        }
+
+        $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
+        $response = response()->json($result);
+
+        $response->withCookie(cookie(
+            'refresh_token',
+            $result['refresh_token'],
+            $refreshExpirationDays * 1440,
+            '/',
+            null,
+            true,
+            true,
+            false,
+            'Lax'
+        ));
+
+        return $response;
     }
 
     public function logout(Request $request): JsonResponse
@@ -132,14 +164,14 @@ class AuthController extends Controller
         $tokenString = $request->bearerToken();
 
         if (!$tokenString) {
-            $tokenString = $request->cookie('sso_token');
-        }
-
-        if (!$tokenString) {
             return response()->json(['message' => 'Token no proporcionado'], 401);
         }
 
-        $user = $this->authService->getUserFromToken($tokenString);
+        // Revoke refresh token if present
+        $refreshTokenCookie = $request->cookie('refresh_token');
+        if ($refreshTokenCookie) {
+            $this->authService->revokeRefreshToken($refreshTokenCookie);
+        }
 
         try {
             $this->sessionService->revokeSessionByToken($tokenString);
@@ -149,6 +181,7 @@ class AuthController extends Controller
             ], 500);
         }
 
+        $user = $this->authService->getUserFromToken($tokenString);
         if ($user) {
             $this->activityLogService->logFromRequest(
                 $user,
@@ -161,7 +194,8 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Sesión cerrada correctamente',
-        ])->withCookie(Cookie::forget('sso_token'));
+        ])
+            ->withCookie(Cookie::forget('refresh_token', '/', null, true, true));
     }
 
     public function me(Request $request): JsonResponse

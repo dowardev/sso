@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Models\UserRefreshToken;
 use App\Models\UserSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class AuthService
 {
@@ -104,6 +106,134 @@ class AuthService
                 ]),
             ],
         ];
+    }
+
+    public function generateTokens(User $user, Request $request, bool $rememberMe = false, ?string $dpopPublicKey = null): array
+    {
+        $accessTokenData = $this->jwtService->generateToken($user, $dpopPublicKey, false);
+
+        $result = [
+            'token' => $accessTokenData['token'],
+            'token_type' => $accessTokenData['token_type'],
+            'expires_in' => $accessTokenData['expires_in'],
+        ];
+
+        if ($rememberMe) {
+            $refreshToken = $this->generateRefreshToken($user, $request);
+            $result['refresh_token'] = $refreshToken['plain'];
+        }
+
+        return $result;
+    }
+
+    public function generateRefreshToken(User $user, Request $request): array
+    {
+        $plain = Str::random(64);
+        $hash = hash('sha256', $plain);
+        $expiresAt = now()->addSeconds(config('jwt.refresh_expiration', 86400));
+
+        $model = UserRefreshToken::create([
+            'user_id' => $user->id,
+            'token_hash' => $hash,
+            'user_agent' => $request->userAgent(),
+            'ip_address' => $request->ip(),
+            'expires_at' => $expiresAt,
+        ]);
+
+        return ['plain' => $plain, 'model' => $model];
+    }
+
+    public function refreshAccessToken(string $plainRefreshToken, Request $request): ?array
+    {
+        $hash = hash('sha256', $plainRefreshToken);
+        $existing = UserRefreshToken::where('token_hash', $hash)->first();
+
+        if (!$existing || !$existing->isValid()) {
+            return null;
+        }
+
+        // Check inactivity timeout
+        $inactivitySeconds = config('jwt.refresh_inactivity', 604800);
+        if ($existing->last_used_at !== null && $existing->last_used_at->addSeconds($inactivitySeconds)->isPast()) {
+            $existing->revoke();
+            return null;
+        }
+
+        // Detect reuse: if this token was already rotated (it has rotatedFrom or was already used)
+        if ($existing->rotated_from_id !== null || $existing->revoked_at !== null) {
+            // Token theft — revoke entire chain
+            UserRefreshToken::where('user_id', $existing->user_id)
+                ->whereNull('revoked_at')
+                ->update(['revoked_at' => now()]);
+            return null;
+        }
+
+        $user = User::with('roles')->find($existing->user_id);
+        if (!$user) {
+            return null;
+        }
+
+        // Revoke old token
+        $existing->revoke();
+
+        // Generate new access + refresh pair
+        $dpopPublicKey = null;
+        $currentTokenStr = $request->bearerToken();
+        if ($currentTokenStr) {
+            $parsed = $this->jwtService->parseAndValidateToken($currentTokenStr);
+            if ($parsed && $parsed->claims()->get('cnf')) {
+                $dpopPublicKey = $existing->user_agent; // placeholder — real DPoP logic
+            }
+        }
+
+        $accessTokenData = $this->jwtService->generateToken($user, $dpopPublicKey, false);
+
+        // Create new refresh token (rotated)
+        $newPlain = Str::random(64);
+        $newHash = hash('sha256', $newPlain);
+        $newExpiresAt = now()->addSeconds(config('jwt.refresh_expiration', 86400));
+
+        UserRefreshToken::create([
+            'user_id' => $user->id,
+            'token_hash' => $newHash,
+            'user_agent' => $request->userAgent(),
+            'ip_address' => $request->ip(),
+            'expires_at' => $newExpiresAt,
+            'rotated_from_id' => $existing->id,
+        ]);
+
+        return [
+            'token' => $accessTokenData['token'],
+            'token_type' => $accessTokenData['token_type'],
+            'expires_in' => $accessTokenData['expires_in'],
+            'refresh_token' => $newPlain,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'user' => $user->user,
+                'email' => $user->email,
+                'roles' => $user->roles->map(fn($role) => [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                    'slug' => $role->slug,
+                    'description' => $role->description,
+                    'is_protected' => $role->is_protected,
+                ]),
+            ],
+        ];
+    }
+
+    public function revokeRefreshToken(string $plainRefreshToken): void
+    {
+        $hash = hash('sha256', $plainRefreshToken);
+        UserRefreshToken::where('token_hash', $hash)->each(fn($t) => $t->revoke());
+    }
+
+    public function revokeAllUserRefreshTokens(User $user): void
+    {
+        UserRefreshToken::where('user_id', $user->id)
+            ->whereNull('revoked_at')
+            ->update(['revoked_at' => now()]);
     }
 
     public function getUserById(int $id): ?User

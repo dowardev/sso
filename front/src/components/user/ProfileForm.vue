@@ -4,7 +4,7 @@
     <div class="form-section">
       <h3 class="section-title">Información Personal</h3>
       
-      <form @submit.prevent="saveProfile" class="profile-form">
+      <form class="profile-form" @submit.prevent="saveProfile">
         <div v-if="profileError" class="error-message">
           <ion-icon :icon="alertCircle" size="small"></ion-icon>
           {{ profileError }}
@@ -14,8 +14,8 @@
           <ion-label position="stacked">Nombre Completo *</ion-label>
           <ion-input
             v-model="form.name"
-            @ion-blur="v$.name.$touch()"
             :aria-invalid="v$.name.$dirty ? v$.name.$invalid : undefined"
+            @ion-blur="v$.name.$touch()"
           />
         </ion-item>
         <div v-if="v$.name.$error" class="field-error">
@@ -26,8 +26,8 @@
           <ion-label position="stacked">Nombre de Usuario *</ion-label>
           <ion-input
             v-model="form.user"
-            @ion-blur="v$.user.$touch()"
             :aria-invalid="v$.user.$dirty ? v$.user.$invalid : undefined"
+            @ion-blur="v$.user.$touch()"
           />
         </ion-item>
         <div v-if="v$.user.$error" class="field-error">
@@ -37,10 +37,10 @@
         <ion-item class="form-item" lines="none">
           <ion-label position="stacked">Correo Electrónico *</ion-label>
           <ion-input
-            type="email"
             v-model="form.email"
-            @ion-blur="v$.email.$touch()"
+            type="email"
             :aria-invalid="v$.email.$dirty ? v$.email.$invalid : undefined"
+            @ion-blur="v$.email.$touch()"
           />
         </ion-item>
         <div v-if="v$.email.$error" class="field-error">
@@ -54,7 +54,7 @@
             class="gradient-btn"
             :disabled="savingProfile"
           >
-            <ion-spinner v-if="savingProfile" name="lines" slot="start"></ion-spinner>
+            <ion-spinner v-if="savingProfile" slot="start" name="lines"></ion-spinner>
             <span v-else>Guardar Cambios</span>
           </ion-button>
         </div>
@@ -65,7 +65,7 @@
     <div class="form-section">
       <h3 class="section-title">Cambiar Contraseña</h3>
       
-      <form @submit.prevent="changePassword" class="profile-form">
+      <form class="profile-form" @submit.prevent="changePassword">
         <div v-if="passwordError" class="error-message">
           <ion-icon :icon="alertCircle" size="small"></ion-icon>
           {{ passwordError }}
@@ -74,10 +74,10 @@
         <ion-item class="form-item" lines="none">
           <ion-label position="stacked">Contraseña Actual *</ion-label>
           <ion-input
-            type="password"
             v-model="passwordForm.current_password"
-            @ion-blur="v$Password.current_password.$touch()"
+            type="password"
             :aria-invalid="v$Password.current_password.$dirty ? v$Password.current_password.$invalid : undefined"
+            @ion-blur="v$Password.current_password.$touch()"
           >
             <ion-input-password-toggle slot="end" />
           </ion-input>
@@ -89,10 +89,10 @@
         <ion-item class="form-item" lines="none">
           <ion-label position="stacked">Nueva Contraseña *</ion-label>
           <ion-input
-            type="password"
             v-model="passwordForm.new_password"
-            @ion-blur="v$Password.new_password.$touch()"
+            type="password"
             :aria-invalid="v$Password.new_password.$dirty ? v$Password.new_password.$invalid : undefined"
+            @ion-blur="v$Password.new_password.$touch()"
           >
             <ion-input-password-toggle slot="end" />
           </ion-input>
@@ -104,10 +104,10 @@
         <ion-item class="form-item" lines="none">
           <ion-label position="stacked">Confirmar Nueva Contraseña *</ion-label>
           <ion-input
-            type="password"
             v-model="passwordForm.new_password_confirmation"
-            @ion-blur="v$Password.new_password_confirmation.$touch()"
+            type="password"
             :aria-invalid="v$Password.new_password_confirmation.$dirty ? v$Password.new_password_confirmation.$invalid : undefined"
+            @ion-blur="v$Password.new_password_confirmation.$touch()"
           >
             <ion-input-password-toggle slot="end" />
           </ion-input>
@@ -123,7 +123,7 @@
             class="gradient-btn"
             :disabled="changingPassword"
           >
-            <ion-spinner v-if="changingPassword" name="lines" slot="start"></ion-spinner>
+            <ion-spinner v-if="changingPassword" slot="start" name="lines"></ion-spinner>
             <span v-else>Actualizar Contraseña</span>
           </ion-button>
         </div>
@@ -148,9 +148,9 @@
     <!-- Delete Account Modal -->
     <ion-modal
       :is-open="showDeleteModal"
-      @did-dismiss="showDeleteModal = false"
       :breakpoints="[0, 0.5]"
       initial-breakpoint="0.5"
+      @did-dismiss="showDeleteModal = false"
     >
       <ion-header>
         <ion-toolbar>
@@ -182,8 +182,8 @@
           <ion-item class="form-item" lines="none">
             <ion-label position="stacked">Contraseña Actual *</ion-label>
             <ion-input
-              type="password"
               v-model="deleteForm.password"
+              type="password"
               placeholder="Tu contraseña"
             >
               <ion-input-password-toggle slot="end" />
@@ -194,10 +194,10 @@
             <ion-button
               expand="block"
               color="danger"
-              @click="handleDeleteAccount"
               :disabled="deletingAccount || deleteForm.confirmation !== 'ELIMINAR'"
+              @click="handleDeleteAccount"
             >
-              <ion-spinner v-if="deletingAccount" name="lines" slot="start"></ion-spinner>
+              <ion-spinner v-if="deletingAccount" slot="start" name="lines"></ion-spinner>
               <span v-else>Eliminar mi cuenta</span>
             </ion-button>
           </div>

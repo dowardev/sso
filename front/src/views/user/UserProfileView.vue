@@ -55,8 +55,8 @@
           <div v-if="activeSegment === 'applications'" class="segment-panel">
             <AuthorizationsList
               :authorizations="authorizations"
-              @revoke="handleRevokeAuthorization"
               :loading="loadingAuthorizations"
+              @revoke="handleRevokeAuthorization"
             />
           </div>
 
@@ -64,9 +64,9 @@
           <div v-if="activeSegment === 'sessions'" class="segment-panel">
             <SessionsList
               :sessions="sessions"
+              :loading="loadingSessions"
               @revoke="handleRevokeSession"
               @revoke-all="handleRevokeAllSessions"
-              :loading="loadingSessions"
             />
           </div>
 

@@ -7,8 +7,8 @@
         size="small"
         fill="outline"
         color="danger"
-        @click="handleRevokeAll"
         :disabled="loading"
+        @click="handleRevokeAll"
       >
         <ion-icon slot="start" :icon="trash" />
         Revocar Todas
@@ -27,7 +27,7 @@
     </div>
 
     <ion-list v-else class="detail-list">
-      <ion-item v-for="session in sessions" :key="session.id" button @click="toggleExpand(session.id)" :detail="false">
+      <ion-item v-for="session in sessions" :key="session.id" button :detail="false" @click="toggleExpand(session.id)">
         <ion-icon
           slot="start"
           :icon="getDeviceIcon(session)"

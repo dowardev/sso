@@ -87,7 +87,7 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre *</ion-label>
-                <ion-input v-model="form.name" @ion-blur="roleV$.name.$touch()" :aria-invalid="roleV$.name.$dirty ? roleV$.name.$invalid : undefined"></ion-input>
+                <ion-input v-model="form.name" :aria-invalid="roleV$.name.$dirty ? roleV$.name.$invalid : undefined" @ion-blur="roleV$.name.$touch()"></ion-input>
               </ion-item>
               <div v-if="roleV$.name.$error" class="field-error">{{ roleV$.name.$errors[0].$message }}</div>
               <ion-item v-if="!editingRole">
@@ -95,8 +95,8 @@
                 <ion-input
                   v-model="form.slug"
                   placeholder="ej: editor"
-                  @ion-blur="roleV$.slug.$touch()"
                   :aria-invalid="roleV$.slug.$dirty ? roleV$.slug.$invalid : undefined"
+                  @ion-blur="roleV$.slug.$touch()"
                 ></ion-input>
               </ion-item>
               <div v-if="roleV$.slug.$error" class="field-error">{{ roleV$.slug.$errors[0].$message }}</div>
@@ -105,8 +105,8 @@
                 <ion-textarea
                   v-model="form.description"
                   placeholder="Máx 500 caracteres"
-                  @ion-blur="roleV$.description.$touch()"
                   :aria-invalid="roleV$.description.$dirty ? roleV$.description.$invalid : undefined"
+                  @ion-blur="roleV$.description.$touch()"
                 ></ion-textarea>
               </ion-item>
               <div v-if="roleV$.description.$error" class="field-error">{{ roleV$.description.$errors[0].$message }}</div>

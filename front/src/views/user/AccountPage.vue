@@ -1,9 +1,9 @@
 <template>
   <UserProfileWidget
     :mode="profileMode"
-    :embedMode="false"
-    :externalRedirect="true"
-    :hideBackButton="true"
+    :embed-mode="false"
+    :external-redirect="true"
+    :hide-back-button="true"
     :title="'Mi Cuenta'"
   />
 </template>
