@@ -189,36 +189,45 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function init() {
+  function restoreAuth() {
     const storedToken = localStorage.getItem(TOKEN_KEY);
     const userStr = localStorage.getItem(USER_KEY);
 
     if (storedToken && userStr) {
       if (isTokenExpired(storedToken)) {
         clearAuthData();
-        return;
+        return null;
       }
       token.value = storedToken;
       user.value = JSON.parse(userStr);
     }
 
+    return storedToken;
+  }
+
+  async function refreshTokenAsync(currentToken: string) {
+    try {
+      const response = await api.post<{ token: string }>({
+        endpoint: '/refresh-token',
+        data: { token: currentToken },
+      });
+      localStorage.setItem(TOKEN_KEY, response.token);
+      localStorage.setItem('sso_token', response.token);
+      token.value = response.token;
+    } catch {
+      clearAuthData();
+    }
+  }
+
+  function init() {
+    const storedToken = restoreAuth();
+    if (!storedToken) return;
+
     const rememberMe = localStorage.getItem(REMEMBER_KEY) === 'true';
     if (!rememberMe) return;
 
-    const tokenToRefresh = token.value || storedToken;
-    if (tokenToRefresh && isTokenNearExpiry(tokenToRefresh, REFRESH_THRESHOLD)) {
-      try {
-        const response = await api.post<{ token: string }>({
-          endpoint: '/refresh-token',
-          data: { token: tokenToRefresh },
-        });
-        localStorage.setItem(TOKEN_KEY, response.token);
-        localStorage.setItem('sso_token', response.token);
-        token.value = response.token;
-      } catch {
-        clearAuthData();
-        return;
-      }
+    if (isTokenNearExpiry(storedToken, REFRESH_THRESHOLD)) {
+      refreshTokenAsync(storedToken);
     }
 
     startAutoRefresh();

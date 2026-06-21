@@ -23,85 +23,87 @@
             </div>
           </div>
 
-          <ion-list-header class="nav-section-label">Navegaci&oacute;n</ion-list-header>
-          <ion-list class="nav-list">
-            <ion-menu-toggle :auto-hide="false">
-              <ion-item
-                button
-                :class="{ 'active-item': isActiveRoute({ path: '/admin/dashboard' }) }"
-                @click="navigateTo({ url: '/admin/dashboard' })"
-              >
-                <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/dashboard' }) }">
-                  <ion-icon :icon="speedometer"></ion-icon>
-                </div>
-                <ion-label>Dashboard</ion-label>
-              </ion-item>
-            </ion-menu-toggle>
-            <ion-menu-toggle :auto-hide="false">
-              <ion-item
-                button
-                :class="{ 'active-item': isActiveRoute({ path: '/admin/users' }) }"
-                @click="navigateTo({ url: '/admin/users' })"
-              >
-                <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/users' }) }">
-                  <ion-icon :icon="people"></ion-icon>
-                </div>
-                <ion-label>Usuarios</ion-label>
-              </ion-item>
-            </ion-menu-toggle>
-            <ion-menu-toggle :auto-hide="false">
-              <ion-item
-                button
-                :class="{ 'active-item': isActiveRoute({ path: '/admin/sessions' }) }"
-                @click="navigateTo({ url: '/admin/sessions' })"
-              >
-                <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/sessions' }) }">
-                  <ion-icon :icon="key"></ion-icon>
-                </div>
-                <ion-label>Sesiones</ion-label>
-              </ion-item>
-            </ion-menu-toggle>
-            <ion-menu-toggle :auto-hide="false">
-              <ion-item
-                button
-                :class="{ 'active-item': isActiveRoute({ path: '/admin/clients' }) }"
-                @click="navigateTo({ url: '/admin/clients' })"
-              >
-                <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/clients' }) }">
-                  <ion-icon :icon="desktop"></ion-icon>
-                </div>
-                <ion-label>Clientes SSO</ion-label>
-              </ion-item>
-            </ion-menu-toggle>
-            <ion-menu-toggle :auto-hide="false">
-              <ion-item
-                button
-                :class="{ 'active-item': isActiveRoute({ path: '/admin/roles' }) }"
-                @click="navigateTo({ url: '/admin/roles' })"
-              >
-                <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/roles' }) }">
-                  <ion-icon :icon="shield"></ion-icon>
-                </div>
-                <ion-label>Roles</ion-label>
-              </ion-item>
-            </ion-menu-toggle>
-          </ion-list>
+          <template v-if="currentUser?.is_admin">
+            <ion-list-header class="nav-section-label">Navegaci&oacute;n</ion-list-header>
+            <ion-list class="nav-list">
+              <ion-menu-toggle :auto-hide="false">
+                <ion-item
+                  button
+                  :class="{ 'active-item': isActiveRoute({ path: '/admin/dashboard' }) }"
+                  @click="navigateTo({ url: '/admin/dashboard' })"
+                >
+                  <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/dashboard' }) }">
+                    <ion-icon :icon="speedometer"></ion-icon>
+                  </div>
+                  <ion-label>Dashboard</ion-label>
+                </ion-item>
+              </ion-menu-toggle>
+              <ion-menu-toggle :auto-hide="false">
+                <ion-item
+                  button
+                  :class="{ 'active-item': isActiveRoute({ path: '/admin/users' }) }"
+                  @click="navigateTo({ url: '/admin/users' })"
+                >
+                  <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/users' }) }">
+                    <ion-icon :icon="people"></ion-icon>
+                  </div>
+                  <ion-label>Usuarios</ion-label>
+                </ion-item>
+              </ion-menu-toggle>
+              <ion-menu-toggle :auto-hide="false">
+                <ion-item
+                  button
+                  :class="{ 'active-item': isActiveRoute({ path: '/admin/sessions' }) }"
+                  @click="navigateTo({ url: '/admin/sessions' })"
+                >
+                  <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/sessions' }) }">
+                    <ion-icon :icon="key"></ion-icon>
+                  </div>
+                  <ion-label>Sesiones</ion-label>
+                </ion-item>
+              </ion-menu-toggle>
+              <ion-menu-toggle :auto-hide="false">
+                <ion-item
+                  button
+                  :class="{ 'active-item': isActiveRoute({ path: '/admin/clients' }) }"
+                  @click="navigateTo({ url: '/admin/clients' })"
+                >
+                  <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/clients' }) }">
+                    <ion-icon :icon="desktop"></ion-icon>
+                  </div>
+                  <ion-label>Clientes SSO</ion-label>
+                </ion-item>
+              </ion-menu-toggle>
+              <ion-menu-toggle :auto-hide="false">
+                <ion-item
+                  button
+                  :class="{ 'active-item': isActiveRoute({ path: '/admin/roles' }) }"
+                  @click="navigateTo({ url: '/admin/roles' })"
+                >
+                  <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/roles' }) }">
+                    <ion-icon :icon="shield"></ion-icon>
+                  </div>
+                  <ion-label>Roles</ion-label>
+                </ion-item>
+              </ion-menu-toggle>
+            </ion-list>
 
-          <ion-list-header class="nav-section-label">Cuenta</ion-list-header>
-          <ion-list class="nav-list">
-            <ion-menu-toggle :auto-hide="false">
-              <ion-item
-                button
-                :class="{ 'active-item': isActiveRoute({ path: '/admin/config' }) }"
-                @click="navigateTo({ url: '/admin/config' })"
-              >
-                <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/config' }) }">
-                  <ion-icon :icon="settingsOutline"></ion-icon>
-                </div>
-                <ion-label>Configuraci&oacute;n</ion-label>
-              </ion-item>
-            </ion-menu-toggle>
-          </ion-list>
+            <ion-list-header class="nav-section-label">Cuenta</ion-list-header>
+            <ion-list class="nav-list">
+              <ion-menu-toggle :auto-hide="false">
+                <ion-item
+                  button
+                  :class="{ 'active-item': isActiveRoute({ path: '/admin/config' }) }"
+                  @click="navigateTo({ url: '/admin/config' })"
+                >
+                  <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/config' }) }">
+                    <ion-icon :icon="settingsOutline"></ion-icon>
+                  </div>
+                  <ion-label>Configuraci&oacute;n</ion-label>
+                </ion-item>
+              </ion-menu-toggle>
+            </ion-list>
+          </template>
 
           <div class="logout-section">
             <ion-button expand="block" fill="outline" class="logout-btn" @click="handleLogout">

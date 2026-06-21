@@ -36,6 +36,14 @@ Route::middleware('jwt.auth')->group(function () {
     Route::get('/oauth/authorizations', [OAuth2Controller::class, 'userAuthorizations']);
 
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/user/profile', [AuthController::class, 'getUserProfile']);
+    Route::put('/user/profile', [AuthController::class, 'updateUserProfile']);
+    Route::put('/user/password', [AuthController::class, 'updateUserPassword']);
+    Route::get('/user/sessions', [AuthController::class, 'getUserSessions']);
+    Route::delete('/user/sessions/{sessionId}', [AuthController::class, 'revokeUserSession']);
+    Route::delete('/user/sessions', [AuthController::class, 'revokeAllUserSessions']);
+    Route::get('/user/activity-log', [AuthController::class, 'getUserActivityLog']);
+    Route::delete('/user/account', [AuthController::class, 'deleteAccount']);
     Route::get('/user-auth', [AuthController::class, 'me']);
 
     Route::middleware('admin')->prefix('admin')->group(function () {

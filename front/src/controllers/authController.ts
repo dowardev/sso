@@ -40,6 +40,58 @@ interface RegisterParams {
   client_id?: string;
 }
 
+interface UserProfile {
+  id: number;
+  name: string;
+  user: string;
+  email: string;
+  is_admin: boolean;
+  created_at: string;
+  sessions_count: number;
+  tokens_count: number;
+  roles: Array<{
+    id: number;
+    name: string;
+    slug: string;
+    description: string | null;
+    is_protected: boolean;
+  }>;
+}
+
+interface UserSession {
+  id: number;
+  client: {
+    id: number;
+    name: string;
+    client_id: string;
+  } | null;
+  ip_address: string;
+  user_agent: string;
+  last_used_at: string;
+  created_at: string;
+  token_active: boolean;
+}
+
+interface UserAuthorization {
+  id: number;
+  status: 'authorized' | 'denied' | 'revoked';
+  updated_at: string;
+  client: {
+    id: number;
+    name: string;
+    client_id: string;
+    redirect_url: string | null;
+  } | null;
+}
+
+interface ActivityLogEntry {
+  id: number;
+  action: string;
+  description: string;
+  created_at: string;
+  metadata: Record<string, unknown>;
+}
+
 export function useAuthController() {
   const authStore = useAuthStore();
 
@@ -233,6 +285,76 @@ export function useAuthController() {
     }
   }
 
+  async function getUserProfile(): Promise<UserProfile> {
+    return api.get<UserProfile>({
+      endpoint: '/user/profile',
+    });
+  }
+
+  async function updateUserProfile(params: {
+    name: string;
+    user: string;
+    email: string;
+  }): Promise<UserProfile> {
+    return api.put<UserProfile>({
+      endpoint: '/user/profile',
+      data: params,
+    });
+  }
+
+  async function updateUserPassword(params: {
+    current_password: string;
+    new_password: string;
+    new_password_confirmation: string;
+  }): Promise<void> {
+    await api.put({
+      endpoint: '/user/password',
+      data: params,
+    });
+  }
+
+  async function getUserSessions(): Promise<UserSession[]> {
+    return api.get<UserSession[]>({
+      endpoint: '/user/sessions',
+    });
+  }
+
+  async function revokeUserSession(sessionId: number): Promise<void> {
+    await api.delete({
+      endpoint: `/user/sessions/${sessionId}`,
+    });
+  }
+
+  async function revokeAllUserSessions(): Promise<void> {
+    await api.delete({
+      endpoint: '/user/sessions',
+    });
+  }
+
+  interface ActivityLogResponse {
+    data: ActivityLogEntry[];
+    current_page: number;
+    last_page: number;
+    total: number;
+  }
+
+  async function deleteAccount(params: {
+    password: string;
+    confirmation: string;
+  }): Promise<void> {
+    await api.delete({
+      endpoint: '/user/account',
+      data: params,
+    });
+  }
+
+  async function getUserActivityLog(): Promise<ActivityLogEntry[]> {
+    const response = await api.get<ActivityLogResponse>({
+      endpoint: '/user/activity-log',
+    });
+    return response.data ?? [];
+  }
+
   async function register(params: RegisterParams): Promise<void> {
     const requestData: Record<string, unknown> = {
       name: params.name,
@@ -288,5 +410,13 @@ export function useAuthController() {
     redirectOAuthCode,
     register,
     checkSession,
+    getUserProfile,
+    updateUserProfile,
+    updateUserPassword,
+    getUserSessions,
+    revokeUserSession,
+    revokeAllUserSessions,
+    getUserActivityLog,
+    deleteAccount,
   };
 }

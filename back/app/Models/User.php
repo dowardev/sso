@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -38,12 +40,22 @@ class User extends Authenticatable
         return $this->hasMany(UserSession::class);
     }
 
+    public function activityLogs()
+    {
+        return $this->hasMany(UserActivityLog::class);
+    }
+
     public function activeTokens()
     {
         return $this->tokens()->where(function ($q) {
             $q->whereNull('expires_at')
                 ->orWhere('expires_at', '>', now());
         });
+    }
+
+    public function oauthClientAuthorizations(): HasMany
+    {
+        return $this->hasMany(OauthClientAuthorization::class);
     }
 
     public function roles(): BelongsToMany
@@ -57,8 +69,16 @@ class User extends Authenticatable
         return $this->roles()->where('slug', $slug)->exists();
     }
 
-    public function isAdmin(): bool
+    protected function isAdmin(): Attribute
     {
-        return $this->hasRole('admin');
+        return Attribute::make(
+            get: fn() => $this->relationLoaded('roles')
+                ? $this->roles->contains(fn(Role $role) => $role->slug === 'admin')
+                : $this->hasRole('admin'),
+        );
     }
+
+    protected $appends = [
+        'is_admin',
+    ];
 }

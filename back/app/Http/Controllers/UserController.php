@@ -22,6 +22,21 @@ class UserController extends Controller
     public function index(Request $request): JsonResponse
     {
         $users = $this->userService->paginate($request);
+
+        $users->through(fn(User $user) => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'user' => $user->user,
+            'email' => $user->email,
+            'is_admin' => $user->is_admin,
+            'created_at' => $user->created_at,
+            'sessions_count' => $user->sessions_count,
+            'tokens_count' => $user->tokens_count,
+            'roles' => $user->relationLoaded('roles')
+                ? $user->roles->toArray()
+                : [],
+        ]);
+
         return response()->json($users);
     }
 
@@ -73,7 +88,7 @@ class UserController extends Controller
 
         $user->refresh();
 
-        return response()->json(['is_admin' => $user->isAdmin()]);
+        return response()->json(['is_admin' => $user->is_admin]);
     }
 
     public function indexRoles(User $user): JsonResponse

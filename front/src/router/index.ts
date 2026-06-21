@@ -47,6 +47,16 @@ const routes: Array<RouteRecordRaw> = [
     path: '/auth/callback',
     redirect: 'http://localhost:5173/auth/callback',
   },
+{
+  path: '/user/profile',
+  redirect: '/account',
+},
+{
+  path: '/account',
+  name: 'Account',
+  component: () => import('../views/user/AccountPage.vue'),
+  meta: { requiresAuth: true },
+},
   {
     path: '/home',
     name: 'Home',
@@ -87,11 +97,17 @@ const routes: Array<RouteRecordRaw> = [
         name: 'AdminClients',
         component: () => import('../views/admin/ClientsPage.vue'),
       },
-      {
-        path: 'clients/:id',
-        name: 'AdminClientDetail',
-        component: () => import('../views/admin/ClientDetailPage.vue'),
-      },
+{
+  path: '/admin/clients/by-client-id/:clientId',
+  name: 'AdminClientByClientId',
+  meta: { requiresAuth: true },
+  component: () => import('../views/admin/ClientByClientIdRedirect.vue'),
+},
+{
+  path: '/admin/clients/:id',
+  name: 'AdminClientDetail',
+  component: () => import('../views/admin/ClientDetailPage.vue'),
+},
       {
         path: 'roles',
         name: 'AdminRoles',
@@ -122,42 +138,87 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
-  const authStore = useAuthStore();
-  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
-  const isAuthRoute = to.path.startsWith('/auth/');
+    const authStore = useAuthStore();
+    const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
+    const isAuthRoute = to.path.startsWith('/auth/');
 
-  if (requiresAuth && !authStore.isAuthenticated) {
-    next('/login');
-  } else if (isAuthRoute) {
-    next();
-  } else if (to.path === '/setup') {
-    next();
-  } else if (
-    (to.path === '/login' || to.path === '/') &&
-    authStore.isAuthenticated
-  ) {
-    next('/admin/dashboard');
-  } else if (to.path === '/login' || to.path === '/') {
-    const setupCompleted = localStorage.getItem('setup_completed');
-    if (setupCompleted === 'true') {
-      next();
-    } else {
-      try {
-        const { api } = await import('@/services/api');
-        const status = await api.get<{ setup_completed: boolean }>({ endpoint: '/setup/status' });
-        if (!status.setup_completed) {
-          next('/setup');
-        } else {
-          localStorage.setItem('setup_completed', 'true');
-          next();
-        }
-      } catch {
-        next();
-      }
+    if (requiresAuth && !authStore.isAuthenticated) {
+        next('/login');
+        return;
     }
-  } else {
+
+    if (isAuthRoute) {
+        next();
+        return;
+    }
+
+    if (to.path === '/setup') {
+        next();
+        return;
+    }
+
+    if (
+        (to.path === '/login' || to.path === '/') &&
+        authStore.isAuthenticated
+    ) {
+        let user = authStore.user;
+        if (user && (!user.roles || user.roles.length === 0)) {
+            try {
+                await authStore.getUser();
+                user = authStore.user;
+            } catch {
+                next('/login');
+                return;
+            }
+        }
+        if (user && user.roles && user.roles.some((role: any) => role.slug === 'admin')) {
+            next('/admin/dashboard');
+        } else {
+            next('/account');
+        }
+        return;
+    }
+
+    if (to.path === '/login' || to.path === '/') {
+        const setupCompleted = localStorage.getItem('setup_completed');
+        if (setupCompleted === 'true') {
+            next();
+            return;
+        }
+        try {
+            const { api } = await import('@/services/api');
+            const status = await api.get<{ setup_completed: boolean }>({ endpoint: '/setup/status' });
+            if (!status.setup_completed) {
+                next('/setup');
+            } else {
+                localStorage.setItem('setup_completed', 'true');
+                next();
+            }
+        } catch {
+            next();
+        }
+        return;
+    }
+
+    // Protect admin routes - only admins can access
+    if (to.path.startsWith('/admin/')) {
+        let user = authStore.user;
+        if (user && (!user.roles || user.roles.length === 0)) {
+            try {
+                await authStore.getUser();
+                user = authStore.user;
+            } catch {
+                next('/login');
+                return;
+            }
+        }
+        if (!user || !user.roles || !user.roles.some((role: any) => role.slug === 'admin')) {
+            next('/account');
+            return;
+        }
+    }
+
     next();
-  }
 });
 
 export default router;

@@ -111,6 +111,18 @@ class AuthService
         return User::with('roles')->find($id);
     }
 
+    public function getUserFromToken(string $tokenString): ?User
+    {
+        $token = $this->jwtService->parseAndValidateToken($tokenString);
+
+        if (!$token) {
+            return null;
+        }
+
+        $userId = $token->claims()->get('sub');
+        return User::find($userId);
+    }
+
     public function getJwks(): array
     {
         $privateKeyContent = file_get_contents(config('jwt.private_key_path'));

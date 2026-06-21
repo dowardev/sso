@@ -13,7 +13,8 @@ class UserService
 {
     public function paginate(Request $request): LengthAwarePaginator
     {
-        $query = User::withCount(['sessions', 'tokens']);
+        $query = User::withCount(['sessions', 'tokens'])
+            ->with('roles');
 
         if ($request->has('search')) {
             $search = $request->search;
@@ -22,6 +23,23 @@ class UserService
                     ->orWhere('email', 'like', "%{$search}%")
                     ->orWhere('user', 'like', "%{$search}%");
             });
+        }
+
+        if ($request->has('sso_client_id')) {
+            $clientId = $request->get('sso_client_id');
+
+            $resolvedId = is_numeric($clientId)
+                ? (int) $clientId
+                : SsoClient::where('client_id', $clientId)->value('id');
+
+            if ($resolvedId) {
+                $query->whereHas('oauthClientAuthorizations', function ($q) use ($resolvedId) {
+                    $q->where('sso_client_id', $resolvedId)
+                        ->where('status', 'authorized');
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         }
 
         return $query->orderBy('created_at', 'desc')

@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.25.0] - 2026-06-20
+
+### Added
+- **User self-management panel** (`/account` route): profile editing, password change, active sessions with device/location details (ua-parser-js), activity log, and OAuth authorizations list
+- **Account deletion**: hard delete endpoint requiring password + "ELIMINAR" confirmation; revokes all tokens, sessions, OAuth authorizations, and activity logs before deleting user
+- **Admin users filtering**: filter users by associated OAuth client with visual badge indicator on Users page
+- **Role-based account page**: `/account` route replaces `/user/profile/limited`; sidebar hides admin navigation for non-admin users
+- **OAuth authorization consent screen** with 3-state tracking (authorized/denied/revoked):
+  - New `oauth_client_authorizations` table
+  - Explicit consent page showing name, email, username only
+  - Endpoints: approve, deny, revoke authorizations
+  - Admin views: user authorizations list (UserDetailPage) and client authorizations list (ClientDetailPage)
+  - Auth flow checks authorization state before proceeding with OAuth flow
+- **New admin endpoints**: `GET /admin/users/authorizations` and `GET /admin/clients/authorizations`
+- **Router updates**: added `/admin/clients/:id` route; ClientsPage navigates to ClientDetailPage on click
+
+### Changed
+- **Auth store**: `restoreAuth` is now synchronous; `refreshTokenAsync` for async token refresh
+- **Router guards**: added `/me` safety net, admin route protection, proper returns
+- **UsersPage**: uses `onIonViewWillEnter` for data refresh; SSO client filter badge
+- **Template guides**: `TemplatePage.vue` and `TemplateComponent.vue` replace deprecated `TemplateView.vue`
+
+### Fixed
+- **api.delete()**: now supports request body (required for account deletion endpoint)
+- **TypeScript errors**: resolved pre-existing issues in `themeController`, `UserDetailPage`, `UserProfileWidget`
+
 ## [0.24.0] - 2026-06-13
 
 ### Added

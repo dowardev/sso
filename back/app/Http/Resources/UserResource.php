@@ -14,10 +14,11 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'user' => $this->user,
             'email' => $this->email,
-            'is_admin' => $this->is_admin ?? false,
+            'is_admin' => $this->is_admin,
             'created_at' => $this->created_at,
             'sessions_count' => $this->sessions_count ?? $this->sessions()->count(),
             'tokens_count' => $this->tokens_count ?? $this->tokens()->count(),
+            'roles' => RoleResource::collection($this->whenLoaded('roles')),
         ];
     }
 }
