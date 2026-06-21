@@ -6,3 +6,4 @@ docs/superpowers/*
 .superpowers/*
 /node_modules
 /pnpm-lock.yaml
+backend.pid

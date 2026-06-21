@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\AuthorizeRequest;
 use App\Http\Requests\TokenRequest;
+use App\Models\OAuthAuthCode;
 use App\Models\OauthClientAuthorization;
 use App\Models\Setting;
+use App\Models\UserActivityLog;
+use App\Services\ActivityLogService;
 use App\Services\OAuth2Service;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,10 +16,12 @@ use Illuminate\Http\Request;
 class OAuth2Controller extends Controller
 {
     private OAuth2Service $oauth2Service;
+    private ActivityLogService $activityLogService;
 
-    public function __construct(OAuth2Service $oauth2Service)
+    public function __construct(OAuth2Service $oauth2Service, ActivityLogService $activityLogService)
     {
         $this->oauth2Service = $oauth2Service;
+        $this->activityLogService = $activityLogService;
     }
 
     public function authorize(AuthorizeRequest $request): JsonResponse
@@ -105,6 +110,14 @@ class OAuth2Controller extends Controller
             ['status' => 'authorized', 'updated_at' => now()]
         );
 
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_AUTHORIZATION_GRANTED,
+            'Autorización concedida a ' . $client->name,
+            ['client_id' => $client->id, 'client_name' => $client->name],
+            $request,
+        );
+
         $result = $this->oauth2Service->createAuthorizationCode($user, $client, $request->only([
             'redirect_uri',
             'state',
@@ -141,6 +154,14 @@ class OAuth2Controller extends Controller
             ['status' => 'denied', 'updated_at' => now()]
         );
 
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_AUTHORIZATION_DENIED,
+            'Autorización denegada a ' . $client->name,
+            ['client_id' => $client->id, 'client_name' => $client->name],
+            $request,
+        );
+
         return response()->json([
             'message' => 'Autorización denegada',
         ]);
@@ -175,6 +196,14 @@ class OAuth2Controller extends Controller
                 'message' => 'No se encontró autorización para revocar',
             ], 404);
         }
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_AUTHORIZATION_REVOKED,
+            'Acceso revocado a ' . $client->name,
+            ['client_id' => $client->id, 'client_name' => $client->name],
+            $request,
+        );
 
         return response()->json([
             'message' => 'Acceso revocado correctamente',
@@ -277,6 +306,21 @@ class OAuth2Controller extends Controller
             return response()->json([
                 'message' => 'Código de autorización inválido o expirado',
             ], 400);
+        }
+
+        if ($request->grant_type === 'authorization_code') {
+            $authCode = OAuthAuthCode::where('code', $request->code)->first();
+            $user = $authCode?->user;
+
+            if ($user) {
+                $this->activityLogService->logFromRequest(
+                    $user,
+                    UserActivityLog::ACTION_TOKEN_CREATED,
+                    'Acceso concedido a ' . $client->name,
+                    ['client_id' => $client->id, 'client_name' => $client->name],
+                    $request,
+                );
+            }
         }
 
         return response()->json($result);

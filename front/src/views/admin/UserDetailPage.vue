@@ -385,12 +385,7 @@
   const loading = computed(() => usersController.loading.value);
   const availableRoles = computed(() => rolesController.roles.value);
   const userRoles = computed(() => usersController.userRoles.value);
-  const roleAssignments = computed({
-    get: () => usersController.roleAssignments.value,
-    set: (value) => {
-      usersController.roleAssignments.value = value;
-    },
-  });
+  const roleAssignments = computed(() => usersController.roleAssignments.value);
   const isAdmin = computed(() => authController.user.value?.is_admin || false);
 
   const userRules = computed(() => ({
@@ -527,13 +522,13 @@
         clientsController.fetchClients(),
         usersController.fetchUserRoles(userId),
       ]);
-      roleAssignments.value = usersController.userRoles.value.map(
+      usersController.setRoleAssignments(usersController.userRoles.value.map(
         (r: { id: number; name: string; slug: string }) => ({
           role_id: r.id,
           name: r.name,
           slug: r.slug,
         })
-      );
+      ));
       showRolesModal.value = true;
     } catch {
       showError({ message: 'Error al cargar datos de roles' });

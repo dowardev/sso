@@ -1,12 +1,19 @@
 export interface User {
-  id: number;
-  name: string;
-  user: string;
-  email: string;
-  is_admin: boolean;
-  created_at: string;
-  sessions_count?: number;
-  tokens_count?: number;
+    id: number;
+    name: string;
+    user: string;
+    email: string;
+    is_admin: boolean;
+    created_at: string;
+    sessions_count?: number;
+    tokens_count?: number;
+    roles?: Array<{
+        id: number;
+        name: string;
+        slug: string;
+        description: string | null;
+        is_protected: boolean;
+    }>;
 }
 
 export interface UserDetail extends User {

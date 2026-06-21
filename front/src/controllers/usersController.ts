@@ -18,6 +18,7 @@ export function useUsersController() {
     page?: number;
     per_page?: number;
     search?: string;
+    sso_client_id?: string | number;
   }): Promise<void> {
     return usersStore.fetchUsers(params);
   }

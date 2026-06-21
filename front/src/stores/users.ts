@@ -32,6 +32,7 @@ export const useUsersStore = defineStore('users', () => {
     page?: number;
     per_page?: number;
     search?: string;
+    sso_client_id?: string | number;
   }) {
     loading.value = true;
     try {
@@ -40,6 +41,7 @@ export const useUsersStore = defineStore('users', () => {
       if (params?.per_page)
         queryParams.set('per_page', String(params.per_page));
       if (params?.search) queryParams.set('search', params.search);
+      if (params?.sso_client_id) queryParams.set('sso_client_id', String(params.sso_client_id));
 
       const response = await api.get<PaginatedResponse<User>>({
         endpoint: `/admin/users?${queryParams.toString()}`,
@@ -57,6 +59,10 @@ export const useUsersStore = defineStore('users', () => {
         perPage: response.per_page,
         total: response.total,
       };
+    } catch (error) {
+      console.error('[fetchUsers] Error:', error);
+      users.value = [];
+      throw error;
     } finally {
       loading.value = false;
     }

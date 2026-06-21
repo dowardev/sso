@@ -43,7 +43,9 @@ async function fetchApi<T>(params: {
   options?: RequestInit;
 }): Promise<T> {
   const { endpoint, options = {} } = params;
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const baseUrl = API_URL.replace(/\/+$/, '');
+  const normalizedEndpoint = endpoint.replace(/^\/+/, '');
+  const response = await fetch(`${baseUrl}/${normalizedEndpoint}`, {
     ...options,
     headers: {
       ...getHeaders(),
@@ -103,11 +105,12 @@ export const api = {
         headers: params.headers,
       },
     }),
-  delete: <T>(params: { endpoint: string; headers?: Record<string, string> }) =>
+  delete: <T>(params: { endpoint: string; data?: unknown; headers?: Record<string, string> }) =>
     fetchApi<T>({
       endpoint: params.endpoint,
       options: {
         method: 'DELETE',
+        body: params.data ? JSON.stringify(params.data) : undefined,
         headers: params.headers,
       },
     }),

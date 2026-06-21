@@ -24,6 +24,12 @@
           ></ion-searchbar>
         </div>
 
+        <div v-if="ssoClientId" class="filter-badge ion-padding-horizontal">
+          <ion-badge color="primary" outline>
+            Filtrado por cliente SSO: {{ ssoClientId }}
+          </ion-badge>
+        </div>
+
         <div class="card-list">
           <div v-if="loading && users.length === 0" class="skeleton-container">
             <SkeletonListItem v-for="n in 5" :key="n" />
@@ -110,9 +116,10 @@
 
 <script setup lang="ts">
   // imports
-  import { ref, onMounted, computed } from 'vue';
-  import { useRouter } from 'vue-router';
+import { ref, computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
   import {
+    onIonViewWillEnter,
     IonPage,
     IonHeader,
     IonToolbar,
@@ -154,9 +161,10 @@
   import type { User } from '@/types';
   // end interface and types imports
 
-  // main
-  const router = useRouter();
-  // end main
+// main
+const router = useRouter();
+const route = useRoute();
+// end main
 
   // vars and const
   const search = ref('');
@@ -197,27 +205,31 @@
   // watch
   // end
 
-  // computed
-  const users = computed(() => usersController.users.value);
-  const loading = computed(() => usersController.loading.value);
-  const hasMore = computed(() => usersController.hasMore.value);
-  // end computed
+// computed
+const users = computed(() => usersController.users.value);
+const loading = computed(() => usersController.loading.value);
+const hasMore = computed(() => usersController.hasMore.value);
+const ssoClientId = computed(() => route.query.sso_client_id as string | undefined);
+// end computed
 
-  // onmounted
-  onMounted(() => {
-    usersController.fetchUsers({ per_page: 15 });
+// onmounted
+onIonViewWillEnter(() => {
+    const ssoClientId = route.query.sso_client_id as string | undefined;
+    usersController.fetchUsers({ per_page: 15, sso_client_id: ssoClientId });
   });
-  // end onmounted
+// end onmounted
 
   // functions
   const handleSearch = (): void => {
+    const ssoClientId = route.query.sso_client_id as string | undefined;
     usersController.setSearch(search.value);
-    usersController.fetchUsers({ search: search.value || undefined });
+    usersController.fetchUsers({ search: search.value || undefined, sso_client_id: ssoClientId });
   };
 
   const loadMore = (event: unknown): void => {
+    const ssoClientId = route.query.sso_client_id as string | undefined;
     usersController
-      .fetchUsers({ page: usersController.pagination.value.currentPage + 1 })
+      .fetchUsers({ page: usersController.pagination.value.currentPage + 1, sso_client_id: ssoClientId })
       .then(() => {
         if (event && typeof event === 'object' && 'target' in event) {
           (event as { target: { complete: () => void } }).target.complete();
@@ -256,7 +268,8 @@
   };
 
   const handleRefresh = async (event: CustomEvent): Promise<void> => {
-    await usersController.fetchUsers({ per_page: 15 });
+    const ssoClientId = route.query.sso_client_id as string | undefined;
+    await usersController.fetchUsers({ per_page: 15, sso_client_id: ssoClientId });
     event.detail.complete();
   };
   // end functions
