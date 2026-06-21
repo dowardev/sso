@@ -162,12 +162,12 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre *</ion-label>
-                <ion-input v-model="editForm.name" @ion-blur="userV$.name.$touch()" :aria-invalid="userV$.name.$dirty ? userV$.name.$invalid : undefined"></ion-input>
+                <ion-input v-model="editForm.name" :aria-invalid="userV$.name.$dirty ? userV$.name.$invalid : undefined" @ion-blur="userV$.name.$touch()"></ion-input>
               </ion-item>
               <div v-if="userV$.name.$error" class="field-error">{{ userV$.name.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Usuario *</ion-label>
-                <ion-input v-model="editForm.user" @ion-blur="userV$.user.$touch()" :aria-invalid="userV$.user.$dirty ? userV$.user.$invalid : undefined"></ion-input>
+                <ion-input v-model="editForm.user" :aria-invalid="userV$.user.$dirty ? userV$.user.$invalid : undefined" @ion-blur="userV$.user.$touch()"></ion-input>
               </ion-item>
               <div v-if="userV$.user.$error" class="field-error">{{ userV$.user.$errors[0].$message }}</div>
               <ion-item>
@@ -175,8 +175,8 @@
                 <ion-input
                   v-model="editForm.email"
                   type="email"
-                  @ion-blur="userV$.email.$touch()"
                   :aria-invalid="userV$.email.$dirty ? userV$.email.$invalid : undefined"
+                  @ion-blur="userV$.email.$touch()"
                 ></ion-input>
               </ion-item>
               <div v-if="userV$.email.$error" class="field-error">{{ userV$.email.$errors[0].$message }}</div>
@@ -186,8 +186,8 @@
                   v-model="editForm.password"
                   type="password"
                   placeholder="Dejar vacío para mantener"
-                  @ion-blur="userV$.password.$touch()"
                   :aria-invalid="userV$.password.$dirty ? userV$.password.$invalid : undefined"
+                  @ion-blur="userV$.password.$touch()"
                 ></ion-input>
               </ion-item>
               <div v-if="userV$.password.$error" class="field-error">{{ userV$.password.$errors[0].$message }}</div>

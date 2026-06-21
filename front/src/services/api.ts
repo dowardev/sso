@@ -38,6 +38,40 @@ const getHeaders = () => {
   return headers;
 };
 
+let refreshPromise: Promise<boolean> | null = null;
+
+async function refreshToken(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const refreshResponse = await fetch(
+        `${API_URL.replace(/\/+$/, '')}/refresh-token`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        }
+      );
+
+      if (!refreshResponse.ok) return false;
+
+      const data = await refreshResponse.json();
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 async function fetchApi<T>(params: {
   endpoint: string;
   options?: RequestInit;
@@ -45,22 +79,30 @@ async function fetchApi<T>(params: {
   const { endpoint, options = {} } = params;
   const baseUrl = API_URL.replace(/\/+$/, '');
   const normalizedEndpoint = endpoint.replace(/^\/+/, '');
-  const response = await fetch(`${baseUrl}/${normalizedEndpoint}`, {
-    ...options,
-    headers: {
-      ...getHeaders(),
-      ...options.headers,
-    },
-    credentials: 'include',
-  });
+  const doFetch = (retry = false) =>
+    fetch(`${baseUrl}/${normalizedEndpoint}`, {
+      ...options,
+      headers: {
+        ...(retry ? getHeaders() : {}),
+        ...options.headers,
+      },
+      credentials: 'include',
+    });
 
-  if (response.status === 401 && endpoint !== '/logout') {
-    const { useAuthStore } = await import('@/stores/auth');
-    const authStore = useAuthStore();
-    await authStore.logout();
-    const routerModule = await import('@/router');
-    routerModule.default.push('/login');
-    throw new Error('Sesión expirada');
+  let response = await doFetch();
+
+  if (response.status === 401 && endpoint !== '/login' && endpoint !== '/refresh-token') {
+    const refreshed = await refreshToken();
+    if (refreshed) {
+      response = await doFetch(true);
+    } else {
+      const { useAuthStore } = await import('@/stores/auth');
+      const authStore = useAuthStore();
+      await authStore.logout();
+      const routerModule = await import('@/router');
+      routerModule.default.push('/login');
+      throw new Error('Sesión expirada');
+    }
   }
 
   if (!response.ok) {

@@ -5,8 +5,8 @@
       <ion-button
         size="small"
         fill="outline"
-        @click="refresh"
         :disabled="loading"
+        @click="refresh"
       >
         <ion-icon slot="start" :icon="refreshOutline" />
         Actualizar

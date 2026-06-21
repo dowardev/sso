@@ -107,8 +107,8 @@
                 <ion-input
                   v-model="exclusionForm.host"
                   placeholder="ej: mi-servidor.local, 192.168.1.50"
-                  @ion-blur="exclusionV$.host.$touch()"
                   :aria-invalid="exclusionV$.host.$dirty ? exclusionV$.host.$invalid : undefined"
+                  @ion-blur="exclusionV$.host.$touch()"
                 ></ion-input>
               </ion-item>
               <div v-if="exclusionV$.host.$error" class="field-error">{{ exclusionV$.host.$errors[0].$message }}</div>

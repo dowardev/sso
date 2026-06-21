@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.0] - 2026-06-21
+
+### Added
+- **Refresh token rotation system**: New `UserRefreshToken` model with SHA256 hashed tokens, `rotated_from_id` chain tracking, and revocation support
+- **Token theft detection**: Automatic revocation of entire token chain when a rotated refresh token is reused (rotation-based theft protection)
+- **Inactivity timeout**: 7-day inactivity limit for refresh tokens (configurable via `JWT_REFRESH_INACTIVITY`)
+- **HttpOnly cookie-based refresh tokens**: Secure, HttpOnly, SameSite=Lax cookies for refresh token storage (no localStorage exposure)
+- **Automatic token cleanup**: New `tokens:cleanup` Artisan command scheduled daily to prune expired and revoked tokens
+- **401 interceptor with auto-refresh**: Frontend `api.ts` now intercepts 401 responses and attempts cookie-based token refresh before logging out
+
+### Changed
+- **Auth service**: Replaced `generateAuthToken()` with `generateTokens()` supporting refresh token generation when `remember_me` is enabled
+- **Auth store**: Removed `startAutoRefresh()`, `stopAutoRefresh()`, and interval-based token refresh — refresh is now handled on-demand by the API interceptor
+- **JWT configuration**: Extended `refresh_expiration` default from 1 day to 30 days; added `refresh_inactivity` (7 days)
+- **Login flow**: Sets `refresh_token` cookie when `remember_me` is enabled
+- **Logout flow**: Revokes refresh token in database and clears the cookie
+- **Frontend components**: Updated prop bindings to kebab-case convention across user profile and admin views
+
+### Fixed
+- **Token refresh endpoint**: Now reads refresh token from HttpOnly cookie via `RefreshToken` middleware instead of insecure request body
+
+### Removed
+- **Auto-refresh timer**: Removed interval-based token refresh from auth store (`AUTO_REFRESH_INTERVAL`, `REFRESH_THRESHOLD`)
+- **Deprecated auth store methods**: `refreshTokenAsync()`, `isTokenNearExpiry()`, `startAutoRefresh()`, `stopAutoRefresh()`
+
 ## [0.25.0] - 2026-06-20
 
 ### Added

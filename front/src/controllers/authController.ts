@@ -72,6 +72,7 @@ interface UserSession {
   token_active: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface UserAuthorization {
   id: number;
   status: 'authorized' | 'denied' | 'revoked';

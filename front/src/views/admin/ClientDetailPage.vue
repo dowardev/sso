@@ -53,7 +53,7 @@
                   <ion-icon :icon="keyOutline" class="info-icon"></ion-icon>
                   <span class="value">{{ client.grant_types.join(', ') }}</span>
                 </div>
-                <div class="info-item" v-if="client.allowed_origins && client.allowed_origins.length > 0">
+                <div v-if="client.allowed_origins && client.allowed_origins.length > 0" class="info-item">
                   <ion-icon :icon="globeOutline" class="info-icon"></ion-icon>
                   <div class="origins-list">
                     <span v-for="(origin, index) in client.allowed_origins" :key="index" class="origin-tag">
@@ -95,12 +95,12 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre *</ion-label>
-                <ion-input v-model="clientForm.name" @ion-blur="clientV$.name.$touch()" :aria-invalid="clientV$.name.$dirty ? clientV$.name.$invalid : undefined"></ion-input>
+                <ion-input v-model="clientForm.name" :aria-invalid="clientV$.name.$dirty ? clientV$.name.$invalid : undefined" @ion-blur="clientV$.name.$touch()"></ion-input>
               </ion-item>
               <div v-if="clientV$.name.$error" class="field-error">{{ clientV$.name.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Client ID *</ion-label>
-                <ion-input v-model="clientForm.client_id" @ion-blur="clientV$.client_id.$touch()" :aria-invalid="clientV$.client_id.$dirty ? clientV$.client_id.$invalid : undefined"></ion-input>
+                <ion-input v-model="clientForm.client_id" :aria-invalid="clientV$.client_id.$dirty ? clientV$.client_id.$invalid : undefined" @ion-blur="clientV$.client_id.$touch()"></ion-input>
               </ion-item>
               <div v-if="clientV$.client_id.$error" class="field-error">{{ clientV$.client_id.$errors[0].$message }}</div>
               <ion-item>

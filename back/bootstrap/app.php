@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\HandleDynamicCors;
+use App\Http\Middleware\RefreshToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'dpop' => \App\Http\Middleware\VerifyDpopProof::class,
             'client.credentials' => \App\Http\Middleware\ClientCredentialsAuth::class,
             'setup.not_completed' => \App\Http\Middleware\EnsureSetupNotCompleted::class,
+            'refresh.token' => RefreshToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
