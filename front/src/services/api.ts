@@ -79,11 +79,11 @@ async function fetchApi<T>(params: {
   const { endpoint, options = {} } = params;
   const baseUrl = API_URL.replace(/\/+$/, '');
   const normalizedEndpoint = endpoint.replace(/^\/+/, '');
-  const doFetch = (retry = false) =>
+  const doFetch = () =>
     fetch(`${baseUrl}/${normalizedEndpoint}`, {
       ...options,
       headers: {
-        ...(retry ? getHeaders() : {}),
+        ...getHeaders(),
         ...options.headers,
       },
       credentials: 'include',
@@ -91,10 +91,10 @@ async function fetchApi<T>(params: {
 
   let response = await doFetch();
 
-  if (response.status === 401 && endpoint !== '/login' && endpoint !== '/refresh-token') {
+  if (response.status === 401 && endpoint !== '/login' && endpoint !== '/refresh-token' && getHeaders()['Authorization']) {
     const refreshed = await refreshToken();
     if (refreshed) {
-      response = await doFetch(true);
+      response = await doFetch();
     } else {
       const { useAuthStore } = await import('@/stores/auth');
       const authStore = useAuthStore();
@@ -131,7 +131,10 @@ export const api = {
       options: {
         method: 'POST',
         body: params.data ? JSON.stringify(params.data) : undefined,
-        headers: params.extraHeaders,
+        headers: {
+          'Content-Type': 'application/json',
+          ...params.extraHeaders,
+        },
       },
     }),
   put: <T>(params: {
@@ -144,7 +147,10 @@ export const api = {
       options: {
         method: 'PUT',
         body: JSON.stringify(params.data),
-        headers: params.headers,
+        headers: {
+          'Content-Type': 'application/json',
+          ...params.headers,
+        },
       },
     }),
   delete: <T>(params: { endpoint: string; data?: unknown; headers?: Record<string, string> }) =>
@@ -153,7 +159,10 @@ export const api = {
       options: {
         method: 'DELETE',
         body: params.data ? JSON.stringify(params.data) : undefined,
-        headers: params.headers,
+        headers: {
+          'Content-Type': 'application/json',
+          ...params.headers,
+        },
       },
     }),
 };

@@ -34,3 +34,6 @@ npm-debug.log*
 # Production environment (contains real URLs)
 .env.production
 /pnpm-workspace.yaml
+
+# Vite temp files
+*.timestamp-*.mjs

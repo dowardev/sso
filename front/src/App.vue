@@ -5,7 +5,7 @@
       <ion-menu side="start" content-id="main-content">
         <ion-header class="ion-no-border">
           <ion-toolbar class="sidebar-header-toolbar">
-            <div class="sidebar-brand">
+            <div class="sidebar-brand" aria-label="SSO Server">
               <img alt="SSO Server" src="@/assets/images/lambda_v1.svg" class="sidebar-logo" />
               <span class="sidebar-brand-text">SSO Server</span>
             </div>
@@ -13,7 +13,7 @@
         </ion-header>
         <ion-content>
           <div v-if="currentUser" class="user-info">
-            <div class="user-avatar">
+            <div class="user-avatar" aria-hidden="true">
               {{ getInitials({ name: currentUser.name }) }}
             </div>
             <div class="user-details">
@@ -25,15 +25,16 @@
 
           <template v-if="currentUser?.is_admin">
             <ion-list-header class="nav-section-label">Navegaci&oacute;n</ion-list-header>
-            <ion-list class="nav-list">
+            <ion-list class="nav-list" role="navigation" aria-label="Menú de navegación principal">
               <ion-menu-toggle :auto-hide="false">
                 <ion-item
                   button
+                  lines="none"
                   :class="{ 'active-item': isActiveRoute({ path: '/admin/dashboard' }) }"
                   @click="navigateTo({ url: '/admin/dashboard' })"
                 >
                   <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/dashboard' }) }">
-                    <ion-icon :icon="speedometer"></ion-icon>
+                    <ion-icon :icon="speedometer" aria-hidden="true"></ion-icon>
                   </div>
                   <ion-label>Dashboard</ion-label>
                 </ion-item>
@@ -41,11 +42,12 @@
               <ion-menu-toggle :auto-hide="false">
                 <ion-item
                   button
+                  lines="none"
                   :class="{ 'active-item': isActiveRoute({ path: '/admin/users' }) }"
                   @click="navigateTo({ url: '/admin/users' })"
                 >
                   <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/users' }) }">
-                    <ion-icon :icon="people"></ion-icon>
+                    <ion-icon :icon="people" aria-hidden="true"></ion-icon>
                   </div>
                   <ion-label>Usuarios</ion-label>
                 </ion-item>
@@ -53,11 +55,12 @@
               <ion-menu-toggle :auto-hide="false">
                 <ion-item
                   button
+                  lines="none"
                   :class="{ 'active-item': isActiveRoute({ path: '/admin/sessions' }) }"
                   @click="navigateTo({ url: '/admin/sessions' })"
                 >
                   <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/sessions' }) }">
-                    <ion-icon :icon="key"></ion-icon>
+                    <ion-icon :icon="key" aria-hidden="true"></ion-icon>
                   </div>
                   <ion-label>Sesiones</ion-label>
                 </ion-item>
@@ -65,11 +68,12 @@
               <ion-menu-toggle :auto-hide="false">
                 <ion-item
                   button
+                  lines="none"
                   :class="{ 'active-item': isActiveRoute({ path: '/admin/clients' }) }"
                   @click="navigateTo({ url: '/admin/clients' })"
                 >
                   <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/clients' }) }">
-                    <ion-icon :icon="desktop"></ion-icon>
+                    <ion-icon :icon="desktop" aria-hidden="true"></ion-icon>
                   </div>
                   <ion-label>Clientes SSO</ion-label>
                 </ion-item>
@@ -77,11 +81,12 @@
               <ion-menu-toggle :auto-hide="false">
                 <ion-item
                   button
+                  lines="none"
                   :class="{ 'active-item': isActiveRoute({ path: '/admin/roles' }) }"
                   @click="navigateTo({ url: '/admin/roles' })"
                 >
                   <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/roles' }) }">
-                    <ion-icon :icon="shield"></ion-icon>
+                    <ion-icon :icon="shield" aria-hidden="true"></ion-icon>
                   </div>
                   <ion-label>Roles</ion-label>
                 </ion-item>
@@ -89,15 +94,16 @@
             </ion-list>
 
             <ion-list-header class="nav-section-label">Cuenta</ion-list-header>
-            <ion-list class="nav-list">
+            <ion-list class="nav-list" role="navigation" aria-label="Menú de cuenta">
               <ion-menu-toggle :auto-hide="false">
                 <ion-item
                   button
+                  lines="none"
                   :class="{ 'active-item': isActiveRoute({ path: '/admin/config' }) }"
                   @click="navigateTo({ url: '/admin/config' })"
                 >
                   <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/config' }) }">
-                    <ion-icon :icon="settingsOutline"></ion-icon>
+                    <ion-icon :icon="settingsOutline" aria-hidden="true"></ion-icon>
                   </div>
                   <ion-label>Configuraci&oacute;n</ion-label>
                 </ion-item>
@@ -106,13 +112,22 @@
           </template>
 
           <div class="logout-section">
-            <ion-button expand="block" fill="outline" class="logout-btn" @click="handleLogout">
-              <ion-icon slot="start" :icon="logOutOutline"></ion-icon>
+            <ion-button expand="block" fill="outline" class="logout-btn" @click="showLogoutAlert = true">
+              <ion-icon slot="start" :icon="logOutOutline" aria-hidden="true"></ion-icon>
               Cerrar Sesi&oacute;n
             </ion-button>
           </div>
         </ion-content>
       </ion-menu>
+
+      <ion-alert
+        :is-open="showLogoutAlert"
+        header="Cerrar Sesi&oacute;n"
+        message="¿Estás seguro de que deseas cerrar la sesión?"
+        :buttons="logoutAlertButtons"
+        @did-dismiss="showLogoutAlert = false"
+      ></ion-alert>
+
       <ion-router-outlet id="main-content" />
     </ion-split-pane>
     </template>
@@ -137,6 +152,7 @@
     IonLabel,
     IonButton,
     IonBadge,
+    IonAlert,
     menuController,
   } from '@ionic/vue';
   import { useRouter, useRoute } from 'vue-router';
@@ -150,7 +166,7 @@
     settingsOutline,
   } from 'ionicons/icons';
 
-import { computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useAuthController } from '@/controllers/authController';
 
   const router = useRouter();
@@ -165,6 +181,25 @@ import { useAuthController } from '@/controllers/authController';
     return route.matched.some(record => record.meta.requiresAuth);
   });
   let sessionCheckInterval: ReturnType<typeof setInterval> | null = null;
+  const showLogoutAlert = ref(false);
+
+  const handleLogout = async (): Promise<void> => {
+    await menuController.close();
+    await authController.logout();
+    router.replace('/login');
+  };
+
+  const logoutAlertButtons = [
+    {
+      text: 'Cancelar',
+      role: 'cancel',
+    },
+    {
+      text: 'Cerrar sesión',
+      role: 'destructive',
+      handler: handleLogout,
+    },
+  ];
 
   onMounted(() => {
     sessionCheckInterval = setInterval(checkSession, 5 * 60 * 1000);
@@ -195,12 +230,6 @@ import { useAuthController } from '@/controllers/authController';
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };
-
-  const handleLogout = async (): Promise<void> => {
-    await menuController.close();
-    await authController.logout();
-    router.replace('/login');
   };
 
   const checkSession = async (): Promise<void> => {
@@ -251,8 +280,8 @@ ion-split-pane {
 .user-info {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 20px 16px;
+  gap: var(--space-3, 12px);
+  padding: clamp(16px, 3vw, 20px) var(--space-4, 16px);
   background: var(--glass-bg);
   border-bottom: 1px solid var(--glass-border);
 }
@@ -306,13 +335,13 @@ ion-split-pane {
   }
 
   .nav-list {
-    padding: 4px 8px;
+    padding: 4px 0;
     background: transparent;
   }
 
   .nav-list ion-item {
-    --border-radius: 10px;
-    --padding-start: 10px;
+    --border-radius: 0;
+    --padding-start: 12px;
     --padding-end: 12px;
     --min-height: 44px;
     margin-bottom: 2px;
@@ -320,8 +349,6 @@ ion-split-pane {
     --background-hover: transparent;
     --background-activated: transparent;
     transition: background 0.2s ease;
-    position: relative;
-    overflow: hidden;
   }
 
   .nav-list ion-item:hover {
@@ -329,22 +356,19 @@ ion-split-pane {
   }
 
 .nav-list ion-item.active-item {
-  --background: rgba(139, 92, 246, 0.12);
-}
-
-.nav-list ion-item.active-item::part(native) {
-  background: rgba(139, 92, 246, 0.12);
+  --background: rgba(var(--ion-color-primary-rgb), 0.08);
+  border-left: 4px solid var(--ion-color-primary);
 }
 
 .nav-list ion-item.active-item ion-label {
   font-weight: 600;
-  color: #A78BFA;
+  color: var(--ion-color-primary);
 }
 
   .nav-icon-wrapper {
     width: 32px;
     height: 32px;
-    border-radius: 8px;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -375,13 +399,13 @@ ion-split-pane {
   }
 
 .logout-section {
-  padding: 12px 16px;
+  padding: var(--space-3, 12px) var(--space-4, 16px);
   border-top: 1px solid var(--glass-border);
   margin-top: 8px;
 }
 
   .logout-btn {
-    --border-radius: 10px;
+    --border-radius: 4px;
     --border-color: var(--ion-background-color-step-300);
     --color: var(--text-secondary);
     font-size: 13px;

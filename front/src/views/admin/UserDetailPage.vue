@@ -45,15 +45,15 @@
               <div class="info-card">
                 <h3 class="section-title">Información</h3>
                 <div class="info-item">
-                  <ion-icon :icon="mailOutline" class="info-icon"></ion-icon>
+                  <ion-icon :icon="mailOutline" class="info-icon" aria-hidden="true"></ion-icon>
                   <span class="value">{{ user.email }}</span>
                 </div>
                 <div class="info-item">
-                  <ion-icon :icon="calendarOutline" class="info-icon"></ion-icon>
+                  <ion-icon :icon="calendarOutline" class="info-icon" aria-hidden="true"></ion-icon>
                   <span class="value">{{ formatDate({ dateStr: user.created_at }) }}</span>
                 </div>
                 <div class="info-item">
-                  <ion-icon :icon="keyOutline" class="info-icon"></ion-icon>
+                  <ion-icon :icon="keyOutline" class="info-icon" aria-hidden="true"></ion-icon>
                   <span class="value">{{ user.active_tokens_count }} tokens activos</span>
                 </div>
               </div>
@@ -69,14 +69,14 @@
                 </div>
 
                 <div v-if="userRoles.length === 0" class="empty-state">
-                  <ion-icon :icon="shieldOutline" size="large"></ion-icon>
+                  <ion-icon :icon="shieldOutline" size="large" aria-hidden="true"></ion-icon>
                   <p>Sin roles asignados</p>
                   <span class="empty-hint">(rol: Est&aacute;ndar)</span>
                 </div>
 
                 <div v-else class="roles-chips">
                   <ion-chip v-for="(role, index) in userRoles" :key="index" color="primary">
-                    <ion-icon :icon="shieldOutline"></ion-icon>
+                    <ion-icon :icon="shieldOutline" aria-hidden="true"></ion-icon>
                     <ion-label>{{ role.name }}</ion-label>
                   </ion-chip>
                 </div>
@@ -99,7 +99,7 @@
                 </div>
 
                 <div v-if="sessions.length === 0" class="empty-state">
-                  <ion-icon :icon="keyOutline" size="large"></ion-icon>
+                  <ion-icon :icon="keyOutline" size="large" aria-hidden="true"></ion-icon>
                   <p>No hay sesiones activas</p>
                 </div>
 
@@ -151,9 +151,16 @@
       <ion-modal :is-open="showEditModal" @did-dismiss="showEditModal = false">
         <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
+            <ion-buttons slot="start">
+              <ion-button @click="showEditModal = false">
+                <ion-icon :icon="closeOutline"></ion-icon>
+              </ion-button>
+            </ion-buttons>
             <ion-title>Editar Usuario</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="showEditModal = false">Cancelar</ion-button>
+              <ion-button @click="updateUser">
+                <ion-icon :icon="saveOutline"></ion-icon>
+              </ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -192,12 +199,7 @@
               </ion-item>
               <div v-if="userV$.password.$error" class="field-error">{{ userV$.password.$errors[0].$message }}</div>
             </ion-list>
-            <div class="ion-padding">
-              <ion-button type="submit" expand="block" class="gradient-btn" :disabled="updating">
-                {{ updating ? 'Guardando...' : 'Guardar Cambios' }}
-              </ion-button>
-            </div>
-          </form>
+            </form>
         </ion-content>
       </ion-modal>
 
@@ -207,9 +209,16 @@
       >
         <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
+            <ion-buttons slot="start">
+              <ion-button @click="showRolesModal = false">
+                <ion-icon :icon="closeOutline"></ion-icon>
+              </ion-button>
+            </ion-buttons>
             <ion-title>Asignar Roles</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="showRolesModal = false">Cancelar</ion-button>
+              <ion-button @click="saveUserRoles">
+                <ion-icon :icon="saveOutline"></ion-icon>
+              </ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -254,22 +263,9 @@
             </div>
 
             <div class="ion-padding">
-              <ion-button
-                expand="block"
-                fill="outline"
-                @click="addRoleAssignment"
-              >
+              <ion-button expand="block" fill="outline" @click="addRoleAssignment">
                 <ion-icon slot="start" :icon="add"></ion-icon>
                 Agregar Rol
-              </ion-button>
-              <ion-button
-                expand="block"
-                class="gradient-btn"
-                :disabled="savingRoles"
-                style="margin-top: 8px"
-                @click="saveUserRoles"
-              >
-                {{ savingRoles ? 'Guardando...' : 'Guardar Roles' }}
               </ion-button>
             </div>
           </div>
@@ -287,7 +283,7 @@
 </template>
 
 <script setup lang="ts">
-  // imports
+  // 1. Imports (ionic/vue/ionicons)
   import { ref, onMounted, computed } from 'vue';
   import { useRoute } from 'vue-router';
   import {
@@ -326,43 +322,41 @@
     add,
     mailOutline,
     calendarOutline,
+    closeOutline,
+    saveOutline,
   } from 'ionicons/icons';
+  import { useFormValidation } from '@/composables/useFormValidation';
+  import { useValidation, validators } from '@/composables/useValidation';
+  import { useToast } from '@/composables/useToast';
 
-  // controllers
+  const { handleApiError } = useValidation();
+  const v = validators;
+  const { showSuccess, showError } = useToast();
+
+  // 2. Controllers
   import { useUsersController } from '@/controllers/usersController';
   import { useSessionsController } from '@/controllers/sessionsController';
   import { useClientsController } from '@/controllers/clientsController';
   import { useRolesController } from '@/controllers/rolesController';
   import { useAuthController } from '@/controllers/authController';
+
   const usersController = useUsersController();
   const sessionsController = useSessionsController();
   const clientsController = useClientsController();
   const rolesController = useRolesController();
   const authController = useAuthController();
 
-  // composables
-  import { useFormValidation } from '@/composables/useFormValidation';
-  import { useValidation, validators } from '@/composables/useValidation';
-  const { handleApiError } = useValidation();
-  const v = validators;
-
-  import { useToast } from '@/composables/useToast';
-  const { showSuccess, showError } = useToast();
-
-  // components
+  // 3. Components
   import UserAuthorizationsList from '@/components/UserAuthorizationsList.vue';
-  // end components
 
-  // interface and types imports
+  // 4. Interface and types imports
   import type { UserSession } from '@/types';
-  // end interface and types imports
 
-  // main
+  // 5. Main (props, emits, etc.)
   const route = useRoute();
   const userId = Number(route.params.id);
-  // end main
 
-  // vars and const
+  // 6. Vars and const
   const updating = ref(false);
   const showEditModal = ref(false);
   const showRolesModal = ref(false);
@@ -374,12 +368,11 @@
     email: '',
     password: '',
   });
-  // end vars and const
 
-  // watch
-  // end
+  // 7. Watch
+  // (none)
 
-  // computed
+  // 8. Computed
   const user = computed(() => usersController.selectedUser.value);
   const sessions = computed(() => user.value?.sessions || []);
   const loading = computed(() => usersController.loading.value);
@@ -409,15 +402,13 @@
 
   const { v$: userV$, validate: validateUser, touchAll: touchUser } =
     useFormValidation(userRules, editForm);
-  // end computed
 
-  // onmounted
+  // 9. OnMounted
   onMounted(() => {
     loadUser();
   });
-  // end onmounted
 
-  // functions
+  // 10. Functions
   const loadUser = async (): Promise<void> => {
     try {
       const response = await usersController.fetchUser(userId);
@@ -583,7 +574,6 @@
       savingRoles.value = false;
     }
   };
-  // end functions
 </script>
 
 <style scoped>
@@ -633,7 +623,7 @@
   flex-direction: column;
   align-items: center;
   padding: 24px;
-  background: linear-gradient(135deg, #8B5CF6, #06B6D4);
+  background: var(--gradient-primary);
   color: white;
   position: relative;
   z-index: 1;

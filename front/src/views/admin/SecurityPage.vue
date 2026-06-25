@@ -35,7 +35,7 @@
               slot="end"
               :checked="requireSsl"
               :disabled="loading"
-              @ion-change="onToggleSsl()"
+              @ion-change="onToggleSsl({})"
             ></ion-toggle>
           </ion-item>
 
@@ -93,14 +93,21 @@
       <ion-modal :is-open="showAddExclusionModal" @did-dismiss="showAddExclusionModal = false">
         <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
-            <ion-title>Agregar Exclusi\u00f3n SSL</ion-title>
+            <ion-buttons slot="start">
+              <ion-button @click="showAddExclusionModal = false">
+                <ion-icon :icon="closeOutline"></ion-icon>
+              </ion-button>
+            </ion-buttons>
+            <ion-title>Agregar Exclusión SSL</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="showAddExclusionModal = false">Cancelar</ion-button>
+              <ion-button @click="addExclusionValidated({})">
+                <ion-icon :icon="addOutline"></ion-icon>
+              </ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
         <ion-content>
-          <form class="modal-form" @submit.prevent="addExclusionValidated">
+          <form class="modal-form" @submit.prevent="addExclusionValidated({})">
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Host / IP *</ion-label>
@@ -113,12 +120,7 @@
               </ion-item>
               <div v-if="exclusionV$.host.$error" class="field-error">{{ exclusionV$.host.$errors[0].$message }}</div>
             </ion-list>
-            <div class="ion-padding">
-              <ion-button type="submit" expand="block" class="gradient-btn" :disabled="addingExclusion">
-                {{ addingExclusion ? 'Agregando...' : 'Agregar' }}
-              </ion-button>
-            </div>
-          </form>
+            </form>
         </ion-content>
       </ion-modal>
       <!-- end modals -->
@@ -133,8 +135,8 @@
 </template>
 
 <script setup lang="ts">
-// imports
-import { ref, onMounted, computed } from 'vue';
+// 1. Imports (ionic/vue/ionicons)
+import { ref, onMounted, computed } from 'vue'
 import {
   IonPage,
   IonHeader,
@@ -154,82 +156,77 @@ import {
   IonChip,
   IonModal,
   alertController,
-} from '@ionic/vue';
+} from '@ionic/vue'
 import {
   lockClosed,
   lockClosedOutline,
   listOutline,
   closeCircle,
   addCircleOutline,
-} from 'ionicons/icons';
+  closeOutline,
+  addOutline,
+} from 'ionicons/icons'
 
-// controllers
-import { useSecurityController } from '@/controllers/securityController';
-const securityController = useSecurityController();
+// 2. Controllers / Composables
+import { useSecurityController } from '@/controllers/securityController'
+const securityController = useSecurityController()
 
-// composables
-import { useFormValidation } from '@/composables/useFormValidation';
-import { useValidation, validators } from '@/composables/useValidation';
-const { handleApiError } = useValidation();
-const v = validators;
+import { useFormValidation } from '@/composables/useFormValidation'
+import { useValidation, validators } from '@/composables/useValidation'
+const { handleApiError } = useValidation()
+const v = validators
 
-// components
-// end components
+// 3. Components
 
-// interface and types imports
-// end interface and types imports
+// 4. Interface and types imports
 
-// main
-// end main
+// 5. Main (props, emits, etc.)
 
-// vars and const
-const requireSsl = securityController.requireSsl;
-const sslExclusions = securityController.sslExclusions;
-const loading = securityController.loading;
+// 6. Vars and const
+const requireSsl = securityController.requireSsl
+const sslExclusions = securityController.sslExclusions
+const loading = securityController.loading
 
-const showAddExclusionModal = ref(false);
-const addingExclusion = ref(false);
-const exclusionForm = ref({ host: '' });
+const showAddExclusionModal = ref(false)
+const addingExclusion = ref(false)
+const exclusionForm = ref({ host: '' })
 
 const exclusionRules = computed(() => ({
   host: {
     required: v.required('Host / IP'),
     hostOrIp: v.hostOrIp('Host / IP'),
   },
-}));
+}))
 
 const { v$: exclusionV$, validate: validateExclusion, touchAll: touchExclusion } =
-  useFormValidation(exclusionRules, exclusionForm);
+  useFormValidation(exclusionRules, exclusionForm)
 
-const defaultExclusions = ['localhost', '127.0.0.1', '::1'];
+const defaultExclusions = ['localhost', '127.0.0.1', '::1']
 
 const customExclusions = computed(() => {
   return sslExclusions.value.filter(
     (item: string) => !defaultExclusions.includes(item)
-  );
-});
+  )
+})
 
-// watch
-// end
+// 7. Watch
 
-// computed
-// end computed
+// 8. Computed
 
-// onmounted
+// 9. OnMounted
 onMounted(async () => {
-  await securityController.fetchSettings();
-});
-// end onmounted
+  await securityController.fetchSettings()
+})
 
-// functions
-const onToggleSsl = async (): Promise<void> => {
-  await securityController.toggleRequireSsl();
-};
+// 10. Functions (named parameters pattern)
+const onToggleSsl = async (_params: object = {}): Promise<void> => {
+  await securityController.toggleRequireSsl()
+}
 
 const onRemoveExclusion = async (params: {
-  host: string;
+  host: string
 }): Promise<void> => {
-  const { host } = params;
+  const { host } = params
   const alert = await alertController.create({
     header: 'Eliminar exclusión',
     message: `¿Eliminar "${host}" de las exclusiones SSL?`,
@@ -239,38 +236,37 @@ const onRemoveExclusion = async (params: {
         text: 'Eliminar',
         role: 'destructive',
         handler: async () => {
-          await securityController.removeExclusion({ host });
+          await securityController.removeExclusion({ host })
         },
       },
     ],
-  });
-  await alert.present();
-};
+  })
+  await alert.present()
+}
 
-const addExclusionValidated = async (): Promise<void> => {
-  const isValid = await validateExclusion();
+const addExclusionValidated = async (_params: object = {}): Promise<void> => {
+  const isValid = await validateExclusion()
   if (!isValid) {
-    touchExclusion();
-    return;
+    touchExclusion()
+    return
   }
 
-  addingExclusion.value = true;
+  addingExclusion.value = true
   try {
-    await securityController.addExclusion({ host: exclusionForm.value.host });
-    exclusionForm.value.host = '';
-    showAddExclusionModal.value = false;
+    await securityController.addExclusion({ host: exclusionForm.value.host })
+    exclusionForm.value.host = ''
+    showAddExclusionModal.value = false
   } catch (err) {
-    handleApiError(err);
+    handleApiError(err)
   } finally {
-    addingExclusion.value = false;
+    addingExclusion.value = false
   }
-};
-// end functions
+}
 </script>
 
 <style scoped>
 .security-container {
-  padding: 16px;
+  padding: clamp(12px, 3vw, 16px);
   max-width: 900px;
   margin: 0 auto;
 }
@@ -280,7 +276,7 @@ const addExclusionValidated = async (): Promise<void> => {
 }
 
 .section-header {
-  font-size: 13px;
+  font-size: clamp(12px, 2.5vw, 13px);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -289,11 +285,11 @@ const addExclusionValidated = async (): Promise<void> => {
 }
 
 .security-list ion-item {
-  --border-radius: 12px;
+  --border-radius: 4px;
   --background: var(--background-contrast);
-  --padding-start: 12px;
-  --padding-end: 12px;
-  margin-bottom: 8px;
+  --padding-start: clamp(10px, 2.5vw, 12px);
+  --padding-end: clamp(10px, 2.5vw, 12px);
+  margin-bottom: var(--space-2, 8px);
 }
 
 .security-list ion-item:active {
@@ -305,13 +301,13 @@ const addExclusionValidated = async (): Promise<void> => {
 }
 
 .security-list ion-label h2 {
-  font-size: 14px;
+  font-size: clamp(13px, 3vw, 14px);
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .security-list ion-label p {
-  font-size: 12px;
+  font-size: clamp(11px, 2.5vw, 12px);
   color: var(--text-tertiary);
   margin-top: 2px;
 }
@@ -344,7 +340,7 @@ const addExclusionValidated = async (): Promise<void> => {
 
 @media (min-width: 768px) {
   .security-container {
-    padding: 24px;
+    padding: clamp(16px, 3vw, 24px);
   }
 }
 </style>

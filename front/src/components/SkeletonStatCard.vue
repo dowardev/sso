@@ -1,5 +1,5 @@
 <template>
-  <div class="resource-card-skeleton">
+  <div class="resource-card-skeleton" aria-hidden="true">
     <div class="skeleton-icon"></div>
     <div class="skeleton-lines">
       <div class="skeleton-line skeleton-line-title"></div>
@@ -9,13 +9,16 @@
 </template>
 
 <script setup lang="ts">
+  // 1. Imports (ionic/vue/ionicons)
+  // (none - no Ionic components in template)
+  // (no other sections needed)
 </script>
 
 <style scoped>
 .resource-card-skeleton {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  border-radius: 14px;
+  border-radius: 4px;
   padding: 20px;
   display: flex;
   align-items: center;
@@ -25,7 +28,7 @@
 .skeleton-icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: var(--ion-background-color-step-100);
   animation: skeleton-pulse 1.5s ease-in-out infinite;
 }

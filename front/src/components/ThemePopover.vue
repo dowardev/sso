@@ -3,12 +3,13 @@
     <div class="popover-header">
       <h3>Seleccionar Tema</h3>
     </div>
-    <div class="theme-list">
-      <div
+    <ion-list class="theme-list" lines="none">
+      <ion-item
         v-for="theme in filteredThemes"
         :key="theme.name"
-        class="theme-item"
+        button
         :class="{ active: currentThemeName === theme.name }"
+        :aria-current="currentThemeName === theme.name ? 'true' : undefined"
         @click="selectTheme({ themeName: theme.name })"
       >
         <div
@@ -20,68 +21,75 @@
               : { backgroundColor: theme.color }
           "
         ></div>
-        <span class="theme-label">{{ theme.label }}</span>
+        <ion-label class="theme-label">{{ theme.label }}</ion-label>
         <ion-icon
           v-if="currentThemeName === theme.name"
+          slot="end"
           :icon="checkmark"
           class="check-icon"
         ></ion-icon>
-      </div>
-    </div>
+      </ion-item>
+    </ion-list>
   </div>
 </template>
 
 <script setup lang="ts">
-  // imports
-  import { computed } from 'vue';
-  import { IonIcon } from '@ionic/vue';
+  // 1. Imports (ionic/vue/ionicons)
+  import { computed, onMounted, onUnmounted } from 'vue';
+  import { IonIcon, IonList, IonItem, IonLabel } from '@ionic/vue';
   import { checkmark } from 'ionicons/icons';
 
-  // controllers
+  // 2. Controllers
   import {
     useThemeController,
     type ThemeName,
   } from '@/controllers/themeController';
+
   const themeController = useThemeController();
   const themes = themeController.themes;
   const currentThemeName = themeController.currentThemeName;
-  const setTheme = (params: { themeName: ThemeName }): void => {
-    const { themeName } = params;
-    themeController.setTheme({ themeName });
-  };
 
-  // components
-  // end components
+  // 3. Components
+  // (none)
 
-  // interface and types imports
-  // end interface and types imports
+  // 4. Interface and types imports
+  // (ThemeName imported from controller above)
 
-  // main
+  // 5. Main (props, emits, etc.)
   const props = defineProps<{
     excludeAuto?: boolean;
     onThemeSelect?: ((name: ThemeName) => void) | null;
   }>();
-  // end main
 
-  // vars and const
-  // end vars and const
+  // 6. Vars and const
+  // (none)
 
-  // watch
-  // end
+  // 7. Watch
+  // (none)
 
-  // computed
+  // 8. Computed
   const filteredThemes = computed(() => {
     if (props.excludeAuto) {
       return themes.filter((t) => t.name !== 'auto');
     }
     return themes;
   });
-  // end computed
 
-  // onmounted
-  // end onmounted
+  // 9. OnMounted
+  onMounted(() => {
+    document.addEventListener('keydown', handleKeydown);
+  });
 
-  // functions
+  onUnmounted(() => {
+    document.removeEventListener('keydown', handleKeydown);
+  });
+
+  // 10. Functions
+  const setTheme = (params: { themeName: ThemeName }): void => {
+    const { themeName } = params;
+    themeController.setTheme({ themeName });
+  };
+
   const selectTheme = (params: { themeName: ThemeName }): void => {
     const { themeName } = params;
     if (props.onThemeSelect) {
@@ -90,7 +98,29 @@
       setTheme({ themeName });
     }
   };
-  // end functions
+
+  function handleKeydown(event: KeyboardEvent) {
+    const items = document.querySelectorAll('.theme-list ion-item');
+    const currentIndex = Array.from(items).indexOf(document.activeElement as HTMLElement);
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      const nextIndex = (currentIndex + 1) % items.length;
+      (items[nextIndex] as HTMLElement).focus();
+    }
+
+    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      const prevIndex = (currentIndex - 1 + items.length) % items.length;
+      (items[prevIndex] as HTMLElement).focus();
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      const item = document.activeElement as HTMLElement;
+      item.click();
+    }
+  }
 </script>
 
 <style scoped>
@@ -111,24 +141,21 @@
   }
 
   .theme-list {
-    padding: 8px 0;
+    padding: 0;
   }
 
-  .theme-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
+  .theme-list ion-item.active {
+    --background: var(--ion-color-primary-tint);
+  }
+
+  .theme-list ion-item {
     cursor: pointer;
-    transition: background 0.2s ease;
   }
 
-  .theme-item:active {
-    background: var(--ion-color-light);
-  }
-
-  .theme-item.active {
-    background: var(--ion-color-primary-tint);
+  .theme-list ion-item:focus-visible {
+    outline: 2px solid var(--ion-color-primary);
+    outline-offset: -2px;
+    border-radius: var(--radius-sm, 8px);
   }
 
   .theme-color {
@@ -156,7 +183,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .theme-item {
+    .theme-list ion-item {
       transition: none;
     }
   }

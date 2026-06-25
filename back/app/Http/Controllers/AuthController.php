@@ -97,15 +97,16 @@ class AuthController extends Controller
 
         $response = response()->json($responseData);
 
-        if ($rememberMe && isset($tokenData['refresh_token'])) {
+        if (isset($tokenData['refresh_token'])) {
             $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
+            $minutes = $rememberMe ? $refreshExpirationDays * 1440 : 0;
             $response->withCookie(cookie(
                 'refresh_token',
                 $tokenData['refresh_token'],
-                $refreshExpirationDays * 1440,
+                $minutes,
                 '/',
                 null,
-                true,
+                config('session.secure', false),
                 true,
                 false,
                 'Lax'
@@ -144,13 +145,15 @@ class AuthController extends Controller
         $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
         $response = response()->json($result);
 
+        $minutes = ($result['remember_me'] ?? false) ? $refreshExpirationDays * 1440 : 0;
+
         $response->withCookie(cookie(
             'refresh_token',
             $result['refresh_token'],
-            $refreshExpirationDays * 1440,
+            $minutes,
             '/',
             null,
-            true,
+            config('session.secure', false),
             true,
             false,
             'Lax'

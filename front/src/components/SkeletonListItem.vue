@@ -1,5 +1,5 @@
 <template>
-  <ion-item>
+  <ion-item aria-hidden="true">
     <ion-avatar slot="start">
       <ion-skeleton-text animated style="width: 100%; height: 100%; border-radius: 50%"></ion-skeleton-text>
     </ion-avatar>
@@ -15,5 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { IonItem, IonAvatar, IonLabel, IonSkeletonText } from '@ionic/vue';
+  // 1. Imports (ionic/vue/ionicons)
+  import { IonItem, IonAvatar, IonLabel, IonSkeletonText } from '@ionic/vue';
+  // (no other sections needed)
 </script>

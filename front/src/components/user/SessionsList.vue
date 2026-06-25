@@ -1,6 +1,5 @@
 <template>
-  <div class="sessions-container">
-    <div class="section-header">
+  <div class="section-header">
       <h3 class="section-title">Historial de Sesiones</h3>
       <ion-button
         v-if="sessions.length > 0"
@@ -27,35 +26,35 @@
     </div>
 
     <ion-list v-else class="detail-list">
-      <ion-item v-for="session in sessions" :key="session.id" button :detail="false" @click="toggleExpand(session.id)">
+      <ion-item v-for="session in sessions" :key="session.id" button :detail="false" @click="toggleExpand({ sessionId: session.id })">
         <ion-icon
           slot="start"
-          :icon="getDeviceIcon(session)"
+          :icon="getDeviceIcon({ session })"
           :color="session.token_active ? 'success' : 'medium'"
         ></ion-icon>
         <ion-label>
           <h3 class="item-title">
-            {{ session.client?.name || getDeviceName(session) || 'Cliente Desconocido' }}
+            {{ session.client?.name || getDeviceName({ session }) || 'Cliente Desconocido' }}
           </h3>
-          <p class="item-subtitle">{{ getDeviceDetail(session) }}</p>
+          <p class="item-subtitle">{{ getDeviceDetail({ session }) }}</p>
           <p class="session-date">
-            Último uso: {{ formatDate(session.last_used_at) }}
+            Último uso: {{ formatDate({ dateStr: session.last_used_at }) }}
           </p>
-          <div v-if="expandedSessions.has(session.id)" class="session-details">
-            <ion-item lines="none" class="detail-item">
-              <ion-icon slot="start" :icon="globeOutline" size="small" />
-              <ion-label class="detail-label">IP: {{ session.ip_address }}</ion-label>
-            </ion-item>
-            <ion-item lines="none" class="detail-item">
-              <ion-icon slot="start" :icon="laptopOutline" size="small" />
-              <ion-label class="detail-label">{{ getDeviceType(session) }}</ion-label>
-            </ion-item>
-            <ion-item lines="none" class="detail-item">
-              <ion-icon slot="start" :icon="calendarOutline" size="small" />
-              <ion-label class="detail-label">Creada: {{ formatDate(session.created_at) }}</ion-label>
-            </ion-item>
-          </div>
         </ion-label>
+        <div v-if="expandedSessions.has(session.id)" class="session-details">
+          <div class="detail-row">
+            <ion-icon :icon="globeOutline" size="small" />
+            <span>IP: {{ session.ip_address }}</span>
+          </div>
+          <div class="detail-row">
+            <ion-icon :icon="laptopOutline" size="small" />
+            <span>{{ getDeviceType({ session }) }}</span>
+          </div>
+          <div class="detail-row">
+            <ion-icon :icon="calendarOutline" size="small" />
+            <span>Creada: {{ formatDate({ dateStr: session.created_at }) }}</span>
+          </div>
+        </div>
         <ion-badge
           slot="end"
           :color="session.token_active ? 'success' : 'medium'"
@@ -73,11 +72,11 @@
         </ion-button>
       </ion-item>
     </ion-list>
-  </div>
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted, watch, computed } from 'vue';
+  // 1. Imports (ionic/vue/ionicons)
+  import { ref, onMounted, watch } from 'vue';
   import { UAParser } from 'ua-parser-js';
   import {
     IonList,
@@ -90,8 +89,6 @@
   } from '@ionic/vue';
   import {
     keyOutline,
-    checkmarkCircle,
-    closeCircle,
     trash,
     globeOutline,
     laptopOutline,
@@ -100,26 +97,18 @@
     tabletPortraitOutline,
     logoChrome,
     logoFirefox,
-    logoEdge,
   } from 'ionicons/icons';
 
-  import { useToast } from '@/composables/useToast';
-  const { showError } = useToast();
+  // 2. Controllers
+  // (none)
 
-  interface UserSession {
-    id: number;
-    client: {
-      id: number;
-      name: string;
-      client_id: string;
-    } | null;
-    ip_address: string;
-    user_agent: string;
-    last_used_at: string;
-    created_at: string;
-    token_active: boolean;
-  }
+  // 3. Components
+  // (none)
 
+  // 4. Interface and types imports
+  import type { UserSession } from '@/types';
+
+  // 5. Main (props, emits, etc.)
   const props = defineProps<{
     sessions: UserSession[];
     loading?: boolean;
@@ -130,11 +119,34 @@
     revokeAll: [];
   }>();
 
+  // 6. Vars and const
   const loading = ref(props.loading ?? false);
   const sessions = ref<UserSession[]>(props.sessions ?? []);
   const expandedSessions = ref(new Set<number>());
 
-  function toggleExpand(sessionId: number): void {
+  // 7. Watch
+  watch(
+    () => props.sessions,
+    (val) => { sessions.value = val ?? []; },
+    { deep: true }
+  );
+
+  watch(
+    () => props.loading,
+    (val) => { loading.value = val ?? false; }
+  );
+
+  // 8. Computed
+  // (none)
+
+  // 9. OnMounted
+  onMounted(() => {
+    sessions.value = props.sessions ?? [];
+  });
+
+  // 10. Functions
+  const toggleExpand = (params: { sessionId: number }): void => {
+    const { sessionId } = params;
     const set = new Set(expandedSessions.value);
     if (set.has(sessionId)) {
       set.delete(sessionId);
@@ -142,9 +154,9 @@
       set.add(sessionId);
     }
     expandedSessions.value = set;
-  }
+  };
 
-  function parseUA(userAgent: string): UAParser.IResult | null {
+  const parseUA = (userAgent: string): UAParser.IResult | null => {
     if (!userAgent || userAgent === '-' || userAgent === '') return null;
     try {
       const parser = new UAParser(userAgent);
@@ -152,9 +164,10 @@
     } catch {
       return null;
     }
-  }
+  };
 
-  function getDeviceInfo(session: UserSession): { browser: string; os: string; device: string; type: string } {
+  const getDeviceInfo = (params: { session: UserSession }): { browser: string; os: string; device: string; type: string } => {
+    const { session } = params;
     const parsed = parseUA(session.user_agent);
     if (!parsed) {
       return { browser: 'Desconocido', os: 'Desconocido', device: 'Desconocido', type: 'desktop' };
@@ -167,9 +180,10 @@
     const type = parsed.device.type || 'desktop';
     const deviceStr = [vendor, device].filter(Boolean).join(' ') || os;
     return { browser: `${browser}${browserVer}`, os, device: deviceStr, type };
-  }
+  };
 
-  function getDeviceIcon(session: UserSession): string {
+  const getDeviceIcon = (params: { session: UserSession }): string => {
+    const { session } = params;
     const parsed = parseUA(session.user_agent);
     if (!parsed) return laptopOutline;
     const type = parsed.device.type || 'desktop';
@@ -180,26 +194,29 @@
     if (browser.includes('firefox')) return logoFirefox;
     if (browser.includes('safari')) return globeOutline;
     return laptopOutline;
-  }
+  };
 
-  function getDeviceName(session: UserSession): string {
-    const info = getDeviceInfo(session);
+  const getDeviceName = (params: { session: UserSession }): string => {
+    const { session } = params;
+    const info = getDeviceInfo({ session });
     if (info.browser !== 'Desconocido') {
       return `${info.browser} — ${info.os}`;
     }
     return '';
-  }
+  };
 
-  function getDeviceDetail(session: UserSession): string {
-    const info = getDeviceInfo(session);
+  const getDeviceDetail = (params: { session: UserSession }): string => {
+    const { session } = params;
+    const info = getDeviceInfo({ session });
     if (info.device !== 'Desconocido') {
       return `${info.device} · ${session.ip_address}`;
     }
     return session.ip_address;
-  }
+  };
 
-  function getDeviceType(session: UserSession): string {
-    const info = getDeviceInfo(session);
+  const getDeviceType = (params: { session: UserSession }): string => {
+    const { session } = params;
+    const info = getDeviceInfo({ session });
     const typeMap: Record<string, string> = {
       desktop: 'Ordenador',
       mobile: 'Teléfono',
@@ -209,24 +226,10 @@
       embedded: 'Dispositivo',
     };
     return typeMap[info.type] || info.type;
-  }
+  };
 
-  onMounted(() => {
-    sessions.value = props.sessions ?? [];
-  });
-
-  watch(
-    () => props.sessions,
-    (val) => { sessions.value = val ?? []; },
-    { deep: true }
-  );
-
-  watch(
-    () => props.loading,
-    (val) => { loading.value = val ?? false; }
-  );
-
-  function formatDate(dateStr: string): string {
+  const formatDate = (params: { dateStr: string }): string => {
+    const { dateStr } = params;
     return new Date(dateStr).toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'short',
@@ -234,15 +237,15 @@
       hour: '2-digit',
       minute: '2-digit',
     });
-  }
+  };
 
-  function revoke(sessionId: number): void {
+  const revoke = (sessionId: number): void => {
     emit('revoke', sessionId);
-  }
+  };
 
-  function handleRevokeAll(): void {
+  const handleRevokeAll = (): void => {
     emit('revokeAll');
-  }
+  };
 </script>
 
 <style scoped>
@@ -341,28 +344,25 @@
 }
 
 .session-details {
-  margin-top: 8px;
-  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 16px;
+  margin: 0 16px 8px;
   background: rgba(var(--ion-color-primary-rgb), 0.05);
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
-.detail-item {
-  --min-height: 28px;
-  --padding-start: 0;
-  --padding-end: 0;
-  --inner-padding-end: 0;
-  --background: transparent;
-  font-size: 13px;
-}
-
-.detail-item ion-icon {
-  font-size: 14px;
-  margin-right: 8px;
-}
-
-.detail-label {
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.detail-row ion-icon {
+  font-size: 14px;
+  flex-shrink: 0;
 }
 </style>

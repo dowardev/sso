@@ -154,27 +154,59 @@ export const useAuthStore = defineStore('auth', () => {
     return null;
   }
 
-  function restoreAuth() {
+  async function refreshToken() {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${apiUrl.replace(/\/+$/, '')}/refresh-token`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem(TOKEN_KEY, data.token);
+        token.value = data.token;
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  async function restoreAuth() {
     const storedToken = localStorage.getItem(TOKEN_KEY);
     const userStr = localStorage.getItem(USER_KEY);
 
-    if (storedToken && userStr) {
+    if (storedToken) {
       if (isTokenExpired(storedToken)) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          const newToken = localStorage.getItem(TOKEN_KEY);
+          token.value = newToken;
+          return newToken;
+        }
         clearAuthData();
         return null;
       }
       token.value = storedToken;
-      user.value = JSON.parse(userStr);
+      if (userStr) {
+        user.value = JSON.parse(userStr);
+      }
     }
 
     return storedToken;
   }
 
-  function init() {
-    restoreAuth();
-  }
+  let _initPromise: Promise<void> | null = null;
 
-  init();
+  async function init() {
+    if (!_initPromise) {
+      _initPromise = restoreAuth().then(() => {});
+    }
+    return _initPromise;
+  }
 
   return {
     token,

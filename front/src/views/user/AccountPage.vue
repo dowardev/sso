@@ -1,5 +1,5 @@
 <template>
-  <UserProfileWidget
+  <ProfilePage
     :mode="profileMode"
     :embed-mode="false"
     :external-redirect="true"
@@ -9,13 +9,37 @@
 </template>
 
 <script setup lang="ts">
-import UserProfileWidget from '@/components/user/UserProfileWidget.vue';
-import { computed } from 'vue';
-import { useAuthController } from '@/controllers/authController';
+  // 1. Imports (ionic/vue/ionicons)
+  import { computed } from 'vue';
 
-const authController = useAuthController();
+  // 2. Controllers
+  import { useAuthController } from '@/controllers/authController';
 
-const profileMode = computed(() =>
-  authController.user.value?.is_admin ? 'full' : 'limited'
-);
+  const authController = useAuthController();
+
+  // 3. Components
+  import ProfilePage from '@/views/user/ProfilePage.vue';
+
+  // 4. Interface and types imports
+  // (none)
+
+  // 5. Main (props, emits, etc.)
+  // (none)
+
+  // 6. Vars and const
+  // (none)
+
+  // 7. Watch
+  // (none)
+
+  // 8. Computed
+  const profileMode = computed(() =>
+    authController.user.value?.is_admin ? 'full' : 'limited'
+  );
+
+  // 9. OnMounted
+  // (none)
+
+  // 10. Functions
+  // (none)
 </script>

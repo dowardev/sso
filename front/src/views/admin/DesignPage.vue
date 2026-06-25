@@ -117,257 +117,249 @@
 </template>
 
 <script setup lang="ts">
-  // imports
-  import {
-    IonPage,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonButtons,
-    IonBackButton,
-    IonContent,
-    IonList,
-    IonListHeader,
-    IonItem,
-    IonIcon,
-    IonLabel,
-    IonGrid,
-    IonRow,
-    IonCol,
-    popoverController,
-  } from '@ionic/vue';
-  import {
-    colorPalette,
-    chevronDown,
-    chevronForward,
-    sunnyOutline,
-    moonOutline,
-  } from 'ionicons/icons';
+// 1. Imports (ionic/vue/ionicons)
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonBackButton,
+  IonContent,
+  IonList,
+  IonListHeader,
+  IonItem,
+  IonIcon,
+  IonLabel,
+  IonGrid,
+  IonRow,
+  IonCol,
+  popoverController,
+} from '@ionic/vue'
+import {
+  colorPalette,
+  chevronDown,
+  chevronForward,
+  sunnyOutline,
+  moonOutline,
+} from 'ionicons/icons'
 
-  // controllers
-  import {
-    useThemeController,
-    type ResolvedThemeName,
-  } from '@/controllers/themeController';
-  const themeController = useThemeController();
+// 2. Controllers / Composables
+import {
+  useThemeController,
+  type ResolvedThemeName,
+} from '@/controllers/themeController'
+const themeController = useThemeController()
 
-  // components
-  import ThemePopover from '@/components/ThemePopover.vue';
-  // end components
+// 3. Components
+import ThemePopover from '@/components/ThemePopover.vue'
 
-  // interface and types imports
-  // end interface and types imports
+// 4. Interface and types imports
 
-  // main
-  // end main
+// 5. Main (props, emits, etc.)
 
-  // vars and const
-  const currentTheme = themeController.currentTheme;
-  const isAuto = themeController.isAuto;
-  const autoLightThemeInfo = themeController.autoLightThemeInfo;
-  const autoDarkThemeInfo = themeController.autoDarkThemeInfo;
+// 6. Vars and const
+const currentTheme = themeController.currentTheme
+const isAuto = themeController.isAuto
+const autoLightThemeInfo = themeController.autoLightThemeInfo
+const autoDarkThemeInfo = themeController.autoDarkThemeInfo
 
-  const setAutoLightTheme = (name: ResolvedThemeName): void => {
-    themeController.setAutoLightTheme({ themeName: name });
-  };
-  const setAutoDarkTheme = (name: ResolvedThemeName): void => {
-    themeController.setAutoDarkTheme({ themeName: name });
-  };
-  // end vars and const
+const setAutoLightTheme = (name: ResolvedThemeName): void => {
+  themeController.setAutoLightTheme({ themeName: name })
+}
+const setAutoDarkTheme = (name: ResolvedThemeName): void => {
+  themeController.setAutoDarkTheme({ themeName: name })
+}
 
-  // watch
-  // end
+// 7. Watch
 
-  // computed
-  // end computed
+// 8. Computed
 
-  // onmounted
-  // end onmounted
+// 9. OnMounted
 
-  // functions
-  const openThemePopover = async (params: { event: Event }): Promise<void> => {
-    const { event } = params;
-    const popover = await popoverController.create({
-      component: ThemePopover,
-      event: event,
-      translucent: true,
-    });
-    await popover.present();
-  };
+// 10. Functions (named parameters pattern)
+const openThemePopover = async (params: { event: Event }): Promise<void> => {
+  const { event } = params
+  const popover = await popoverController.create({
+    component: ThemePopover,
+    event: event,
+    translucent: true,
+  })
+  await popover.present()
+}
 
-  const openLightThemePopover = async (params: {
-    event: Event;
-  }): Promise<void> => {
-    const { event } = params;
-    const popover = await popoverController.create({
-      component: ThemePopover,
-      componentProps: {
-        excludeAuto: true,
-        onThemeSelect: (name: ResolvedThemeName) => {
-          setAutoLightTheme(name);
-          popover.dismiss();
-        },
+const openLightThemePopover = async (params: {
+  event: Event
+}): Promise<void> => {
+  const { event } = params
+  const popover = await popoverController.create({
+    component: ThemePopover,
+    componentProps: {
+      excludeAuto: true,
+      onThemeSelect: (name: ResolvedThemeName) => {
+        setAutoLightTheme(name)
+        popover.dismiss()
       },
-      event: event,
-      translucent: true,
-    });
-    await popover.present();
-  };
+    },
+    event: event,
+    translucent: true,
+  })
+  await popover.present()
+}
 
-  const openDarkThemePopover = async (params: {
-    event: Event;
-  }): Promise<void> => {
-    const { event } = params;
-    const popover = await popoverController.create({
-      component: ThemePopover,
-      componentProps: {
-        excludeAuto: true,
-        onThemeSelect: (name: ResolvedThemeName) => {
-          setAutoDarkTheme(name);
-          popover.dismiss();
-        },
+const openDarkThemePopover = async (params: {
+  event: Event
+}): Promise<void> => {
+  const { event } = params
+  const popover = await popoverController.create({
+    component: ThemePopover,
+    componentProps: {
+      excludeAuto: true,
+      onThemeSelect: (name: ResolvedThemeName) => {
+        setAutoDarkTheme(name)
+        popover.dismiss()
       },
-      event: event,
-      translucent: true,
-    });
-    await popover.present();
-  };
-  // end functions
+    },
+    event: event,
+    translucent: true,
+  })
+  await popover.present()
+}
 </script>
 
 <style scoped>
-  .design-container {
-    padding: 16px;
-    max-width: 900px;
-    margin: 0 auto;
-  }
+.design-container {
+  padding: clamp(12px, 3vw, 16px);
+  max-width: 900px;
+  margin: 0 auto;
+}
 
-  .design-grid {
-    padding: 0;
-    --ion-grid-padding: 0;
+.design-grid {
+  padding: 0;
+  --ion-grid-padding: 0;
+}
+
+.design-grid ion-col {
+  padding: 0 0 24px 0;
+}
+
+.design-list {
+  background: transparent;
+}
+
+.section-header {
+  font-size: clamp(12px, 2.5vw, 13px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  padding-left: 0;
+}
+
+.design-list ion-item {
+  --border-radius: 4px;
+  --background: var(--background-contrast);
+  --padding-start: clamp(10px, 2.5vw, 12px);
+  --padding-end: clamp(10px, 2.5vw, 12px);
+  margin-bottom: var(--space-2, 8px);
+}
+
+.design-list ion-item:active {
+  --background: var(--ion-color-light);
+}
+
+.design-list ion-icon {
+  color: var(--text-secondary);
+}
+
+.design-list ion-label {
+  color: var(--text-primary);
+}
+
+.theme-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: clamp(13px, 3vw, 14px);
+}
+
+.theme-color-preview {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.theme-color-preview.dual-color {
+  background: linear-gradient(
+    135deg,
+    var(--ion-color-primary) 50%,
+    var(--ion-color-secondary, #4d91ff) 50%
+  );
+}
+
+.dropdown-icon {
+  font-size: 16px;
+  color: var(--text-tertiary);
+}
+
+.theme-preview {
+  position: sticky;
+  top: 16px;
+}
+
+.preview-title {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.preview-card {
+  background: var(--background-contrast);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow:
+    var(--card-shadow-light) 0px 1px 3px 0px,
+    var(--card-shadow-heavy) 0px 0px 0px 1px;
+}
+
+.preview-header {
+  height: 48px;
+  background: var(--ion-color-primary);
+}
+
+.preview-body {
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.preview-stat {
+  flex: 1;
+  height: 60px;
+  background: var(--ion-color-light);
+  border-radius: 4px;
+}
+
+.preview-hint {
+  margin: 12px 0 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .design-container {
+    padding: clamp(16px, 3vw, 24px);
   }
 
   .design-grid ion-col {
-    padding: 0 0 24px 0;
+    padding: 0 0 0 24px;
   }
 
-  .design-list {
-    background: transparent;
-  }
-
-  .section-header {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-tertiary);
+  .design-grid ion-col:first-child {
     padding-left: 0;
   }
-
-  .design-list ion-item {
-    --border-radius: 12px;
-    --background: var(--background-contrast);
-    --padding-start: 12px;
-    --padding-end: 12px;
-    margin-bottom: 8px;
-  }
-
-  .design-list ion-item:active {
-    --background: var(--ion-color-light);
-  }
-
-  .design-list ion-icon {
-    color: var(--text-secondary);
-  }
-
-  .design-list ion-label {
-    color: var(--text-primary);
-  }
-
-  .theme-value {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--text-secondary);
-    font-size: 14px;
-  }
-
-  .theme-color-preview {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-  }
-
-  .theme-color-preview.dual-color {
-    background: linear-gradient(
-      135deg,
-      var(--ion-color-primary) 50%,
-      var(--ion-color-secondary, #4d91ff) 50%
-    );
-  }
-
-  .dropdown-icon {
-    font-size: 16px;
-    color: var(--text-tertiary);
-  }
-
-  .theme-preview {
-    position: sticky;
-    top: 16px;
-  }
-
-  .preview-title {
-    margin: 0 0 16px 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .preview-card {
-    background: var(--background-contrast);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow:
-      var(--card-shadow-light) 0px 1px 3px 0px,
-      var(--card-shadow-heavy) 0px 0px 0px 1px;
-  }
-
-  .preview-header {
-    height: 48px;
-    background: var(--ion-color-primary);
-  }
-
-  .preview-body {
-    padding: 16px;
-    display: flex;
-    gap: 12px;
-  }
-
-  .preview-stat {
-    flex: 1;
-    height: 60px;
-    background: var(--ion-color-light);
-    border-radius: 8px;
-  }
-
-  .preview-hint {
-    margin: 12px 0 0 0;
-    font-size: 12px;
-    color: var(--text-tertiary);
-    text-align: center;
-  }
-
-  @media (min-width: 768px) {
-    .design-container {
-      padding: 24px;
-    }
-
-    .design-grid ion-col {
-      padding: 0 0 0 24px;
-    }
-
-    .design-grid ion-col:first-child {
-      padding-left: 0;
-    }
-  }
+}
 </style>
