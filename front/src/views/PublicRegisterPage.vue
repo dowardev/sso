@@ -1,21 +1,13 @@
 <template>
   <ion-page>
+    <ion-header class="ion-no-border" mode="ios">
+      <ion-toolbar>
+        <ion-title>Crear Cuenta</ion-title>
+      </ion-toolbar>
+    </ion-header>
     <ion-content :fullscreen="true">
-      <div class="auth-screen">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
-
-        <div class="auth-card">
-          <div class="auth-card-header">
-            <div class="auth-logo-circle">
-              <img alt="Logo SSO Server" src="@/assets/images/lambda_v1.svg" class="auth-logo" />
-            </div>
-            <h2>Crear Cuenta</h2>
-            <p>Regístrate para acceder</p>
-          </div>
-
-          <form @submit.prevent="handleRegister">
+      <AuthCard title="Crear Cuenta" subtitle="Regístrate para acceder">
+        <form @submit.prevent="handleRegister({})">
             <ion-item class="input-item" lines="none">
               <ion-input
                 v-model="form.name"
@@ -23,10 +15,12 @@
                 label-placement="floating"
                 type="text"
                 placeholder="Ingresa tu nombre"
+                autocomplete="name"
+                aria-describedby="pub-name-error"
                 @ion-blur="v$.name.$touch()"
               />
             </ion-item>
-            <div v-if="v$.name.$error" class="field-error">{{ v$.name.$errors[0].$message }}</div>
+            <div v-if="v$.name.$error" id="pub-name-error" class="field-error">{{ v$.name.$errors[0].$message }}</div>
 
             <ion-item class="input-item" lines="none">
               <ion-input
@@ -35,10 +29,12 @@
                 label-placement="floating"
                 type="text"
                 placeholder="Ingresa tu usuario"
+                autocomplete="username"
+                aria-describedby="pub-user-error"
                 @ion-blur="v$.user.$touch()"
               />
             </ion-item>
-            <div v-if="v$.user.$error" class="field-error">{{ v$.user.$errors[0].$message }}</div>
+            <div v-if="v$.user.$error" id="pub-user-error" class="field-error">{{ v$.user.$errors[0].$message }}</div>
 
             <ion-item class="input-item" lines="none">
               <ion-input
@@ -47,10 +43,12 @@
                 label-placement="floating"
                 type="email"
                 placeholder="Ingresa tu email"
+                autocomplete="email"
+                aria-describedby="pub-email-error"
                 @ion-blur="v$.email.$touch()"
               />
             </ion-item>
-            <div v-if="v$.email.$error" class="field-error">{{ v$.email.$errors[0].$message }}</div>
+            <div v-if="v$.email.$error" id="pub-email-error" class="field-error">{{ v$.email.$errors[0].$message }}</div>
 
             <ion-item class="input-item" lines="none">
               <ion-input
@@ -59,8 +57,12 @@
                 label-placement="floating"
                 type="password"
                 placeholder="Ingresa tu contraseña"
+                autocomplete="new-password"
+                aria-describedby="pub-password-error"
                 @ion-blur="v$.password.$touch()"
-              />
+              >
+                <ion-input-password-toggle slot="end" />
+              </ion-input>
             </ion-item>
 
             <div v-if="form.password.length > 0" class="strength-bar-container">
@@ -68,10 +70,15 @@
                 class="strength-bar"
                 :style="{ width: passwordStrength.percent + '%' }"
                 :class="'strength-' + passwordStrength.level"
+                role="progressbar"
+                :aria-valuenow="passwordStrength.percent"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                :aria-label="'Fortaleza de la contraseña: ' + passwordStrength.label"
               ></div>
-              <span class="strength-label">{{ passwordStrength.label }}</span>
+              <span class="strength-label" aria-live="polite">{{ passwordStrength.label }}</span>
             </div>
-            <div v-if="v$.password.$error" class="field-error">{{ v$.password.$errors[0].$message }}</div>
+            <div v-if="v$.password.$error" id="pub-password-error" class="field-error">{{ v$.password.$errors[0].$message }}</div>
 
             <ion-item class="input-item" lines="none">
               <ion-input
@@ -80,10 +87,12 @@
                 label-placement="floating"
                 type="password"
                 placeholder="Confirma tu contraseña"
+                autocomplete="new-password"
+                aria-describedby="pub-password-confirm-error"
                 @ion-blur="v$.password_confirmation.$touch()"
               />
             </ion-item>
-            <div v-if="v$.password_confirmation.$error" class="field-error">{{ v$.password_confirmation.$errors[0].$message }}</div>
+            <div v-if="v$.password_confirmation.$error" id="pub-password-confirm-error" class="field-error">{{ v$.password_confirmation.$errors[0].$message }}</div>
 
             <div v-if="error" class="error-message" role="alert" aria-live="assertive">
               <ion-icon :icon="alertCircle" size="small"></ion-icon>
@@ -104,363 +113,255 @@
           </form>
 
           <div class="auth-card-footer">
-            <ion-button fill="clear" expand="block" class="subtle" @click="goToLogin">
+            <ion-button fill="clear" expand="block" class="subtle" @click="goToLogin({})">
               Ya tengo cuenta
             </ion-button>
-            <ion-button fill="clear" expand="block" class="subtle" @click="goBack">
-              <ion-icon slot="start" :icon="arrowBack"></ion-icon>
+            <ion-button fill="clear" expand="block" class="subtle" @click="goBack({})">
+              <ion-icon slot="start" :icon="arrowBack" aria-hidden="true"></ion-icon>
               Volver
             </ion-button>
           </div>
-        </div>
-      </div>
+    </AuthCard>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-  import { ref, computed, onMounted } from 'vue';
-  import { useRouter, useRoute } from 'vue-router';
-  import {
-    IonPage,
-    IonContent,
-    IonItem,
-    IonInput,
-    IonButton,
-    IonSpinner,
-    IonIcon,
-    loadingController,
-  } from '@ionic/vue';
-  import { arrowBack, alertCircle } from 'ionicons/icons';
-  import useVuelidate from '@vuelidate/core';
-  import { required, email, minLength, sameAs } from '@vuelidate/validators';
+// 1. Imports (ionic/vue/ionicons)
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonContent,
+  IonItem,
+  IonInput,
+  IonButton,
+  IonSpinner,
+  IonIcon,
+  IonInputPasswordToggle,
+  loadingController,
+} from '@ionic/vue'
+import { arrowBack, alertCircle } from 'ionicons/icons'
+import { useVuelidate } from '@vuelidate/core'
+import { required, email, minLength, sameAs } from '@vuelidate/validators'
 
-  import { useAuthController } from '@/controllers/authController';
-  import { useValidation, withMsg } from '@/composables/useValidation';
-  const authController = useAuthController();
-  const { handleApiError } = useValidation();
+// 2. Controllers / Composables
+import { useAuthController } from '@/controllers/authController'
+import { useValidation, withMsg } from '@/composables/useValidation'
+const authController = useAuthController()
+const { handleApiError } = useValidation()
 
-  import { useToast } from '@/composables/useToast';
-  const { showSuccess } = useToast();
+import { useToast } from '@/composables/useToast'
+const { showSuccess } = useToast()
 
-  const router = useRouter();
-  const route = useRoute();
+// 3. Components
+import AuthCard from '@/components/AuthCard.vue'
 
-  const form = ref({
-    name: '',
-    user: '',
-    email: '',
-    password: '',
-    password_confirmation: '',
-  });
+// 4. Interface and types imports
 
-  const loading = ref(false);
-  const error = ref('');
+// 5. Main (props, emits, etc.)
 
-  const rules = computed(() => ({
-    name: { required: withMsg('El nombre es requerido', required) },
-    user: {
-      required: withMsg('El usuario es requerido', required),
-      minLength: withMsg('El usuario debe tener al menos 3 caracteres', minLength(3)),
-    },
-    email: {
-      required: withMsg('El email es requerido', required),
-      email: withMsg('Debe ser un email válido', email),
-    },
-    password: {
-      required: withMsg('La contraseña es requerida', required),
-      minLength: withMsg('La contraseña debe tener al menos 8 caracteres', minLength(8)),
-    },
-    password_confirmation: {
-      required: withMsg('Debe confirmar la contraseña', required),
-      sameAs: withMsg('Las contraseñas no coinciden', sameAs(computed(() => form.value.password))),
-    },
-  }));
+// 6. Vars and const
+const router = useRouter()
+const route = useRoute()
 
-  const v$ = useVuelidate(rules, form);
+const form = ref({
+  name: '',
+  user: '',
+  email: '',
+  password: '',
+  password_confirmation: '',
+})
 
-  const passwordStrength = computed(() => {
-    const pwd = form.value.password;
-    if (pwd.length === 0) return { percent: 0, level: 'none', label: '' };
+const loading = ref(false)
+const error = ref('')
 
-    let score = 0;
-    if (pwd.length >= 6) score += 25;
-    if (pwd.length >= 10) score += 15;
-    if (pwd.length >= 12) score += 10;
-    if (/[a-z]/.test(pwd)) score += 10;
-    if (/[A-Z]/.test(pwd)) score += 10;
-    if (/\d/.test(pwd)) score += 10;
-    if (/[^a-zA-Z0-9]/.test(pwd)) score += 20;
+const rules = computed(() => ({
+  name: { required: withMsg('El nombre es requerido', required) },
+  user: {
+    required: withMsg('El usuario es requerido', required),
+    minLength: withMsg('El usuario debe tener al menos 3 caracteres', minLength(3)),
+  },
+  email: {
+    required: withMsg('El email es requerido', required),
+    email: withMsg('Debe ser un email válido', email),
+  },
+  password: {
+    required: withMsg('La contraseña es requerida', required),
+    minLength: withMsg('La contraseña debe tener al menos 8 caracteres', minLength(8)),
+  },
+  password_confirmation: {
+    required: withMsg('Debe confirmar la contraseña', required),
+    sameAs: withMsg('Las contraseñas no coinciden', sameAs(computed(() => form.value.password))),
+  },
+}))
 
-    if (score >= 90) return { percent: 100, level: 'very-strong', label: 'Muy fuerte' };
-    if (score >= 70) return { percent: 75, level: 'strong', label: 'Fuerte' };
-    if (score >= 45) return { percent: 50, level: 'medium', label: 'Media' };
-    return { percent: 25, level: 'weak', label: 'Débil' };
-  });
+const v$ = useVuelidate(rules, form)
 
-  const oauthParams = ref({
-    client_id: '',
-    redirect_uri: '',
-    state: '',
-    response_type: '',
-    code_challenge: '',
-    code_challenge_method: '',
-    code_verifier: '',
-  });
+const passwordStrength = computed(() => {
+  const pwd = form.value.password
+  if (pwd.length === 0) return { percent: 0, level: 'none', label: '' }
 
-  const isOAuthFlow = ref(false);
+  let score = 0
+  if (pwd.length >= 6) score += 25
+  if (pwd.length >= 10) score += 15
+  if (pwd.length >= 12) score += 10
+  if (/[a-z]/.test(pwd)) score += 10
+  if (/[A-Z]/.test(pwd)) score += 10
+  if (/\d/.test(pwd)) score += 10
+  if (/[^a-zA-Z0-9]/.test(pwd)) score += 20
 
-  onMounted(async () => {
-    const {
-      client_id,
-      redirect_uri,
-      state,
-      response_type,
-      code_challenge,
-      code_challenge_method,
-      code_verifier,
-    } = route.query;
-    if (client_id && redirect_uri) {
-      isOAuthFlow.value = true;
-      oauthParams.value = {
-        client_id: client_id as string,
-        redirect_uri: redirect_uri as string,
-        state: (state as string) || '',
-        response_type: (response_type as string) || 'code',
-        code_challenge: (code_challenge as string) || '',
-        code_challenge_method: (code_challenge_method as string) || '',
-        code_verifier: (code_verifier as string) || '',
-      };
+  if (score >= 90) return { percent: 100, level: 'very-strong', label: 'Muy fuerte' }
+  if (score >= 70) return { percent: 75, level: 'strong', label: 'Fuerte' }
+  if (score >= 45) return { percent: 50, level: 'medium', label: 'Media' }
+  return { percent: 25, level: 'weak', label: 'Débil' }
+})
 
-      if (authController.isAuthenticated.value) {
-        loading.value = true;
-        try {
-          await authController.oauthAuthorize({
-            client_id: oauthParams.value.client_id,
-            redirect_uri: oauthParams.value.redirect_uri,
-            state: oauthParams.value.state,
-            response_type: oauthParams.value.response_type || 'code',
-            code_challenge: oauthParams.value.code_challenge || undefined,
-            code_challenge_method:
-              oauthParams.value.code_challenge_method || undefined,
-            code_verifier: oauthParams.value.code_verifier || undefined,
-          });
-          return;
-        } catch {
-          loading.value = false;
-        }
+const oauthParams = ref({
+  client_id: '',
+  redirect_uri: '',
+  state: '',
+  response_type: '',
+  code_challenge: '',
+  code_challenge_method: '',
+  code_verifier: '',
+})
+
+const isOAuthFlow = ref(false)
+
+// 7. Watch
+
+// 8. Computed
+
+// 9. OnMounted
+onMounted(async () => {
+  const {
+    client_id,
+    redirect_uri,
+    state,
+    response_type,
+    code_challenge,
+    code_challenge_method,
+    code_verifier,
+  } = route.query
+  if (client_id && redirect_uri) {
+    isOAuthFlow.value = true
+    oauthParams.value = {
+      client_id: client_id as string,
+      redirect_uri: redirect_uri as string,
+      state: (state as string) || '',
+      response_type: (response_type as string) || 'code',
+      code_challenge: (code_challenge as string) || '',
+      code_challenge_method: (code_challenge_method as string) || '',
+      code_verifier: (code_verifier as string) || '',
+    }
+
+    if (authController.isAuthenticated.value) {
+      loading.value = true
+      try {
+        await authController.oauthAuthorize({
+          client_id: oauthParams.value.client_id,
+          redirect_uri: oauthParams.value.redirect_uri,
+          state: oauthParams.value.state,
+          response_type: oauthParams.value.response_type || 'code',
+          code_challenge: oauthParams.value.code_challenge || undefined,
+          code_challenge_method:
+            oauthParams.value.code_challenge_method || undefined,
+          code_verifier: oauthParams.value.code_verifier || undefined,
+        })
+        return
+      } catch {
+        loading.value = false
       }
     }
-  });
+  }
+})
 
-  const handleRegister = async (): Promise<void> => {
-    const isValid = await v$.value.$validate();
-    if (!isValid) return;
+// 10. Functions (named parameters pattern)
+const handleRegister = async (_params: object = {}): Promise<void> => {
+  const isValid = await v$.value.$validate()
+  if (!isValid) return
 
-    loading.value = true;
-    error.value = '';
+  loading.value = true
+  error.value = ''
 
-    const loader = await loadingController.create({
-      message: 'Creando cuenta...',
-    });
-    await loader.present();
+  const loader = await loadingController.create({
+    message: 'Creando cuenta...',
+  })
+  await loader.present()
 
-    try {
-      await authController.register({
-        name: form.value.name,
-        user: form.value.user,
-        email: form.value.email,
-        password: form.value.password,
-        password_confirmation: form.value.password_confirmation,
-        client_id: oauthParams.value.client_id || undefined,
-      });
+  try {
+    await authController.register({
+      name: form.value.name,
+      user: form.value.user,
+      email: form.value.email,
+      password: form.value.password,
+      password_confirmation: form.value.password_confirmation,
+      client_id: oauthParams.value.client_id || undefined,
+    })
 
-      await loader.dismiss();
-      showSuccess({ message: 'Cuenta creada correctamente. Ya puedes iniciar sesión.' });
+    await loader.dismiss()
+    showSuccess({ message: 'Cuenta creada correctamente. Ya puedes iniciar sesión.' })
 
-      if (!oauthParams.value.client_id) {
-        router.replace({ name: 'AuthLogin', query: { registered: 'true' } });
-      }
-    } catch (err: unknown) {
-      await loader.dismiss();
-      console.error('[Register Error]', err);
-      error.value = handleApiError(err);
-    } finally {
-      loading.value = false;
+    if (!oauthParams.value.client_id) {
+      router.replace({ name: 'AuthLogin', query: { registered: 'true' } })
     }
-  };
+  } catch (err: unknown) {
+    await loader.dismiss()
+    console.error('[Register Error]', err)
+    error.value = handleApiError(err)
+  } finally {
+    loading.value = false
+  }
+}
 
-  const goToLogin = (): void => {
-    const query: Record<string, string> = {};
-    if (isOAuthFlow.value) {
-      query.client_id = oauthParams.value.client_id;
-      query.redirect_uri = oauthParams.value.redirect_uri;
-      query.response_type = oauthParams.value.response_type || 'code';
-      if (oauthParams.value.state) {
-        query.state = oauthParams.value.state;
-      }
-      if (oauthParams.value.code_challenge) {
-        query.code_challenge = oauthParams.value.code_challenge;
-        query.code_challenge_method = oauthParams.value.code_challenge_method;
-      }
-      if (oauthParams.value.code_verifier) {
-        query.code_verifier = oauthParams.value.code_verifier;
-      }
+const goToLogin = (_params: object = {}): void => {
+  const query: Record<string, string> = {}
+  if (isOAuthFlow.value) {
+    query.client_id = oauthParams.value.client_id
+    query.redirect_uri = oauthParams.value.redirect_uri
+    query.response_type = oauthParams.value.response_type || 'code'
+    if (oauthParams.value.state) {
+      query.state = oauthParams.value.state
     }
-    router.push({ name: 'AuthLogin', query });
-  };
+    if (oauthParams.value.code_challenge) {
+      query.code_challenge = oauthParams.value.code_challenge
+      query.code_challenge_method = oauthParams.value.code_challenge_method
+    }
+    if (oauthParams.value.code_verifier) {
+      query.code_verifier = oauthParams.value.code_verifier
+    }
+  }
+  router.push({ name: 'AuthLogin', query })
+}
 
-  const goBack = (): void => {
-    if (window.history.length > 1) {
-      router.back();
-    } else {
-      router.replace('/');
-    }
-  };
+const goBack = (_params: object = {}): void => {
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.replace('/')
+  }
+}
 </script>
 
 <style scoped>
-.auth-screen {
-  min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  background: var(--ion-background-color, #0A0F1D);
-  padding: 24px;
-}
-
-.blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.5;
-  pointer-events: none;
-  will-change: transform;
-}
-
-.blob-1 {
-  width: 420px;
-  height: 420px;
-  background: #8B5CF6;
-  top: -10%;
-  left: -5%;
-  animation: blob-float-1 18s ease-in-out infinite;
-}
-
-.blob-2 {
-  width: 350px;
-  height: 350px;
-  background: #06B6D4;
-  bottom: -10%;
-  right: -5%;
-  animation: blob-float-2 22s ease-in-out infinite;
-}
-
-.blob-3 {
-  width: 280px;
-  height: 280px;
-  background: #A78BFA;
-  top: 50%;
-  left: 60%;
-  animation: blob-float-3 20s ease-in-out infinite;
-}
-
-@keyframes blob-float-1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(60px, 40px) scale(1.08); }
-  66% { transform: translate(-30px, 70px) scale(0.95); }
-}
-
-@keyframes blob-float-2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(-50px, -60px) scale(1.1); }
-  66% { transform: translate(40px, -30px) scale(0.92); }
-}
-
-@keyframes blob-float-3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.05); }
-  66% { transform: translate(-60px, 20px) scale(0.97); }
-}
-
-.auth-card {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 400px;
-  padding: 40px 32px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  animation: card-appear 0.6s ease both;
-}
-
-@keyframes card-appear {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.auth-card-header {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.auth-logo-circle {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--gradient-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  box-shadow: 0 4px 20px rgba(var(--gradient-primary-rgb), 0.3);
-}
-
-.auth-logo {
-  max-width: 32px;
-  height: auto;
-  filter: brightness(0) invert(1);
-}
-
-.auth-card-header h2 {
-  font-family: var(--font-heading);
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 6px 0;
-}
-
-.auth-card-header p {
-  font-size: 14px;
-  color: var(--text-tertiary);
-  margin: 0;
-}
-
 .error-message {
   display: flex;
   align-items: center;
   gap: 6px;
   color: var(--ion-color-danger);
-  font-size: 13px;
-  padding: 8px 0;
+  font-size: var(--text-base, 14px);
+  padding: var(--space-2, 8px) 0;
 }
 
 .strength-bar-container {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 0 8px;
+  gap: var(--space-2, 8px);
+  padding: var(--space-1, 4px) 0 var(--space-2, 8px);
 }
 
 .strength-bar {
@@ -477,36 +378,22 @@
 .strength-bar.strength-very-strong { background: var(--ion-color-primary); }
 
 .strength-label {
-  font-size: 11px;
+  font-size: var(--text-xs, 10px);
   color: var(--text-tertiary);
   white-space: nowrap;
 }
 
 .auth-card-footer {
-  margin-top: 8px;
+  margin-top: var(--space-2, 8px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1, 4px);
 }
 
 @media (max-width: 374px) {
-  .auth-card {
-    padding: 24px 16px;
-  }
-
-  .auth-card-header h2 {
-    font-size: 20px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .blob {
-    animation: none;
-  }
-
-  .auth-card {
-    animation: none;
+  .auth-card-footer {
+    gap: 2px;
   }
 }
 </style>

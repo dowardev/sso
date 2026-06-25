@@ -15,12 +15,14 @@ class UserRefreshToken extends Model
         'last_used_at',
         'revoked_at',
         'rotated_from_id',
+        'remember_me',
     ];
 
     protected $casts = [
         'expires_at' => 'datetime',
         'last_used_at' => 'datetime',
         'revoked_at' => 'datetime',
+        'remember_me' => 'boolean',
     ];
 
     public function user()

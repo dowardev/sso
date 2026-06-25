@@ -84,9 +84,16 @@
       <ion-modal :is-open="showEditModal" @did-dismiss="showEditModal = false">
         <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
+            <ion-buttons slot="start">
+              <ion-button @click="showEditModal = false">
+                <ion-icon :icon="closeOutline"></ion-icon>
+              </ion-button>
+            </ion-buttons>
             <ion-title>Editar Cliente</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="showEditModal = false">Cancelar</ion-button>
+              <ion-button @click="updateClient">
+                <ion-icon :icon="saveOutline"></ion-icon>
+              </ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -206,12 +213,7 @@
             ></ion-toggle>
           </ion-item>
             </ion-list>
-            <div class="ion-padding">
-              <ion-button type="submit" expand="block" class="gradient-btn" :disabled="saving">
-                {{ saving ? 'Guardando...' : 'Guardar' }}
-              </ion-button>
-            </div>
-          </form>
+            </form>
         </ion-content>
       </ion-modal>
     </ion-content>
@@ -219,6 +221,7 @@
 </template>
 
 <script setup lang="ts">
+  // 1. Imports (ionic/vue/ionicons)
   import { ref, onMounted, computed } from 'vue';
   import { useRoute } from 'vue-router';
   import {
@@ -245,30 +248,47 @@
     IonRow,
     IonCol,
     IonSpinner,
-    IonSelect,
-    IonSelectOption,
   } from '@ionic/vue';
-  import { create, desktopOutline, trash, close, keyOutline, copyOutline, linkOutline, calendarOutline, globeOutline, peopleOutline, add } from 'ionicons/icons';
-
-  import { useClientsController } from '@/controllers/clientsController';
-  const clientsController = useClientsController();
-
-  import { useSecurityController } from '@/controllers/securityController';
-  const securityController = useSecurityController();
-
+  import {
+    create,
+    desktopOutline,
+    close,
+    keyOutline,
+    copyOutline,
+    linkOutline,
+    calendarOutline,
+    globeOutline,
+    peopleOutline,
+    add,
+    closeOutline,
+    saveOutline,
+  } from 'ionicons/icons';
   import { useFormValidation } from '@/composables/useFormValidation';
   import { useValidation, validators } from '@/composables/useValidation';
+  import { useToast } from '@/composables/useToast';
+
   const { handleApiError } = useValidation();
   const v = validators;
-
-  import { useToast } from '@/composables/useToast';
   const { showSuccess, showError } = useToast();
 
+  // 2. Controllers
+  import { useClientsController } from '@/controllers/clientsController';
+  import { useSecurityController } from '@/controllers/securityController';
+
+  const clientsController = useClientsController();
+  const securityController = useSecurityController();
+
+  // 3. Components
   import ClientAuthorizationsList from '@/components/ClientAuthorizationsList.vue';
 
+  // 4. Interface and types imports
+  // (none)
+
+  // 5. Main (props, emits, etc.)
   const route = useRoute();
   const clientId = Number(route.params.id);
 
+  // 6. Vars and const
   const loading = ref(false);
   const showEditModal = ref(false);
   const saving = ref(false);
@@ -285,13 +305,45 @@
 
   const newOriginInput = ref('');
 
+  // 7. Watch
+  // (none)
+
+  // 8. Computed
   const client = computed(() => clientsController.selectedClient.value);
 
+  const clientRules = computed(() => ({
+    name: { required: v.required('Nombre') },
+    client_id: {
+      required: v.required('Client ID'),
+      minLength: v.minLength('Client ID', 3),
+      maxLength: v.maxLength('Client ID', 255),
+      alphaNum: v.alphaNum('Client ID'),
+    },
+    client_secret: {
+      minLength: v.minLength('Client Secret', 10),
+      maxLength: v.maxLength('Client Secret', 255),
+    },
+    redirect_url: {
+      maxLength: v.maxLength('Redirect URL', 255),
+      url: v.url('Redirect URL'),
+    },
+    allowed_origins: {},
+    grant_types: {
+      required: v.required('Grant Types'),
+    },
+    active: {},
+  }));
+
+  const { v$: clientV$, validate: validateClient, touchAll: touchClient } =
+    useFormValidation(clientRules, clientForm);
+
+  // 9. OnMounted
   onMounted(async () => {
     await loadClient();
   });
 
-  async function loadClient(): Promise<void> {
+  // 10. Functions
+  const loadClient = async (): Promise<void> => {
     try {
       loading.value = true;
       const response = await clientsController.fetchClient(clientId);
@@ -309,7 +361,7 @@
     } finally {
       loading.value = false;
     }
-  }
+  };
 
   const formatDate = (params: { dateStr: string }): string => {
     const { dateStr } = params;
@@ -431,32 +483,6 @@
       clientForm.value.grant_types.splice(index, 1);
     }
   };
-
-  const clientRules = computed(() => ({
-    name: { required: v.required('Nombre') },
-    client_id: {
-      required: v.required('Client ID'),
-      minLength: v.minLength('Client ID', 3),
-      maxLength: v.maxLength('Client ID', 255),
-      alphaNum: v.alphaNum('Client ID'),
-    },
-    client_secret: {
-      minLength: v.minLength('Client Secret', 10),
-      maxLength: v.maxLength('Client Secret', 255),
-    },
-    redirect_url: {
-      maxLength: v.maxLength('Redirect URL', 255),
-      url: v.url('Redirect URL'),
-    },
-    allowed_origins: {},
-    grant_types: {
-      required: v.required('Grant Types'),
-    },
-    active: {},
-  }));
-
-  const { v$: clientV$, validate: validateClient, touchAll: touchClient } =
-    useFormValidation(clientRules, clientForm);
 </script>
 
 <style scoped>
@@ -505,7 +531,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px;
+  padding: clamp(16px, 4vw, 24px);
   background: linear-gradient(135deg, #8B5CF6, #06B6D4);
   color: white;
   position: relative;
@@ -519,7 +545,7 @@
 
 .client-name {
   margin: 0;
-  font-size: 22px;
+  font-size: clamp(20px, 5vw, 22px);
   font-weight: 700;
   color: white;
 }
@@ -527,7 +553,7 @@
 .client-id-display {
   margin: 4px 0 8px 0;
   opacity: 0.85;
-  font-size: 14px;
+  font-size: clamp(13px, 3vw, 14px);
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
 }
 
@@ -547,13 +573,13 @@
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   border-radius: var(--card-border-radius);
-  padding: 16px;
+  padding: clamp(12px, 3vw, 16px);
   height: 100%;
 }
 
 .section-title {
   margin: 0 0 16px 0;
-  font-size: 12px;
+  font-size: clamp(11px, 2.5vw, 12px);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -580,7 +606,7 @@
 
 .info-item .value {
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: clamp(13px, 3vw, 14px);
 }
 
 .origins-list {
@@ -594,38 +620,20 @@
   font-size: 12px;
   background: var(--ion-color-light);
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: 4px;
   color: var(--text-secondary);
 }
 
 @media (min-width: 768px) {
   .info-card,
   .stats-card {
-    padding: 24px;
+    padding: clamp(16px, 3vw, 24px);
   }
 }
 
 @media (max-width: 374px) {
-  .client-header {
-    padding: 16px;
-  }
-
-  .client-name {
-    font-size: 20px;
-  }
-
-  .client-id-display {
-    font-size: 13px;
-  }
-
-  .info-item {
-    padding: 8px 0;
-    gap: 8px;
-  }
-
-  .info-card,
-  .stats-card {
-    padding: 12px;
+  .page-container-wide {
+    padding: var(--space-2, 8px);
   }
 }
 </style>

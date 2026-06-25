@@ -139,6 +139,7 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
     const authStore = useAuthStore();
+    await authStore.init();
     const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
     const isAuthRoute = to.path.startsWith('/auth/');
 
@@ -171,7 +172,7 @@ router.beforeEach(async (to, from, next) => {
                 return;
             }
         }
-        if (user && user.roles && user.roles.some((role: any) => role.slug === 'admin')) {
+        if (user && user.roles && user.roles.some((role: { slug: string }) => role.slug === 'admin')) {
             next('/admin/dashboard');
         } else {
             next('/account');
@@ -212,7 +213,7 @@ router.beforeEach(async (to, from, next) => {
                 return;
             }
         }
-        if (!user || !user.roles || !user.roles.some((role: any) => role.slug === 'admin')) {
+        if (!user || !user.roles || !user.roles.some((role: { slug: string }) => role.slug === 'admin')) {
             next('/account');
             return;
         }

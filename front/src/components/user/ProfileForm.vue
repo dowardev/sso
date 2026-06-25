@@ -1,8 +1,9 @@
 <template>
   <div class="profile-form-container">
     <!-- Información del Perfil -->
-    <div class="form-section">
-      <h3 class="section-title">Información Personal</h3>
+    <ion-card class="form-section">
+      <ion-card-content>
+        <h3 class="section-title">Información Personal</h3>
       
       <form class="profile-form" @submit.prevent="saveProfile">
         <div v-if="profileError" class="error-message">
@@ -14,11 +15,13 @@
           <ion-label position="stacked">Nombre Completo *</ion-label>
           <ion-input
             v-model="form.name"
+            autocomplete="name"
+            aria-describedby="prof-name-error"
             :aria-invalid="v$.name.$dirty ? v$.name.$invalid : undefined"
             @ion-blur="v$.name.$touch()"
           />
         </ion-item>
-        <div v-if="v$.name.$error" class="field-error">
+        <div v-if="v$.name.$error" id="prof-name-error" class="field-error">
           {{ v$.name.$errors[0].$message }}
         </div>
 
@@ -26,11 +29,13 @@
           <ion-label position="stacked">Nombre de Usuario *</ion-label>
           <ion-input
             v-model="form.user"
+            autocomplete="username"
+            aria-describedby="prof-user-error"
             :aria-invalid="v$.user.$dirty ? v$.user.$invalid : undefined"
             @ion-blur="v$.user.$touch()"
           />
         </ion-item>
-        <div v-if="v$.user.$error" class="field-error">
+        <div v-if="v$.user.$error" id="prof-user-error" class="field-error">
           {{ v$.user.$errors[0].$message }}
         </div>
 
@@ -39,11 +44,13 @@
           <ion-input
             v-model="form.email"
             type="email"
+            autocomplete="email"
+            aria-describedby="prof-email-error"
             :aria-invalid="v$.email.$dirty ? v$.email.$invalid : undefined"
             @ion-blur="v$.email.$touch()"
           />
         </ion-item>
-        <div v-if="v$.email.$error" class="field-error">
+        <div v-if="v$.email.$error" id="prof-email-error" class="field-error">
           {{ v$.email.$errors[0].$message }}
         </div>
 
@@ -59,11 +66,13 @@
           </ion-button>
         </div>
       </form>
-    </div>
+      </ion-card-content>
+    </ion-card>
 
     <!-- Cambio de Contraseña -->
-    <div class="form-section">
-      <h3 class="section-title">Cambiar Contraseña</h3>
+    <ion-card class="form-section">
+      <ion-card-content>
+        <h3 class="section-title">Cambiar Contraseña</h3>
       
       <form class="profile-form" @submit.prevent="changePassword">
         <div v-if="passwordError" class="error-message">
@@ -76,13 +85,15 @@
           <ion-input
             v-model="passwordForm.current_password"
             type="password"
+            autocomplete="current-password"
+            aria-describedby="prof-current-password-error"
             :aria-invalid="v$Password.current_password.$dirty ? v$Password.current_password.$invalid : undefined"
             @ion-blur="v$Password.current_password.$touch()"
           >
             <ion-input-password-toggle slot="end" />
           </ion-input>
         </ion-item>
-        <div v-if="v$Password.current_password.$error" class="field-error">
+        <div v-if="v$Password.current_password.$error" id="prof-current-password-error" class="field-error">
           {{ v$Password.current_password.$errors[0].$message }}
         </div>
 
@@ -91,13 +102,15 @@
           <ion-input
             v-model="passwordForm.new_password"
             type="password"
+            autocomplete="new-password"
+            aria-describedby="prof-new-password-error"
             :aria-invalid="v$Password.new_password.$dirty ? v$Password.new_password.$invalid : undefined"
             @ion-blur="v$Password.new_password.$touch()"
           >
             <ion-input-password-toggle slot="end" />
           </ion-input>
         </ion-item>
-        <div v-if="v$Password.new_password.$error" class="field-error">
+        <div v-if="v$Password.new_password.$error" id="prof-new-password-error" class="field-error">
           {{ v$Password.new_password.$errors[0].$message }}
         </div>
 
@@ -106,13 +119,15 @@
           <ion-input
             v-model="passwordForm.new_password_confirmation"
             type="password"
+            autocomplete="new-password"
+            aria-describedby="prof-new-password-confirm-error"
             :aria-invalid="v$Password.new_password_confirmation.$dirty ? v$Password.new_password_confirmation.$invalid : undefined"
             @ion-blur="v$Password.new_password_confirmation.$touch()"
           >
             <ion-input-password-toggle slot="end" />
           </ion-input>
         </ion-item>
-        <div v-if="v$Password.new_password_confirmation.$error" class="field-error">
+        <div v-if="v$Password.new_password_confirmation.$error" id="prof-new-password-confirm-error" class="field-error">
           {{ v$Password.new_password_confirmation.$errors[0].$message }}
         </div>
 
@@ -128,11 +143,13 @@
           </ion-button>
         </div>
       </form>
-    </div>
+      </ion-card-content>
+    </ion-card>
 
     <!-- Eliminar Cuenta -->
-    <div class="form-section danger-zone">
-      <h3 class="section-title danger-title">Zona de Peligro</h3>
+    <ion-card class="form-section danger-zone">
+      <ion-card-content>
+        <h3 class="section-title danger-title">Zona de Peligro</h3>
       <p class="danger-description">Una vez eliminada, la cuenta no se puede recuperar.</p>
       <ion-button
         expand="block"
@@ -140,10 +157,11 @@
         fill="outline"
         @click="showDeleteModal = true"
       >
-        <ion-icon slot="start" :icon="trashOutline" />
+        <ion-icon slot="start" :icon="trashOutline" aria-hidden="true" />
         Eliminar Cuenta
       </ion-button>
-    </div>
+      </ion-card-content>
+    </ion-card>
 
     <!-- Delete Account Modal -->
     <ion-modal
@@ -152,12 +170,14 @@
       initial-breakpoint="0.5"
       @did-dismiss="showDeleteModal = false"
     >
-      <ion-header>
+      <ion-header class="ion-no-border" mode="ios">
         <ion-toolbar>
-          <ion-title>Eliminar Cuenta</ion-title>
-          <ion-buttons slot="end">
-            <ion-button @click="showDeleteModal = false">Cancelar</ion-button>
+          <ion-buttons slot="start">
+            <ion-button @click="showDeleteModal = false">
+              <ion-icon :icon="closeOutline"></ion-icon>
+            </ion-button>
           </ion-buttons>
+          <ion-title>Eliminar Cuenta</ion-title>
         </ion-toolbar>
       </ion-header>
       <ion-content class="ion-padding">
@@ -208,10 +228,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { useVuelidate } from '@vuelidate/core';
-import { required, minLength, sameAs } from '@vuelidate/validators';
+  // 1. Imports (ionic/vue/ionicons)
+  import { ref, computed, onMounted, watch } from 'vue';
   import {
+    IonCard,
+    IonCardContent,
     IonItem,
     IonInput,
     IonButton,
@@ -223,42 +244,40 @@ import { required, minLength, sameAs } from '@vuelidate/validators';
     IonToolbar,
     IonTitle,
     IonButtons,
+    IonLabel,
+    IonContent,
   } from '@ionic/vue';
-  import { alertCircle, trashOutline } from 'ionicons/icons';
-  import { withMsg } from '@/composables/useValidation';
-  import { useValidation } from '@/composables/useValidation';
+  import { alertCircle, trashOutline, closeOutline } from 'ionicons/icons';
+  import { useVuelidate } from '@vuelidate/core';
+  import { required, minLength, sameAs } from '@vuelidate/validators';
+  import { withMsg, useValidation } from '@/composables/useValidation';
   import { useToast } from '@/composables/useToast';
+  import type { User } from '@/types';
 
-  import { useAuthController } from '@/controllers/authController';
-  import { useAuthStore } from '@/stores/auth';
-  const authController = useAuthController();
   const { handleApiError } = useValidation();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess } = useToast();
 
+  // 2. Controllers
+  import { useAuthController } from '@/controllers/authController';
+
+  const authController = useAuthController();
+
+  // 3. Components
+  // (none)
+
+  // 4. Interface and types imports
+  // (using User from @/types)
+
+  // 5. Main (props, emits, etc.)
   const emit = defineEmits<{
     saved: [];
   }>();
 
   const props = defineProps<{
-    initialUser: {
-      id: number;
-      name: string;
-      user: string;
-      email: string;
-      is_admin: boolean;
-      created_at: string;
-      sessions_count: number;
-      tokens_count: number;
-      roles: Array<{
-        id: number;
-        name: string;
-        slug: string;
-        description: string | null;
-        is_protected: boolean;
-      }>;
-    } | null;
+    initialUser: User | null;
   }>();
 
+  // 6. Vars and const
   const form = ref({
     name: '',
     user: '',
@@ -281,6 +300,16 @@ import { required, minLength, sameAs } from '@vuelidate/validators';
   const deletingAccount = ref(false);
   const deleteError = ref('');
 
+  // 7. Watch
+  watch(
+    () => props.initialUser,
+    () => {
+      updateFormFromProps();
+    },
+    { deep: true }
+  );
+
+  // 8. Computed
   const rules = computed(() => ({
     name: { required: withMsg('El nombre es requerido', required) },
     user: {
@@ -308,10 +337,13 @@ import { required, minLength, sameAs } from '@vuelidate/validators';
   const v$ = useVuelidate(rules, form);
   const v$Password = useVuelidate(passwordRules, passwordForm);
 
-  const authStore = useAuthStore();
-  const { user: authUser } = authStore;
+  // 9. OnMounted
+  onMounted(() => {
+    updateFormFromProps();
+  });
 
-  function updateFormFromProps(): void {
+  // 10. Functions
+  const updateFormFromProps = (): void => {
     if (props.initialUser) {
       form.value = {
         name: props.initialUser.name,
@@ -319,21 +351,9 @@ import { required, minLength, sameAs } from '@vuelidate/validators';
         email: props.initialUser.email,
       };
     }
-  }
+  };
 
-  onMounted(() => {
-    updateFormFromProps();
-  });
-
-  watch(
-    () => props.initialUser,
-    () => {
-      updateFormFromProps();
-    },
-    { deep: true }
-  );
-
-  async function saveProfile(): Promise<void> {
+  const saveProfile = async (): Promise<void> => {
     const isValid = await v$.value.$validate();
     if (!isValid) return;
 
@@ -347,15 +367,14 @@ import { required, minLength, sameAs } from '@vuelidate/validators';
         email: form.value.email,
       });
       emit('saved');
-    } catch (err: unknown) {
-      console.error('[ProfileForm] Error saving profile:', err);
+    } catch (err) {
       profileError.value = handleApiError(err);
     } finally {
       savingProfile.value = false;
     }
-  }
+  };
 
-  async function changePassword(): Promise<void> {
+  const changePassword = async (): Promise<void> => {
     const isValid = await v$Password.value.$validate();
     if (!isValid) return;
 
@@ -369,22 +388,20 @@ import { required, minLength, sameAs } from '@vuelidate/validators';
         new_password_confirmation: passwordForm.value.new_password_confirmation,
       });
 
-      // Reset form
       passwordForm.value = {
         current_password: '',
         new_password: '',
         new_password_confirmation: '',
       };
       showSuccess({ message: 'Contraseña actualizada correctamente' });
-    } catch (err: unknown) {
-      console.error('[ProfileForm] Error changing password:', err);
+    } catch (err) {
       passwordError.value = handleApiError(err);
     } finally {
       changingPassword.value = false;
     }
-  }
+  };
 
-  async function handleDeleteAccount(): Promise<void> {
+  const handleDeleteAccount = async (): Promise<void> => {
     if (deleteForm.value.confirmation !== 'ELIMINAR') return;
 
     deletingAccount.value = true;
@@ -399,17 +416,15 @@ import { required, minLength, sameAs } from '@vuelidate/validators';
       showDeleteModal.value = false;
       showSuccess({ message: 'Cuenta eliminada correctamente' });
 
-      // Redirect to login after deletion
       setTimeout(() => {
-        authStore.logout();
+        authController.logout();
       }, 1500);
-    } catch (err: unknown) {
-      console.error('[ProfileForm] Error deleting account:', err);
+    } catch (err) {
       deleteError.value = handleApiError(err);
     } finally {
       deletingAccount.value = false;
     }
-  }
+  };
 </script>
 
 <style scoped>
@@ -420,12 +435,17 @@ import { required, minLength, sameAs } from '@vuelidate/validators';
 }
 
 .form-section {
-  background: var(--glass-bg);
+  --background: var(--glass-bg);
+  box-shadow: none;
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   border-radius: var(--card-border-radius);
-  padding: 20px;
+  margin: 0;
+}
+
+.form-section ion-card-content {
+  --padding: 20px;
 }
 
 .section-title {
@@ -469,7 +489,7 @@ import { required, minLength, sameAs } from '@vuelidate/validators';
   font-size: 13px;
   padding: 12px;
   background: rgba(var(--ion-color-danger-rgb), 0.1);
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .danger-zone {
@@ -499,8 +519,8 @@ import { required, minLength, sameAs } from '@vuelidate/validators';
 }
 
 @media (max-width: 374px) {
-  .form-section {
-    padding: 16px;
+  .form-section ion-card-content {
+    --padding: 16px;
   }
 }
 </style>

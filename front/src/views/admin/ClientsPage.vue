@@ -7,9 +7,9 @@
         </ion-buttons>
         <ion-title>Clientes SSO</ion-title>
         <ion-buttons slot="end">
-          <ion-button aria-label="Crear cliente" @click="openCreateModal">
-            <ion-icon slot="icon-only" :icon="add"></ion-icon>
-          </ion-button>
+            <ion-button aria-label="Crear cliente" @click="openCreateModal">
+              <ion-icon slot="icon-only" :icon="add" aria-hidden="true"></ion-icon>
+            </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -21,12 +21,12 @@
       <!-- content -->
       <div class="page-container">
         <div class="card-list">
-          <div v-if="loading" class="skeleton-container">
+          <div v-if="loading" class="skeleton-container" role="status" aria-live="polite" aria-label="Cargando clientes">
             <SkeletonListItem v-for="n in 4" :key="n" />
           </div>
 
           <div v-else-if="clients.length === 0" class="empty-state">
-            <ion-icon :icon="desktopOutline" size="large"></ion-icon>
+            <ion-icon :icon="desktopOutline" size="large" aria-hidden="true"></ion-icon>
             <p>No hay clientes SSO</p>
             <ion-button class="gradient-btn" size="small" @click="openCreateModal">Crear Cliente</ion-button>
           </div>
@@ -38,6 +38,7 @@
                   slot="start"
                   :icon="desktopOutline"
                   :color="client.active ? 'primary' : 'medium'"
+                  aria-hidden="true"
                 ></ion-icon>
                 <ion-label>
                   <h2 class="client-name">{{ client.name }}</h2>
@@ -68,7 +69,7 @@
                     aria-label="Editar cliente"
                     @click.stop="openEditModal({ client })"
                   >
-                    <ion-icon slot="icon-only" :icon="create"></ion-icon>
+                    <ion-icon slot="icon-only" :icon="create" aria-hidden="true"></ion-icon>
                   </ion-button>
                   <ion-button
                     fill="clear"
@@ -77,7 +78,7 @@
                     aria-label="Eliminar cliente"
                     @click.stop="confirmDelete({ client })"
                   >
-                    <ion-icon slot="icon-only" :icon="trash"></ion-icon>
+                  <ion-icon slot="icon-only" :icon="trash" aria-hidden="true"></ion-icon>
                   </ion-button>
                 </div>
               </ion-item>
@@ -101,11 +102,18 @@
       <ion-modal :is-open="showModal" @did-dismiss="showModal = false">
         <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
+            <ion-buttons slot="start">
+              <ion-button @click="showModal = false">
+                <ion-icon :icon="closeOutline"></ion-icon>
+              </ion-button>
+            </ion-buttons>
             <ion-title
               >{{ editingClient ? 'Editar' : 'Crear' }} Cliente</ion-title
             >
             <ion-buttons slot="end">
-              <ion-button @click="showModal = false">Cancelar</ion-button>
+              <ion-button @click="saveClient">
+                <ion-icon :icon="saveOutline"></ion-icon>
+              </ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -114,14 +122,14 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre *</ion-label>
-                <ion-input v-model="clientForm.name" :aria-invalid="clientV$.name.$dirty ? clientV$.name.$invalid : undefined" @ion-blur="clientV$.name.$touch()"></ion-input>
+                <ion-input v-model="clientForm.name" aria-describedby="client-name-error" :aria-invalid="clientV$.name.$dirty ? clientV$.name.$invalid : undefined" @ion-blur="clientV$.name.$touch()"></ion-input>
               </ion-item>
-              <div v-if="clientV$.name.$error" class="field-error">{{ clientV$.name.$errors[0].$message }}</div>
+              <div v-if="clientV$.name.$error" id="client-name-error" class="field-error">{{ clientV$.name.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Client ID *</ion-label>
-                <ion-input v-model="clientForm.client_id" :aria-invalid="clientV$.client_id.$dirty ? clientV$.client_id.$invalid : undefined" @ion-blur="clientV$.client_id.$touch()"></ion-input>
+                <ion-input v-model="clientForm.client_id" aria-describedby="client-client-id-error" :aria-invalid="clientV$.client_id.$dirty ? clientV$.client_id.$invalid : undefined" @ion-blur="clientV$.client_id.$touch()"></ion-input>
               </ion-item>
-              <div v-if="clientV$.client_id.$error" class="field-error">{{ clientV$.client_id.$errors[0].$message }}</div>
+              <div v-if="clientV$.client_id.$error" id="client-client-id-error" class="field-error">{{ clientV$.client_id.$errors[0].$message }}</div>
           <ion-item>
             <ion-label position="stacked">Client Secret</ion-label>
             <div class="secret-input-row">
@@ -129,6 +137,7 @@
                 v-model="clientForm.client_secret"
                 placeholder="Opcional"
                 type="password"
+                aria-describedby="client-secret-error"
                 :aria-invalid="clientV$.client_secret.$dirty ? clientV$.client_secret.$invalid : undefined"
                 @ion-blur="clientV$.client_secret.$touch()"
               >
@@ -140,7 +149,7 @@
                 aria-label="Copiar secret"
                 @click="copySecret"
               >
-                <ion-icon slot="icon-only" :icon="copyOutline"></ion-icon>
+                  <ion-icon slot="icon-only" :icon="copyOutline" aria-hidden="true"></ion-icon>
               </ion-button>
               <ion-button
                 fill="clear"
@@ -148,17 +157,18 @@
                 aria-label="Generar secret"
                 @click="generateSecret"
               >
-                <ion-icon slot="icon-only" :icon="keyOutline"></ion-icon>
+                  <ion-icon slot="icon-only" :icon="keyOutline" aria-hidden="true"></ion-icon>
               </ion-button>
             </div>
           </ion-item>
-          <div v-if="clientV$.client_secret.$error" class="field-error">{{ clientV$.client_secret.$errors[0].$message }}</div>
+          <div v-if="clientV$.client_secret.$error" id="client-secret-error" class="field-error">{{ clientV$.client_secret.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Redirect URL</ion-label>
                   <ion-input
                     v-model="clientForm.redirect_url"
                     type="url"
                     placeholder="https://"
+                    aria-describedby="client-redirect-error"
                     :aria-invalid="clientV$.redirect_url.$dirty ? clientV$.redirect_url.$invalid : undefined"
                     @ion-blur="clientV$.redirect_url.$touch()"
                   ></ion-input>
@@ -170,7 +180,7 @@
                     Solo se permiten URLs con HTTPS (excepto hosts excluidos)
                   </ion-note>
                 </ion-item>
-                <div v-if="clientV$.redirect_url.$error" class="field-error">{{ clientV$.redirect_url.$errors[0].$message }}</div>
+                <div v-if="clientV$.redirect_url.$error" id="client-redirect-error" class="field-error">{{ clientV$.redirect_url.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Orígenes Permitidos</ion-label>
                 <div class="origins-input-row">
@@ -181,7 +191,7 @@
                     @keydown.enter.prevent="addOrigin"
                   ></ion-input>
                   <ion-button fill="clear" size="small" aria-label="Agregar origen" @click="addOrigin">
-                    <ion-icon slot="icon-only" :icon="add"></ion-icon>
+                    <ion-icon slot="icon-only" :icon="add" aria-hidden="true"></ion-icon>
                   </ion-button>
                 </div>
               </ion-item>
@@ -193,10 +203,15 @@
                   <ion-chip
                     v-for="(origin, index) in clientForm.allowed_origins"
                     :key="index"
+                    role="button"
+                    tabindex="0"
+                    :aria-label="'Eliminar ' + origin"
                     @click="removeOrigin({ index })"
+                    @keydown.enter.prevent="removeOrigin({ index })"
+                    @keydown.space.prevent="removeOrigin({ index })"
                   >
                     <ion-label>{{ origin }}</ion-label>
-                    <ion-icon :icon="close" color="danger"></ion-icon>
+                    <ion-icon :icon="close" color="danger" aria-hidden="true"></ion-icon>
                   </ion-chip>
                 </div>
               </ion-item>
@@ -210,27 +225,26 @@
           <ion-item>
             <ion-label position="stacked">Grant Types *</ion-label>
           </ion-item>
-          <ion-item>
-            <ion-label>authorization_code</ion-label>
-            <ion-toggle
-              :checked="clientForm.grant_types.includes('authorization_code')"
-              @ion-change="toggleGrantType('authorization_code')"
-            ></ion-toggle>
-          </ion-item>
-          <ion-item>
-            <ion-label>client_credentials</ion-label>
-            <ion-toggle
-              :checked="clientForm.grant_types.includes('client_credentials')"
-              @ion-change="toggleGrantType('client_credentials')"
-            ></ion-toggle>
+          <ion-item role="group" aria-label="Tipos de concesión">
+            <div class="grant-types-group">
+              <ion-item lines="none" class="grant-type-item">
+                <ion-label>authorization_code</ion-label>
+                <ion-toggle
+                  :checked="clientForm.grant_types.includes('authorization_code')"
+                  @ion-change="toggleGrantType('authorization_code')"
+                ></ion-toggle>
+              </ion-item>
+              <ion-item lines="none" class="grant-type-item">
+                <ion-label>client_credentials</ion-label>
+                <ion-toggle
+                  :checked="clientForm.grant_types.includes('client_credentials')"
+                  @ion-change="toggleGrantType('client_credentials')"
+                ></ion-toggle>
+              </ion-item>
+            </div>
           </ion-item>
             </ion-list>
-            <div class="ion-padding">
-              <ion-button type="submit" expand="block" class="gradient-btn" :disabled="saving">
-                {{ saving ? 'Guardando...' : 'Guardar' }}
-              </ion-button>
-            </div>
-          </form>
+            </form>
         </ion-content>
       </ion-modal>
       <!-- end modals -->
@@ -251,8 +265,9 @@
 </template>
 
 <script setup lang="ts">
-  // imports
+  // 1. Imports (ionic/vue/ionicons)
   import { ref, onMounted, computed } from 'vue';
+  import { useRouter } from 'vue-router';
   import {
     IonPage,
     IonHeader,
@@ -280,62 +295,56 @@
     IonRefresherContent,
     IonAlert,
   } from '@ionic/vue';
-  import { add, desktopOutline, trash, close, keyOutline, copyOutline, warningOutline, create } from 'ionicons/icons';
-
-  // controllers
-import { useClientsController } from '@/controllers/clientsController';
-const clientsController = useClientsController();
-
-import { useRouter } from 'vue-router';
-const router = useRouter();
-
-  import { useSecurityController } from '@/controllers/securityController';
-  const securityController = useSecurityController();
-
-  // composables
+  import { add, desktopOutline, trash, close, keyOutline, copyOutline, warningOutline, create, closeOutline, saveOutline } from 'ionicons/icons';
   import { useFormValidation } from '@/composables/useFormValidation';
   import { useValidation, validators } from '@/composables/useValidation';
+  import { useToast } from '@/composables/useToast';
+
   const { handleApiError } = useValidation();
   const v = validators;
-
-  import { useToast } from '@/composables/useToast';
   const { showSuccess, showError } = useToast();
 
-  // components
+  // 2. Controllers
+  import { useClientsController } from '@/controllers/clientsController';
+  import { useSecurityController } from '@/controllers/securityController';
+
+  const clientsController = useClientsController();
+  const securityController = useSecurityController();
+
+  const router = useRouter();
+
+  // 3. Components
   import SkeletonListItem from '@/components/SkeletonListItem.vue';
-  // end components
 
-  // interface and types imports
+  // 4. Interface and types imports
   import type { SsoClient } from '@/types';
-  // end interface and types imports
 
-  // main
-  // end main
+  // 5. Main (props, emits, etc.)
+  // (none)
 
-  // vars and const
+  // 6. Vars and const
   const showModal = ref(false);
   const editingClient = ref<SsoClient | null>(null);
   const saving = ref(false);
 
-const clientForm = ref({
-  name: '',
-  client_id: '',
-  client_secret: '',
-  redirect_url: '',
-  allowed_origins: [] as string[],
-  grant_types: ['authorization_code'] as string[],
-  active: true,
-});
+  const clientForm = ref({
+    name: '',
+    client_id: '',
+    client_secret: '',
+    redirect_url: '',
+    allowed_origins: [] as string[],
+    grant_types: ['authorization_code'] as string[],
+    active: true,
+  });
 
   const newOriginInput = ref('');
   const showDeleteAlert = ref(false);
   const clientToDelete = ref<SsoClient | null>(null);
-  // end vars and const
 
-  // watch
-  // end
+  // 7. Watch
+  // (none)
 
-  // computed
+  // 8. Computed
   const clients = computed(() => clientsController.clients.value);
   const loading = computed(() => clientsController.loading.value);
 
@@ -364,48 +373,46 @@ const clientForm = ref({
 
   const { v$: clientV$, validate: validateClient, touchAll: touchClient } =
     useFormValidation(clientRules, clientForm);
-  // end computed
 
-  // onmounted
+  // 9. OnMounted
   onMounted(async () => {
     await securityController.fetchSettings();
     clientsController.fetchClients();
   });
-  // end onmounted
 
-  // functions
-const openCreateModal = (): void => {
-  editingClient.value = null;
-  clientForm.value = {
-    name: '',
-    client_id: '',
-    client_secret: '',
-    redirect_url: '',
-    allowed_origins: [],
-    grant_types: ['authorization_code'],
-    active: true,
+  // 10. Functions
+  const openCreateModal = (): void => {
+    editingClient.value = null;
+    clientForm.value = {
+      name: '',
+      client_id: '',
+      client_secret: '',
+      redirect_url: '',
+      allowed_origins: [],
+      grant_types: ['authorization_code'],
+      active: true,
+    };
+    newOriginInput.value = '';
+    showModal.value = true;
   };
-  newOriginInput.value = '';
-  showModal.value = true;
-};
 
-const openEditModal = (params: { client: SsoClient }): void => {
-  const { client } = params;
-  editingClient.value = client;
-  clientForm.value = {
-    name: client.name,
-    client_id: client.client_id,
-    client_secret: client.client_secret || '',
-    redirect_url: client.redirect_url || '',
-    allowed_origins: client.allowed_origins || [],
-    grant_types: client.grant_types || ['authorization_code'],
-    active: client.active,
+  const openEditModal = (params: { client: SsoClient }): void => {
+    const { client } = params;
+    editingClient.value = client;
+    clientForm.value = {
+      name: client.name,
+      client_id: client.client_id,
+      client_secret: client.client_secret || '',
+      redirect_url: client.redirect_url || '',
+      allowed_origins: client.allowed_origins || [],
+      grant_types: client.grant_types || ['authorization_code'],
+      active: client.active,
+    };
+    newOriginInput.value = '';
+    showModal.value = true;
   };
-  newOriginInput.value = '';
-  showModal.value = true;
-};
 
-      const saveClient = async (): Promise<void> => {
+  const saveClient = async (): Promise<void> => {
     const isValid = await validateClient();
     if (!isValid) {
       touchClient();
@@ -488,97 +495,97 @@ const openEditModal = (params: { client: SsoClient }): void => {
     clientForm.value.allowed_origins.splice(index, 1);
   };
 
-const confirmDelete = (params: { client: SsoClient }): void => {
-  const { client } = params;
-  clientToDelete.value = client;
-  showDeleteAlert.value = true;
-};
+  const confirmDelete = (params: { client: SsoClient }): void => {
+    const { client } = params;
+    clientToDelete.value = client;
+    showDeleteAlert.value = true;
+  };
 
-const deleteClient = async (): Promise<void> => {
-  if (!clientToDelete.value) return;
-  try {
-    await clientsController.deleteClient({ id: clientToDelete.value.id });
-    showSuccess({ message: 'Cliente eliminado correctamente' });
-  } catch {
-    showError({ message: 'Error al eliminar cliente' });
-  } finally {
-    showDeleteAlert.value = false;
-    clientToDelete.value = null;
-  }
-};
-
-const deleteAlertButtons = [
-  {
-    text: 'Cancelar',
-    role: 'cancel',
-    handler: () => {
+  const deleteClient = async (): Promise<void> => {
+    if (!clientToDelete.value) return;
+    try {
+      await clientsController.deleteClient({ id: clientToDelete.value.id });
+      showSuccess({ message: 'Cliente eliminado correctamente' });
+    } catch {
+      showError({ message: 'Error al eliminar cliente' });
+    } finally {
       showDeleteAlert.value = false;
       clientToDelete.value = null;
+    }
+  };
+
+  const deleteAlertButtons = [
+    {
+      text: 'Cancelar',
+      role: 'cancel',
+      handler: () => {
+        showDeleteAlert.value = false;
+        clientToDelete.value = null;
+      },
     },
-  },
-  {
-    text: 'Eliminar',
-    role: 'destructive',
-    handler: deleteClient,
-  },
-];
+    {
+      text: 'Eliminar',
+      role: 'destructive',
+      handler: deleteClient,
+    },
+  ];
 
-const generateSecret = (): void => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let secret = '';
-  for (let i = 0; i < 40; i++) {
-    secret += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  clientForm.value.client_secret = secret;
-};
+  const generateSecret = (): void => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let secret = '';
+    for (let i = 0; i < 40; i++) {
+      secret += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    clientForm.value.client_secret = secret;
+  };
 
-const copySecret = async (): Promise<void> => {
-  if (!clientForm.value.client_secret) return;
-  try {
-    await navigator.clipboard.writeText(clientForm.value.client_secret);
-  } catch {
-    // Ignore clipboard errors
-  }
-};
+  const copySecret = async (): Promise<void> => {
+    if (!clientForm.value.client_secret) return;
+    try {
+      await navigator.clipboard.writeText(clientForm.value.client_secret);
+    } catch {
+      // Ignore clipboard errors
+    }
+  };
 
-const toggleGrantType = (grantType: string): void => {
-  const index = clientForm.value.grant_types.indexOf(grantType);
-  if (index === -1) {
-    clientForm.value.grant_types.push(grantType);
-  } else {
-    clientForm.value.grant_types.splice(index, 1);
-  }
-};
+  const toggleGrantType = (grantType: string): void => {
+    const index = clientForm.value.grant_types.indexOf(grantType);
+    if (index === -1) {
+      clientForm.value.grant_types.push(grantType);
+    } else {
+      clientForm.value.grant_types.splice(index, 1);
+    }
+  };
 
-const handleRefresh = async (event: CustomEvent): Promise<void> => {
-  await clientsController.fetchClients();
-  event.detail.complete();
-};
+  const handleRefresh = async (event: CustomEvent): Promise<void> => {
+    await clientsController.fetchClients();
+    event.detail.complete();
+  };
 
-const goToClientDetail = (params: { clientId: number }): void => {
-  router.push({ name: 'AdminClientDetail', params: { id: params.clientId } });
-};
-const hasSslViolation = (params: { redirectUrl: string | null }): boolean => {
-  const { redirectUrl } = params;
-  if (!redirectUrl || !securityController.requireSsl.value) return false;
-  if (redirectUrl.startsWith('https://')) return false;
+  const goToClientDetail = (params: { clientId: number }): void => {
+    router.push({ name: 'AdminClientDetail', params: { id: params.clientId } });
+  };
 
-  const defaultExclusions = ['localhost', '127.0.0.1', '::1'];
-  const host = (() => {
-    try { return new URL(redirectUrl).hostname; } catch { return ''; }
-  })();
+  const hasSslViolation = (params: { redirectUrl: string | null }): boolean => {
+    const { redirectUrl } = params;
+    if (!redirectUrl || !securityController.requireSsl.value) return false;
+    if (redirectUrl.startsWith('https://')) return false;
 
-  if (defaultExclusions.includes(host)) return false;
-  if (securityController.sslExclusions.value.includes(host)) return false;
+    const defaultExclusions = ['localhost', '127.0.0.1', '::1'];
+    const host = (() => {
+      try { return new URL(redirectUrl).hostname; } catch { return ''; }
+    })();
 
-  return true;
-};
-  // end functions
+    if (defaultExclusions.includes(host)) return false;
+    if (securityController.sslExclusions.value.includes(host)) return false;
+
+    return true;
+  };
 </script>
 
 <style scoped>
   .skeleton-container {
-    padding: 8px 0;
+    padding: var(--space-2, 8px) 0;
   }
 
   .clients-list {
@@ -586,8 +593,8 @@ const hasSslViolation = (params: { redirectUrl: string | null }): boolean => {
   }
 
 .clients-list ion-item {
-  --padding-start: 16px;
-  --padding-end: 16px;
+  --padding-start: clamp(12px, 3vw, 16px);
+  --padding-end: clamp(12px, 3vw, 16px);
   --background: transparent;
   border-bottom: 1px solid var(--glass-border);
   transition: background 0.2s ease;
@@ -604,7 +611,7 @@ const hasSslViolation = (params: { redirectUrl: string | null }): boolean => {
   .client-name {
     color: var(--text-primary);
     font-weight: 600;
-    font-size: 15px;
+    font-size: clamp(14px, 3.5vw, 15px);
   }
 
   .client-id {
@@ -612,7 +619,7 @@ const hasSslViolation = (params: { redirectUrl: string | null }): boolean => {
     align-items: center;
     gap: 4px;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: clamp(12px, 3vw, 13px);
     margin-top: 2px;
   }
 
@@ -630,7 +637,7 @@ const hasSslViolation = (params: { redirectUrl: string | null }): boolean => {
   }
 
   .redirect-url {
-    font-size: 12px;
+    font-size: clamp(11px, 2.5vw, 12px);
     color: var(--text-tertiary);
     word-break: break-all;
     margin-top: 4px;
@@ -660,23 +667,7 @@ const hasSslViolation = (params: { redirectUrl: string | null }): boolean => {
 
   @media (max-width: 374px) {
     .page-container {
-      padding: 8px;
-    }
-
-    .client-name {
-      font-size: 14px;
-    }
-
-    .client-id {
-      font-size: 12px;
-    }
-
-    .client-id code {
-      font-size: 11px;
-    }
-
-    .redirect-url {
-      font-size: 11px;
+      padding: var(--space-2, 8px);
     }
   }
 
@@ -726,5 +717,17 @@ const hasSslViolation = (params: { redirectUrl: string | null }): boolean => {
   display: block;
   font-size: 12px;
   padding: 4px 16px 8px;
+}
+
+.grant-types-group {
+  width: 100%;
+}
+
+.grant-type-item {
+  --padding-start: 0;
+  --padding-end: 0;
+  --inner-padding-end: 0;
+  --min-height: 44px;
+  --background: transparent;
 }
 </style>

@@ -5,7 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.26.0] - 2026-06-21
+## [0.27.0] - 2026-06-25
+
+### Added
+- **Responsive container utility classes**: `.container-sm`, `.container-md`, `.container-lg` for consistent max-width page layouts
+- **Focus-visible system**: Global `:focus-visible` outline with primary color, `::selection` styling, and touch target minimum size (44x44)
+- **Fluid typography scale**: `clamp()`-based text utilities (`text-fluid-xs` through `text-fluid-xl`) for responsive font sizing
+- **Responsive visibility utilities**: `.hide-xs` / `.show-xs` for mobile-specific content control
+- **Skeleton shimmer animation**: Reusable `.skeleton-shimmer` class with `prefers-reduced-motion` support
+- **Skeleton card/list item components**: Updated with shimmer animation for loading states
+- **AuthCard component**: Reusable authentication card with blob background animations, replacing duplicated inline auth screen markup across 4 pages
+- **Focus trap composable** (`useFocusTrap`): Keyboard accessibility for modals and popovers
+
+### Changed
+- **Design token system**: Implemented comprehensive CSS custom property architecture — spacing scale (`--space-1` through `--space-16`), radius scale (`--radius-sm`/`--radius-md`/`--radius-lg`/`--radius-full`), elevation tokens (`--elevation-1` through `--elevation-4`), and typography scale (`--text-xs` through `--text-3xl`)
+- **Border radius standardization**: All UI elements (buttons, modals, cards, inputs) now use consistent 4px radius (`--border-radius: 4px`) replacing previous 10–20px values
+- **Ionic-first layout migration**: Dashboard, admin pages, and auth pages migrated from custom flexbox to `ion-grid`/`ion-row`/`ion-col` responsive grid system
+- **Vue component structure normalization**: All components reordered to follow the numbered section convention (1–10 per AGENTS.md — Imports, Controllers/Composables, Components, Types, Props/Emits, Vars, Watch, Computed, OnMounted, Functions)
+- **Named parameters pattern**: `handleOAuthResponse` and other functions refactored from positional to single-params object pattern
+- **Dark/light theme refinement**: Increased contrast on glass morphism values, updated card shadows away from purple tint, elevated text contrast ratios (`--text-secondary` from 0.55 to 0.70, `--text-tertiary` from 0.35 to 0.65), tertiary color changed from purple to amber (`#FBBF24`)
+- **Desktop layout enhancement**: Added `col-stack` pattern for card grouping, consistent responsive column sizing across admin views
+- **Accessibility improvements**: Added `aria-label`, `aria-describedby`, `aria-hidden="true"` on decorative icons, `autocomplete` attributes on form fields, `role="alert"` on error messages, `prefers-reduced-motion` support on all CSS animations
+- **Removed gradient button hover effects**: Removed `translateY` and `box-shadow` transitions from `.gradient-btn` for cleaner interaction design
+- **AuthLoginForm**: Refactored to use `AuthCard` component — removed 200+ lines of inline auth screen CSS in favor of shared component
+- **OAuthAuthorizationPage**: Simplified template, improved accessibility, and used `AuthCard` component
+- **UserProfileWidget removed**: Replaced by `ProfilePage.vue` with standardized structure and `AccountPage` integration
+- **Registration pages (Public & Admin)**: Refactored to use `AuthCard`, normalized component structure, removed duplicate auth screen CSS
+- **SetupPage**: Standardized with numbered component structure
+
+### Fixed
+- **Color scheme contrast**: Improved text readability across light and dark themes with higher contrast ratios
+- **Nested HTML issues**: Resolved invalid HTML nesting in responsive segment components
+- **ESLint violations**: Fixed all lint errors after component structure normalization
 
 ### Added
 - **Refresh token rotation system**: New `UserRefreshToken` model with SHA256 hashed tokens, `rotated_from_id` chain tracking, and revocation support

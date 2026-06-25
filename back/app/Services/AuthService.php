@@ -118,19 +118,17 @@ class AuthService
             'expires_in' => $accessTokenData['expires_in'],
         ];
 
-        if ($rememberMe) {
-            $refreshToken = $this->generateRefreshToken($user, $request);
-            $result['refresh_token'] = $refreshToken['plain'];
-        }
+        $refreshToken = $this->generateRefreshToken($user, $request, $rememberMe);
+        $result['refresh_token'] = $refreshToken['plain'];
 
         return $result;
     }
 
-    public function generateRefreshToken(User $user, Request $request): array
+    public function generateRefreshToken(User $user, Request $request, bool $rememberMe = false): array
     {
         $plain = Str::random(64);
         $hash = hash('sha256', $plain);
-        $expiresAt = now()->addSeconds(config('jwt.refresh_expiration', 86400));
+        $expiresAt = now()->addSeconds((int) config('jwt.refresh_expiration', 86400));
 
         $model = UserRefreshToken::create([
             'user_id' => $user->id,
@@ -138,6 +136,7 @@ class AuthService
             'user_agent' => $request->userAgent(),
             'ip_address' => $request->ip(),
             'expires_at' => $expiresAt,
+            'remember_me' => $rememberMe,
         ]);
 
         return ['plain' => $plain, 'model' => $model];
@@ -153,7 +152,7 @@ class AuthService
         }
 
         // Check inactivity timeout
-        $inactivitySeconds = config('jwt.refresh_inactivity', 604800);
+        $inactivitySeconds = (int) config('jwt.refresh_inactivity', 604800);
         if ($existing->last_used_at !== null && $existing->last_used_at->addSeconds($inactivitySeconds)->isPast()) {
             $existing->revoke();
             return null;
@@ -191,7 +190,7 @@ class AuthService
         // Create new refresh token (rotated)
         $newPlain = Str::random(64);
         $newHash = hash('sha256', $newPlain);
-        $newExpiresAt = now()->addSeconds(config('jwt.refresh_expiration', 86400));
+        $newExpiresAt = now()->addSeconds((int) config('jwt.refresh_expiration', 86400));
 
         UserRefreshToken::create([
             'user_id' => $user->id,
@@ -200,6 +199,7 @@ class AuthService
             'ip_address' => $request->ip(),
             'expires_at' => $newExpiresAt,
             'rotated_from_id' => $existing->id,
+            'remember_me' => $existing->remember_me,
         ]);
 
         return [
@@ -207,6 +207,7 @@ class AuthService
             'token_type' => $accessTokenData['token_type'],
             'expires_in' => $accessTokenData['expires_in'],
             'refresh_token' => $newPlain,
+            'remember_me' => $existing->remember_me,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,

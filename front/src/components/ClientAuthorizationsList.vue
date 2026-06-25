@@ -28,27 +28,27 @@
       <ion-item v-for="auth in authorizations" :key="auth.id">
         <ion-icon
           slot="start"
-          :icon="getStatusIcon(auth.status)"
-          :color="getStatusColor(auth.status)"
+          :icon="getStatusIcon({ status: auth.status })"
+          :color="getStatusColor({ status: auth.status })"
         ></ion-icon>
         <ion-label>
           <h3 class="item-title">{{ auth.user?.name || 'Usuario Desconocido' }}</h3>
           <p class="item-subtitle">
-            <ion-badge :color="getStatusColor(auth.status)">
-              {{ getStatusLabel(auth.status) }}
+            <ion-badge :color="getStatusColor({ status: auth.status })">
+              {{ getStatusLabel({ status: auth.status }) }}
             </ion-badge>
             <span class="user-info">@{{ auth.user?.user }}</span>
             <span class="user-info">{{ auth.user?.email }}</span>
           </p>
           <p class="session-date">
-            Última actualización: {{ formatDate(auth.updated_at) }}
+            Última actualización: {{ formatDate({ dateStr: auth.updated_at }) }}
           </p>
         </ion-label>
         <ion-badge
           slot="end"
-          :color="getStatusColor(auth.status)"
+          :color="getStatusColor({ status: auth.status })"
         >
-          {{ getStatusLabel(auth.status) }}
+          {{ getStatusLabel({ status: auth.status }) }}
         </ion-badge>
       </ion-item>
     </ion-list>
@@ -56,6 +56,7 @@
 </template>
 
 <script setup lang="ts">
+  // 1. Imports (ionic/vue/ionicons)
   import { ref, onMounted } from 'vue';
   import {
     IonList,
@@ -68,19 +69,17 @@
   } from '@ionic/vue';
   import {
     peopleOutline,
-    checkmarkCircle,
-    closeCircle,
-    timeOutline,
     refreshOutline,
-    warningOutline,
   } from 'ionicons/icons';
 
+  // 2. Controllers
   import { useAuthController } from '@/controllers/authController';
   const authController = useAuthController();
 
-  import { useToast } from '@/composables/useToast';
-  const { showError } = useToast();
+  // 3. Components
+  // (none)
 
+  // 4. Interface and types imports
   interface Authorization {
     id: number;
     status: 'authorized' | 'denied' | 'revoked';
@@ -93,76 +92,77 @@
     } | null;
   }
 
+  // 5. Main (props, emits, etc.)
   const props = defineProps<{
     clientId: number;
   }>();
 
+  // 6. Vars and const
   const loading = ref(false);
   const authorizations = ref<Authorization[]>([]);
 
+  // 7. Watch
+  // (none)
+
+  // 8. Computed
+  // (none)
+
+  // 9. OnMounted
   onMounted(() => {
     loadAuthorizations();
   });
 
-  async function loadAuthorizations(): Promise<void> {
+  // 10. Functions
+  const loadAuthorizations = async (): Promise<void> => {
     loading.value = true;
     try {
       const response = await authController.getClientAuthorizations({
         client_id: props.clientId,
       });
       authorizations.value = (response.data || response) as Authorization[];
-    } catch (err) {
-      console.error('[Load Client Authorizations Error]', err);
+    } catch {
       authorizations.value = [];
     } finally {
       loading.value = false;
     }
-  }
+  };
 
-  async function refresh(): Promise<void> {
+  const refresh = async (): Promise<void> => {
     await loadAuthorizations();
-  }
+  };
 
-  function getStatusIcon(status: string): string {
+  const getStatusIcon = (params: { status: string }): string => {
+    const { status } = params;
     switch (status) {
-      case 'authorized':
-        return 'checkmarkCircle';
-      case 'denied':
-        return 'closeCircle';
-      case 'revoked':
-        return 'warningOutline';
-      default:
-        return 'timeOutline';
+      case 'authorized': return 'checkmarkCircle';
+      case 'denied': return 'closeCircle';
+      case 'revoked': return 'warningOutline';
+      default: return 'timeOutline';
     }
-  }
+  };
 
-  function getStatusColor(status: string): string {
+  const getStatusColor = (params: { status: string }): string => {
+    const { status } = params;
     switch (status) {
-      case 'authorized':
-        return 'success';
-      case 'denied':
-        return 'danger';
-      case 'revoked':
-        return 'warning';
-      default:
-        return 'medium';
+      case 'authorized': return 'success';
+      case 'denied': return 'danger';
+      case 'revoked': return 'warning';
+      default: return 'medium';
     }
-  }
+  };
 
-  function getStatusLabel(status: string): string {
+  const getStatusLabel = (params: { status: string }): string => {
+    const { status } = params;
     switch (status) {
-      case 'authorized':
-        return 'Autorizado';
-      case 'denied':
-        return 'Denegado';
-      case 'revoked':
-        return 'Revocado';
-      default:
-        return status;
+      case 'authorized': return 'Autorizado';
+      case 'denied': return 'Denegado';
+      case 'revoked': return 'Revocado';
+      default: return status;
     }
-  }
+  };
 
-  function formatDate(dateStr: string): string {
+  const formatDate = (params: { dateStr: string }): string => {
+    const { dateStr } = params;
     return new Date(dateStr).toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'short',
@@ -170,7 +170,7 @@
       hour: '2-digit',
       minute: '2-digit',
     });
-  }
+  };
 </script>
 
 <style scoped>

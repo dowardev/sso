@@ -12,116 +12,137 @@
     <ion-content :fullscreen="true">
       <ion-progress-bar v-if="loading" type="indeterminate"></ion-progress-bar>
 
-      <div v-if="!loading" class="dashboard-container">
+      <div v-if="!loading" class="dashboard-container" role="region" aria-label="Panel de control">
         <div class="welcome-section">
           <h1 class="welcome-greeting">Bienvenido, <span>{{ currentUserName }}</span></h1>
           <p class="welcome-subtitle">Resumen del estado actual de tu servidor SSO</p>
         </div>
 
-        <div class="stats-row">
-          <div class="stat-card">
-            <span class="stat-label">Usuarios</span>
-            <span class="stat-value stat-value-primary">{{ stats.totalUsers }}</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Sesiones Activas</span>
-            <span class="stat-value stat-value-success">{{ stats.activeSessions }}</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Clientes SSO</span>
-            <span class="stat-value stat-value-secondary">{{ stats.totalClients }}</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Roles</span>
-            <span class="stat-value stat-value-warning">{{ totalRoles }}</span>
-          </div>
-        </div>
+        <ion-grid class="stats-grid">
+          <ion-row>
+            <ion-col size="6" size-md="3">
+              <div class="stat-card">
+                <span class="stat-label">Usuarios</span>
+                <span class="stat-value stat-value-primary">{{ stats.totalUsers }}</span>
+              </div>
+            </ion-col>
+            <ion-col size="6" size-md="3">
+              <div class="stat-card">
+                <span class="stat-label">Sesiones Activas</span>
+                <span class="stat-value stat-value-success">{{ stats.activeSessions }}</span>
+              </div>
+            </ion-col>
+            <ion-col size="6" size-md="3">
+              <div class="stat-card">
+                <span class="stat-label">Clientes SSO</span>
+                <span class="stat-value stat-value-secondary">{{ stats.totalClients }}</span>
+              </div>
+            </ion-col>
+            <ion-col size="6" size-md="3">
+              <div class="stat-card">
+                <span class="stat-label">Roles</span>
+                <span class="stat-value stat-value-warning">{{ totalRoles }}</span>
+              </div>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
 
-        <div class="dashboard-grid">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Últimas Sesiones</span>
-              <button class="card-link" @click="router.push({ name: 'AdminSessions' })">Ver todas →</button>
-            </div>
-            <div v-if="recentSessions.length === 0" class="card-empty">No hay sesiones activas</div>
-            <div v-for="session in recentSessions" v-else :key="session.id" class="session-row">
-              <div class="session-avatar">{{ getInitials({ name: session.user?.name || '?' }) }}</div>
-              <div class="session-info">
-                <div class="session-user">{{ session.user?.name || 'Desconocido' }}</div>
-                <div class="session-client">{{ session.client?.name || 'Cliente desconocido' }}</div>
-              </div>
-              <div class="session-meta">
-                <span class="session-badge" :class="session.token_active ? 'badge-active' : 'badge-inactive'">
-                  {{ session.token_active ? 'Activa' : 'Inactiva' }}
-                </span>
-                <span class="session-time">{{ timeAgo({ date: session.last_used_at }) }}</span>
-              </div>
-            </div>
-          </div>
+        <ion-grid class="dashboard-grid">
+          <ion-row>
+            <ion-col size="12" size-md="6">
+              <div class="col-stack">
+                <div class="card">
+                  <div class="card-header">
+                    <span class="card-title">Últimas Sesiones</span>
+                    <button class="card-link" aria-label="Ver todas las sesiones" @click="router.push({ name: 'AdminSessions' })">Ver todas →</button>
+                  </div>
+                  <div v-if="recentSessions.length === 0" class="card-empty">No hay sesiones activas</div>
+                  <div v-for="session in recentSessions" v-else :key="session.id" class="session-row">
+                    <div class="session-avatar">{{ getInitials({ name: session.user?.name || '?' }) }}</div>
+                    <div class="session-info">
+                      <div class="session-user">{{ session.user?.name || 'Desconocido' }}</div>
+                      <div class="session-client">{{ session.client?.name || 'Cliente desconocido' }}</div>
+                    </div>
+                    <div class="session-meta">
+                      <span class="session-badge" :class="session.token_active ? 'badge-active' : 'badge-inactive'">
+                        {{ session.token_active ? 'Activa' : 'Inactiva' }}
+                      </span>
+                      <span class="session-time">{{ timeAgo({ date: session.last_used_at }) }}</span>
+                    </div>
+                  </div>
+                </div>
 
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Usuarios por Rol</span>
-              <button class="card-link" @click="router.push({ name: 'AdminRoles' })">Ver roles →</button>
-            </div>
-            <div v-if="rolesWithCount.length === 0" class="card-empty">No hay roles configurados</div>
-            <div v-for="(role, index) in rolesWithCount" v-else :key="role.id" class="bar-row">
-              <span class="bar-label">{{ role.name }}</span>
-              <div class="bar-track">
-                <div class="bar-fill" :style="{ width: barWidth({ count: role.users_count || 0 }) }" :class="barColorClass({ index })"></div>
+                <div class="card">
+                  <div class="card-header">
+                    <span class="card-title">Clientes SSO</span>
+                    <button class="card-link" aria-label="Ver todos los clientes" @click="router.push({ name: 'AdminClients' })">Ver todos →</button>
+                  </div>
+                  <div v-if="clients.length === 0" class="card-empty">No hay clientes registrados</div>
+                  <div v-for="client in clients.slice(0, 6)" v-else :key="client.id" class="client-row">
+                    <div class="client-icon-wrapper">
+                      <ion-icon :icon="desktopOutline" aria-hidden="true"></ion-icon>
+                    </div>
+                    <div class="client-info-col">
+                      <div class="client-name">{{ client.name }}</div>
+                      <div class="client-id-text">{{ client.client_id }}</div>
+                    </div>
+                    <div class="client-dot" :class="client.active ? 'dot-active' : 'dot-inactive'"></div>
+                  </div>
+                </div>
               </div>
-              <span class="bar-count">{{ role.users_count || 0 }}</span>
-            </div>
-          </div>
+            </ion-col>
 
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Clientes SSO</span>
-              <button class="card-link" @click="router.push({ name: 'AdminClients' })">Ver todos →</button>
-            </div>
-            <div v-if="clients.length === 0" class="card-empty">No hay clientes registrados</div>
-            <div v-for="client in clients.slice(0, 6)" v-else :key="client.id" class="client-row">
-              <div class="client-icon-wrapper">
-                <ion-icon :icon="desktopOutline"></ion-icon>
-              </div>
-              <div class="client-info-col">
-                <div class="client-name">{{ client.name }}</div>
-                <div class="client-id-text">{{ client.client_id }}</div>
-              </div>
-              <div class="client-dot" :class="client.active ? 'dot-active' : 'dot-inactive'"></div>
-            </div>
-          </div>
+            <ion-col size="12" size-md="6">
+              <div class="col-stack">
+                <div class="card">
+                  <div class="card-header">
+                    <span class="card-title">Usuarios por Rol</span>
+                    <button class="card-link" aria-label="Ver todos los roles" @click="router.push({ name: 'AdminRoles' })">Ver roles →</button>
+                  </div>
+                  <div v-if="rolesWithCount.length === 0" class="card-empty">No hay roles configurados</div>
+                  <div v-for="(role, index) in rolesWithCount" v-else :key="role.id" class="bar-row">
+                    <span class="bar-label">{{ role.name }}</span>
+                    <div class="bar-track">
+                      <div class="bar-fill" :style="{ width: barWidth({ count: role.users_count || 0 }) }" :class="barColorClass({ index })"></div>
+                    </div>
+                    <span class="bar-count">{{ role.users_count || 0 }}</span>
+                  </div>
+                </div>
 
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Estado del Sistema</span>
-            </div>
-            <div class="system-row">
-              <div class="system-dot system-dot-online"></div>
-              <span class="system-name">API</span>
-              <span class="system-detail">~12ms</span>
-              <span class="system-badge-ok">OK</span>
-            </div>
-            <div class="system-row">
-              <div class="system-dot system-dot-online"></div>
-              <span class="system-name">Base de Datos</span>
-              <span class="system-detail">Conexión estable</span>
-              <span class="system-badge-ok">OK</span>
-            </div>
-            <div class="system-row">
-              <div class="system-dot system-dot-online"></div>
-              <span class="system-name">Autenticación</span>
-              <span class="system-detail">JWT RS256</span>
-              <span class="system-badge-ok">OK</span>
-            </div>
-          </div>
-        </div>
+                <div class="card">
+                  <div class="card-header">
+                    <span class="card-title">Estado del Sistema</span>
+                  </div>
+                  <div class="system-row">
+                    <div class="system-dot system-dot-online"></div>
+                    <span class="system-name">API</span>
+                    <span class="system-detail">~12ms</span>
+                    <span class="system-badge-ok">OK</span>
+                  </div>
+                  <div class="system-row">
+                    <div class="system-dot system-dot-online"></div>
+                    <span class="system-name">Base de Datos</span>
+                    <span class="system-detail">Conexión estable</span>
+                    <span class="system-badge-ok">OK</span>
+                  </div>
+                  <div class="system-row">
+                    <div class="system-dot system-dot-online"></div>
+                    <span class="system-name">Autenticación</span>
+                    <span class="system-detail">JWT RS256</span>
+                    <span class="system-badge-ok">OK</span>
+                  </div>
+                </div>
+              </div>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
       </div>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
+  // 1. Imports (ionic/vue/ionicons)
   import { ref, computed, onMounted } from 'vue';
   import { useRouter } from 'vue-router';
   import {
@@ -134,9 +155,13 @@
     IonContent,
     IonIcon,
     IonProgressBar,
+    IonGrid,
+    IonRow,
+    IonCol,
   } from '@ionic/vue';
   import { desktopOutline } from 'ionicons/icons';
 
+  // 2. Controllers
   import { useUsersController } from '@/controllers/usersController';
   import { useSessionsController } from '@/controllers/sessionsController';
   import { useClientsController } from '@/controllers/clientsController';
@@ -149,10 +174,22 @@
   const rolesController = useRolesController();
   const authController = useAuthController();
 
+  // 3. Components
+  // (none)
+
+  // 4. Interface and types imports
+  // (none)
+
+  // 5. Main (props, emits, etc.)
   const router = useRouter();
 
+  // 6. Vars and const
   const loading = ref(true);
 
+  // 7. Watch
+  // (none)
+
+  // 8. Computed
   const stats = computed(() => ({
     totalUsers: usersController.pagination.value.total,
     activeSessions: sessionsController.activeCount.value,
@@ -170,6 +207,24 @@
     return Math.max(...counts, 1);
   });
 
+  // 9. OnMounted
+  onMounted(async () => {
+    loading.value = true;
+    try {
+      await Promise.all([
+        usersController.fetchUsers({ per_page: 1 }),
+        sessionsController.fetchSessions({ per_page: 5, active: true }),
+        clientsController.fetchClients(),
+        rolesController.fetchRoles(),
+      ]);
+    } catch {
+      // Silent fail
+    } finally {
+      loading.value = false;
+    }
+  });
+
+  // 10. Functions
   const barWidth = (params: { count: number }): string => {
     const { count } = params;
     return `${(count / maxRoleCount.value) * 100}%`;
@@ -204,22 +259,6 @@
       .toUpperCase()
       .slice(0, 2);
   };
-
-  onMounted(async () => {
-    loading.value = true;
-    try {
-      await Promise.all([
-        usersController.fetchUsers({ per_page: 1 }),
-        sessionsController.fetchSessions({ per_page: 5, active: true }),
-        clientsController.fetchClients(),
-        rolesController.fetchRoles(),
-      ]);
-    } catch {
-      // Silent fail - UI will show default values
-    } finally {
-      loading.value = false;
-    }
-  });
 </script>
 
 <style scoped>
@@ -236,12 +275,12 @@
 }
 
 .welcome-section {
-  margin-bottom: 28px;
+  margin-bottom: clamp(20px, 4vw, 28px);
 }
 
 .welcome-greeting {
   font-family: var(--font-heading);
-  font-size: 26px;
+  font-size: clamp(22px, 5vw, 26px);
   font-weight: 700;
   margin: 0 0 4px;
   color: var(--text-primary);
@@ -260,22 +299,18 @@
   color: var(--text-secondary);
 }
 
-.stats-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 28px;
-  flex-wrap: wrap;
+.stats-grid {
+  --ion-grid-column-padding: 6px;
+  margin-bottom: clamp(20px, 4vw, 28px);
 }
 
 .stat-card {
-  flex: 1;
-  min-width: 120px;
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
-  border-radius: 14px;
-  padding: 18px 20px;
+  border-radius: 4px;
+  padding: clamp(14px, 3vw, 20px);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -290,7 +325,7 @@
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: clamp(24px, 5.5vw, 28px);
   font-weight: 700;
   line-height: 1;
   font-family: var(--font-heading);
@@ -313,15 +348,13 @@
 }
 
 .dashboard-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+  --ion-grid-column-padding: 6px;
 }
 
-@media (min-width: 768px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr 1fr;
-  }
+.col-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
 }
 
 .card {
@@ -329,8 +362,8 @@
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
-  border-radius: 14px;
-  padding: 18px 20px;
+  border-radius: 4px;
+  padding: clamp(14px, 3vw, 20px);
 }
 
 .card-header {
@@ -342,7 +375,7 @@
 
 .card-title {
   font-family: var(--font-heading);
-  font-size: 14px;
+  font-size: clamp(13px, 3vw, 14px);
   font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -522,7 +555,7 @@
 .client-icon-wrapper {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(var(--ion-color-secondary-rgb), 0.15);
   display: flex;
   align-items: center;

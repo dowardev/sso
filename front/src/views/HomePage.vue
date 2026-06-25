@@ -18,15 +18,16 @@
               <ion-icon
                 :icon="shieldCheckmarkOutline"
                 class="feature-icon"
+                aria-hidden="true"
               ></ion-icon>
               <span>Seguridad avanzada</span>
             </div>
             <div class="feature-item">
-              <ion-icon :icon="keyOutline" class="feature-icon"></ion-icon>
+              <ion-icon :icon="keyOutline" class="feature-icon" aria-hidden="true"></ion-icon>
               <span>Una sola contraseña</span>
             </div>
             <div class="feature-item">
-              <ion-icon :icon="globeOutline" class="feature-icon"></ion-icon>
+              <ion-icon :icon="globeOutline" class="feature-icon" aria-hidden="true"></ion-icon>
               <span>Múltiples aplicaciones</span>
             </div>
           </div>
@@ -151,13 +152,13 @@
   }
 
   .primary-button {
-    --border-radius: 8px;
+    --border-radius: 4px;
     height: 48px;
     font-weight: 600;
   }
 
   .secondary-button {
-    --border-radius: 8px;
+    --border-radius: 4px;
     height: 48px;
     font-weight: 600;
     --border-color: var(--ion-color-primary);
@@ -184,7 +185,7 @@
 
     .features-section {
       flex-direction: row;
-      justify-content: space-around;
+      justify-content: space-evenly;
     }
   }
 </style>

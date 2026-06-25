@@ -1,6 +1,5 @@
 <template>
-  <div class="activity-container">
-    <div class="section-header">
+  <div class="section-header">
       <h3 class="section-title">Registro de Actividad</h3>
       <ion-button
         size="small"
@@ -28,14 +27,14 @@
       <ion-item v-for="activity in activities" :key="activity.id">
         <ion-icon
           slot="start"
-          :icon="getActionIcon(activity.action)"
+          :icon="getActionIcon({ action: activity.action })"
           color="primary"
         ></ion-icon>
         <ion-label>
-          <h3 class="item-title">{{ getActionLabel(activity.action) }}</h3>
+          <h3 class="item-title">{{ getActionLabel({ action: activity.action }) }}</h3>
           <p class="item-subtitle">{{ activity.description }}</p>
           <p class="session-date">
-            {{ formatDate(activity.created_at) }}
+            {{ formatDate({ dateStr: activity.created_at }) }}
           </p>
         </ion-label>
         <ion-badge slot="end" color="primary">
@@ -43,10 +42,10 @@
         </ion-badge>
       </ion-item>
     </ion-list>
-  </div>
 </template>
 
 <script setup lang="ts">
+  // 1. Imports (ionic/vue/ionicons)
   import { ref, onMounted, watch } from 'vue';
   import {
     IonList,
@@ -59,17 +58,16 @@
   } from '@ionic/vue';
   import {
     shieldOutline,
-    logOutOutline,
-    keyOutline,
-    lockClosedOutline,
-    personAddOutline,
-    createOutline,
     refreshOutline,
   } from 'ionicons/icons';
 
-  import { useToast } from '@/composables/useToast';
-  const { showError } = useToast();
+  // 2. Controllers
+  // (none)
 
+  // 3. Components
+  // (none)
+
+  // 4. Interface and types imports
   interface ActivityLogEntry {
     id: number;
     action: string;
@@ -78,6 +76,7 @@
     metadata: Record<string, unknown>;
   }
 
+  // 5. Main (props, emits, etc.)
   const props = defineProps<{
     activities: ActivityLogEntry[];
     loading?: boolean;
@@ -87,13 +86,11 @@
     refresh: [];
   }>();
 
+  // 6. Vars and const
   const loading = ref(props.loading ?? false);
   const activities = ref<ActivityLogEntry[]>(props.activities ?? []);
 
-  onMounted(() => {
-    activities.value = props.activities ?? [];
-  });
-
+  // 7. Watch
   watch(
     () => props.activities,
     (val) => { activities.value = val ?? []; },
@@ -105,61 +102,53 @@
     (val) => { loading.value = val ?? false; }
   );
 
-  function refresh(): void {
+  // 8. Computed
+  // (none)
+
+  // 9. OnMounted
+  onMounted(() => {
+    activities.value = props.activities ?? [];
+  });
+
+  // 10. Functions
+  const refresh = (): void => {
     emit('refresh');
-  }
+  };
 
-  function getActionIcon(action: string): string {
+  const getActionIcon = (params: { action: string }): string => {
+    const { action } = params;
     switch (action) {
-      case 'login':
-        return 'logOutOutline';
-      case 'logout':
-        return 'keyOutline';
-      case 'password_change':
-        return 'lockClosedOutline';
-      case 'profile_update':
-        return 'createOutline';
-      case 'authorization_granted':
-        return 'personAddOutline';
-      case 'authorization_revoked':
-        return 'createOutline';
-      case 'session_revoked':
-        return 'keyOutline';
-      case 'token_created':
-        return 'keyOutline';
-      case 'token_refreshed':
-        return 'refreshOutline';
-      default:
-        return 'shieldOutline';
+      case 'login': return 'keyOutline';
+      case 'logout': return 'logOutOutline';
+      case 'password_change': return 'lockClosedOutline';
+      case 'profile_update': return 'createOutline';
+      case 'authorization_granted': return 'personAddOutline';
+      case 'authorization_revoked': return 'createOutline';
+      case 'session_revoked': return 'keyOutline';
+      case 'token_created': return 'keyOutline';
+      case 'token_refreshed': return 'refreshOutline';
+      default: return 'shieldOutline';
     }
-  }
+  };
 
-  function getActionLabel(action: string): string {
+  const getActionLabel = (params: { action: string }): string => {
+    const { action } = params;
     switch (action) {
-      case 'login':
-        return 'Inicio de Sesión';
-      case 'logout':
-        return 'Cierre de Sesión';
-      case 'password_change':
-        return 'Cambio de Contraseña';
-      case 'profile_update':
-        return 'Actualización de Perfil';
-      case 'authorization_granted':
-        return 'Autorización Concedida';
-      case 'authorization_revoked':
-        return 'Autorización Revocada';
-      case 'session_revoked':
-        return 'Sesión Revocada';
-      case 'token_created':
-        return 'Acceso a Aplicación';
-      case 'token_refreshed':
-        return 'Sesión Renovada en App';
-      default:
-        return action;
+      case 'login': return 'Inicio de Sesión';
+      case 'logout': return 'Cierre de Sesión';
+      case 'password_change': return 'Cambio de Contraseña';
+      case 'profile_update': return 'Actualización de Perfil';
+      case 'authorization_granted': return 'Autorización Concedida';
+      case 'authorization_revoked': return 'Autorización Revocada';
+      case 'session_revoked': return 'Sesión Revocada';
+      case 'token_created': return 'Acceso a Aplicación';
+      case 'token_refreshed': return 'Sesión Renovada en App';
+      default: return action;
     }
-  }
+  };
 
-  function formatDate(dateStr: string): string {
+  const formatDate = (params: { dateStr: string }): string => {
+    const { dateStr } = params;
     return new Date(dateStr).toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'short',
@@ -167,7 +156,7 @@
       hour: '2-digit',
       minute: '2-digit',
     });
-  }
+  };
 </script>
 
 <style scoped>
