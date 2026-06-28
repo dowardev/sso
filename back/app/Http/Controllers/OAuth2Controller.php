@@ -219,11 +219,14 @@ class OAuth2Controller extends Controller
             ], 401);
         }
 
+        $perPage = min((int) $request->get('per_page', 20), 50);
         $authorizations = OauthClientAuthorization::with('client')
             ->where('user_id', $user->id)
             ->orderBy('updated_at', 'desc')
-            ->get()
-            ->map(function ($auth) {
+            ->paginate($perPage);
+
+        return response()->json([
+            'data' => $authorizations->map(function ($auth) {
                 return [
                     'id' => $auth->id,
                     'status' => $auth->status,
@@ -232,12 +235,16 @@ class OAuth2Controller extends Controller
                         'id' => $auth->client->id,
                         'name' => $auth->client->name,
                         'client_id' => $auth->client->client_id,
-                        'redirect_url' => $auth->client->redirect_url,
                     ] : null,
                 ];
-            });
-
-        return response()->json($authorizations);
+            }),
+            'pagination' => [
+                'total' => $authorizations->total(),
+                'per_page' => $authorizations->perPage(),
+                'current_page' => $authorizations->currentPage(),
+                'last_page' => $authorizations->lastPage(),
+            ],
+        ]);
     }
 
     public function clientAuthorizations(Request $request, int $clientId): JsonResponse

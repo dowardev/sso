@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\UserRefreshToken;
 use App\Models\UserSession;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -85,8 +86,8 @@ class AuthService
         $newTokenData = $this->jwtService->generateToken($user, $dpopPublicKey, $rememberMe);
 
         UserSession::where('user_id', $userId)
-            ->where('plain_token', $tokenString)
-            ->update(['plain_token' => $newTokenData['token'], 'last_used_at' => now()]);
+            ->where('token_hash', hash('sha256', $tokenString))
+            ->update(['token_hash' => hash('sha256', $newTokenData['token']), 'last_used_at' => now()]);
 
         return [
             'token' => $newTokenData['token'],
@@ -256,28 +257,30 @@ class AuthService
 
     public function getJwks(): array
     {
-        $privateKeyContent = file_get_contents(config('jwt.private_key_path'));
-        $keyDetails = openssl_pkey_get_details(openssl_pkey_get_private($privateKeyContent));
+        return Cache::remember('jwks', 86400, function () {
+            $privateKeyContent = file_get_contents(config('jwt.private_key_path'));
+            $keyDetails = openssl_pkey_get_details(openssl_pkey_get_private($privateKeyContent));
 
-        if (!$keyDetails) {
-            return ['error' => 'Unable to get key details'];
-        }
+            if (!$keyDetails) {
+                return ['error' => 'Unable to get key details'];
+            }
 
-        $n = $this->jwtService->base64UrlEncode($keyDetails['rsa']['n']);
-        $e = $this->jwtService->base64UrlEncode($keyDetails['rsa']['e']);
+            $n = $this->jwtService->base64UrlEncode($keyDetails['rsa']['n']);
+            $e = $this->jwtService->base64UrlEncode($keyDetails['rsa']['e']);
 
-        return [
-            'keys' => [
-                [
-                    'kty' => 'RSA',
-                    'use' => 'sig',
-                    'alg' => 'RS256',
-                    'kid' => 'sso-key-1',
-                    'n' => $n,
-                    'e' => $e,
+            return [
+                'keys' => [
+                    [
+                        'kty' => 'RSA',
+                        'use' => 'sig',
+                        'alg' => 'RS256',
+                        'kid' => 'sso-key-1',
+                        'n' => $n,
+                        'e' => $e,
+                    ]
                 ]
-            ]
-        ];
+            ];
+        });
     }
 
     public function checkSessionFromRequest(Request $request): array

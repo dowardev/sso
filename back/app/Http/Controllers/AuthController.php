@@ -347,23 +347,32 @@ class AuthController extends Controller
             return response()->json(['message' => 'No autenticado'], 401);
         }
 
-        $sessions = $user->sessions()->with(['token', 'client'])->latest('last_used_at')->get();
+        $perPage = min((int) $request->get('per_page', 20), 50);
+        $sessions = $user->sessions()->with(['token', 'client'])->latest('last_used_at')->paginate($perPage);
 
-        return response()->json($sessions->map(function ($session) {
-            return [
-                'id' => $session->id,
-                'client' => $session->client ? [
-                    'id' => $session->client->id,
-                    'name' => $session->client->name,
-                    'client_id' => $session->client->client_id,
-                ] : null,
-                'ip_address' => $session->ip_address,
-                'user_agent' => $session->user_agent,
-                'last_used_at' => $session->last_used_at,
-                'created_at' => $session->created_at,
-                'token_active' => $session->token ? !$session->token->isExpired() : false,
-            ];
-        }));
+        return response()->json([
+            'data' => $sessions->map(function ($session) {
+                return [
+                    'id' => $session->id,
+                    'client' => $session->client ? [
+                        'id' => $session->client->id,
+                        'name' => $session->client->name,
+                        'client_id' => $session->client->client_id,
+                    ] : null,
+                    'ip_address' => $session->ip_address,
+                    'user_agent' => $session->user_agent,
+                    'last_used_at' => $session->last_used_at,
+                    'created_at' => $session->created_at,
+                    'token_active' => $session->token ? !$session->token->isExpired() : false,
+                ];
+            }),
+            'pagination' => [
+                'total' => $sessions->total(),
+                'per_page' => $sessions->perPage(),
+                'current_page' => $sessions->currentPage(),
+                'last_page' => $sessions->lastPage(),
+            ],
+        ]);
     }
 
     public function revokeUserSession(Request $request, int $sessionId): JsonResponse
@@ -403,7 +412,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'No autenticado'], 401);
         }
 
-        $user->sessions()->with('token')->get()->each(function ($session) {
+        $user->sessions()->with('token')->lazy()->each(function ($session) {
             if ($session->token) {
                 $session->token->delete();
             }

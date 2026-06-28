@@ -165,7 +165,7 @@
 
 <script setup lang="ts">
   // 1. Imports (ionic/vue/ionicons)
-  import { ref, onMounted, computed, watch } from 'vue';
+  import { ref, onMounted, onUnmounted, computed } from 'vue';
   import {
     IonPage,
     IonHeader,
@@ -255,17 +255,12 @@
   const loadingSessions = ref(false);
   const loadingActivities = ref(false);
 
+  let isUnmounted = false;
+
   const defaultTabs = ['profile', 'applications', 'sessions', 'security', 'notifications', 'privacy'];
 
   // 7. Watch
-  watch(
-    () => authController.user.value,
-    async (newUser, oldUser) => {
-      if (newUser !== oldUser) {
-        await loadAllData();
-      }
-    }
-  );
+  // (data loaded on mount + per segment, no watcher needed)
 
   // 8. Computed
   const showTabs = computed(() => {
@@ -313,7 +308,11 @@
 
   // 9. OnMounted
   onMounted(async () => {
-    await loadAllData();
+    await loadProfileOnly();
+  });
+
+  onUnmounted(() => {
+    isUnmounted = true;
   });
 
   // 10. Functions
@@ -327,35 +326,21 @@
       .slice(0, 2);
   };
 
-  const loadAllData = async (): Promise<void> => {
+  const loadProfileOnly = async (): Promise<void> => {
     loading.value = true;
     try {
-      const [profileResult, authsResult, sessionsResult, activityResult] = await Promise.allSettled([
-        authController.getUserProfile(),
-        authController.getUserAuthorizations({ user_id: authController.user.value?.id || 0 }),
-        authController.getUserSessions(),
-        authController.getUserActivityLog(),
-      ]);
-
-      if (profileResult.status === 'fulfilled') {
-        user.value = profileResult.value;
-      }
-
-      if (authsResult.status === 'fulfilled') {
-        authorizations.value = (authsResult.value as { data: UserAuthorization[] }).data || [];
-      }
-
-      if (sessionsResult.status === 'fulfilled') {
-        sessions.value = (sessionsResult.value as UserSession[]) || [];
-      }
-
-      if (activityResult.status === 'fulfilled') {
-        activities.value = (activityResult.value as ActivityLogEntry[]) || [];
+      const profile = await authController.getUserProfile();
+      if (!isUnmounted) {
+        user.value = profile;
       }
     } catch {
-      showError({ message: 'Error al cargar datos del perfil' });
+      if (!isUnmounted) {
+        showError({ message: 'Error al cargar datos del perfil' });
+      }
     } finally {
-      loading.value = false;
+      if (!isUnmounted) {
+        loading.value = false;
+      }
     }
   };
 
@@ -370,14 +355,21 @@
   };
 
   const loadAuthorizations = async (): Promise<void> => {
+    if (isUnmounted) return;
     loadingAuthorizations.value = true;
     try {
       const auths = await authController.getUserAuthorizations({ user_id: authController.user.value?.id || 0 });
-      authorizations.value = (auths as unknown as { data: UserAuthorization[] }).data;
+      if (!isUnmounted) {
+        authorizations.value = (auths as unknown as { data: UserAuthorization[] }).data;
+      }
     } catch {
-      showError({ message: 'Error al cargar autorizaciones' });
+      if (!isUnmounted) {
+        showError({ message: 'Error al cargar autorizaciones' });
+      }
     } finally {
-      loadingAuthorizations.value = false;
+      if (!isUnmounted) {
+        loadingAuthorizations.value = false;
+      }
     }
   };
 
@@ -392,14 +384,21 @@
   };
 
   const loadSessions = async (): Promise<void> => {
+    if (isUnmounted) return;
     loadingSessions.value = true;
     try {
       const sessionData = await authController.getUserSessions();
-      sessions.value = (sessionData as UserSession[]) || [];
+      if (!isUnmounted) {
+        sessions.value = (sessionData as UserSession[]) || [];
+      }
     } catch {
-      showError({ message: 'Error al cargar sesiones' });
+      if (!isUnmounted) {
+        showError({ message: 'Error al cargar sesiones' });
+      }
     } finally {
-      loadingSessions.value = false;
+      if (!isUnmounted) {
+        loadingSessions.value = false;
+      }
     }
   };
 
@@ -424,13 +423,21 @@
   };
 
   const loadActivities = async (): Promise<void> => {
+    if (isUnmounted) return;
     loadingActivities.value = true;
     try {
-      activities.value = await authController.getUserActivityLog();
+      const activityData = await authController.getUserActivityLog();
+      if (!isUnmounted) {
+        activities.value = activityData;
+      }
     } catch {
-      showError({ message: 'Error al cargar actividad' });
+      if (!isUnmounted) {
+        showError({ message: 'Error al cargar actividad' });
+      }
     } finally {
-      loadingActivities.value = false;
+      if (!isUnmounted) {
+        loadingActivities.value = false;
+      }
     }
   };
 

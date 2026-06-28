@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
   // 1. Imports (ionic/vue/ionicons)
-  import { ref, onMounted, watch } from 'vue';
+  import { ref, computed, watch } from 'vue';
   import {
     IonList,
     IonItem,
@@ -88,27 +88,18 @@
 
   // 6. Vars and const
   const loading = ref(props.loading ?? false);
-  const activities = ref<ActivityLogEntry[]>(props.activities ?? []);
 
   // 7. Watch
-  watch(
-    () => props.activities,
-    (val) => { activities.value = val ?? []; },
-    { deep: true }
-  );
-
   watch(
     () => props.loading,
     (val) => { loading.value = val ?? false; }
   );
 
   // 8. Computed
-  // (none)
+  const activities = computed(() => props.activities ?? []);
 
   // 9. OnMounted
-  onMounted(() => {
-    activities.value = props.activities ?? [];
-  });
+  // (reactive via computed, no onMounted needed)
 
   // 10. Functions
   const refresh = (): void => {

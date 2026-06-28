@@ -17,7 +17,7 @@ class SetupAdminRequest extends FormRequest
             'name' => 'required|string|max:255',
             'user' => 'required|string|max:255|unique:users,user',
             'email' => 'required|string|email|max:255|unique:users,email',
-            'password' => 'required|string|min:6|confirmed',
+            'password' => ['required', 'string', 'min:10', 'confirmed', 'regex:/[A-Z]/', 'regex:/[a-z]/', 'regex:/[0-9]/', 'regex:/[@$!%*?&]/'],
         ];
     }
 

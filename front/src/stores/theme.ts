@@ -113,16 +113,6 @@ export const useThemeStore = defineStore('theme', () => {
     localStorage.setItem(STORAGE_KEY, themeName)
   }
 
-  applyTheme(currentThemeName.value)
-
-  if (typeof window !== 'undefined') {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-      if (currentThemeName.value === 'auto') {
-        applyTheme('auto')
-      }
-    })
-  }
-
   const currentTheme = computed(() => {
     return themes.find((t) => t.name === currentThemeName.value) || themes[0]
   })
@@ -146,6 +136,20 @@ export const useThemeStore = defineStore('theme', () => {
   const autoDarkThemeInfo = computed(() => {
     return themes.find((t) => t.name === autoDarkTheme.value) || themes[2]
   })
+
+  let mediaQuery: MediaQueryList | null = null
+
+  function init() {
+    applyTheme(currentThemeName.value)
+    if (typeof window !== 'undefined') {
+      mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      mediaQuery.addEventListener('change', () => {
+        if (currentThemeName.value === 'auto') {
+          applyTheme('auto')
+        }
+      })
+    }
+  }
 
   function setTheme(themeName: ThemeName) {
     currentThemeName.value = themeName
@@ -179,6 +183,7 @@ export const useThemeStore = defineStore('theme', () => {
     autoLightThemeInfo,
     autoDarkThemeInfo,
     themes,
+    init,
     setTheme,
     setAutoLightTheme,
     setAutoDarkTheme,

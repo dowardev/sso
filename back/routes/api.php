@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CspReportController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\OAuth2Controller;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SettingController;
@@ -10,13 +12,14 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserSessionController;
 use Illuminate\Support\Facades\Route;
 
+Route::post('/csp-report', [CspReportController::class, 'store']);
 Route::get('/setup/status', [SetupController::class, 'status']);
-Route::post('/setup/admin', [SetupController::class, 'storeAdmin'])->middleware('setup.not_completed');
+Route::post('/setup/admin', [SetupController::class, 'storeAdmin'])->middleware(['setup.not_completed', 'throttle:1,5']);
 
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware(['throttle.login', 'throttle:5,1']);
 Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->middleware('refresh.token');
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/oauth/token', [OAuth2Controller::class, 'token']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
+Route::post('/oauth/token', [OAuth2Controller::class, 'token'])->middleware('throttle:10,1');
 Route::get('/.well-known/jwks', [AuthController::class, 'jwks']);
 Route::get('/session/check', [AuthController::class, 'checkSession']);
 Route::post('/session/check', [AuthController::class, 'checkSession']);
@@ -76,5 +79,9 @@ Route::middleware('jwt.auth')->group(function () {
 
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings/{key}', [SettingController::class, 'update']);
+
+        Route::get('/health', [HealthController::class, 'index']);
+        Route::get('/health/csp-reports', [HealthController::class, 'cspReports']);
+        Route::post('/health/csp-allow', [HealthController::class, 'allowScript']);
     });
 });

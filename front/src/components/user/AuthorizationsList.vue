@@ -68,7 +68,7 @@
 
 <script setup lang="ts">
   // 1. Imports (ionic/vue/ionicons)
-  import { ref, onMounted, watch } from 'vue';
+  import { ref, computed, watch } from 'vue';
   import {
     IonList,
     IonItem,
@@ -115,25 +115,19 @@
   }>();
 
   // 6. Vars and const
+  // (reactive sync via computed, no watchers needed)
   const loading = ref(props.loading || false);
-  const authorizations = ref<Authorization[]>(props.authorizations ?? []);
 
   // 7. Watch
-  watch(() => props.authorizations, (val) => {
-    authorizations.value = val ?? [];
-  }, { deep: true });
-
   watch(() => props.loading, (val) => {
     loading.value = val ?? false;
   });
 
   // 8. Computed
-  // (none)
+  const authorizations = computed(() => props.authorizations ?? []);
 
   // 9. OnMounted
-  onMounted(() => {
-    authorizations.value = props.authorizations ?? [];
-  });
+  // (reactive via computed, no onMounted needed)
 
   // 10. Functions
   const refreshData = (): void => {

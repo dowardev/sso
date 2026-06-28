@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Lcobucci\JWT\Configuration;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
@@ -151,11 +152,16 @@ class VerifyDpopProof
             throw new \Exception('Hash del token de acceso no coincide en DPoP proof');
         }
 
-        $cacheKey = 'dpop_jti:' . $jti;
-        if (Cache::has($cacheKey)) {
+        DB::insert('INSERT IGNORE INTO dpop_nonces (jti, expires_at) VALUES (?, ?)', [
+            $jti,
+            now()->addMinutes(2),
+        ]);
+
+        if (DB::getPdo()->rowCount() === 0) {
             throw new \Exception('DPoP proof reutilizado (replay detectado)');
         }
-        Cache::put($cacheKey, true, 120);
+
+        $this->lazyCleanup();
     }
 
     private function generateJWKThumbprint(array $jwk): string
@@ -278,5 +284,19 @@ class VerifyDpopProof
     private function base64UrlEncode(string $data): string
     {
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+    }
+
+    private function lazyCleanup(): void
+    {
+        $lastCleanup = Cache::get('dpop_nonces_cleanup_date', 0);
+
+        if ($lastCleanup < now()->startOfDay()->timestamp) {
+            DB::table('dpop_nonces')
+                ->where('expires_at', '<', now())
+                ->limit(1000)
+                ->delete();
+
+            Cache::put('dpop_nonces_cleanup_date', now()->startOfDay()->timestamp, 86400);
+        }
     }
 }

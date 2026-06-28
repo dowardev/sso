@@ -13,7 +13,7 @@ class UserSession extends Model
         'ip_address',
         'user_agent',
         'last_used_at',
-        'plain_token',
+        'token_hash',
         'dpop_public_key',
         'remember_me',
     ];

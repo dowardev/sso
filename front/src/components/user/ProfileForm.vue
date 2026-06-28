@@ -229,7 +229,7 @@
 
 <script setup lang="ts">
   // 1. Imports (ionic/vue/ionicons)
-  import { ref, computed, onMounted, watch } from 'vue';
+  import { ref, computed, onMounted } from 'vue';
   import {
     IonCard,
     IonCardContent,
@@ -301,13 +301,7 @@
   const deleteError = ref('');
 
   // 7. Watch
-  watch(
-    () => props.initialUser,
-    () => {
-      updateFormFromProps();
-    },
-    { deep: true }
-  );
+  // (reactive via onMounted only, no watcher needed since initialUser is set once)
 
   // 8. Computed
   const rules = computed(() => ({
