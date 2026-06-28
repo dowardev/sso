@@ -69,6 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Nested HTML issues**: Resolved invalid HTML nesting in responsive segment components
 - **ESLint violations**: Fixed all lint errors after component structure normalization
 
+## [0.26.0] - 2026-06-21
+
 ### Added
 - **Refresh token rotation system**: New `UserRefreshToken` model with SHA256 hashed tokens, `rotated_from_id` chain tracking, and revocation support
 - **Token theft detection**: Automatic revocation of entire token chain when a rotated refresh token is reused (rotation-based theft protection)
@@ -120,18 +122,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.24.0] - 2026-06-13
 
-### Added
-- useFormValidation composable with validate(), touchAll(), reset() API
-- useValidation.ts with 9 reusable Spanish-localized validators: required, email, minLength, maxLength, url, sameAs, alphaNum, passwordComplex, hostOrIp
-- Validation stylesheet with input border color feedback
-- Client-side form validation on SSO Clients create/edit modal (name, client_id, client_secret, redirect_url, grant_types)
-- Client-side form validation on Roles create/edit modal (name, slug, description)
-- Client-side form validation on Users edit modal (name, user, email, password)
-- Client-side form validation on SSL Exclusions modal (host/IP)
-- .field-error visual error indicators with red dot prefix on all validated forms
-- aria-invalid based input border highlighting (red for error, green for success)
-- Unit tests for useFormValidation — 22 tests covering all validators and edge cases
-
 ### Fixed
 - Added missing show endpoints for SSO clients and roles
 - Fixed toggle v-model binding in ClientsPage and AuthLoginForm components
@@ -139,7 +129,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed UpdateSsoClientRequest client_id unique validation to use correct model ID
 - Fixed toggleAdmin to properly send action parameter and return correct is_admin state
 - Fixed UserSessionResource token_active validation to use whenLoaded properly
-
 
 ## [0.23.0] - 2026-06-12
 
@@ -167,9 +156,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `hostOrIp` validator now correctly rejects IP addresses with out-of-range octets (>255) using a custom function validator
 - Validation CSS used non-functional Angular `ng-invalid`/`ng-touched` classes — replaced with `[aria-invalid]` attribute selectors
 
----
-
 ## [0.22.0] - 2026-06-11
+
+### Added
+
+- **SSL Security Panel** at `/admin/config/security` with toggle to require HTTPS on OAuth2 redirect URIs
+- **Configurable exclusion list** for non-HTTPS redirect URIs (localhost excluded by default)
+- **Persistent key-value settings system** via database (`settings` table, Setting model, SettingService, SettingController)
+- **SSL validation on OAuth2 client create/update** (store/update request forms)
+- **SSL validation in OAuth2 authorization flow** (rejects non-HTTPS redirect URIs when SSL toggle is active)
+- **SSL warning indicators** in ClientsPage — warning icon on client rows and contextual note in the modal form
+- **Security frontend stack**: `securityStore`, `securityController`, `Setting` type, route, and ConfigPage integration
+
+### Fixed
+
+- Missing `IonNote` import in ClientsPage causing runtime rendering failure for SSL form note
+- Hyphenated event name in SecurityPage (`@ionChange` -> `@ion-change`) to comply with ESLint rules
 
 ---
 
