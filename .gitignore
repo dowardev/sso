@@ -3,7 +3,6 @@
 docs/superpowers/*
 .superpowers/*
 /node_modules
-/pnpm-lock.yaml
 backend.pid
 front/src/guides/
 back/guides/
@@ -20,5 +19,3 @@ front/.env.production
 .playwright-cli/
 cookie_jar.txt
 front/.eslintcache
-**/__pycache__/
-*.pyc

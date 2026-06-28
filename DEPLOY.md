@@ -1,5 +1,7 @@
 # SSO Server - Deployment Guide
 
+<!-- markdownlint-disable MD013 MD060 -->
+
 Centralized authentication server for distributed applications. Provides OAuth2 authorization code flow, JWT token issuance, and user management.
 
 ## Demo
@@ -10,7 +12,7 @@ Access the production application at: [SSO Server](https://sso.tudominio.com)
 
 ## System Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        SSO FRONTEND                             │
 │                   [direccion]:[puerto]                                 │
@@ -50,18 +52,21 @@ Access the production application at: [SSO Server](https://sso.tudominio.com)
 ## Tech Stack
 
 ### Backend
-- Laravel 11
+
+- Laravel 12
 - Laravel Sanctum (OAuth2 tokens)
 - lcobucci/jwt (JWT generation & validation)
 - MySQL (production) / SQLite (development)
 
 ### Frontend
+
 - Vue.js 3
 - Vite
 - Pinia (state management)
 - Axios (HTTP client)
 
 ### External
+
 - OpenSSL (RSA key generation)
 
 ---
@@ -78,7 +83,7 @@ Access the production application at: [SSO Server](https://sso.tudominio.com)
 
 ## Project Structure
 
-```
+```text
 sso/
 ├── back/           # Laravel API
 ├── front/          # Vue.js SPA
@@ -155,7 +160,10 @@ pnpm run dev
 | `JWT_PRIVATE_KEY_PATH` | RSA private key path | `keys/private.pem` |
 | `JWT_PUBLIC_KEY_PATH` | RSA public key path | `keys/public.pem` |
 | `JWT_TOKEN_EXPIRATION` | Token lifetime (seconds) | `3600` |
-| `JWT_REFRESH_EXPIRATION` | Refresh token lifetime (seconds) | `86400` |
+| `JWT_REFRESH_EXPIRATION` | Refresh token lifetime (seconds) | `2592000` |
+| `JWT_REFRESH_INACTIVITY` | Max inactivity (seconds) | `604800` |
+| `JWT_ISSUER` | JWT issuer identifier | `https://sso.tudominio.com` |
+| `CACHE_STORE` | Cache driver | `database` |
 | `MAIL_MAILER` | Mail driver | `smtp` |
 | `MAIL_HOST` | SMTP host | `smtp.gmail.com` |
 | `MAIL_PORT` | SMTP port | `587` |
@@ -167,7 +175,6 @@ pnpm run dev
 
 > **Note:** The following variables are automatically derived from `APP_URL` and
 > `FRONTEND_URL` — no need to configure them manually:
-> - `JWT_ISSUER` ← derived from `APP_URL`
 > - `SESSION_DOMAIN` ← derived from `APP_URL` (with `.` prefix for subdomain sharing)
 > - `SANCTUM_STATEFUL_DOMAINS` ← derived from hosts of `APP_URL` and `FRONTEND_URL`
 >
@@ -185,6 +192,7 @@ The frontend uses Vite's built-in environment file loading:
 | `.env.production.example` | Production (`vite build`) | Template for production deployment |
 
 **Development:**
+
 ```bash
 # Copy and customize environment
 cp front/.env.development.example front/.env.development
@@ -194,6 +202,7 @@ pnpm run dev
 ```
 
 **Production deployment:**
+
 ```bash
 # 1. Copy the example file
 cp front/.env.production.example front/.env.production
@@ -282,6 +291,7 @@ Verify frontend files are in the correct public directory and paths in `index.ht
 ### "Unable to create signed JWT" or token issues
 
 Verify that:
+
 1. RSA keys exist at `back/keys/private.pem` and `back/keys/public.pem`
 2. File permissions allow the web server to read them
 3. Paths in `JWT_PRIVATE_KEY_PATH` and `JWT_PUBLIC_KEY_PATH` are correct
@@ -293,6 +303,7 @@ When frontend and backend are on different subdomains (e.g., `auth-panel.dowar.x
 The SSO server uses dynamic CORS that allows origins from registered OAuth clients. For the admin login panel, you need to configure the frontend's origin explicitly.
 
 **Backend (.env) — REQUIRED when using separate subdomains:**
+
 ```env
 APP_URL=https://auth.dowar.xyz       # Backend domain
 FRONTEND_URL=https://auth-panel.dowar.xyz  # Frontend domain (panel)
@@ -301,11 +312,13 @@ FRONTEND_URL=https://auth-panel.dowar.xyz  # Frontend domain (panel)
 This adds the frontend origin to the CORS allowed list automatically.
 
 **Frontend (.env.production):**
+
 ```env
 VITE_API_URL=https://auth.dowar.xyz/api
 ```
 
 After changing `.env`, run:
+
 ```bash
 php artisan config:clear
 ```
@@ -339,8 +352,8 @@ php artisan migrate            # Run migrations
 php artisan db:seed            # Seed database
 
 # Frontend
-npm run build                  # Production build
-npm run dev                    # Development server
+pnpm run build                 # Production build
+pnpm run dev                   # Development server
 ```
 
 ---
@@ -348,6 +361,7 @@ npm run dev                    # Development server
 ## Default Credentials
 
 After running seeders:
+
 - **Admin:** `admin@sso.local` / `admin123`
 
 > **Recommendation:** Change the admin password immediately after first access.
@@ -356,4 +370,4 @@ After running seeders:
 
 ## License
 
-This project is developed under the GPL 3 license.
+This project is developed under the MIT license.

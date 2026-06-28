@@ -64,7 +64,7 @@ Access the production frontend at: [SSO Frontend](https://sso.dowar.xyz)
 - PHP 8.2+
 - Composer
 - OpenSSL
-- SQLite (development) / MySQL (production)
+- MySQL (development & production)
 
 ---
 
@@ -149,8 +149,13 @@ pnpm run dev
 
 | Variable        | Description     | Example                 |
 | --------------- | --------------- | ----------------------- |
-| `APP_URL`       | Application URL | `[direccion]:[puerto]` |
-| `DB_CONNECTION` | Database driver | `sqlite` / `mysql`      |
+| `APP_URL`       | Application URL | `http://localhost:8001` |
+| `DB_CONNECTION` | Database driver | `mysql`                  |
+| `CACHE_STORE`   | Cache driver    | `database`               |
+| `JWT_ISSUER`    | JWT issuer      | `http://localhost:8001`  |
+| `JWT_TOKEN_EXPIRATION`  | Token lifetime (sec) | `3600`            |
+| `JWT_REFRESH_EXPIRATION` | Refresh lifetime (sec) | `2592000`      |
+| `JWT_REFRESH_INACTIVITY` | Max inactivity (sec)  | `604800`       |
 
 ### Frontend (`.env`)
 

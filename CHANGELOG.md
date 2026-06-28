@@ -1,13 +1,27 @@
 # Changelog
 
+<!-- markdownlint-disable MD013 MD024 -->
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.1] - 2026-06-28
+
+### Fixed
+
+- Fixed `.gitignore` to allow root `pnpm-lock.yaml` for pnpm workspaces
+- Fixed `package.json` scripts to use `pnpm --filter` for front workspace
+- Fixed `DEPLOY.md` documentation: Laravel 11→12, npm→pnpm, GPL→MIT
+- Fixed `README.md` database instructions (SQLite→MySQL) and env vars table
+- Fixed `back/.env.example` with all required JWT and cache variables
+- Fixed markdown lint issues in `CHANGELOG.md`
+
 ## [0.28.0] - 2026-06-28
 
 ### Added
+
 - **Security hardening**: DPoP nonce support with automatic cleanup, device fingerprint tracking for sessions, login attempt throttling with atomic locking, and CSP Report-Only mode with report endpoint
 - **Health monitoring panel**: Real-time dashboard showing system metrics, pending cleanups, CSP reports, and active sessions
 - **JWKS endpoint**: Public JSON Web Key Set with 24-hour caching for external JWT verification
@@ -18,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **XSRF-TOKEN support**: API service now handles XSRF cookie-based CSRF protection
 
 ### Changed
+
 - **Design standardization**: Unified glassmorphism design system applied across all admin views, auth pages, user profile, and client forms (LBDS-97)
 - **Performance optimizations**:
   - Fixed N+1 query in `UserService::getUserRoles()` by replacing `SsoClient::find` loop with batch `whereIn`
@@ -33,12 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Token security**: Plain token column migrated to SHA256 hash
 
 ### Fixed
+
 - Infinite 401 loop on logout when session was already revoked
 - Dependency tracking in frontend watchers causing unnecessary re-renders
 
 ## [0.27.0] - 2026-06-25
 
 ### Added
+
 - **Responsive container utility classes**: `.container-sm`, `.container-md`, `.container-lg` for consistent max-width page layouts
 - **Focus-visible system**: Global `:focus-visible` outline with primary color, `::selection` styling, and touch target minimum size (44x44)
 - **Fluid typography scale**: `clamp()`-based text utilities (`text-fluid-xs` through `text-fluid-xl`) for responsive font sizing
@@ -49,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Focus trap composable** (`useFocusTrap`): Keyboard accessibility for modals and popovers
 
 ### Changed
+
 - **Design token system**: Implemented comprehensive CSS custom property architecture — spacing scale (`--space-1` through `--space-16`), radius scale (`--radius-sm`/`--radius-md`/`--radius-lg`/`--radius-full`), elevation tokens (`--elevation-1` through `--elevation-4`), and typography scale (`--text-xs` through `--text-3xl`)
 - **Border radius standardization**: All UI elements (buttons, modals, cards, inputs) now use consistent 4px radius (`--border-radius: 4px`) replacing previous 10–20px values
 - **Ionic-first layout migration**: Dashboard, admin pages, and auth pages migrated from custom flexbox to `ion-grid`/`ion-row`/`ion-col` responsive grid system
@@ -65,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SetupPage**: Standardized with numbered component structure
 
 ### Fixed
+
 - **Color scheme contrast**: Improved text readability across light and dark themes with higher contrast ratios
 - **Nested HTML issues**: Resolved invalid HTML nesting in responsive segment components
 - **ESLint violations**: Fixed all lint errors after component structure normalization
@@ -72,6 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.26.0] - 2026-06-21
 
 ### Added
+
 - **Refresh token rotation system**: New `UserRefreshToken` model with SHA256 hashed tokens, `rotated_from_id` chain tracking, and revocation support
 - **Token theft detection**: Automatic revocation of entire token chain when a rotated refresh token is reused (rotation-based theft protection)
 - **Inactivity timeout**: 7-day inactivity limit for refresh tokens (configurable via `JWT_REFRESH_INACTIVITY`)
@@ -80,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **401 interceptor with auto-refresh**: Frontend `api.ts` now intercepts 401 responses and attempts cookie-based token refresh before logging out
 
 ### Changed
+
 - **Auth service**: Replaced `generateAuthToken()` with `generateTokens()` supporting refresh token generation when `remember_me` is enabled
 - **Auth store**: Removed `startAutoRefresh()`, `stopAutoRefresh()`, and interval-based token refresh — refresh is now handled on-demand by the API interceptor
 - **JWT configuration**: Extended `refresh_expiration` default from 1 day to 30 days; added `refresh_inactivity` (7 days)
@@ -88,15 +109,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Frontend components**: Updated prop bindings to kebab-case convention across user profile and admin views
 
 ### Fixed
+
 - **Token refresh endpoint**: Now reads refresh token from HttpOnly cookie via `RefreshToken` middleware instead of insecure request body
 
 ### Removed
+
 - **Auto-refresh timer**: Removed interval-based token refresh from auth store (`AUTO_REFRESH_INTERVAL`, `REFRESH_THRESHOLD`)
 - **Deprecated auth store methods**: `refreshTokenAsync()`, `isTokenNearExpiry()`, `startAutoRefresh()`, `stopAutoRefresh()`
 
 ## [0.25.0] - 2026-06-20
 
 ### Added
+
 - **User self-management panel** (`/account` route): profile editing, password change, active sessions with device/location details (ua-parser-js), activity log, and OAuth authorizations list
 - **Account deletion**: hard delete endpoint requiring password + "ELIMINAR" confirmation; revokes all tokens, sessions, OAuth authorizations, and activity logs before deleting user
 - **Admin users filtering**: filter users by associated OAuth client with visual badge indicator on Users page
@@ -111,18 +135,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Router updates**: added `/admin/clients/:id` route; ClientsPage navigates to ClientDetailPage on click
 
 ### Changed
+
 - **Auth store**: `restoreAuth` is now synchronous; `refreshTokenAsync` for async token refresh
 - **Router guards**: added `/me` safety net, admin route protection, proper returns
 - **UsersPage**: uses `onIonViewWillEnter` for data refresh; SSO client filter badge
 - **Template guides**: `TemplatePage.vue` and `TemplateComponent.vue` replace deprecated `TemplateView.vue`
 
 ### Fixed
+
 - **api.delete()**: now supports request body (required for account deletion endpoint)
 - **TypeScript errors**: resolved pre-existing issues in `themeController`, `UserDetailPage`, `UserProfileWidget`
 
 ## [0.24.0] - 2026-06-13
 
 ### Fixed
+
 - Added missing show endpoints for SSO clients and roles
 - Fixed toggle v-model binding in ClientsPage and AuthLoginForm components
 - Resolved token column conflict by renaming to plain_token and updating related code
