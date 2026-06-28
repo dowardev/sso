@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
-import { RouteRecordRaw } from 'vue-router';
-import HomePage from '../views/HomePage.vue';
+import type { RouteRecordRaw } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const routes: Array<RouteRecordRaw> = [
@@ -60,7 +59,7 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/home',
     name: 'Home',
-    component: HomePage,
+    component: () => import('../views/HomePage.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -127,6 +126,11 @@ const routes: Array<RouteRecordRaw> = [
         path: 'config/security',
         name: 'AdminConfigSecurity',
         component: () => import('../views/admin/SecurityPage.vue'),
+      },
+      {
+        path: 'health',
+        name: 'AdminHealth',
+        component: () => import('../views/admin/HealthPage.vue'),
       },
     ],
   },

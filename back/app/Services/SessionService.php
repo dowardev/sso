@@ -15,12 +15,29 @@ class SessionService
             $client = SsoClient::where('client_id', $request->client_id)->first();
         }
 
+        $deviceFingerprint = hash('sha256', ($request->userAgent() ?? '') . ($request->ip() ?? ''));
+
+        if ($rememberMe) {
+            $count = UserSession::where('user_id', $user->id)
+                ->where('remember_me', true)
+                ->count();
+
+            if ($count >= 5) {
+                UserSession::where('user_id', $user->id)
+                    ->where('remember_me', true)
+                    ->orderBy('last_used_at', 'asc')
+                    ->limit($count - 4)
+                    ->delete();
+            }
+        }
+
         return UserSession::create([
             'user_id' => $user->id,
             'sso_client_id' => $client?->id,
-            'plain_token' => $token,
+            'token_hash' => hash('sha256', $token),
             'dpop_public_key' => $dpopPublicKey,
             'remember_me' => $rememberMe,
+            'device_fingerprint' => $deviceFingerprint,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'last_used_at' => now(),
@@ -29,12 +46,12 @@ class SessionService
 
     public function revokeSessionByToken(string $tokenString): void
     {
-        UserSession::where('plain_token', $tokenString)->delete();
+        UserSession::where('token_hash', hash('sha256', $tokenString))->delete();
     }
 
     public function revokeAllUserSessions(User $user): void
     {
-        $user->sessions()->with('token')->get()->each(function ($session) {
+        $user->sessions()->with('token')->lazy()->each(function ($session) {
             if ($session->token) {
                 $session->token->delete();
             }
@@ -44,6 +61,6 @@ class SessionService
 
     public function getActiveSessionData(string $tokenString): ?UserSession
     {
-        return UserSession::where('plain_token', $tokenString)->first();
+        return UserSession::where('token_hash', hash('sha256', $tokenString))->first();
     }
 }

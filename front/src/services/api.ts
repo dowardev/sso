@@ -24,6 +24,13 @@ const TOKEN_KEY = 'token';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
 
+const pendingRequests = new Map<string, Promise<unknown>>();
+
+const getCookie = (name: string): string | null => {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
+  return match ? decodeURIComponent(match[2]) : null
+}
+
 const getHeaders = () => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -33,6 +40,11 @@ const getHeaders = () => {
   const token = localStorage.getItem(TOKEN_KEY);
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const xsrfToken = getCookie('XSRF-TOKEN')
+  if (xsrfToken) {
+    headers['X-XSRF-TOKEN'] = xsrfToken
   }
 
   return headers;
@@ -79,7 +91,14 @@ async function fetchApi<T>(params: {
   const { endpoint, options = {} } = params;
   const baseUrl = API_URL.replace(/\/+$/, '');
   const normalizedEndpoint = endpoint.replace(/^\/+/, '');
-  const doFetch = () =>
+
+  const isGetRequest = !options.method || options.method === 'GET';
+  const pendingKey = isGetRequest ? endpoint : '';
+  if (isGetRequest && pendingRequests.has(pendingKey)) {
+    return pendingRequests.get(pendingKey) as Promise<T>;
+  }
+
+  const doFetch = (): Promise<Response> =>
     fetch(`${baseUrl}/${normalizedEndpoint}`, {
       ...options,
       headers: {
@@ -89,30 +108,42 @@ async function fetchApi<T>(params: {
       credentials: 'include',
     });
 
-  let response = await doFetch();
+  const executeWithRetry = async (): Promise<T> => {
+    let response = await doFetch();
 
-  if (response.status === 401 && endpoint !== '/login' && endpoint !== '/refresh-token' && getHeaders()['Authorization']) {
-    const refreshed = await refreshToken();
-    if (refreshed) {
-      response = await doFetch();
-    } else {
-      const { useAuthStore } = await import('@/stores/auth');
-      const authStore = useAuthStore();
-      await authStore.logout();
-      const routerModule = await import('@/router');
-      routerModule.default.push('/login');
-      throw new Error('Sesión expirada');
+    if (response.status === 401 && endpoint !== '/login' && endpoint !== '/refresh-token' && getHeaders()['Authorization']) {
+      const refreshed = await refreshToken();
+      if (refreshed) {
+        response = await doFetch();
+      } else {
+        const { useAuthStore } = await import('@/stores/auth');
+        const authStore = useAuthStore();
+        await authStore.logout();
+        const routerModule = await import('@/router');
+        routerModule.default.push('/login');
+        throw new Error('Sesión expirada');
+      }
     }
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: 'Error de conexión' }));
+      throw new Error(error.message || 'Error en la solicitud');
+    }
+
+    return response.json();
+  };
+
+  if (isGetRequest) {
+    const promise = executeWithRetry().finally(() => {
+      pendingRequests.delete(pendingKey);
+    });
+    pendingRequests.set(pendingKey, promise);
+    return promise;
   }
 
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ message: 'Error de conexión' }));
-    throw new Error(error.message || 'Error en la solicitud');
-  }
-
-  return response.json();
+  return executeWithRetry();
 }
 
 export const api = {

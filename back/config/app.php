@@ -56,6 +56,8 @@ return [
 
     'frontend_url' => env('FRONTEND_URL'),
 
+    'setup_token' => env('APP_SETUP_TOKEN'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

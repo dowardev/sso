@@ -27,6 +27,16 @@ class SetupController extends Controller
             ], 403);
         }
 
+        $setupToken = config('app.setup_token');
+        if ($setupToken) {
+            $providedToken = $request->header('X-Setup-Token');
+            if (!$providedToken || !hash_equals($setupToken, $providedToken)) {
+                return response()->json([
+                    'message' => 'Token de setup inválido.',
+                ], 403);
+            }
+        }
+
         $user = User::create([
             'name' => $request->name,
             'user' => $request->user,

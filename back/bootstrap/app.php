@@ -23,7 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'client.credentials' => \App\Http\Middleware\ClientCredentialsAuth::class,
             'setup.not_completed' => \App\Http\Middleware\EnsureSetupNotCompleted::class,
             'refresh.token' => RefreshToken::class,
+            'throttle.login' => \App\Http\Middleware\ThrottleLoginAttempts::class,
         ]);
+
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

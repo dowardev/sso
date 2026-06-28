@@ -20,10 +20,14 @@ export const useSessionsStore = defineStore('sessions', () => {
   );
 
   const activeCount = computed(() => {
-    if (pagination.value.total > 0) {
+    if (sessions.value.length === 0 && pagination.value.total > 0) {
       return pagination.value.total;
     }
-    return sessions.value.filter((s) => s.token_active).length;
+    let count = 0;
+    for (let i = 0; i < sessions.value.length; i++) {
+      if (sessions.value[i].token_active) count++;
+    }
+    return count;
   });
 
   async function fetchSessions(params?: {

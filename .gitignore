@@ -8,6 +8,14 @@ backend.pid
 front/src/guides/
 back/guides/
 
+# Environment files (secrets - never commit)
+.env
+.env.local
+.env.*.local
+back/.env
+front/.env.development
+front/.env.production
+
 # Development artifacts
 .playwright-cli/
 cookie_jar.txt

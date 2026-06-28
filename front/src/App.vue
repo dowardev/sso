@@ -108,6 +108,19 @@
                   <ion-label>Configuraci&oacute;n</ion-label>
                 </ion-item>
               </ion-menu-toggle>
+              <ion-menu-toggle :auto-hide="false">
+                <ion-item
+                  button
+                  lines="none"
+                  :class="{ 'active-item': isActiveRoute({ path: '/admin/health' }) }"
+                  @click="navigateTo({ url: '/admin/health' })"
+                >
+                  <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/admin/health' }) }">
+                    <ion-icon :icon="pulseOutline" aria-hidden="true"></ion-icon>
+                  </div>
+                  <ion-label>Salud</ion-label>
+                </ion-item>
+              </ion-menu-toggle>
             </ion-list>
           </template>
 
@@ -164,10 +177,12 @@
     shield,
     logOutOutline,
     settingsOutline,
+    pulseOutline,
   } from 'ionicons/icons';
 
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useAuthController } from '@/controllers/authController';
+import { useThemeStore } from '@/stores/theme';
 
   const router = useRouter();
   const route = useRoute();
@@ -202,6 +217,8 @@ import { useAuthController } from '@/controllers/authController';
   ];
 
   onMounted(() => {
+    const themeStore = useThemeStore();
+    themeStore.init();
     sessionCheckInterval = setInterval(checkSession, 5 * 60 * 1000);
   });
 

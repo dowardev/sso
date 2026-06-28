@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.0] - 2026-06-28
+
+### Added
+- **Security hardening**: DPoP nonce support with automatic cleanup, device fingerprint tracking for sessions, login attempt throttling with atomic locking, and CSP Report-Only mode with report endpoint
+- **Health monitoring panel**: Real-time dashboard showing system metrics, pending cleanups, CSP reports, and active sessions
+- **JWKS endpoint**: Public JSON Web Key Set with 24-hour caching for external JWT verification
+- **Password policy enforcement**: Minimum 10 characters with uppercase, lowercase, number, and special character requirements
+- **Setup token validation**: Optional `APP_SETUP_TOKEN` environment variable to secure the setup flow
+- **Console commands**: `dpop:cleanup` and `refresh-tokens:cleanup` for scheduled maintenance
+- **Database migrations**: Missing performance indexes on OAuth and sessions tables, plain_token to SHA256 token_hash migration
+- **XSRF-TOKEN support**: API service now handles XSRF cookie-based CSRF protection
+
+### Changed
+- **Design standardization**: Unified glassmorphism design system applied across all admin views, auth pages, user profile, and client forms (LBDS-97)
+- **Performance optimizations**:
+  - Fixed N+1 query in `UserService::getUserRoles()` by replacing `SsoClient::find` loop with batch `whereIn`
+  - Pagination for `getUserSessions()` and `userAuthorizations()` endpoints
+  - `revokeAllUserSessions()` uses `lazy()` cursor instead of `get()` to reduce memory
+  - HealthController queries cached 60s via `Cache::remember`
+  - Frontend: Request deduplication for concurrent identical GET requests
+  - Frontend: Lazy-loaded HomePage via dynamic import
+  - Frontend: Redundant watchers replaced with computed properties in ActivityLog, AuthorizationsList, ProfileForm
+  - Frontend: Theme store initialization made lazy (no side effects on module import)
+  - Frontend: `isUnmounted` guard in ProfilePage to prevent state updates after unmount
+- **CORS caching**: Event-based invalidation on SsoClient updates with 30s cache TTL
+- **Token security**: Plain token column migrated to SHA256 hash
+
+### Fixed
+- Infinite 401 loop on logout when session was already revoked
+- Dependency tracking in frontend watchers causing unnecessary re-renders
+
 ## [0.27.0] - 2026-06-25
 
 ### Added

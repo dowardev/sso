@@ -103,22 +103,25 @@ class UserService
 
     public function getUserRoles(User $user): array
     {
-        return $user->roles()
+        $roles = $user->roles()
             ->withPivot('sso_client_id')
-            ->get()
-            ->map(function ($role) {
-                return [
-                    'id' => $role->id,
-                    'name' => $role->name,
-                    'slug' => $role->slug,
-                    'description' => $role->description,
-                    'sso_client_id' => $role->pivot->sso_client_id,
-                    'sso_client_name' => $role->pivot->sso_client_id
-                        ? SsoClient::find($role->pivot->sso_client_id)?->name
-                        : null,
-                ];
-            })
-            ->toArray();
+            ->get();
+
+        $clientIds = $roles->pluck('pivot.sso_client_id')->filter()->unique();
+        $clients = SsoClient::whereIn('id', $clientIds)->get()->keyBy('id');
+
+        return $roles->map(function ($role) use ($clients) {
+            return [
+                'id' => $role->id,
+                'name' => $role->name,
+                'slug' => $role->slug,
+                'description' => $role->description,
+                'sso_client_id' => $role->pivot->sso_client_id,
+                'sso_client_name' => $role->pivot->sso_client_id
+                    ? ($clients->get($role->pivot->sso_client_id)?->name)
+                    : null,
+            ];
+        })->toArray();
     }
 
     public function updateUserRoles(User $user, array $roles): array
