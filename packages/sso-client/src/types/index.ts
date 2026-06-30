@@ -61,6 +61,7 @@ export interface AuthResponse {
   token: string;
   refreshToken?: string;
   user?: User;
+  rememberMe?: boolean;
 }
 
 export interface RegisterParams {
@@ -74,6 +75,7 @@ export interface RegisterParams {
 export interface LoginParams {
   email: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 export interface RefreshTokenParams {

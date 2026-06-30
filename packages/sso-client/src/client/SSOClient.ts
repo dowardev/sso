@@ -36,6 +36,7 @@ export class SSOClient {
   private authStateListeners: Array<(state: AuthState) => void> = [];
   private currentUser: User | null = null;
   private _isAuthenticated: boolean = false;
+  private readonly AUTO_REFRESH_INTERVAL = 3000000;
 
   readonly http: HttpClient;
 
@@ -95,6 +96,10 @@ export class SSOClient {
             isAuthenticated: true,
             user,
           });
+          const rememberMe = await this.tokenStorage.getRememberMe();
+          if (rememberMe) {
+            this.startAutoRefresh();
+          }
           return;
         }
       } catch {
@@ -111,6 +116,14 @@ export class SSOClient {
   async login(params: LoginParams): Promise<AuthResponse> {
     const response = await this.authService.login(params);
     await this.handleAuthResponse(response);
+
+    const rememberMe = params.rememberMe ?? false;
+    await this.tokenStorage.setRememberMe(rememberMe);
+
+    if (rememberMe) {
+      this.startAutoRefresh();
+    }
+
     return response;
   }
 
@@ -156,6 +169,7 @@ export class SSOClient {
       : null;
 
     const data: Record<string, unknown> = {
+      grant_type: 'authorization_code',
       code,
       client_id: this.clientId,
       redirect_uri: `${window.location.origin}/auth/callback`,
@@ -196,6 +210,8 @@ export class SSOClient {
   }
 
   async logout(options?: { redirectUri?: string }): Promise<void> {
+    this.stopAutoRefresh();
+    await this.tokenStorage.removeRememberMe();
     try {
       await this.internalPost("logout", {});
     } catch {
@@ -259,6 +275,22 @@ export class SSOClient {
       const idx = this.authStateListeners.indexOf(callback);
       if (idx >= 0) this.authStateListeners.splice(idx, 1);
     };
+  }
+
+  private async startAutoRefresh(): Promise<void> {
+    this.tokenRefreshManager.startAutoRefresh({
+      intervalMs: this.AUTO_REFRESH_INTERVAL,
+      onRefreshSuccess: (newToken: string) => {
+        this.configService.setAccessToken(newToken);
+      },
+      onRefreshFailed: () => {
+        this.handleRefreshFailed();
+      },
+    });
+  }
+
+  private stopAutoRefresh(): void {
+    this.tokenRefreshManager.stopAutoRefresh();
   }
 
   private async handleAuthResponse(response: AuthResponse): Promise<void> {
