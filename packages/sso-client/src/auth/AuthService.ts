@@ -29,10 +29,19 @@ export class AuthService {
   }
 
   async login(params: LoginParams): Promise<AuthResponse> {
-    const { email, password } = params;
+    const { email, password, rememberMe } = params;
+    const clientId = this.ssoClient.getClientId();
+    const data: Record<string, unknown> = {
+      email,
+      password,
+      client_id: clientId,
+    };
+    if (rememberMe) {
+      data.remember_me = true;
+    }
     const response = await this.ssoClient.post<AuthResponse>({
       url: "login",
-      data: { email, password },
+      data,
     });
     return response;
   }
