@@ -31,8 +31,7 @@ npm-debug.log*
 /plugins
 /www
 
-# Production environment (contains real URLs)
-.env.production
+# Environment files are handled by root .gitignore
 /pnpm-workspace.yaml
 
 # Vite temp files

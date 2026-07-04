@@ -9,11 +9,8 @@ back/guides/
 
 # Environment files (secrets - never commit)
 .env
-.env.local
-.env.*.local
-back/.env
-front/.env.development
-front/.env.production
+.env.*
+!.env.*.example
 
 # Development artifacts
 .playwright-cli/
