@@ -6,7 +6,7 @@ export default defineConfig({
     alias: {
       "@tu-org/sso-client": resolve(
         __dirname,
-        "../../sso-client/packages/sso-client/src/index.ts"
+        "../packages/sso-client/src/index.ts"
       ),
     },
   },
