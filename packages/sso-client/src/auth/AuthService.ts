@@ -110,8 +110,11 @@ export class AuthService {
       );
       return user;
     } catch (error) {
-      const err = error as ICustomError;
-      if (err.errorDetail === "Unauthenticated.") {
+      const err = error as ICustomError & { response?: { status?: number } };
+      const isAuthDead =
+        err.errorDetail === "Unauthenticated." ||
+        err.response?.status === 401;
+      if (isAuthDead) {
         return null;
       }
       throw error;

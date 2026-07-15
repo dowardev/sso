@@ -103,7 +103,7 @@ export class SSOClient {
           return;
         }
       } catch {
-        await this.tokenStorage.clear();
+        // Transient error (network, 5xx) — preserve token for next init
       }
     }
     this._isAuthenticated = false;
@@ -318,11 +318,14 @@ export class SSOClient {
     });
   }
 
-  private handleRefreshFailed(): void {
+  private async handleRefreshFailed(): Promise<void> {
     this.currentUser = null;
     this._isAuthenticated = false;
-    this.tokenStorage.clear();
-    this.configService.setAccessToken("");
+    const refreshToken = await this.tokenStorage.getRefreshToken();
+    if (refreshToken) {
+      await this.tokenStorage.clear();
+      this.configService.setAccessToken("");
+    }
     this.emitAuthState({
       isAuthenticated: false,
       user: null,

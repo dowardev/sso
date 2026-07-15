@@ -45,6 +45,11 @@ export class TokenRefreshManager {
 
     originalConfig._retry = true;
 
+    const storedRefreshToken = await this.tokenStorage.getRefreshToken();
+    if (!storedRefreshToken) {
+      return Promise.reject(failedRequest);
+    }
+
     if (this.isRefreshing) {
       return new Promise((resolve, reject) => {
         this.pendingRequests.push({
