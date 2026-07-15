@@ -1,3 +1,5 @@
 packages:
   - 'back'
   - 'front'
+  - 'packages/*'
+  - 'sso-demo'

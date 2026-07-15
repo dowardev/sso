@@ -5,7 +5,9 @@
   "description": "SSO Server with Laravel backend and Ionic/Vue frontend",
   "workspaces": [
     "front",
-    "back"
+    "back",
+    "packages/*",
+    "sso-demo"
   ],
   "scripts": {
     "dev:front": "pnpm --filter front dev",
