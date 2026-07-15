@@ -1,0 +1,42 @@
+{
+    "name": "tu-org/sso-server",
+    "version": "0.1.0",
+    "description": "Server-side SSO authentication library for Laravel with DPoP verification",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^11.0 || ^12.0 || ^13.0",
+        "lcobucci/jwt": "^5.0",
+        "lcobucci/clock": "^3.2"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0",
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "TuOrg\\SsoServer\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "TuOrg\\SsoServer\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "TuOrg\\SsoServer\\SsoServerServiceProvider"
+            ],
+            "aliases": {
+                "SsoAuth": "TuOrg\\SsoServer\\Facades\\SsoAuth"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "scripts": {
+        "test": "phpunit"
+    }
+}
