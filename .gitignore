@@ -16,3 +16,10 @@ back/guides/
 .playwright-cli/
 cookie_jar.txt
 front/.eslintcache
+
+# Build outputs and vendor
+packages/*/dist/
+packages/*/node_modules/
+packages/*/vendor/
+sso-demo/node_modules/
+.phpunit.result.cache
