@@ -1,12 +1,19 @@
 export interface User {
-  id: number;
-  name: string;
-  user: string;
-  email: string;
-  is_admin: boolean;
-  created_at: string;
-  sessions_count?: number;
-  tokens_count?: number;
+    id: number;
+    name: string;
+    user: string;
+    email: string;
+    is_admin: boolean;
+    created_at: string;
+    sessions_count?: number;
+    tokens_count?: number;
+    roles?: Array<{
+        id: number;
+        name: string;
+        slug: string;
+        description: string | null;
+        is_protected: boolean;
+    }>;
 }
 
 export interface UserDetail extends User {
@@ -45,6 +52,7 @@ export interface SsoClient {
   client_secret?: string;
   redirect_url: string | null;
   allowed_origins: string[] | null;
+  grant_types: string[];
   active: boolean;
   created_at: string;
   sessions_count?: number;
@@ -92,4 +100,13 @@ export interface Pagination {
   lastPage: number;
   perPage: number;
   total: number;
+}
+
+export interface Setting {
+  id: number;
+  key: string;
+  value: string;
+  type: string;
+  description: string | null;
+  updated_at: string;
 }

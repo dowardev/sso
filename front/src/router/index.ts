@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
-import { RouteRecordRaw } from 'vue-router';
-import HomePage from '../views/HomePage.vue';
+import type { RouteRecordRaw } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const routes: Array<RouteRecordRaw> = [
@@ -12,6 +11,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/login',
     name: 'AdminLogin',
     component: () => import('../views/LoginPage.vue'),
+  },
+  {
+    path: '/setup',
+    name: 'Setup',
+    component: () => import('../views/SetupPage.vue'),
   },
   {
     path: '/register',
@@ -34,13 +38,28 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/LogoutPage.vue'),
   },
   {
+    path: '/auth/authorize',
+    name: 'OAuthAuthorize',
+    component: () => import('../views/OAuthAuthorizationPage.vue'),
+  },
+  {
     path: '/auth/callback',
     redirect: 'http://localhost:5173/auth/callback',
   },
+{
+  path: '/user/profile',
+  redirect: '/account',
+},
+{
+  path: '/account',
+  name: 'Account',
+  component: () => import('../views/user/AccountPage.vue'),
+  meta: { requiresAuth: true },
+},
   {
     path: '/home',
     name: 'Home',
-    component: HomePage,
+    component: () => import('../views/HomePage.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -77,6 +96,17 @@ const routes: Array<RouteRecordRaw> = [
         name: 'AdminClients',
         component: () => import('../views/admin/ClientsPage.vue'),
       },
+{
+  path: '/admin/clients/by-client-id/:clientId',
+  name: 'AdminClientByClientId',
+  meta: { requiresAuth: true },
+  component: () => import('../views/admin/ClientByClientIdRedirect.vue'),
+},
+{
+  path: '/admin/clients/:id',
+  name: 'AdminClientDetail',
+  component: () => import('../views/admin/ClientDetailPage.vue'),
+},
       {
         path: 'roles',
         name: 'AdminRoles',
@@ -92,6 +122,16 @@ const routes: Array<RouteRecordRaw> = [
         name: 'AdminConfigDesign',
         component: () => import('../views/admin/DesignPage.vue'),
       },
+      {
+        path: 'config/security',
+        name: 'AdminConfigSecurity',
+        component: () => import('../views/admin/SecurityPage.vue'),
+      },
+      {
+        path: 'health',
+        name: 'AdminHealth',
+        component: () => import('../views/admin/HealthPage.vue'),
+      },
     ],
   },
 ];
@@ -101,23 +141,89 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
-  const authStore = useAuthStore();
-  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
-  const isAuthRoute = to.path.startsWith('/auth/');
+router.beforeEach(async (to, from, next) => {
+    const authStore = useAuthStore();
+    await authStore.init();
+    const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
+    const isAuthRoute = to.path.startsWith('/auth/');
 
-  if (requiresAuth && !authStore.isAuthenticated) {
-    next('/login');
-  } else if (isAuthRoute) {
+    if (requiresAuth && !authStore.isAuthenticated) {
+        next('/login');
+        return;
+    }
+
+    if (isAuthRoute) {
+        next();
+        return;
+    }
+
+    if (to.path === '/setup') {
+        next();
+        return;
+    }
+
+    if (
+        (to.path === '/login' || to.path === '/') &&
+        authStore.isAuthenticated
+    ) {
+        let user = authStore.user;
+        if (user && (!user.roles || user.roles.length === 0)) {
+            try {
+                await authStore.getUser();
+                user = authStore.user;
+            } catch {
+                next('/login');
+                return;
+            }
+        }
+        if (user && user.roles && user.roles.some((role: { slug: string }) => role.slug === 'admin')) {
+            next('/admin/dashboard');
+        } else {
+            next('/account');
+        }
+        return;
+    }
+
+    if (to.path === '/login' || to.path === '/') {
+        const setupCompleted = localStorage.getItem('setup_completed');
+        if (setupCompleted === 'true') {
+            next();
+            return;
+        }
+        try {
+            const { api } = await import('@/services/api');
+            const status = await api.get<{ setup_completed: boolean }>({ endpoint: '/setup/status' });
+            if (!status.setup_completed) {
+                next('/setup');
+            } else {
+                localStorage.setItem('setup_completed', 'true');
+                next();
+            }
+        } catch {
+            next();
+        }
+        return;
+    }
+
+    // Protect admin routes - only admins can access
+    if (to.path.startsWith('/admin/')) {
+        let user = authStore.user;
+        if (user && (!user.roles || user.roles.length === 0)) {
+            try {
+                await authStore.getUser();
+                user = authStore.user;
+            } catch {
+                next('/login');
+                return;
+            }
+        }
+        if (!user || !user.roles || !user.roles.some((role: { slug: string }) => role.slug === 'admin')) {
+            next('/account');
+            return;
+        }
+    }
+
     next();
-  } else if (
-    (to.path === '/login' || to.path === '/') &&
-    authStore.isAuthenticated
-  ) {
-    next('/admin/dashboard');
-  } else {
-    next();
-  }
 });
 
 export default router;

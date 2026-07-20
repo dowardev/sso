@@ -4,7 +4,7 @@ Centralized authentication server providing JWT-based Single Sign-On (SSO) for m
 
 ## Demo
 
-Access the production frontend at: [SSO Frontend](https://sso.dowar.xyz)
+Access the production frontend at: [SSO Frontend](https://sso.example.com)
 
 ## System Architecture
 
@@ -17,7 +17,7 @@ Access the production frontend at: [SSO Frontend](https://sso.dowar.xyz)
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      SSO FRONTEND                                │
-│              [direccion]:[puerto] (Ionic/Vue)                  │
+│              localhost:5173 (Ionic/Vue 8)                     │
 │                    ├─ Admin Panel                                │
 │                    ├─ Login/Register                             │
 │                    └─ OAuth Pages                               │
@@ -26,7 +26,7 @@ Access the production frontend at: [SSO Frontend](https://sso.dowar.xyz)
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                       SSO BACKEND                                │
-│              [direccion]:[puerto] (Laravel 12)                 │
+│              localhost:8001 (Laravel 12)                       │
 │                    ├─ JWT Auth (RS256)                           │
 │                    ├─ OAuth2 + PKCE                              │
 │                    ├─ DPoP Proof Verification                    │
@@ -64,7 +64,7 @@ Access the production frontend at: [SSO Frontend](https://sso.dowar.xyz)
 - PHP 8.2+
 - Composer
 - OpenSSL
-- SQLite (development) / MySQL (production)
+- MySQL (development & production)
 
 ---
 
@@ -78,10 +78,15 @@ sso/
 │   ├── database/            # Migrations & Seeders
 │   ├── keys/                # RSA key pair (private.pem, public.pem)
 │   └── routes/             # API & Web routes
-├── front/                   # Ionic/Vue frontend
+├── front/                   # Ionic/Vue 8 frontend
 │   ├── src/                # Services, Views, Router
 │   └── dist/               # Production build output
-├── sso-client/             # Standalone HTML/JS demo client
+├── packages/                # Shared libraries
+│   ├── sso-client/         # @tu-org/sso-client (OAuth2 PKCE + DPoP + axios)
+│   └── sso-server/         # tu-org/sso-server (DPoP verification, Laravel middleware)
+├── AGENTS.md               # Developer reference
+├── DEPLOY.md               # Deployment guide
+├── README.md               # This file
 └── package.json            # Workspace orchestrator
 ```
 
@@ -100,24 +105,21 @@ composer install
 # Generate RSA keys for JWT (auto-creates back/keys/ if needed)
 php artisan jwt:generate-keys
 
-# Configure environment
-cp .env.example .env
+# Configure environment (copy full development template)
+cp .env.development.example .env
 php artisan key:generate
 
 # Run migrations
 php artisan migrate
 
-# Seed database (admin, test user, roles)
+# Seed database
 php artisan db:seed
 
 # Start server
 php artisan serve --port=8001
 ```
 
-**Default credentials after seeder:**
-
-- **Admin:** `admin@sso.local` / `admin123`
-- **Test User:** `test@example.com` / `password`
+> **Note:** After seeding, the first admin user is created via the setup wizard on first access (see [Initial Setup](#initial-setup-first-run)).
 
 ### Frontend
 
@@ -138,8 +140,22 @@ pnpm run dev
 
 ```bash
 pnpm install
-pnpm run dev
+pnpm run dev       # Start both frontend and backend
 ```
+
+---
+
+## Initial Setup (First Run)
+
+On first access, the SSO server runs a setup wizard:
+
+1. **Status check** — Backend polls `GET /api/setup/status`
+2. If no users exist → frontend redirects to `/setup`
+3. **Form** — Name, username, email, password, confirm
+4. **Submit** — `POST /api/setup/admin` creates the first admin
+5. **Done** — `setup_completed` saved in localStorage, redirects to login
+
+> Protected by `EnsureSetupNotCompleted` middleware — cannot run twice.
 
 ---
 
@@ -147,21 +163,28 @@ pnpm run dev
 
 ### Backend (`.env`)
 
-| Variable        | Description     | Example                 |
-| --------------- | --------------- | ----------------------- |
-| `APP_URL`       | Application URL | `[direccion]:[puerto]` |
-| `DB_CONNECTION` | Database driver | `sqlite` / `mysql`      |
+| Variable                 | Description            | Example                 |
+| ------------------------ | ---------------------- | ----------------------- |
+| `APP_URL`                | Application URL        | `http://localhost:8001` |
+| `DB_CONNECTION`          | Database driver        | `mysql`                 |
+| `CACHE_STORE`            | Cache driver           | `database`              |
+| `JWT_ISSUER`             | JWT issuer             | `http://localhost:8001` |
+| `JWT_TOKEN_EXPIRATION`   | Token lifetime (sec)   | `3600`                  |
+| `JWT_REFRESH_EXPIRATION` | Refresh lifetime (sec) | `2592000`               |
+| `JWT_REFRESH_INACTIVITY` | Max inactivity (sec)   | `604800`                |
+
+> **Note:** For development, use the full template `back/.env.development.example`. For production, use `back/.env.production.example` (see [DEPLOY.md](./DEPLOY.md) for the complete variable reference).
 
 ### Frontend (`.env`)
 
 Vite automatically loads the correct environment file based on the command:
 
-| File | Command | Purpose |
-|------|---------|---------|
-| `.env.development` | `pnpm run dev` | Local development |
-| `.env.development.example` | — | Template for local setup |
-| `.env.production` | `pnpm run build` | **Actual** production variables |
-| `.env.production.example` | — | Template for deployment |
+| File                       | Command          | Purpose                         |
+| -------------------------- | ---------------- | ------------------------------- |
+| `.env.development`         | `pnpm run dev`   | Local development               |
+| `.env.development.example` | —                | Template for local setup        |
+| `.env.production`          | `pnpm run build` | **Actual** production variables |
+| `.env.production.example`  | —                | Template for deployment         |
 
 > **Note:** `.env.production` is gitignored. For production, copy `.env.production.example` and configure with your real URLs.
 
@@ -172,7 +195,7 @@ Vite automatically loads the correct environment file based on the command:
 ### 1. Direct Login (API)
 
 ```bash
-curl -X POST [direccion]:[puerto]/api/login \
+curl -X POST http://localhost:8001/api/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -197,7 +220,7 @@ curl -X POST [direccion]:[puerto]/api/login \
 **Step 1 - Authorization Request (authenticated):**
 
 ```bash
-curl -X POST [direccion]:[puerto]/api/oauth/authorize \
+curl -X POST http://localhost:8001/api/oauth/authorize \
   -H "Authorization: Bearer {user_jwt}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -212,7 +235,7 @@ curl -X POST [direccion]:[puerto]/api/oauth/authorize \
 **Step 2 - Token Exchange (public):**
 
 ```bash
-curl -X POST [direccion]:[puerto]/api/oauth/token \
+curl -X POST http://localhost:8001/api/oauth/token \
   -H "Content-Type: application/json" \
   -d '{
     "code": "authorization_code",
@@ -246,6 +269,31 @@ DPoP binds tokens to a specific RSA key pair for additional security:
 
 ---
 
+## SSO Client Library
+
+The `@tu-org/sso-client` package provides a typed OAuth2 client with PKCE and DPoP support. Source code is at `packages/sso-client/`.
+
+```bash
+# Build the library
+pnpm run build:sso-client
+```
+
+To integrate into a TypeScript application:
+
+```ts
+import { SSOClient } from "@tu-org/sso-client";
+
+const client = new SSOClient({
+  clientId: "my-app",
+  serverUrl: "https://sso.example.com",
+  redirectUri: "https://myapp.com/callback",
+});
+
+await client.login({ email: "user@example.com", password: "..." });
+```
+
+---
+
 ## SSO Client Registration
 
 Every application using this SSO must register as an **SSO Client** with a unique `client_id`.
@@ -253,7 +301,7 @@ Every application using this SSO must register as an **SSO Client** with a uniqu
 ### Create Client (Admin Only)
 
 ```bash
-curl -X POST [direccion]:[puerto]/api/admin/clients \
+curl -X POST http://localhost:8001/api/admin/clients \
   -H "Authorization: Bearer {admin_token}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -285,6 +333,10 @@ The frontend admin panel (`/admin`) provides a web interface to manage:
 - **SSO Clients** — Register and manage applications using the SSO
 - **Roles** — Manage RBAC roles (admin, moderator, standard)
 - **User Roles** — Assign roles to users with client scope
+- **Config** — Runtime settings
+- **Security** — CSP headers and allowlist
+- **Design** — Theme and UI customization
+- **Health** — System metrics (usage, errors, cache stats)
 
 **Access:** Login with an admin account at `/login`, then navigate to `/admin`.
 
@@ -298,10 +350,11 @@ php artisan serve --port=8001       # Start server
 php artisan route:list               # List routes
 php artisan db:seed                  # Seed database
 php artisan migrate                  # Run migrations
+php artisan config:clear             # Clear config cache
 
 # Frontend
 pnpm run dev                        # Development server
-ionic build                         # Production build
+pnpm run build                      # Production build (lint + typecheck)
 ```
 
 ---
@@ -309,4 +362,3 @@ ionic build                         # Production build
 ## License
 
 This project is developed under the **MIT** license.
-

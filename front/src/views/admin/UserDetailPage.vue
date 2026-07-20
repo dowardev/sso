@@ -3,11 +3,11 @@
     <ion-header class="ion-no-border" mode="ios">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button default-href="/admin/users"></ion-back-button>
+          <ion-back-button default-href="/admin/users" aria-label="Volver a usuarios"></ion-back-button>
         </ion-buttons>
         <ion-title>Detalle de Usuario</ion-title>
         <ion-buttons slot="end">
-          <ion-button color="primary" @click="openEditModal">
+          <ion-button color="primary" aria-label="Editar usuario" @click="openEditModal">
             <ion-icon slot="icon-only" :icon="create"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -16,8 +16,8 @@
 
     <ion-content :fullscreen="true">
       <!-- content -->
-      <div class="page-container">
-        <div v-if="loading" class="loading-container">
+      <div class="page-container-wide">
+        <div v-if="loading" class="loading-container" role="status" aria-live="polite">
           <ion-spinner name="lines"></ion-spinner>
           <p>Cargando usuario...</p>
         </div>
@@ -26,6 +26,8 @@
           <ion-row>
             <ion-col size="12">
               <div class="header-card">
+                <div class="header-bg-circle hc-1"></div>
+                <div class="header-bg-circle hc-2"></div>
                 <div class="user-header">
                   <ion-avatar class="large-avatar">
                     <div class="avatar-placeholder">
@@ -34,9 +36,7 @@
                   </ion-avatar>
                   <h2 class="user-name">{{ user.name }}</h2>
                   <p class="user-username">@{{ user.user }}</p>
-                  <ion-badge v-if="user.is_admin" color="warning"
-                    >Administrador</ion-badge
-                  >
+                  <ion-badge v-if="user.is_admin" color="warning">Administrador</ion-badge>
                 </div>
               </div>
             </ion-col>
@@ -45,20 +45,16 @@
               <div class="info-card">
                 <h3 class="section-title">Información</h3>
                 <div class="info-item">
-                  <span class="label">Email</span>
+                  <ion-icon :icon="mailOutline" class="info-icon" aria-hidden="true"></ion-icon>
                   <span class="value">{{ user.email }}</span>
                 </div>
                 <div class="info-item">
-                  <span class="label">Creado</span>
-                  <span class="value">{{
-                    formatDate({ dateStr: user.created_at })
-                  }}</span>
+                  <ion-icon :icon="calendarOutline" class="info-icon" aria-hidden="true"></ion-icon>
+                  <span class="value">{{ formatDate({ dateStr: user.created_at }) }}</span>
                 </div>
                 <div class="info-item">
-                  <span class="label">Tokens</span>
-                  <span class="value"
-                    >{{ user.active_tokens_count }} activos</span
-                  >
+                  <ion-icon :icon="keyOutline" class="info-icon" aria-hidden="true"></ion-icon>
+                  <span class="value">{{ user.active_tokens_count }} tokens activos</span>
                 </div>
               </div>
             </ion-col>
@@ -67,29 +63,23 @@
               <div class="roles-card">
                 <div class="section-header">
                   <h3 class="section-title">Roles</h3>
-                  <ion-button size="small" @click="openRolesModal">
+                  <ion-button size="small" aria-label="Editar roles" @click="openRolesModal">
                     <ion-icon slot="icon-only" :icon="create"></ion-icon>
                   </ion-button>
                 </div>
 
                 <div v-if="userRoles.length === 0" class="empty-state">
-                  <ion-icon :icon="shieldOutline" size="large"></ion-icon>
+                  <ion-icon :icon="shieldOutline" size="large" aria-hidden="true"></ion-icon>
                   <p>Sin roles asignados</p>
-                  <span class="empty-hint">(rol: Estándar)</span>
+                  <span class="empty-hint">(rol: Est&aacute;ndar)</span>
                 </div>
 
-                <ion-list v-else class="detail-list">
-                  <ion-item v-for="(role, index) in userRoles" :key="index">
-                    <ion-icon
-                      slot="start"
-                      :icon="shieldOutline"
-                      color="primary"
-                    ></ion-icon>
-                    <ion-label>
-                      <h3 class="item-title">{{ role.name }}</h3>
-                    </ion-label>
-                  </ion-item>
-                </ion-list>
+                <div v-else class="roles-chips">
+                  <ion-chip v-for="(role, index) in userRoles" :key="index" color="primary">
+                    <ion-icon :icon="shieldOutline" aria-hidden="true"></ion-icon>
+                    <ion-label>{{ role.name }}</ion-label>
+                  </ion-chip>
+                </div>
               </div>
             </ion-col>
 
@@ -109,7 +99,7 @@
                 </div>
 
                 <div v-if="sessions.length === 0" class="empty-state">
-                  <ion-icon :icon="keyOutline" size="large"></ion-icon>
+                  <ion-icon :icon="keyOutline" size="large" aria-hidden="true"></ion-icon>
                   <p>No hay sesiones activas</p>
                 </div>
 
@@ -139,6 +129,7 @@
                       slot="end"
                       fill="clear"
                       color="danger"
+                      aria-label="Revocar sesión"
                       @click="revokeSession({ session })"
                     >
                       <ion-icon slot="icon-only" :icon="trash"></ion-icon>
@@ -146,6 +137,10 @@
                   </ion-item>
                 </ion-list>
               </div>
+            </ion-col>
+
+            <ion-col size="12">
+              <UserAuthorizationsList :user-id="userId" />
             </ion-col>
           </ion-row>
         </ion-grid>
@@ -156,9 +151,16 @@
       <ion-modal :is-open="showEditModal" @did-dismiss="showEditModal = false">
         <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
+            <ion-buttons slot="start">
+              <ion-button @click="showEditModal = false">
+                <ion-icon :icon="closeOutline"></ion-icon>
+              </ion-button>
+            </ion-buttons>
             <ion-title>Editar Usuario</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="showEditModal = false">Cancelar</ion-button>
+              <ion-button @click="updateUser">
+                <ion-icon :icon="saveOutline"></ion-icon>
+              </ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -166,36 +168,38 @@
           <form class="modal-form" @submit.prevent="updateUser">
             <ion-list>
               <ion-item>
-                <ion-label position="stacked">Nombre</ion-label>
-                <ion-input v-model="editForm.name" required></ion-input>
+                <ion-label position="stacked">Nombre *</ion-label>
+                <ion-input v-model="editForm.name" :aria-invalid="userV$.name.$dirty ? userV$.name.$invalid : undefined" @ion-blur="userV$.name.$touch()"></ion-input>
               </ion-item>
+              <div v-if="userV$.name.$error" class="field-error">{{ userV$.name.$errors[0].$message }}</div>
               <ion-item>
-                <ion-label position="stacked">Usuario</ion-label>
-                <ion-input v-model="editForm.user" required></ion-input>
+                <ion-label position="stacked">Usuario *</ion-label>
+                <ion-input v-model="editForm.user" :aria-invalid="userV$.user.$dirty ? userV$.user.$invalid : undefined" @ion-blur="userV$.user.$touch()"></ion-input>
               </ion-item>
+              <div v-if="userV$.user.$error" class="field-error">{{ userV$.user.$errors[0].$message }}</div>
               <ion-item>
-                <ion-label position="stacked">Email</ion-label>
+                <ion-label position="stacked">Email *</ion-label>
                 <ion-input
                   v-model="editForm.email"
                   type="email"
-                  required
+                  :aria-invalid="userV$.email.$dirty ? userV$.email.$invalid : undefined"
+                  @ion-blur="userV$.email.$touch()"
                 ></ion-input>
               </ion-item>
+              <div v-if="userV$.email.$error" class="field-error">{{ userV$.email.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Nueva Contraseña</ion-label>
                 <ion-input
                   v-model="editForm.password"
                   type="password"
                   placeholder="Dejar vacío para mantener"
+                  :aria-invalid="userV$.password.$dirty ? userV$.password.$invalid : undefined"
+                  @ion-blur="userV$.password.$touch()"
                 ></ion-input>
               </ion-item>
+              <div v-if="userV$.password.$error" class="field-error">{{ userV$.password.$errors[0].$message }}</div>
             </ion-list>
-            <div class="ion-padding">
-              <ion-button type="submit" expand="block" :disabled="updating">
-                {{ updating ? 'Guardando...' : 'Guardar Cambios' }}
-              </ion-button>
-            </div>
-          </form>
+            </form>
         </ion-content>
       </ion-modal>
 
@@ -205,9 +209,16 @@
       >
         <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
+            <ion-buttons slot="start">
+              <ion-button @click="showRolesModal = false">
+                <ion-icon :icon="closeOutline"></ion-icon>
+              </ion-button>
+            </ion-buttons>
             <ion-title>Asignar Roles</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="showRolesModal = false">Cancelar</ion-button>
+              <ion-button @click="saveUserRoles">
+                <ion-icon :icon="saveOutline"></ion-icon>
+              </ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -241,6 +252,7 @@
                   <ion-item-options side="end">
                     <ion-item-option
                       color="danger"
+                      aria-label="Eliminar asignación de rol"
                       @click="removeRoleAssignment({ index })"
                     >
                       <ion-icon slot="icon-only" :icon="trash"></ion-icon>
@@ -251,21 +263,9 @@
             </div>
 
             <div class="ion-padding">
-              <ion-button
-                expand="block"
-                fill="outline"
-                @click="addRoleAssignment"
-              >
+              <ion-button expand="block" fill="outline" @click="addRoleAssignment">
                 <ion-icon slot="start" :icon="add"></ion-icon>
                 Agregar Rol
-              </ion-button>
-              <ion-button
-                expand="block"
-                :disabled="savingRoles"
-                style="margin-top: 8px"
-                @click="saveUserRoles"
-              >
-                {{ savingRoles ? 'Guardando...' : 'Guardar Roles' }}
               </ion-button>
             </div>
           </div>
@@ -283,9 +283,9 @@
 </template>
 
 <script setup lang="ts">
-  // imports
+  // 1. Imports (ionic/vue/ionicons)
   import { ref, onMounted, computed } from 'vue';
-  import { useRoute, useRouter } from 'vue-router';
+  import { useRoute } from 'vue-router';
   import {
     IonPage,
     IonHeader,
@@ -312,6 +312,7 @@
     IonGrid,
     IonRow,
     IonCol,
+    IonChip,
   } from '@ionic/vue';
   import {
     create,
@@ -319,34 +320,43 @@
     trash,
     shieldOutline,
     add,
+    mailOutline,
+    calendarOutline,
+    closeOutline,
+    saveOutline,
   } from 'ionicons/icons';
+  import { useFormValidation } from '@/composables/useFormValidation';
+  import { useValidation, validators } from '@/composables/useValidation';
+  import { useToast } from '@/composables/useToast';
 
-  // controllers
+  const { handleApiError } = useValidation();
+  const v = validators;
+  const { showSuccess, showError } = useToast();
+
+  // 2. Controllers
   import { useUsersController } from '@/controllers/usersController';
   import { useSessionsController } from '@/controllers/sessionsController';
   import { useClientsController } from '@/controllers/clientsController';
   import { useRolesController } from '@/controllers/rolesController';
   import { useAuthController } from '@/controllers/authController';
+
   const usersController = useUsersController();
   const sessionsController = useSessionsController();
   const clientsController = useClientsController();
   const rolesController = useRolesController();
   const authController = useAuthController();
 
-  // components
-  // end components
+  // 3. Components
+  import UserAuthorizationsList from '@/components/UserAuthorizationsList.vue';
 
-  // interface and types imports
-  import type { UserDetail, UserSession, Role, SsoClient } from '@/types';
-  // end interface and types imports
+  // 4. Interface and types imports
+  import type { UserSession } from '@/types';
 
-  // main
+  // 5. Main (props, emits, etc.)
   const route = useRoute();
-  const router = useRouter();
   const userId = Number(route.params.id);
-  // end main
 
-  // vars and const
+  // 6. Vars and const
   const updating = ref(false);
   const showEditModal = ref(false);
   const showRolesModal = ref(false);
@@ -358,34 +368,47 @@
     email: '',
     password: '',
   });
-  // end vars and const
 
-  // watch
-  // end
+  // 7. Watch
+  // (none)
 
-  // computed
+  // 8. Computed
   const user = computed(() => usersController.selectedUser.value);
   const sessions = computed(() => user.value?.sessions || []);
   const loading = computed(() => usersController.loading.value);
   const availableRoles = computed(() => rolesController.roles.value);
-  const availableClients = computed(() => clientsController.clients.value);
   const userRoles = computed(() => usersController.userRoles.value);
-  const roleAssignments = computed({
-    get: () => usersController.roleAssignments.value,
-    set: (value) => {
-      usersController.roleAssignments.value = value;
-    },
-  });
+  const roleAssignments = computed(() => usersController.roleAssignments.value);
   const isAdmin = computed(() => authController.user.value?.is_admin || false);
-  // end computed
 
-  // onmounted
+  const userRules = computed(() => ({
+    name: { required: v.required('Nombre'), maxLength: v.maxLength('Nombre', 255) },
+    user: {
+      required: v.required('Usuario'),
+      minLength: v.minLength('Usuario', 3),
+      maxLength: v.maxLength('Usuario', 255),
+      alphaNum: v.alphaNum('Usuario'),
+    },
+    email: {
+      required: v.required('Email'),
+      email: v.email('Email'),
+      maxLength: v.maxLength('Email', 255),
+    },
+    password: {
+      minLength: v.minLength('Nueva Contrase\u00f1a', 8),
+      passwordComplex: v.passwordComplex('Nueva Contrase\u00f1a'),
+    },
+  }));
+
+  const { v$: userV$, validate: validateUser, touchAll: touchUser } =
+    useFormValidation(userRules, editForm);
+
+  // 9. OnMounted
   onMounted(() => {
     loadUser();
   });
-  // end onmounted
 
-  // functions
+  // 10. Functions
   const loadUser = async (): Promise<void> => {
     try {
       const response = await usersController.fetchUser(userId);
@@ -395,8 +418,8 @@
         email: response.email,
         password: '',
       };
-    } catch (error) {
-      console.error('Error loading user:', error);
+    } catch {
+      showError({ message: 'Error al cargar usuario' });
     }
   };
 
@@ -426,6 +449,12 @@
   };
 
   const updateUser = async (): Promise<void> => {
+    const isValid = await validateUser();
+    if (!isValid) {
+      touchUser();
+      return;
+    }
+
     updating.value = true;
     try {
       const data: {
@@ -445,8 +474,9 @@
 
       await usersController.updateUser({ id: userId, data });
       showEditModal.value = false;
-    } catch (error) {
-      console.error('Error updating user:', error);
+      showSuccess({ message: 'Usuario actualizado correctamente' });
+    } catch (err) {
+      handleApiError(err);
     } finally {
       updating.value = false;
     }
@@ -461,16 +491,18 @@
       if (user.value) {
         user.value.active_tokens_count--;
       }
-    } catch (error) {
-      console.error('Error revoking session:', error);
+      showSuccess({ message: 'Sesión revocada correctamente' });
+    } catch {
+      showError({ message: 'Error al revocar sesión' });
     }
   };
 
   const revokeAllSessions = async (): Promise<void> => {
     try {
       await usersController.revokeUserSessions(userId);
-    } catch (error) {
-      console.error('Error revoking sessions:', error);
+      showSuccess({ message: 'Todas las sesiones fueron revocadas' });
+    } catch {
+      showError({ message: 'Error al revocar sesiones' });
     }
   };
 
@@ -481,16 +513,16 @@
         clientsController.fetchClients(),
         usersController.fetchUserRoles(userId),
       ]);
-      roleAssignments.value = usersController.userRoles.value.map(
+      usersController.setRoleAssignments(usersController.userRoles.value.map(
         (r: { id: number; name: string; slug: string }) => ({
           role_id: r.id,
           name: r.name,
           slug: r.slug,
         })
-      );
+      ));
       showRolesModal.value = true;
-    } catch (error) {
-      console.error('Error loading roles data:', error);
+    } catch {
+      showError({ message: 'Error al cargar datos de roles' });
     }
   };
 
@@ -520,7 +552,7 @@
     );
 
     if (validAssignments.length === 0) {
-      console.error('Debe seleccionar al menos un rol');
+      showError({ message: 'Debe seleccionar al menos un rol' });
       return;
     }
 
@@ -535,22 +567,16 @@
         assignments: rolesToSave,
       });
       showRolesModal.value = false;
-    } catch (error) {
-      console.error('Error saving roles:', error);
+      showSuccess({ message: 'Roles guardados correctamente' });
+    } catch {
+      showError({ message: 'Error al guardar roles' });
     } finally {
       savingRoles.value = false;
     }
   };
-  // end functions
 </script>
 
 <style scoped>
-  .page-container {
-    padding: var(--dashboard-padding);
-    max-width: 900px;
-    margin: 0 auto;
-  }
-
   .loading-container {
     display: flex;
     flex-direction: column;
@@ -566,21 +592,42 @@
   }
 
   .header-card {
-    background: var(--background-contrast);
     border-radius: var(--card-border-radius);
-    box-shadow: var(--card-shadow-light) 0px 1px 3px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
     margin-bottom: 16px;
     overflow: hidden;
+    position: relative;
   }
 
-  .user-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px;
-    background: var(--ion-color-primary);
-    color: white;
+  .header-bg-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
   }
+
+  .hc-1 {
+    width: 200px;
+    height: 200px;
+    top: -60px;
+    right: -40px;
+  }
+
+  .hc-2 {
+    width: 120px;
+    height: 120px;
+    bottom: -30px;
+    left: -20px;
+  }
+
+.user-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  background: var(--gradient-primary);
+  color: white;
+  position: relative;
+  z-index: 1;
+}
 
   .large-avatar {
     width: 80px;
@@ -592,8 +639,8 @@
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background: var(--background-contrast);
-    color: var(--ion-color-primary);
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -603,13 +650,14 @@
 
   .user-name {
     margin: 0;
-    font-size: 24px;
-    font-weight: 600;
+    font-size: 22px;
+    font-weight: 700;
+    color: white;
   }
 
   .user-username {
     margin: 4px 0 8px 0;
-    opacity: 0.9;
+    opacity: 0.85;
     font-size: 14px;
   }
 
@@ -622,22 +670,24 @@
     padding: 0 0 16px 0;
   }
 
-  .info-card,
-  .roles-card,
-  .sessions-card {
-    background: var(--background-contrast);
-    border-radius: var(--card-border-radius);
-    box-shadow: var(--card-shadow-light) 0px 1px 3px 0px, var(--card-shadow-heavy) 0px 0px 0px 1px;
-    padding: 16px;
-    height: 100%;
-  }
+.info-card,
+.roles-card,
+.sessions-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--card-border-radius);
+  padding: 16px;
+  height: 100%;
+}
 
   .section-title {
     margin: 0 0 16px 0;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.8px;
     color: var(--text-tertiary);
   }
 
@@ -652,24 +702,33 @@
     margin: 0;
   }
 
-  .info-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--ion-background-color-step-200);
-  }
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--glass-border);
+}
 
-  .info-item:last-child {
-    border-bottom: none;
-  }
+.info-item:last-child {
+  border-bottom: none;
+}
 
-  .info-item .label {
-    font-weight: 500;
-    color: var(--text-secondary);
+  .info-icon {
+    font-size: 18px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
   }
 
   .info-item .value {
     color: var(--text-primary);
+    font-size: 14px;
+  }
+
+  .roles-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .empty-state {
@@ -703,16 +762,21 @@
     padding: 0;
   }
 
-  .detail-list ion-item {
-    --padding-start: 16px;
-    --padding-end: 16px;
-    --background: transparent;
-    border-bottom: 1px solid var(--ion-background-color-step-200);
-  }
+.detail-list ion-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --background: transparent;
+  border-bottom: 1px solid var(--glass-border);
+  transition: background 0.2s ease;
+}
 
-  .detail-list ion-item:last-child {
-    border-bottom: none;
-  }
+.detail-list ion-item:hover {
+  --background: var(--glass-bg-hover);
+}
+
+.detail-list ion-item:last-child {
+  border-bottom: none;
+}
 
   .item-title {
     color: var(--text-primary);
@@ -748,14 +812,40 @@
   }
 
   @media (min-width: 768px) {
-    .page-container {
-      padding: var(--dashboard-padding-lg);
+    .info-card,
+    .roles-card,
+    .sessions-card {
+      padding: 24px;
+    }
+  }
+
+  @media (max-width: 374px) {
+    .user-header {
+      padding: 16px;
+    }
+
+    .user-name {
+      font-size: 20px;
+    }
+
+    .user-username {
+      font-size: 13px;
+    }
+
+    .large-avatar {
+      width: 64px;
+      height: 64px;
+    }
+
+    .info-item {
+      padding: 8px 0;
+      gap: 8px;
     }
 
     .info-card,
     .roles-card,
     .sessions-card {
-      padding: 24px;
+      padding: 12px;
     }
   }
 </style>

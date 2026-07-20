@@ -3,213 +3,146 @@
     <ion-header class="ion-no-border dashboard-header" mode="ios">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Menú de navegación"></ion-menu-button>
         </ion-buttons>
         <ion-title>Dashboard SSO</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <!-- content -->
+      <ion-progress-bar v-if="loading" type="indeterminate"></ion-progress-bar>
 
-      <div class="dashboard-container">
-        <section>
-          <ion-grid>
-            <ion-row>
-              <ion-col>
-                <ion-card color="primary">
-                  <ion-card-header>
-                    <div style="display: flex; justify-content: space-between">
-                      <div>
-                        <ion-card-title
-                          style="font-size: 24px; font-weight: 700"
-                          >Bienvenido de nuevo</ion-card-title
-                        >
-                        <ion-card-subtitle>{{
-                          formattedDate
-                        }}</ion-card-subtitle>
-                      </div>
+      <div v-if="!loading" class="dashboard-container" role="region" aria-label="Panel de control">
+        <div class="welcome-section">
+          <h1 class="welcome-greeting">Bienvenido, <span>{{ currentUserName }}</span></h1>
+          <p class="welcome-subtitle">Resumen del estado actual de tu servidor SSO</p>
+        </div>
 
-                      <div>
-                        <div class="welcome-icon">
-                          <ion-icon :icon="shield"></ion-icon>
-                        </div>
-                      </div>
+        <ion-grid class="stats-grid">
+          <ion-row>
+            <ion-col size="6" size-md="3">
+              <div class="stat-card">
+                <span class="stat-label">Usuarios</span>
+                <span class="stat-value stat-value-primary">{{ stats.totalUsers }}</span>
+              </div>
+            </ion-col>
+            <ion-col size="6" size-md="3">
+              <div class="stat-card">
+                <span class="stat-label">Sesiones Activas</span>
+                <span class="stat-value stat-value-success">{{ stats.activeSessions }}</span>
+              </div>
+            </ion-col>
+            <ion-col size="6" size-md="3">
+              <div class="stat-card">
+                <span class="stat-label">Clientes SSO</span>
+                <span class="stat-value stat-value-secondary">{{ stats.totalClients }}</span>
+              </div>
+            </ion-col>
+            <ion-col size="6" size-md="3">
+              <div class="stat-card">
+                <span class="stat-label">Roles</span>
+                <span class="stat-value stat-value-warning">{{ totalRoles }}</span>
+              </div>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
+
+        <ion-grid class="dashboard-grid">
+          <ion-row>
+            <ion-col size="12" size-md="6">
+              <div class="col-stack">
+                <div class="card">
+                  <div class="card-header">
+                    <span class="card-title">Últimas Sesiones</span>
+                    <button class="card-link" aria-label="Ver todas las sesiones" @click="router.push({ name: 'AdminSessions' })">Ver todas →</button>
+                  </div>
+                  <div v-if="recentSessions.length === 0" class="card-empty">No hay sesiones activas</div>
+                  <div v-for="session in recentSessions" v-else :key="session.id" class="session-row">
+                    <div class="session-avatar">{{ getInitials({ name: session.user?.name || '?' }) }}</div>
+                    <div class="session-info">
+                      <div class="session-user">{{ session.user?.name || 'Desconocido' }}</div>
+                      <div class="session-client">{{ session.client?.name || 'Cliente desconocido' }}</div>
                     </div>
-                  </ion-card-header>
-                </ion-card>
-              </ion-col>
-            </ion-row>
-          </ion-grid>
-        </section>
-
-        <section>
-          <ion-list>
-            <ion-list-header>
-              <ion-label> Resumen del Sistema </ion-label>
-            </ion-list-header>
-
-            <ion-grid>
-              <ion-row>
-                <ion-col size="12" size-sm="6" size-lg="4">
-                  <ion-card class="shadow1">
-                    <div class="stat-card-gradient ion-padding">
-                      <div>
-                        <ion-icon
-                          class="stat-card-icon"
-                          color="light"
-                          :icon="people"
-                        ></ion-icon>
-                      </div>
+                    <div class="session-meta">
+                      <span class="session-badge" :class="session.token_active ? 'badge-active' : 'badge-inactive'">
+                        {{ session.token_active ? 'Activa' : 'Inactiva' }}
+                      </span>
+                      <span class="session-time">{{ timeAgo({ date: session.last_used_at }) }}</span>
                     </div>
+                  </div>
+                </div>
 
-                    <ion-item
-                      button
-                      detail="true"
-                      lines="none"
-                      class="transparent"
-                      @click="router.push({ name: 'AdminUsers' })"
-                    >
-                      <ion-label>
-                        <span class="stat-value">{{
-                          isLoading ? '...' : stats.totalUsers
-                        }}</span>
-
-                        <p>Usuarios</p>
-                      </ion-label>
-                    </ion-item>
-                  </ion-card>
-                </ion-col>
-
-                <ion-col size="12" size-sm="6" size-lg="4">
-                  <ion-card class="shadow1">
-                    <div class="stat-card-gradient ion-padding">
-                      <div>
-                        <ion-icon
-                          class="stat-card-icon"
-                          color="light"
-                          :icon="key"
-                        ></ion-icon>
-                      </div>
+                <div class="card">
+                  <div class="card-header">
+                    <span class="card-title">Clientes SSO</span>
+                    <button class="card-link" aria-label="Ver todos los clientes" @click="router.push({ name: 'AdminClients' })">Ver todos →</button>
+                  </div>
+                  <div v-if="clients.length === 0" class="card-empty">No hay clientes registrados</div>
+                  <div v-for="client in clients.slice(0, 6)" v-else :key="client.id" class="client-row">
+                    <div class="client-icon-wrapper">
+                      <ion-icon :icon="desktopOutline" aria-hidden="true"></ion-icon>
                     </div>
-
-                    <ion-item
-                      button
-                      detail="true"
-                      lines="none"
-                      class="transparent"
-                      @click="router.push({ name: 'AdminSessions' })"
-                    >
-                      <ion-label>
-                        <span class="stat-value">{{
-                          isLoading ? '...' : stats.activeSessions
-                        }}</span>
-
-                        <p>Sesiones Activas</p>
-                      </ion-label>
-                    </ion-item>
-                  </ion-card>
-                </ion-col>
-
-                <ion-col size="12" size-sm="6" size-lg="4">
-                  <ion-card class="shadow1">
-                    <div class="stat-card-gradient ion-padding">
-                      <div>
-                        <ion-icon
-                          class="stat-card-icon stat-card-icon--small"
-                          color="light"
-                          :icon="desktop"
-                        ></ion-icon>
-                      </div>
+                    <div class="client-info-col">
+                      <div class="client-name">{{ client.name }}</div>
+                      <div class="client-id-text">{{ client.client_id }}</div>
                     </div>
+                    <div class="client-dot" :class="client.active ? 'dot-active' : 'dot-inactive'"></div>
+                  </div>
+                </div>
+              </div>
+            </ion-col>
 
-                    <ion-item
-                      button
-                      detail="true"
-                      lines="none"
-                      class="transparent"
-                      @click="router.push({ name: 'AdminClients' })"
-                    >
-                      <ion-label>
-                        <span class="stat-value">{{
-                          isLoading ? '...' : stats.totalClients
-                        }}</span>
+            <ion-col size="12" size-md="6">
+              <div class="col-stack">
+                <div class="card">
+                  <div class="card-header">
+                    <span class="card-title">Usuarios por Rol</span>
+                    <button class="card-link" aria-label="Ver todos los roles" @click="router.push({ name: 'AdminRoles' })">Ver roles →</button>
+                  </div>
+                  <div v-if="rolesWithCount.length === 0" class="card-empty">No hay roles configurados</div>
+                  <div v-for="(role, index) in rolesWithCount" v-else :key="role.id" class="bar-row">
+                    <span class="bar-label">{{ role.name }}</span>
+                    <div class="bar-track">
+                      <div class="bar-fill" :style="{ width: barWidth({ count: role.users_count || 0 }) }" :class="barColorClass({ index })"></div>
+                    </div>
+                    <span class="bar-count">{{ role.users_count || 0 }}</span>
+                  </div>
+                </div>
 
-                        <p>Clientes SSO</p>
-                      </ion-label>
-                    </ion-item>
-                  </ion-card>
-                </ion-col>
-              </ion-row>
-            </ion-grid>
-          </ion-list>
-        </section>
-
-        <section>
-          <ion-list>
-            <ion-list-header>
-              <ion-label>Estado del Sistema</ion-label>
-            </ion-list-header>
-
-            <ion-grid>
-              <ion-row>
-                <ion-col size="12" size-md="4">
-                  <ion-card class="shadow1">
-                    <ion-item class="transparent" lines="none">
-                      <div slot="start" class="status-indicator online"></div>
-
-                      <ion-label>
-                        Servidor API
-                        <p>Operativo</p>
-                      </ion-label>
-                    </ion-item>
-                  </ion-card>
-                </ion-col>
-
-                <ion-col size="12" size-md="4">
-                  <ion-card class="shadow1">
-                    <ion-item class="transparent" lines="none">
-                      <div slot="start" class="status-indicator online"></div>
-
-                      <ion-label>
-                        Base de Datos
-                        <p>Conectada</p>
-                      </ion-label>
-                    </ion-item>
-                  </ion-card>
-                </ion-col>
-
-                <ion-col size="12" size-md="4">
-                  <ion-card class="shadow1">
-                    <ion-item class="transparent" lines="none">
-                      <ion-label>
-                        SSO Activo
-                        <p>{{ stats.activeSessions }} sesiones</p>
-                      </ion-label>
-                    </ion-item>
-                  </ion-card>
-                </ion-col>
-              </ion-row>
-            </ion-grid>
-          </ion-list>
-        </section>
+                <div class="card">
+                  <div class="card-header">
+                    <span class="card-title">Estado del Sistema</span>
+                  </div>
+                  <div class="system-row">
+                    <div class="system-dot system-dot-online"></div>
+                    <span class="system-name">API</span>
+                    <span class="system-detail">~12ms</span>
+                    <span class="system-badge-ok">OK</span>
+                  </div>
+                  <div class="system-row">
+                    <div class="system-dot system-dot-online"></div>
+                    <span class="system-name">Base de Datos</span>
+                    <span class="system-detail">Conexión estable</span>
+                    <span class="system-badge-ok">OK</span>
+                  </div>
+                  <div class="system-row">
+                    <div class="system-dot system-dot-online"></div>
+                    <span class="system-name">Autenticación</span>
+                    <span class="system-detail">JWT RS256</span>
+                    <span class="system-badge-ok">OK</span>
+                  </div>
+                </div>
+              </div>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
       </div>
-      <!-- end content -->
-
-      <!-- modals -->
-      <!-- end modals -->
-
-      <!-- popovers -->
-      <!-- end popovers -->
-
-      <!-- alerts -->
-      <!-- end alerts -->
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-  // imports
+  // 1. Imports (ionic/vue/ionicons)
   import { ref, computed, onMounted } from 'vue';
   import { useRouter } from 'vue-router';
   import {
@@ -221,454 +154,537 @@
     IonMenuButton,
     IonContent,
     IonIcon,
+    IonProgressBar,
     IonGrid,
     IonRow,
     IonCol,
   } from '@ionic/vue';
-  import { people, key, desktop, shield } from 'ionicons/icons';
+  import { desktopOutline } from 'ionicons/icons';
 
-  // controllers
+  // 2. Controllers
   import { useUsersController } from '@/controllers/usersController';
   import { useSessionsController } from '@/controllers/sessionsController';
   import { useClientsController } from '@/controllers/clientsController';
+  import { useRolesController } from '@/controllers/rolesController';
+  import { useAuthController } from '@/controllers/authController';
+
   const usersController = useUsersController();
   const sessionsController = useSessionsController();
   const clientsController = useClientsController();
+  const rolesController = useRolesController();
+  const authController = useAuthController();
 
-  // components
-  // end components
+  // 3. Components
+  // (none)
 
-  // interface and types imports
-  // end interface and types imports
+  // 4. Interface and types imports
+  // (none)
 
-  // main
+  // 5. Main (props, emits, etc.)
   const router = useRouter();
-  // end main
 
-  // vars and const
+  // 6. Vars and const
   const loading = ref(true);
-  // end vars and const
 
-  // watch
-  // end
+  // 7. Watch
+  // (none)
 
-  // computed
-  const formattedDate = computed(() => {
-    const now = new Date();
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    };
-    return now.toLocaleDateString('es-ES', options);
-  });
-
+  // 8. Computed
   const stats = computed(() => ({
     totalUsers: usersController.pagination.value.total,
     activeSessions: sessionsController.activeCount.value,
     totalClients: clientsController.count.value,
   }));
 
-  const isLoading = computed(() => {
-    return (
-      usersController.loading.value ||
-      sessionsController.loading.value ||
-      clientsController.loading.value
-    );
-  });
-  // end computed
+  const totalRoles = computed(() => rolesController.roles.value.length);
+  const rolesWithCount = computed(() => rolesController.roles.value);
+  const recentSessions = computed(() => sessionsController.sessions.value.slice(0, 5));
+  const clients = computed(() => clientsController.clients.value);
+  const currentUserName = computed(() => authController.user.value?.name || 'Usuario');
 
-  // onmounted
+  const maxRoleCount = computed(() => {
+    const counts = rolesWithCount.value.map(r => r.users_count || 0);
+    return Math.max(...counts, 1);
+  });
+
+  // 9. OnMounted
   onMounted(async () => {
     loading.value = true;
     try {
       await Promise.all([
         usersController.fetchUsers({ per_page: 1 }),
-        sessionsController.fetchSessions({ per_page: 1, active: true }),
+        sessionsController.fetchSessions({ per_page: 5, active: true }),
         clientsController.fetchClients(),
+        rolesController.fetchRoles(),
       ]);
-    } catch (error) {
-      // Silent fail - UI will show default values
+    } catch {
+      // Silent fail
     } finally {
       loading.value = false;
     }
   });
-  // end onmounted
 
-  // functions
-  // end functions
+  // 10. Functions
+  const barWidth = (params: { count: number }): string => {
+    const { count } = params;
+    return `${(count / maxRoleCount.value) * 100}%`;
+  };
+
+  const barColors = ['fill-purple', 'fill-cyan', 'fill-green', 'fill-amber', 'fill-rose'];
+
+  const barColorClass = (params: { index: number }): string => {
+    const { index } = params;
+    return barColors[index % barColors.length];
+  };
+
+  const timeAgo = (params: { date: string }): string => {
+    const { date } = params;
+    const now = Date.now();
+    const then = new Date(date).getTime();
+    const diffMinutes = Math.floor((now - then) / 60000);
+    if (diffMinutes < 1) return 'Ahora';
+    if (diffMinutes < 60) return `${diffMinutes} min`;
+    const hours = Math.floor(diffMinutes / 60);
+    if (hours < 24) return `${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `${days}d`;
+  };
+
+  const getInitials = (params: { name: string }): string => {
+    const { name } = params;
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 </script>
 
 <style scoped>
+.dashboard-container {
+  padding: var(--dashboard-padding);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
   .dashboard-container {
-    padding: var(--dashboard-padding);
-    max-width: 1400px;
-    margin: 0 auto;
+    padding: var(--dashboard-padding-lg);
   }
+}
 
-  @media (min-width: 768px) {
-    .dashboard-container {
-      padding: var(--dashboard-padding-lg);
-    }
+.welcome-section {
+  margin-bottom: clamp(20px, 4vw, 28px);
+}
+
+.welcome-greeting {
+  font-family: var(--font-heading);
+  font-size: clamp(22px, 5vw, 26px);
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--text-primary);
+}
+
+.welcome-greeting span {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.welcome-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.stats-grid {
+  --ion-grid-column-padding: 6px;
+  margin-bottom: clamp(20px, 4vw, 28px);
+}
+
+.stat-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  padding: clamp(14px, 3vw, 20px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+}
+
+.stat-value {
+  font-size: clamp(24px, 5.5vw, 28px);
+  font-weight: 700;
+  line-height: 1;
+  font-family: var(--font-heading);
+}
+
+.stat-value-primary {
+  color: var(--ion-color-primary);
+}
+
+.stat-value-success {
+  color: var(--ion-color-success);
+}
+
+.stat-value-secondary {
+  color: var(--ion-color-secondary);
+}
+
+.stat-value-warning {
+  color: var(--ion-color-warning);
+}
+
+.dashboard-grid {
+  --ion-grid-column-padding: 6px;
+}
+
+.col-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+}
+
+.card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  padding: clamp(14px, 3vw, 20px);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-family: var(--font-heading);
+  font-size: clamp(13px, 3vw, 14px);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.card-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ion-color-primary);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.card-link:hover {
+  text-decoration: underline;
+}
+
+.card-empty {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  padding: 16px 0;
+  text-align: center;
+}
+
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.session-row:last-child {
+  border-bottom: none;
+}
+
+.session-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 12px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.session-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-user {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-client {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.session-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.badge-active {
+  background: rgba(74, 222, 128, 0.1);
+  color: var(--ion-color-success);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.badge-inactive {
+  background: rgba(100, 116, 139, 0.1);
+  color: var(--text-tertiary);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+.session-time {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.bar-label {
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 65px;
+  color: var(--text-secondary);
+}
+
+.bar-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.fill-purple {
+  background: linear-gradient(90deg, #8B5CF6, #A78BFA);
+}
+
+.fill-cyan {
+  background: linear-gradient(90deg, #06B6D4, #22D3EE);
+}
+
+.fill-green {
+  background: linear-gradient(90deg, #4ADE80, #86EFAC);
+}
+
+.fill-amber {
+  background: linear-gradient(90deg, #F59E0B, #FCD34D);
+}
+
+.fill-rose {
+  background: linear-gradient(90deg, #EF4444, #FB7185);
+}
+
+.bar-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 20px;
+  text-align: right;
+}
+
+.client-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.client-row:last-child {
+  border-bottom: none;
+}
+
+.client-icon-wrapper {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background: rgba(var(--ion-color-secondary-rgb), 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--ion-color-secondary);
+  font-size: 16px;
+}
+
+.client-info-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.client-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.client-id-text {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.client-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-active {
+  background: var(--ion-color-success);
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+}
+
+.dot-inactive {
+  background: var(--text-tertiary);
+}
+
+.system-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.system-row:last-child {
+  border-bottom: none;
+}
+
+.system-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.system-dot-online {
+  background: var(--ion-color-success);
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
+}
+
+.system-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.system-detail {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.system-badge-ok {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ion-color-success);
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-fill {
+    transition: none;
   }
+}
 
-  .section-title {
-    font-size: 14px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-tertiary);
-    margin: 0 0 16px 0;
-  }
-
-  .welcome-section {
-    background: var(--ion-color-primary);
-    border-radius: var(--card-border-radius);
-    padding: 24px;
-    margin-bottom: 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: relative;
-    overflow: hidden;
-  }
-
-  @media (min-width: 768px) {
-    .welcome-section {
-      padding: 32px;
-    }
-  }
-
-  .welcome-section::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -20%;
-    width: 200px;
-    height: 200px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 50%;
-  }
-
-  .welcome-section::after {
-    content: '';
-    position: absolute;
-    bottom: -30%;
-    left: 10%;
-    width: 100px;
-    height: 100px;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 50%;
-  }
-
-  .welcome-content {
-    position: relative;
-    z-index: 1;
-  }
-
-  .welcome-title {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--ion-text-color);
-    margin: 0 0 4px 0;
-  }
-
-  @media (min-width: 768px) {
-    .welcome-title {
-      font-size: 28px;
-    }
-  }
-
-  .welcome-date {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.85);
-    margin: 0;
-  }
-
-  .welcome-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    z-index: 1;
-  }
-
-  .welcome-icon ion-icon {
-    font-size: 28px;
-    color: white;
-  }
-
-  .stats-section {
-    margin-bottom: 24px;
-  }
-
-  .stat-card-gradient {
-    background: linear-gradient(to right, var(--ion-color-secondary), #ffffff);
-    width: 100%;
-    height: 73px;
-    overflow: hidden;
-    position: relative;
-  }
-
-  .stat-card-icon {
-    font-size: 136px;
-    position: absolute;
-    margin: 0;
-    top: -33px;
-    left: -27px;
-  }
-
-  .stat-card-icon--small {
-    font-size: 122px;
-  }
-
-  .stats-grid {
-    padding: 0;
-    --ion-grid-padding: 0;
-  }
-
-  .stats-grid ion-col {
-    padding: 0 0 12px 0;
+@media (max-width: 374px) {
+  .dashboard-container {
+    padding: 8px;
   }
 
   .stat-card {
-    background: var(--background-contrast);
-    border-radius: var(--card-border-radius);
-    padding: 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    box-shadow:
-      var(--card-shadow-light) 0px 1px 3px 0px,
-      var(--card-shadow-heavy) 0px 0px 0px 1px;
-    cursor: pointer;
-    transition:
-      transform 0.2s ease,
-      box-shadow 0.2s ease;
-    position: relative;
-    overflow: hidden;
-    height: 100%;
-  }
-
-  @media (min-width: 768px) {
-    .stat-card {
-      padding: 20px;
-      gap: 16px;
-    }
-  }
-
-  .stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .stat-card:hover {
-      transform: none;
-    }
-  }
-
-  .stat-card-accent {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    border-radius: 4px 0 0 4px;
-  }
-
-  .users-accent {
-    background: var(--ion-color-primary);
-  }
-
-  .sessions-accent {
-    background: var(--ion-color-success);
-  }
-
-  .clients-accent {
-    background: var(--ion-color-secondary);
-  }
-
-  .stat-icon-wrapper {
-    flex-shrink: 0;
-  }
-
-  .stat-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  @media (min-width: 768px) {
-    .stat-icon {
-      width: 48px;
-      height: 48px;
-    }
-  }
-
-  .stat-icon ion-icon {
-    font-size: 22px;
-    color: #fff;
-  }
-
-  .users-icon {
-    background: var(--ion-color-primary);
-  }
-
-  .sessions-icon {
-    background: var(--ion-color-success);
-  }
-
-  .clients-icon {
-    background: var(--ion-color-secondary);
-  }
-
-  .stat-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
+    padding: 14px 16px;
+    min-width: calc(50% - 6px);
   }
 
   .stat-value {
-    font-size: 26px;
-    font-weight: 700;
-    color: var(--text-primary);
-    line-height: 1.2;
+    font-size: 22px;
   }
 
-  @media (min-width: 768px) {
-    .stat-value {
-      font-size: 32px;
-    }
-  }
-
-  .stat-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    margin-top: 2px;
-  }
-
-  .stat-arrow {
-    flex-shrink: 0;
-    color: var(--text-tertiary);
-    display: flex;
-    align-items: center;
-  }
-
-  .stat-arrow ion-icon {
+  .welcome-greeting {
     font-size: 20px;
   }
 
-  .system-status-section {
-    margin-bottom: 24px;
-  }
-
-  .status-grid {
-    padding: 0;
-    --ion-grid-padding: 0;
-  }
-
-  .status-grid ion-col {
-    padding: 0 0 12px 0;
-  }
-
-  .status-card {
-    background: var(--system-status-bg);
-    border-radius: 12px;
+  .card {
     padding: 14px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    box-shadow: var(--card-shadow-subtle) 0px 0px 0px 1px;
-    height: 100%;
   }
 
-  .status-indicator {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .status-indicator.online {
-    background: var(--ion-color-success);
-    box-shadow: 0 0 8px var(--ion-color-success);
-  }
-
-  .status-indicator.offline {
-    background: var(--ion-color-danger);
-    box-shadow: 0 0 8px var(--ion-color-danger);
-  }
-
-  .status-info {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-
-  .status-label {
+  .session-user {
     font-size: 12px;
-    font-weight: 500;
-    color: var(--text-tertiary);
   }
 
-  .status-value {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
+  .bar-label {
+    font-size: 11px;
+    min-width: 55px;
   }
-
-  .quick-actions-section {
-    margin-bottom: 24px;
-  }
-
-  .quick-actions-grid {
-    padding: 0;
-    --ion-grid-padding: 0;
-  }
-
-  .quick-actions-grid ion-col {
-    padding: 0 0 12px 0;
-  }
-
-  .action-btn {
-    --border-radius: 12px;
-    --padding-start: 16px;
-    --padding-end: 16px;
-    height: 48px;
-    font-size: 13px;
-    font-weight: 500;
-    text-transform: none;
-    --background: var(--ion-color-primary);
-    --color: white;
-    margin: 0;
-    width: 100%;
-  }
-
-  .action-btn.secondary {
-    --background: var(--ion-color-light);
-    --color: var(--ion-color-dark);
-  }
-
-  .action-btn ion-icon {
-    font-size: 18px;
-    margin-right: 8px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .stat-card,
-    .action-btn {
-      transition: none;
-    }
-  }
+}
 </style>

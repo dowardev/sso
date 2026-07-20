@@ -1,11 +1,340 @@
 # Changelog
 
+<!-- markdownlint-disable MD013 MD024 -->
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.1] - 2026-06-28
+
+### Fixed
+
+- Fixed `.gitignore` to allow root `pnpm-lock.yaml` for pnpm workspaces
+- Fixed `package.json` scripts to use `pnpm --filter` for front workspace
+- Fixed `DEPLOY.md` documentation: Laravel 11→12, npm→pnpm, GPL→MIT
+- Fixed `README.md` database instructions (SQLite→MySQL) and env vars table
+- Fixed `back/.env.example` with all required JWT and cache variables
+- Fixed markdown lint issues in `CHANGELOG.md`
+
+## [0.28.0] - 2026-06-28
+
+### Added
+
+- **Security hardening**: DPoP nonce support with automatic cleanup, device fingerprint tracking for sessions, login attempt throttling with atomic locking, and CSP Report-Only mode with report endpoint
+- **Health monitoring panel**: Real-time dashboard showing system metrics, pending cleanups, CSP reports, and active sessions
+- **JWKS endpoint**: Public JSON Web Key Set with 24-hour caching for external JWT verification
+- **Password policy enforcement**: Minimum 10 characters with uppercase, lowercase, number, and special character requirements
+- **Setup token validation**: Optional `APP_SETUP_TOKEN` environment variable to secure the setup flow
+- **Console commands**: `dpop:cleanup` and `refresh-tokens:cleanup` for scheduled maintenance
+- **Database migrations**: Missing performance indexes on OAuth and sessions tables, plain_token to SHA256 token_hash migration
+- **XSRF-TOKEN support**: API service now handles XSRF cookie-based CSRF protection
+
+### Changed
+
+- **Design standardization**: Unified glassmorphism design system applied across all admin views, auth pages, user profile, and client forms (LBDS-97)
+- **Performance optimizations**:
+  - Fixed N+1 query in `UserService::getUserRoles()` by replacing `SsoClient::find` loop with batch `whereIn`
+  - Pagination for `getUserSessions()` and `userAuthorizations()` endpoints
+  - `revokeAllUserSessions()` uses `lazy()` cursor instead of `get()` to reduce memory
+  - HealthController queries cached 60s via `Cache::remember`
+  - Frontend: Request deduplication for concurrent identical GET requests
+  - Frontend: Lazy-loaded HomePage via dynamic import
+  - Frontend: Redundant watchers replaced with computed properties in ActivityLog, AuthorizationsList, ProfileForm
+  - Frontend: Theme store initialization made lazy (no side effects on module import)
+  - Frontend: `isUnmounted` guard in ProfilePage to prevent state updates after unmount
+- **CORS caching**: Event-based invalidation on SsoClient updates with 30s cache TTL
+- **Token security**: Plain token column migrated to SHA256 hash
+
+### Fixed
+
+- Infinite 401 loop on logout when session was already revoked
+- Dependency tracking in frontend watchers causing unnecessary re-renders
+
+## [0.27.0] - 2026-06-25
+
+### Added
+
+- **Responsive container utility classes**: `.container-sm`, `.container-md`, `.container-lg` for consistent max-width page layouts
+- **Focus-visible system**: Global `:focus-visible` outline with primary color, `::selection` styling, and touch target minimum size (44x44)
+- **Fluid typography scale**: `clamp()`-based text utilities (`text-fluid-xs` through `text-fluid-xl`) for responsive font sizing
+- **Responsive visibility utilities**: `.hide-xs` / `.show-xs` for mobile-specific content control
+- **Skeleton shimmer animation**: Reusable `.skeleton-shimmer` class with `prefers-reduced-motion` support
+- **Skeleton card/list item components**: Updated with shimmer animation for loading states
+- **AuthCard component**: Reusable authentication card with blob background animations, replacing duplicated inline auth screen markup across 4 pages
+- **Focus trap composable** (`useFocusTrap`): Keyboard accessibility for modals and popovers
+
+### Changed
+
+- **Design token system**: Implemented comprehensive CSS custom property architecture — spacing scale (`--space-1` through `--space-16`), radius scale (`--radius-sm`/`--radius-md`/`--radius-lg`/`--radius-full`), elevation tokens (`--elevation-1` through `--elevation-4`), and typography scale (`--text-xs` through `--text-3xl`)
+- **Border radius standardization**: All UI elements (buttons, modals, cards, inputs) now use consistent 4px radius (`--border-radius: 4px`) replacing previous 10–20px values
+- **Ionic-first layout migration**: Dashboard, admin pages, and auth pages migrated from custom flexbox to `ion-grid`/`ion-row`/`ion-col` responsive grid system
+- **Vue component structure normalization**: All components reordered to follow the numbered section convention (1–10 per AGENTS.md — Imports, Controllers/Composables, Components, Types, Props/Emits, Vars, Watch, Computed, OnMounted, Functions)
+- **Named parameters pattern**: `handleOAuthResponse` and other functions refactored from positional to single-params object pattern
+- **Dark/light theme refinement**: Increased contrast on glass morphism values, updated card shadows away from purple tint, elevated text contrast ratios (`--text-secondary` from 0.55 to 0.70, `--text-tertiary` from 0.35 to 0.65), tertiary color changed from purple to amber (`#FBBF24`)
+- **Desktop layout enhancement**: Added `col-stack` pattern for card grouping, consistent responsive column sizing across admin views
+- **Accessibility improvements**: Added `aria-label`, `aria-describedby`, `aria-hidden="true"` on decorative icons, `autocomplete` attributes on form fields, `role="alert"` on error messages, `prefers-reduced-motion` support on all CSS animations
+- **Removed gradient button hover effects**: Removed `translateY` and `box-shadow` transitions from `.gradient-btn` for cleaner interaction design
+- **AuthLoginForm**: Refactored to use `AuthCard` component — removed 200+ lines of inline auth screen CSS in favor of shared component
+- **OAuthAuthorizationPage**: Simplified template, improved accessibility, and used `AuthCard` component
+- **UserProfileWidget removed**: Replaced by `ProfilePage.vue` with standardized structure and `AccountPage` integration
+- **Registration pages (Public & Admin)**: Refactored to use `AuthCard`, normalized component structure, removed duplicate auth screen CSS
+- **SetupPage**: Standardized with numbered component structure
+
+### Fixed
+
+- **Color scheme contrast**: Improved text readability across light and dark themes with higher contrast ratios
+- **Nested HTML issues**: Resolved invalid HTML nesting in responsive segment components
+- **ESLint violations**: Fixed all lint errors after component structure normalization
+
+## [0.26.0] - 2026-06-21
+
+### Added
+
+- **Refresh token rotation system**: New `UserRefreshToken` model with SHA256 hashed tokens, `rotated_from_id` chain tracking, and revocation support
+- **Token theft detection**: Automatic revocation of entire token chain when a rotated refresh token is reused (rotation-based theft protection)
+- **Inactivity timeout**: 7-day inactivity limit for refresh tokens (configurable via `JWT_REFRESH_INACTIVITY`)
+- **HttpOnly cookie-based refresh tokens**: Secure, HttpOnly, SameSite=Lax cookies for refresh token storage (no localStorage exposure)
+- **Automatic token cleanup**: New `tokens:cleanup` Artisan command scheduled daily to prune expired and revoked tokens
+- **401 interceptor with auto-refresh**: Frontend `api.ts` now intercepts 401 responses and attempts cookie-based token refresh before logging out
+
+### Changed
+
+- **Auth service**: Replaced `generateAuthToken()` with `generateTokens()` supporting refresh token generation when `remember_me` is enabled
+- **Auth store**: Removed `startAutoRefresh()`, `stopAutoRefresh()`, and interval-based token refresh — refresh is now handled on-demand by the API interceptor
+- **JWT configuration**: Extended `refresh_expiration` default from 1 day to 30 days; added `refresh_inactivity` (7 days)
+- **Login flow**: Sets `refresh_token` cookie when `remember_me` is enabled
+- **Logout flow**: Revokes refresh token in database and clears the cookie
+- **Frontend components**: Updated prop bindings to kebab-case convention across user profile and admin views
+
+### Fixed
+
+- **Token refresh endpoint**: Now reads refresh token from HttpOnly cookie via `RefreshToken` middleware instead of insecure request body
+
+### Removed
+
+- **Auto-refresh timer**: Removed interval-based token refresh from auth store (`AUTO_REFRESH_INTERVAL`, `REFRESH_THRESHOLD`)
+- **Deprecated auth store methods**: `refreshTokenAsync()`, `isTokenNearExpiry()`, `startAutoRefresh()`, `stopAutoRefresh()`
+
+## [0.25.0] - 2026-06-20
+
+### Added
+
+- **User self-management panel** (`/account` route): profile editing, password change, active sessions with device/location details (ua-parser-js), activity log, and OAuth authorizations list
+- **Account deletion**: hard delete endpoint requiring password + "ELIMINAR" confirmation; revokes all tokens, sessions, OAuth authorizations, and activity logs before deleting user
+- **Admin users filtering**: filter users by associated OAuth client with visual badge indicator on Users page
+- **Role-based account page**: `/account` route replaces `/user/profile/limited`; sidebar hides admin navigation for non-admin users
+- **OAuth authorization consent screen** with 3-state tracking (authorized/denied/revoked):
+  - New `oauth_client_authorizations` table
+  - Explicit consent page showing name, email, username only
+  - Endpoints: approve, deny, revoke authorizations
+  - Admin views: user authorizations list (UserDetailPage) and client authorizations list (ClientDetailPage)
+  - Auth flow checks authorization state before proceeding with OAuth flow
+- **New admin endpoints**: `GET /admin/users/authorizations` and `GET /admin/clients/authorizations`
+- **Router updates**: added `/admin/clients/:id` route; ClientsPage navigates to ClientDetailPage on click
+
+### Changed
+
+- **Auth store**: `restoreAuth` is now synchronous; `refreshTokenAsync` for async token refresh
+- **Router guards**: added `/me` safety net, admin route protection, proper returns
+- **UsersPage**: uses `onIonViewWillEnter` for data refresh; SSO client filter badge
+- **Template guides**: `TemplatePage.vue` and `TemplateComponent.vue` replace deprecated `TemplateView.vue`
+
+### Fixed
+
+- **api.delete()**: now supports request body (required for account deletion endpoint)
+- **TypeScript errors**: resolved pre-existing issues in `themeController`, `UserDetailPage`, `UserProfileWidget`
+
+## [0.24.0] - 2026-06-13
+
+### Fixed
+
+- Added missing show endpoints for SSO clients and roles
+- Fixed toggle v-model binding in ClientsPage and AuthLoginForm components
+- Resolved token column conflict by renaming to plain_token and updating related code
+- Fixed UpdateSsoClientRequest client_id unique validation to use correct model ID
+- Fixed toggleAdmin to properly send action parameter and return correct is_admin state
+- Fixed UserSessionResource token_active validation to use whenLoaded properly
+
+## [0.23.0] - 2026-06-12
+
+### Added
+
+- `useFormValidation` composable wrapping Vuelidate with `validate()`, `touchAll()`, `reset()` API
+- `validators` object in `useValidation.ts` with 9 reusable Spanish-localized validators: `required`, `email`, `minLength`, `maxLength`, `url`, `sameAs`, `alphaNum`, `passwordComplex`, `hostOrIp`
+- Client-side form validation on SSO Clients create/edit modal (name, client_id, client_secret, redirect_url, grant_types)
+- Client-side form validation on Roles create/edit modal (name, slug, description)
+- Client-side form validation on Users edit modal (name, user, email, password)
+- Client-side form validation on SSL Exclusions modal (host/IP)
+- `.field-error` visual error indicators with red dot prefix on all validated forms
+- `aria-invalid` based input border highlighting (red for error, green for success)
+- Validation stylesheet (`validation.css`) with input border color feedback
+- Unit tests for `useFormValidation` — 22 tests covering all validators and edge cases
+
+### Changed
+
+- SecurityPage: replaced basic `alertController` prompt with validated `ion-modal` for SSL exclusion input
+- Generic `catch` error handlers replaced with `handleApiError(err)` for consistent server error display across all admin forms
+- Native HTML `required` attribute replaced with Vuelidate-based validation via `@ion-blur`
+
+### Fixed
+
+- `hostOrIp` validator now correctly rejects IP addresses with out-of-range octets (>255) using a custom function validator
+- Validation CSS used non-functional Angular `ng-invalid`/`ng-touched` classes — replaced with `[aria-invalid]` attribute selectors
+
+## [0.22.0] - 2026-06-11
+
+### Added
+
+- **SSL Security Panel** at `/admin/config/security` with toggle to require HTTPS on OAuth2 redirect URIs
+- **Configurable exclusion list** for non-HTTPS redirect URIs (localhost excluded by default)
+- **Persistent key-value settings system** via database (`settings` table, Setting model, SettingService, SettingController)
+- **SSL validation on OAuth2 client create/update** (store/update request forms)
+- **SSL validation in OAuth2 authorization flow** (rejects non-HTTPS redirect URIs when SSL toggle is active)
+- **SSL warning indicators** in ClientsPage — warning icon on client rows and contextual note in the modal form
+- **Security frontend stack**: `securityStore`, `securityController`, `Setting` type, route, and ConfigPage integration
+
+### Fixed
+
+- Missing `IonNote` import in ClientsPage causing runtime rendering failure for SSL form note
+- Hyphenated event name in SecurityPage (`@ionChange` -> `@ion-change`) to comply with ESLint rules
+
 ---
+
+## [0.21.1] - 2026-06-11
+
+### Fixed
+
+- Sidebar no longer appears on auth pages (login, register, setup)
+- Route redirect now awaits completion after login, preventing a flash of unauthenticated state
+
+### Changed
+
+- Sidebar visibility computed uses route `meta.requiresAuth` instead of hardcoded path strings
+
+---
+
+## [0.21.0] - 2026-06-10
+
+### Added
+
+- First-run setup flow: new `SetupPage.vue` guides the first admin through initial registration
+- `GET /api/setup/status` (public) endpoint to check if any users exist
+- `POST /api/setup/admin` (public) endpoint to create the first admin user
+- `EnsureSetupNotCompleted` middleware to block setup POST when users already exist
+- Router guard that caches setup status in localStorage and redirects to `/setup` on first run
+- `setupController.ts` with `checkSetupStatus` and `createFirstAdmin` functions
+
+### Affected Files
+
+- Added: `back/app/Http/Controllers/SetupController.php`, `back/app/Http/Middleware/EnsureSetupNotCompleted.php`, `back/app/Http/Requests/SetupAdminRequest.php`, `front/src/controllers/setupController.ts`, `front/src/views/SetupPage.vue`
+- Modified: `back/bootstrap/app.php`, `back/routes/api.php`, `front/src/router/index.ts`
+
+---
+
+## [0.20.0] - 2026-06-10
+
+### Added
+
+- Service layer classes for all business logic: `AuthService`, `JwtService`, `OAuth2Service`, `RoleService`, `SessionService`, `SsoClientService`, `UserService`, `UserSessionService`
+- Dedicated controllers replacing monolithic `AdminController`: `SsoClientController`, `UserController`, `UserSessionController`
+- API Resource transformers for consistent JSON responses (`RoleResource`, `SsoClientResource`, `UserDetailResource`, `UserResource`, `UserRoleResource`, `UserSessionResource`)
+- FormRequest validation classes for all endpoints (`AuthorizeRequest`, `LoginRequest`, `RefreshTokenRequest`, `RegisterRequest`, `StoreRoleRequest`, `StoreSsoClientRequest`, `StoreUserRequest`, `TokenRequest`, `UpdateRoleRequest`, `UpdateSsoClientRequest`, `UpdateUserRequest`)
+- Pinia theme store (`stores/theme.ts`) as single source of truth for theme state
+- Vuelidate validation composable (`useValidation.ts`) with Spanish messages for frontend forms
+- Form validation on 6 components: AuthLoginForm, RegisterPage, PublicRegisterPage, UserDetailPage, RolesPage, ClientsPage
+
+### Changed
+
+- Refactored `AdminController` into single-responsibility controllers (`UserController`, `UserSessionController`, `SsoClientController`, `RoleController`)
+- Extracted business logic from controllers into dedicated service layer
+- Moved request validation from inline code into FormRequest classes with centralized validation rules
+- Updated `AuthController`, `OAuth2Controller`, and `RoleController` to use services and Form Requests
+- Moved theme management from `services/theme.ts` to `stores/theme.ts` (Pinia store)
+
+### Fixed
+
+- Fix 65+ ESLint errors across 13 frontend files (unused imports, kebab-case event names, caught error naming, attribute ordering)
+- Fix 2 TypeScript errors (readonly mutation on services import, missing `useRouter` export)
+- Enforce PKCE as mandatory in OAuth2 authorization code flow — authorization codes without `code_challenge` are now rejected
+- Use authenticated user identity (`$request->user()->id`) instead of user-supplied `sso_user_id` for self-delete and self-revoke protection
+
+### Infrastructure
+
+- Add `node_modules`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` to `.gitignore` files
+
+### Removed
+
+- `AdminController` (replaced by dedicated controllers)
+- `ApiUsersController` (replaced by `UserController::apiIndex`)
+- `front/src/services/auth.ts` (deprecated store proxy, superseded by Pinia stores)
+
+### Affected Files
+
+- Added: 8 Services, 11 FormRequests, 6 Resources, 3 Controllers, `front/src/stores/theme.ts`, `front/src/composables/useValidation.ts`
+- Modified: Backend controllers, routes, frontend controllers, views, services
+- Modified: `.gitignore`, `front/.gitignore`
+- Deleted: `back/app/Http/Controllers/AdminController.php`, `ApiUsersController.php`, `front/src/services/auth.ts`
+
+---
+
+## [0.19.0] - 2026-06-08
+
+### Features
+
+- Add "Remember Me" toggle to login form for persistent session across browser closes
+- Add `remember_me` column to `user_sessions` table with migration
+- Add `remember_me` claim to JWT tokens for server-side session awareness
+- Add automatic token refresh mechanism (50 min interval) when Remember Me is enabled
+- Add token refresh on app init if existing token is near expiry (within 10 min threshold)
+- Add delete confirmation dialog (`ion-alert`) before removing an SSO client in the admin panel
+- Add inline delete button (trash icon) next to client status badge for quick access
+
+### Refactor
+
+- Refactor `registerSession` and `generateToken` to accept `rememberMe` parameter
+- Refactor `refreshToken` to propagate `dpop_public_key` and `remember_me` from existing session
+- Split `deleteClient` into `confirmDelete` + `deleteClient` two-step flow with alert state management
+
+### Infrastructure
+
+- Add `.gitignore` entries for planning, skills, and superpowers directories
+
+### Affected Files
+
+- Modified: `back/app/Http/Controllers/AuthController.php`
+- Modified: `back/app/Models/UserSession.php`
+- New: `back/database/migrations/2026_06_07_000001_add_remember_me_to_user_sessions.php`
+- Modified: `front/src/components/AuthLoginForm.vue`
+- Modified: `front/src/controllers/authController.ts`
+- Modified: `front/src/stores/auth.ts`
+- Modified: `front/src/views/admin/ClientsPage.vue`
+
+---
+
+## [0.18.0] - 2026-05-23
+
+### Features
+
+- Add OAuth2 `client_credentials` grant type support with `grant_types` column for SsoClient
+- Add `ClientCredentialsAuth` middleware to protect machine-to-machine API routes
+- Add `ApiUsersController` with searchable, paginated user listing endpoint (`GET /api/users`)
+- Add client secret generator and copy-to-clipboard in admin clients page
+- Add password visibility toggle for client secret input field
+- Add `grant_types` toggle UI (`authorization_code`/`client_credentials`) in client create/edit form
+
+### Refactor
+
+- Refactor `OAuth2Controller::token()` to support multiple grant types (`authorization_code`, `client_credentials`)
+- Refactor `JwtAuth` middleware to handle `client_credentials` tokens without user resolution
+
+### Infrastructure
+
+- Migrate frontend linter from ESLint 8 to ESLint 9 (flat config)
+- Replace `@vue/eslint-config-typescript` and `@vue/eslint-config-prettier` with `typescript-eslint` + `eslint-plugin-oxlint`
+- Add `oxlint` and `oxfmt` for Rust-based linting and formatting
+- Remove `prettier` and related ESLint plugins and configs
 
 ## [0.17.3] - 2026-05-18
 

@@ -69,14 +69,24 @@ class JwtAuth
                 $request->merge(['dpop_verified' => true]);
             }
 
-            $userId = $parsedToken->claims()->get('sub');
-            $request->merge(['sso_user_id' => $userId]);
+            $grantType = $parsedToken->claims()->get('grant_type');
 
-            $user = \App\Models\User::find($userId);
-            if ($user) {
-                $request->setUserResolver(function () use ($user) {
-                    return $user;
-                });
+            if ($grantType === 'client_credentials') {
+                $clientId = $parsedToken->claims()->get('client_id');
+                $request->merge([
+                    'sso_client_id' => $clientId,
+                    'sso_grant_type' => 'client_credentials',
+                ]);
+            } else {
+                $userId = $parsedToken->claims()->get('sub');
+                $request->merge(['sso_user_id' => $userId]);
+
+                $user = \App\Models\User::find($userId);
+                if ($user) {
+                    $request->setUserResolver(function () use ($user) {
+                        return $user;
+                    });
+                }
             }
 
         } catch (\Exception $e) {

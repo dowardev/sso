@@ -13,12 +13,14 @@ class UserSession extends Model
         'ip_address',
         'user_agent',
         'last_used_at',
-        'token',
+        'token_hash',
         'dpop_public_key',
+        'remember_me',
     ];
 
     protected $casts = [
         'last_used_at' => 'datetime',
+        'remember_me' => 'boolean',
     ];
 
     public function user()

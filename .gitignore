@@ -1,0 +1,25 @@
+.opencode/
+.planning/*
+docs/superpowers/*
+.superpowers/*
+/node_modules
+backend.pid
+front/src/guides/
+back/guides/
+
+# Environment files (secrets - never commit)
+.env
+.env.*
+!.env.*.example
+
+# Development artifacts
+.playwright-cli/
+cookie_jar.txt
+front/.eslintcache
+
+# Build outputs and vendor
+packages/*/dist/
+packages/*/node_modules/
+packages/*/vendor/
+sso-demo/node_modules/
+.phpunit.result.cache

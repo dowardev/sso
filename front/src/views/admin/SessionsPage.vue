@@ -3,34 +3,37 @@
     <ion-header class="ion-no-border" mode="ios">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Menú de navegación"></ion-menu-button>
         </ion-buttons>
         <ion-title>Sesiones</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <ion-refresher slot="fixed" @ion-refresh="handleRefresh({ event: $event })">
+        <ion-refresher-content pulling-text="Tira para actualizar..." refreshing-text="Actualizando..."></ion-refresher-content>
+      </ion-refresher>
       <div class="page-container">
         <div class="filter-card">
           <ion-item lines="none">
             <ion-label>Solo activas</ion-label>
             <ion-toggle
               v-model="onlyActive"
-              @ion-change="handleFilterChange"
+              aria-label="Filtrar solo sesiones activas"
+              @ion-change="handleFilterChange({})"
             ></ion-toggle>
           </ion-item>
         </div>
 
-        <div class="sessions-card">
+        <div class="card-list">
           <div
             v-if="loading && sessions.length === 0"
-            class="loading-container"
+            class="skeleton-container"
           >
-            <ion-spinner name="lines"></ion-spinner>
-            <p>Cargando sesiones...</p>
+            <SkeletonListItem v-for="n in 5" :key="n" />
           </div>
 
-          <div v-else-if="sessions.length === 0" class="empty-container">
+          <div v-else-if="sessions.length === 0" class="empty-state">
             <ion-icon :icon="keyOutline" size="large"></ion-icon>
             <p>No se encontraron sesiones</p>
           </div>
@@ -64,6 +67,7 @@
                 <ion-button
                   fill="clear"
                   color="danger"
+                  aria-label="Revocar sesión"
                   @click="revokeSession({ session })"
                 >
                   <ion-icon slot="icon-only" :icon="trash"></ion-icon>
@@ -75,7 +79,8 @@
           <ion-infinite-scroll
             v-if="sessions.length > 0"
             :disabled="!hasMore"
-            @ion-infinite="loadMore($event)"
+            aria-label="Cargar más sesiones"
+            @ion-infinite="loadMore({ event: $event })"
           >
             <ion-infinite-scroll-content
               loading-spinner="lines"
@@ -98,216 +103,227 @@
 </template>
 
 <script setup lang="ts">
-  // imports
-  import { ref, onMounted, computed } from 'vue';
-  import {
-    IonPage,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonButtons,
-    IonMenuButton,
-    IonContent,
-    IonItem,
-    IonLabel,
-    IonIcon,
-    IonList,
-    IonBadge,
-    IonButton,
-    IonSpinner,
-    IonInfiniteScroll,
-    IonInfiniteScrollContent,
-    IonToggle,
-  } from '@ionic/vue';
-  import { keyOutline, desktopOutline, trash } from 'ionicons/icons';
+// 1. Imports (ionic/vue/ionicons)
+import { onMounted, computed } from 'vue'
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonMenuButton,
+  IonContent,
+  IonItem,
+  IonLabel,
+  IonIcon,
+  IonList,
+  IonBadge,
+  IonButton,
+  IonInfiniteScroll,
+  IonInfiniteScrollContent,
+  IonToggle,
+  IonRefresher,
+  IonRefresherContent,
+} from '@ionic/vue'
+import { keyOutline, desktopOutline, trash } from 'ionicons/icons'
 
-  // controllers
-  import { useSessionsController } from '@/controllers/sessionsController';
-  const sessionsController = useSessionsController();
+// 2. Controllers / Composables
+import { useSessionsController } from '@/controllers/sessionsController'
+const sessionsController = useSessionsController()
 
-  // components
-  // end components
+import { useToast } from '@/composables/useToast'
+const { showSuccess, showError } = useToast()
 
-  // interface and types imports
-  import type { UserSession } from '@/types';
-  // end interface and types imports
+// 3. Components
+import SkeletonListItem from '@/components/SkeletonListItem.vue'
 
-  // main
-  // end main
+// 4. Interface and types imports
+import type { UserSession } from '@/types'
 
-  // vars and const
-  // end vars and const
+// 5. Main (props, emits, etc.)
 
-  // watch
-  // end
+// 6. Vars and const
 
-  // computed
-  const sessions = computed(() => sessionsController.sessions.value);
-  const loading = computed(() => sessionsController.loading.value);
-  const hasMore = computed(() => sessionsController.hasMore.value);
-  const onlyActive = computed({
-    get: () => sessionsController.onlyActive.value,
-    set: (value: boolean) => sessionsController.setOnlyActive(value),
-  });
-  // end computed
+// 7. Watch
 
-  // onmounted
-  onMounted(() => {
-    sessionsController.fetchSessions({ per_page: 15 });
-  });
-  // end onmounted
+// 8. Computed
+const sessions = computed(() => sessionsController.sessions.value)
+const loading = computed(() => sessionsController.loading.value)
+const hasMore = computed(() => sessionsController.hasMore.value)
+const onlyActive = computed({
+  get: () => sessionsController.onlyActive.value,
+  set: (value: boolean) => sessionsController.setOnlyActive(value),
+})
 
-  // functions
-  const handleFilterChange = (): void => {
-    sessionsController.fetchSessions({
-      active: sessionsController.onlyActive.value,
-    });
-  };
+// 9. OnMounted
+onMounted(() => {
+  sessionsController.fetchSessions({ per_page: 15 })
+})
 
-  const loadMore = (event: unknown): void => {
-    sessionsController
-      .fetchSessions({
-        page: sessionsController.pagination.value.currentPage + 1,
-      })
-      .then(() => {
-        if (event && typeof event === 'object' && 'target' in event) {
-          (event as { target: { complete: () => void } }).target.complete();
-        }
-      });
-  };
+// 10. Functions (named parameters pattern)
+const handleFilterChange = (_params: object = {}): void => {
+  sessionsController.fetchSessions({
+    active: sessionsController.onlyActive.value,
+  })
+}
 
-  const formatDate = (params: { dateStr: string }): string => {
-    const { dateStr } = params;
-    return new Date(dateStr).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+const loadMore = async (params: { event: unknown }): Promise<void> => {
+  const { event } = params
+  await sessionsController.fetchSessions({
+    page: sessionsController.pagination.value.currentPage + 1,
+  })
+  if (event && typeof event === 'object' && 'target' in event) {
+    (event as { target: { complete: () => void } }).target.complete()
+  }
+}
 
-  const revokeSession = async (params: {
-    session: UserSession;
-  }): Promise<void> => {
-    const { session } = params;
-    try {
-      await sessionsController.revokeSession(session.id);
-    } catch (error) {
-      console.error('Error revoking session:', error);
-    }
-  };
-  // end functions
+const formatDate = (params: { dateStr: string }): string => {
+  const { dateStr } = params
+  return new Date(dateStr).toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const revokeSession = async (params: {
+  session: UserSession
+}): Promise<void> => {
+  const { session } = params
+  try {
+    await sessionsController.revokeSession(session.id)
+    showSuccess({ message: 'Sesión revocada correctamente' })
+  } catch {
+    showError({ message: 'Error al revocar sesión' })
+  }
+}
+
+const handleRefresh = async (params: { event: CustomEvent }): Promise<void> => {
+  const { event } = params
+  await sessionsController.fetchSessions({ per_page: 15 })
+  event.detail.complete()
+}
 </script>
 
 <style scoped>
+.filter-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--card-border-radius);
+  margin-bottom: 16px;
+  padding: 8px 16px;
+}
+
+.filter-card ion-item {
+  --background: transparent;
+}
+
+.skeleton-container {
+  padding: 8px 0;
+}
+
+.sessions-list {
+  background: transparent;
+}
+
+.sessions-list ion-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --background: transparent;
+  border-bottom: 1px solid var(--glass-border);
+  transition: background 0.2s ease;
+}
+
+.sessions-list ion-item:hover {
+  --background: var(--glass-bg-hover);
+}
+
+.sessions-list ion-item:last-child {
+  border-bottom: none;
+}
+
+.user-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.user-email {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.client-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.ip-address {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.session-date {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.session-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+@media (min-width: 768px) {
   .page-container {
-    padding: var(--dashboard-padding);
-    max-width: 600px;
-    margin: 0 auto;
+    padding: var(--dashboard-padding-lg);
   }
+}
 
-  .filter-card {
-    background: var(--background-contrast);
-    border-radius: var(--card-border-radius);
-    box-shadow:
-      var(--card-shadow-light) 0px 1px 3px 0px,
-      var(--card-shadow-heavy) 0px 0px 0px 1px;
-    margin-bottom: 16px;
-    padding: 8px 16px;
+@media (min-width: 1024px) {
+  .page-container {
+    max-width: 800px;
   }
+}
 
-  .filter-card ion-item {
-    --background: transparent;
-  }
-
-  .sessions-card {
-    background: var(--background-contrast);
-    border-radius: var(--card-border-radius);
-    box-shadow:
-      var(--card-shadow-light) 0px 1px 3px 0px,
-      var(--card-shadow-heavy) 0px 0px 0px 1px;
-    overflow: hidden;
-  }
-
-  .loading-container,
-  .empty-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 16px;
-    color: var(--text-tertiary);
-  }
-
-  .empty-container ion-icon {
-    margin-bottom: 12px;
-    opacity: 0.5;
-  }
-
-  .loading-container p,
-  .empty-container p {
-    margin: 0;
-    font-size: 14px;
-  }
-
-  .sessions-list {
-    background: transparent;
-  }
-
-  .sessions-list ion-item {
-    --padding-start: 16px;
-    --padding-end: 16px;
-    --background: transparent;
-    border-bottom: 1px solid var(--ion-background-color-step-200);
-  }
-
-  .sessions-list ion-item:last-child {
-    border-bottom: none;
+@media (max-width: 374px) {
+  .page-container {
+    padding: 8px;
   }
 
   .user-name {
-    color: var(--text-primary);
-    font-weight: 600;
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .user-email {
-    color: var(--text-secondary);
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .client-name {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--text-secondary);
-    font-size: 13px;
-    margin-top: 4px;
+    font-size: 12px;
   }
 
   .ip-address {
-    font-size: 12px;
-    color: var(--text-tertiary);
-    margin-top: 2px;
+    font-size: 11px;
   }
 
   .session-date {
-    font-size: 12px;
-    color: var(--text-tertiary);
-    margin-top: 2px;
+    font-size: 11px;
   }
+}
 
-  .session-end {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-  }
-
-  @media (min-width: 768px) {
-    .page-container {
-      padding: var(--dashboard-padding-lg);
-    }
-  }
+@media (max-width: 374px) {
+  .page-container { padding: var(--space-2, 8px); }
+}
 </style>

@@ -2,73 +2,54 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SsoClient;
-use App\Models\User;
-use App\Models\UserSession;
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RefreshTokenRequest;
+use App\Http\Requests\RegisterRequest;
+use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Requests\UpdatePasswordRequest;
+use App\Models\UserActivityLog;
+use App\Services\ActivityLogService;
+use App\Services\AuthService;
+use App\Services\SessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
-use Lcobucci\JWT\Configuration;
-use Lcobucci\JWT\Signer\Key\InMemory;
-use Lcobucci\JWT\Signer\Rsa\Sha256;
-use Lcobucci\JWT\Token;
-use Lcobucci\JWT\Validation\Constraint;
-use Lcobucci\JWT\Validation\Constraint\SignedWith;
-use Lcobucci\JWT\Validation\Constraint\IssuedBy;
-use Lcobucci\JWT\Validation\Constraint\LooseValidAt;
-use Lcobucci\Clock\SystemClock;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    private Configuration $jwtConfig;
-    private int $tokenExpiration;
-    private string $issuer;
+    private AuthService $authService;
+    private SessionService $sessionService;
+    private ActivityLogService $activityLogService;
 
-    public function __construct()
+    public function __construct(AuthService $authService, SessionService $sessionService, ActivityLogService $activityLogService)
     {
-        $this->jwtConfig = Configuration::forAsymmetricSigner(
-            new Sha256(),
-            InMemory::file(config('jwt.private_key_path')),
-            InMemory::file(config('jwt.public_key_path'))
-        );
-
-        $this->tokenExpiration = config('jwt.token_expiration', 3600);
-        $this->issuer = config('jwt.issuer', 'http://localhost:8001');
+        $this->authService = $authService;
+        $this->sessionService = $sessionService;
+        $this->activityLogService = $activityLogService;
     }
 
-    public function register(Request $request)
+    public function register(RegisterRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'user' => 'required|string|max:255|unique:users',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-            'client_id' => 'required|string|exists:sso_clients,client_id',
-            'dpop_public_key' => 'nullable|json',
-        ], [
-            'client_id.exists' => 'La aplicación ":value" no está registrada en el SSO. '
-                . 'Por favor, contacta al administrador del sistema.',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $user = User::create([
-            'name' => $request->name,
-            'user' => $request->user,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        $result = $this->authService->register($request->validated());
+        $user = $result['user'];
 
         $dpopPublicKey = $request->input('dpop_public_key');
-        $tokenData = $this->generateToken($user, $dpopPublicKey);
+        $tokenData = $this->authService->generateAuthToken($user, $dpopPublicKey, false);
 
-        $this->registerSession($user, $tokenData['token'], $request);
+        $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, false);
+
+        // Load roles so they're included in the JSON response
+        $user->load('roles');
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_REGISTER,
+            'Registro de cuenta',
+            ['name' => $user->name, 'email' => $user->email],
+            $request,
+        );
 
         return response()->json([
             'user' => $user,
@@ -78,28 +59,10 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function login(Request $request)
+    public function login(LoginRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'email' => 'nullable|string',
-            'user' => 'nullable|string',
-            'password' => 'required|string',
-            'client_id' => 'nullable|string|exists:sso_clients,client_id',
-            'dpop_public_key' => 'nullable|json',
-        ], [
-            'client_id.exists' => 'La aplicación ":value" no está registrada en el SSO. '
-                . 'Por favor, contacta al administrador del sistema.',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
         $loginField = $request->email ?? $request->user;
-        
+
         if (!$loginField) {
             return response()->json([
                 'message' => 'Error de validación',
@@ -107,147 +70,141 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $user = User::where('email', $loginField)
-            ->orWhere('user', $loginField)
-            ->first();
+        $user = $this->authService->login($loginField, $request->password);
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user) {
             return response()->json([
                 'message' => 'Credenciales inválidas',
             ], 401);
         }
 
+        $user->load('roles');
+
         $dpopPublicKey = $request->input('dpop_public_key');
-        $tokenData = $this->generateToken($user, $dpopPublicKey);
+        $rememberMe = $request->boolean('remember_me');
 
-        $this->registerSession($user, $tokenData['token'], $request, $dpopPublicKey);
+        $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
 
-        $response = response()->json([
+        $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
+
+        $expirationMinutes = config('jwt.token_expiration', 3600) / 60;
+        $responseData = [
             'user' => $user,
             'token' => $tokenData['token'],
             'token_type' => $tokenData['token_type'],
             'expires_in' => $tokenData['expires_in'],
-        ]);
+        ];
 
-        $response->withCookie(cookie('sso_token', $tokenData['token'], $this->tokenExpiration / 60, '/', null, false, false));
+        $response = response()->json($responseData);
+
+        if (isset($tokenData['refresh_token'])) {
+            $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
+            $minutes = $rememberMe ? $refreshExpirationDays * 1440 : 0;
+            $response->withCookie(cookie(
+                'refresh_token',
+                $tokenData['refresh_token'],
+                $minutes,
+                '/',
+                null,
+                config('session.secure', false),
+                true,
+                false,
+                'Lax'
+            ));
+        }
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_LOGIN,
+            'Inicio de sesión',
+            ['login_method' => 'password', 'remember_me' => $rememberMe],
+            $request,
+        );
 
         return $response;
     }
 
     public function refreshToken(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'token' => 'required|string',
-            'client_id' => 'nullable|string|exists:sso_clients,client_id',
-        ]);
+        $plainRefreshToken = $request->get('refresh_token_value');
 
-        if ($validator->fails()) {
+        if (!$plainRefreshToken) {
             return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $tokenString = $request->input('token');
-
-        try {
-            $token = $this->jwtConfig->parser()->parse($tokenString);
-
-            $constraints = [
-                new SignedWith($this->jwtConfig->signer(), $this->jwtConfig->verificationKey()),
-                new IssuedBy($this->issuer),
-            ];
-
-            if (!$this->jwtConfig->validator()->validate($token, ...$constraints)) {
-                return response()->json([
-                    'message' => 'Token inválido',
-                ], 401);
-            }
-
-            $userId = $token->claims()->get('sub');
-            $user = User::with('roles')->find($userId);
-
-            if (!$user) {
-                return response()->json([
-                    'message' => 'Usuario no encontrado',
-                ], 401);
-            }
-
-            $dpopPublicKey = null;
-            $cnfClaim = $token->claims()->get('cnf');
-            if ($cnfClaim && isset($cnfClaim['jkt'])) {
-                $existingSession = UserSession::where('user_id', $userId)
-                    ->where('token', $tokenString)
-                    ->first();
-                if ($existingSession && $existingSession->dpop_public_key) {
-                    $dpopPublicKey = $existingSession->dpop_public_key;
-                }
-            }
-
-            $newTokenData = $this->generateToken($user, $dpopPublicKey);
-
-            UserSession::where('user_id', $userId)
-                ->where('token', $tokenString)
-                ->update(['token' => $newTokenData['token'], 'last_used_at' => now()]);
-
-            return response()->json([
-                'token' => $newTokenData['token'],
-                'token_type' => $newTokenData['token_type'],
-                'expires_in' => $newTokenData['expires_in'],
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'user' => $user->user,
-                    'email' => $user->email,
-                    'roles' => $user->roles->map(function ($role) {
-                        return [
-                            'id' => $role->id,
-                            'name' => $role->name,
-                            'slug' => $role->slug,
-                            'description' => $role->description,
-                            'is_protected' => $role->is_protected,
-                        ];
-                    }),
-                ],
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Token inválido o expirado: ' . $e->getMessage(),
+                'message' => 'Refresh token no proporcionado',
             ], 401);
         }
+
+        $result = $this->authService->refreshAccessToken($plainRefreshToken, $request);
+
+        if (!$result) {
+            return response()->json([
+                'message' => 'Refresh token inválido, expirado o revocado',
+            ], 401)->withCookie(Cookie::forget('refresh_token', '/', null, true, true));
+        }
+
+        $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
+        $response = response()->json($result);
+
+        $minutes = ($result['remember_me'] ?? false) ? $refreshExpirationDays * 1440 : 0;
+
+        $response->withCookie(cookie(
+            'refresh_token',
+            $result['refresh_token'],
+            $minutes,
+            '/',
+            null,
+            config('session.secure', false),
+            true,
+            false,
+            'Lax'
+        ));
+
+        return $response;
     }
 
-    public function logout(Request $request)
+    public function logout(Request $request): JsonResponse
     {
         $tokenString = $request->bearerToken();
-
-        if (!$tokenString) {
-            $tokenString = $request->cookie('sso_token');
-        }
 
         if (!$tokenString) {
             return response()->json(['message' => 'Token no proporcionado'], 401);
         }
 
+        // Revoke refresh token if present
+        $refreshTokenCookie = $request->cookie('refresh_token');
+        if ($refreshTokenCookie) {
+            $this->authService->revokeRefreshToken($refreshTokenCookie);
+        }
+
         try {
-            UserSession::where('token', $tokenString)->delete();
+            $this->sessionService->revokeSessionByToken($tokenString);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al cerrar sesión: ' . $e->getMessage(),
             ], 500);
         }
 
+        $user = $this->authService->getUserFromToken($tokenString);
+        if ($user) {
+            $this->activityLogService->logFromRequest(
+                $user,
+                UserActivityLog::ACTION_LOGOUT,
+                'Cierre de sesión',
+                null,
+                $request,
+            );
+        }
+
         return response()->json([
             'message' => 'Sesión cerrada correctamente',
-        ])->withCookie(\Cookie::forget('sso_token'));
+        ])
+            ->withCookie(Cookie::forget('refresh_token', '/', null, true, true));
     }
 
     public function me(Request $request): JsonResponse
     {
         $ssoUserId = $request->get('sso_user_id');
-
-        $user = User::with('roles')->find($ssoUserId);
+        $user = $this->authService->getUserById($ssoUserId);
 
         if (!$user) {
             return response()->json(['error' => 'User not found'], 404);
@@ -258,186 +215,298 @@ class AuthController extends Controller
             'name' => $user->name,
             'user' => $user->user,
             'email' => $user->email,
-            'roles' => $user->roles->map(function ($role) {
-                return [
-                    'id' => $role->id,
-                    'name' => $role->name,
-                    'slug' => $role->slug,
-                    'description' => $role->description,
-                    'is_protected' => $role->is_protected,
-                ];
-            }),
+            'roles' => $user->roles->map(fn($role) => [
+                'id' => $role->id,
+                'name' => $role->name,
+                'slug' => $role->slug,
+                'description' => $role->description,
+                'is_protected' => $role->is_protected,
+            ]),
         ]);
     }
 
-    public function jwks(Request $request)
+    public function jwks(): JsonResponse
     {
-        $privateKeyContent = file_get_contents(config('jwt.private_key_path'));
-        $keyDetails = openssl_pkey_get_details(openssl_pkey_get_private($privateKeyContent));
+        $jwks = $this->authService->getJwks();
 
-        if (!$keyDetails) {
-            return response()->json(['error' => 'Unable to get key details'], 500);
+        if (isset($jwks['error'])) {
+            return response()->json($jwks, 500);
         }
 
-        $n = $this->base64UrlEncode($keyDetails['rsa']['n']);
-        $e = $this->base64UrlEncode($keyDetails['rsa']['e']);
-
-        return response()->json([
-            'keys' => [
-                [
-                    'kty' => 'RSA',
-                    'use' => 'sig',
-                    'alg' => 'RS256',
-                    'kid' => 'sso-key-1',
-                    'n' => $n,
-                    'e' => $e,
-                ]
-            ]
-        ]);
+        return response()->json($jwks);
     }
 
     public function checkSession(Request $request): JsonResponse
     {
-        $ssoUserId = $request->get('sso_user_id');
+        $result = $this->authService->checkSessionFromRequest($request);
+        return response()->json($result);
+    }
 
-        if (!$ssoUserId) {
-            $tokenString = $request->bearerToken();
-
-            if (!$tokenString) {
-                $tokenString = $request->cookie('sso_token');
-            }
-
-            if (!$tokenString) {
-                return response()->json(['authenticated' => false], 200);
-            }
-
-            try {
-                $token = $this->jwtConfig->parser()->parse($tokenString);
-
-                $constraints = [
-                    new SignedWith($this->jwtConfig->signer(), $this->jwtConfig->verificationKey()),
-                    new IssuedBy($this->issuer),
-                    new LooseValidAt(new SystemClock(new \DateTimeZone('UTC'))),
-                ];
-
-                if (!$this->jwtConfig->validator()->validate($token, ...$constraints)) {
-                    return response()->json(['authenticated' => false], 200);
-                }
-
-                $ssoUserId = $token->claims()->get('sub');
-
-            } catch (\Exception $e) {
-                return response()->json(['authenticated' => false], 200);
-            }
-        }
-
-        $user = User::with('roles')->find($ssoUserId);
-
+    public function getUserProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
         if (!$user) {
-            return response()->json(['authenticated' => false], 200);
+            return response()->json(['message' => 'No autenticado'], 401);
         }
+
+        $user->load('roles');
 
         return response()->json([
-            'authenticated' => true,
+            'id' => $user->id,
+            'name' => $user->name,
+            'user' => $user->user,
+            'email' => $user->email,
+            'is_admin' => $user->is_admin ?? false,
+            'created_at' => $user->created_at,
+            'sessions_count' => $user->sessions_count ?? $user->sessions()->count(),
+            'tokens_count' => $user->tokens_count ?? $user->tokens()->count(),
+            'roles' => $user->roles->map(fn($role) => [
+                'id' => $role->id,
+                'name' => $role->name,
+                'slug' => $role->slug,
+                'description' => $role->description,
+                'is_protected' => $role->is_protected,
+            ]),
+        ]);
+    }
+
+    public function updateUserProfile(UpdateProfileRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        $validated = $request->validated();
+
+        $changedFields = array_keys(array_intersect_key($validated, $user->getOriginal()));
+        $oldValues = [];
+        foreach ($changedFields as $field) {
+            $oldValues[$field] = $user->getOriginal($field);
+        }
+
+        $user->update($validated);
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_PROFILE_UPDATE,
+            'Actualización de perfil',
+            ['changed_fields' => $changedFields, 'old_values' => $oldValues],
+            $request,
+        );
+
+        return response()->json([
+            'message' => 'Perfil actualizado correctamente',
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'user' => $user->user,
                 'email' => $user->email,
-                'roles' => $user->roles->map(function ($role) {
-                    return [
-                        'id' => $role->id,
-                        'name' => $role->name,
-                        'slug' => $role->slug,
-                        'description' => $role->description,
-                        'is_protected' => $role->is_protected,
-                    ];
-                }),
+                'is_admin' => $user->is_admin ?? false,
+                'created_at' => $user->created_at,
             ],
         ]);
     }
 
-    private function generateToken(User $user, ?string $dpopPublicKey = null): array
+    public function updateUserPassword(UpdatePasswordRequest $request): JsonResponse
     {
-        $now = time();
-        $expiresAt = $now + $this->tokenExpiration;
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
 
-        $builder = $this->jwtConfig->builder()
-            ->issuedBy($this->issuer)
-            ->identifiedBy(bin2hex(random_bytes(16)))
-            ->issuedAt(new \DateTimeImmutable('@' . $now))
-            ->expiresAt(new \DateTimeImmutable('@' . $expiresAt))
-            ->relatedTo((string) $user->id)
-            ->withClaim('user', [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'user' => $user->user,
-            ]);
+        $validated = $request->validated();
 
-        if ($dpopPublicKey) {
-            $publicKeyData = json_decode($dpopPublicKey, true);
-            if ($publicKeyData) {
-                if (!isset($publicKeyData['kty']) || !isset($publicKeyData['n']) || !isset($publicKeyData['e'])) {
-                    return response()->json([
-                        'message' => 'Error de validación',
-                        'errors' => ['dpop_public_key' => ['JWK incompleto: se requieren los campos kty, n y e']],
-                    ], 422);
-                }
-                if (($publicKeyData['kty'] ?? '') !== 'RSA') {
-                    return response()->json([
-                        'message' => 'Error de validación',
-                        'errors' => ['dpop_public_key' => ['Tipo de clave JWK no soportado: se requiere RSA']],
-                    ], 422);
-                }
-                $jkt = $this->generateJWKThumbprint($publicKeyData);
-                $builder->withClaim('cnf', [
-                    'jkt' => $jkt
-                ]);
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                'message' => 'Contraseña actual incorrecta',
+                'errors' => ['current_password' => ['La contraseña actual es incorrecta']],
+            ], 422);
+        }
+
+        $user->password = Hash::make($validated['new_password']);
+        $user->save();
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_PASSWORD_CHANGE,
+            'Cambio de contraseña',
+            null,
+            $request,
+        );
+
+        return response()->json([
+            'message' => 'Contraseña actualizada correctamente',
+        ]);
+    }
+
+    public function getUserSessions(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        $perPage = min((int) $request->get('per_page', 20), 50);
+        $sessions = $user->sessions()->with(['token', 'client'])->latest('last_used_at')->paginate($perPage);
+
+        return response()->json([
+            'data' => $sessions->map(function ($session) {
+                return [
+                    'id' => $session->id,
+                    'client' => $session->client ? [
+                        'id' => $session->client->id,
+                        'name' => $session->client->name,
+                        'client_id' => $session->client->client_id,
+                    ] : null,
+                    'ip_address' => $session->ip_address,
+                    'user_agent' => $session->user_agent,
+                    'last_used_at' => $session->last_used_at,
+                    'created_at' => $session->created_at,
+                    'token_active' => $session->token ? !$session->token->isExpired() : false,
+                ];
+            }),
+            'pagination' => [
+                'total' => $sessions->total(),
+                'per_page' => $sessions->perPage(),
+                'current_page' => $sessions->currentPage(),
+                'last_page' => $sessions->lastPage(),
+            ],
+        ]);
+    }
+
+    public function revokeUserSession(Request $request, int $sessionId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        $session = $user->sessions()->find($sessionId);
+        if (!$session) {
+            return response()->json(['message' => 'Sesión no encontrada'], 404);
+        }
+
+        if ($session->token) {
+            $session->token->delete();
+        }
+        $session->delete();
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_SESSION_REVOKED,
+            'Sesión revocada',
+            ['session_id' => $sessionId, 'ip' => $session->ip_address],
+            $request,
+        );
+
+        return response()->json([
+            'message' => 'Sesión revocada correctamente',
+        ]);
+    }
+
+    public function revokeAllUserSessions(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        $user->sessions()->with('token')->lazy()->each(function ($session) {
+            if ($session->token) {
+                $session->token->delete();
             }
+        });
+        $user->sessions()->delete();
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_SESSION_REVOKED,
+            'Todas las sesiones revocadas',
+            null,
+            $request,
+        );
+
+        return response()->json([
+            'message' => 'Todas las sesiones han sido revocadas correctamente',
+        ]);
+    }
+
+    public function deleteAccount(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
         }
 
-        $token = $builder->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
+        $validated = $request->validate([
+            'password' => 'required|string',
+            'confirmation' => 'required|string|in:ELIMINAR',
+        ]);
 
-        return [
-            'token' => $token->toString(),
-            'token_type' => $dpopPublicKey ? 'DPoP' : 'Bearer',
-            'expires_in' => $this->tokenExpiration,
-        ];
-    }
-
-    private function generateJWKThumbprint(array $jwk): string
-    {
-        $jwkString = json_encode([
-            'e' => $jwk['e'] ?? null,
-            'kty' => $jwk['kty'] ?? 'RSA',
-            'n' => $jwk['n'] ?? null,
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        return rtrim(strtr(base64_encode(hash('sha256', $jwkString, true)), '+/', '-_'), '=');
-    }
-
-    private function base64UrlEncode(string $data): string
-    {
-        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
-    }
-
-    private function registerSession(User $user, string $token, Request $request, ?string $dpopPublicKey = null)
-    {
-        $client = null;
-        
-        if ($request->client_id) {
-            $client = SsoClient::where('client_id', $request->client_id)->first();
+        if (!Hash::check($validated['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['La contraseña es incorrecta'],
+            ]);
         }
 
-        UserSession::create([
-            'user_id' => $user->id,
-            'sso_client_id' => $client?->id,
-            'token' => $token,
-            'dpop_public_key' => $dpopPublicKey,
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'last_used_at' => now(),
+        // Revoke all tokens
+        $user->tokens()->delete();
+
+        // Revoke all sessions
+        $user->sessions()->delete();
+
+        // Revoke all OAuth authorizations
+        $user->oauthClientAuthorizations()->delete();
+
+        // Delete activity logs
+        $user->activityLogs()->delete();
+
+        // Log before deleting (last activity record)
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_ACCOUNT_DELETED,
+            'Cuenta eliminada',
+            null,
+            $request,
+        );
+
+        // Hard delete the user
+        $user->delete();
+
+        return response()->json([
+            'message' => 'Cuenta eliminada correctamente',
+        ]);
+    }
+
+    public function getUserActivityLog(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        $perPage = min((int) $request->get('per_page', 20), 100);
+        $logs = $user->activityLogs()
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+
+        $data = $logs->map(function ($log) {
+            return [
+                'id' => $log->id,
+                'action' => $log->action,
+                'description' => $log->description,
+                'created_at' => $log->created_at,
+                'metadata' => $log->metadata ?? [],
+            ];
+        });
+
+        return response()->json([
+            'data' => $data,
+            'current_page' => $logs->currentPage(),
+            'last_page' => $logs->lastPage(),
+            'per_page' => $logs->perPage(),
+            'total' => $logs->total(),
         ]);
     }
 }

@@ -1,6 +1,6 @@
 import { computed } from 'vue';
 import { useUsersStore } from '@/stores/users';
-import type { User, UserDetail, UserRole, RoleAssignment } from '@/types';
+import type { UserDetail, UserRole, RoleAssignment } from '@/types';
 
 export function useUsersController() {
   const usersStore = useUsersStore();
@@ -18,6 +18,7 @@ export function useUsersController() {
     page?: number;
     per_page?: number;
     search?: string;
+    sso_client_id?: string | number;
   }): Promise<void> {
     return usersStore.fetchUsers(params);
   }
@@ -33,8 +34,8 @@ export function useUsersController() {
     return usersStore.updateUser(params);
   }
 
-  async function toggleAdmin(id: number): Promise<{ is_admin: boolean }> {
-    return usersStore.toggleAdmin(id);
+  async function toggleAdmin(params: { id: number; action: string }): Promise<{ is_admin: boolean }> {
+    return usersStore.toggleAdmin(params);
   }
 
   async function deleteUser(id: number): Promise<void> {
@@ -54,6 +55,10 @@ export function useUsersController() {
 
   async function revokeUserSessions(id: number): Promise<void> {
     return usersStore.revokeUserSessions(id);
+  }
+
+  function setRoleAssignments(value: RoleAssignment[]): void {
+    usersStore.roleAssignments = value;
   }
 
   function setSearch(value: string): void {
@@ -91,6 +96,7 @@ export function useUsersController() {
     fetchUserRoles,
     saveUserRoles,
     revokeUserSessions,
+    setRoleAssignments,
     setSearch,
     reset,
     getInitials,

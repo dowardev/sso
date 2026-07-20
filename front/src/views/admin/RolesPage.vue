@@ -3,28 +3,30 @@
     <ion-header class="ion-no-border" mode="ios">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Menú de navegación"></ion-menu-button>
         </ion-buttons>
         <ion-title>Roles</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="openCreateModal">
-            <ion-icon slot="icon-only" :icon="add"></ion-icon>
-          </ion-button>
+            <ion-button aria-label="Crear rol" @click="openCreateModal({})">
+              <ion-icon slot="icon-only" :icon="add" aria-hidden="true"></ion-icon>
+            </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <ion-refresher slot="fixed" @ion-refresh="handleRefresh({ event: $event })">
+        <ion-refresher-content pulling-text="Tira para actualizar..." refreshing-text="Actualizando..."></ion-refresher-content>
+      </ion-refresher>
       <!-- content -->
       <div class="page-container">
-        <div class="roles-card">
-          <div v-if="loading" class="loading-container">
-            <ion-spinner name="lines"></ion-spinner>
-            <p>Cargando roles...</p>
+        <div class="card-list">
+          <div v-if="loading" class="skeleton-container">
+            <SkeletonListItem v-for="n in 4" :key="n" />
           </div>
 
-          <div v-else-if="roles.length === 0" class="empty-container">
-            <ion-icon :icon="shieldOutline" size="large"></ion-icon>
+          <div v-else-if="roles.length === 0" class="empty-state">
+            <ion-icon :icon="shieldOutline" size="large" aria-hidden="true"></ion-icon>
             <p>No se encontraron roles</p>
           </div>
 
@@ -34,6 +36,7 @@
                 slot="start"
                 :icon="shieldOutline"
                 :color="role.is_protected ? 'warning' : 'primary'"
+                aria-hidden="true"
               ></ion-icon>
               <ion-label>
                 <h2 class="role-name">{{ role.name }}</h2>
@@ -50,15 +53,16 @@
                 >
               </div>
               <ion-buttons slot="end">
-                <ion-button color="primary" @click="openEditModal({ role })">
-                  <ion-icon slot="icon-only" :icon="create"></ion-icon>
+                <ion-button color="primary" aria-label="Editar rol" @click="openEditModal({ role })">
+                  <ion-icon slot="icon-only" :icon="create" aria-hidden="true"></ion-icon>
                 </ion-button>
                 <ion-button
                   v-if="!role.is_protected"
                   color="danger"
+                  aria-label="Eliminar rol"
                   @click="confirmDelete({ role })"
                 >
-                  <ion-icon slot="icon-only" :icon="trash"></ion-icon>
+                  <ion-icon slot="icon-only" :icon="trash" aria-hidden="true"></ion-icon>
                 </ion-button>
               </ion-buttons>
             </ion-item>
@@ -71,43 +75,51 @@
       <ion-modal :is-open="showModal" @did-dismiss="showModal = false">
         <ion-header class="ion-no-border" mode="ios">
           <ion-toolbar>
-            <ion-title>{{
-              editingRole ? 'Editar Rol' : 'Crear Rol'
-            }}</ion-title>
+            <ion-buttons slot="start">
+              <ion-button @click="showModal = false">
+                <ion-icon :icon="closeOutline"></ion-icon>
+              </ion-button>
+            </ion-buttons>
+            <ion-title>{{ editingRole ? 'Editar Rol' : 'Crear Rol' }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="showModal = false">Cancelar</ion-button>
+              <ion-button @click="saveRole({})">
+                <ion-icon :icon="saveOutline"></ion-icon>
+              </ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
         <ion-content>
-          <form class="modal-form" @submit.prevent="saveRole">
+          <form class="modal-form" @submit.prevent="saveRole({})">
             <ion-list>
               <ion-item>
-                <ion-label position="stacked">Nombre</ion-label>
-                <ion-input v-model="form.name" required></ion-input>
+                <ion-label position="stacked">Nombre *</ion-label>
+                <ion-input v-model="form.name" aria-describedby="role-name-error" :aria-invalid="roleV$.name.$dirty ? roleV$.name.$invalid : undefined" @ion-blur="roleV$.name.$touch()"></ion-input>
               </ion-item>
+              <div v-if="roleV$.name.$error" id="role-name-error" class="field-error">{{ roleV$.name.$errors[0].$message }}</div>
               <ion-item v-if="!editingRole">
-                <ion-label position="stacked">Slug</ion-label>
+                <ion-label position="stacked">Slug *</ion-label>
                 <ion-input
                   v-model="form.slug"
                   placeholder="ej: editor"
-                  required
+                  aria-describedby="role-slug-error"
+                  :aria-invalid="roleV$.slug.$dirty ? roleV$.slug.$invalid : undefined"
+                  @ion-blur="roleV$.slug.$touch()"
                 ></ion-input>
               </ion-item>
+              <div v-if="roleV$.slug.$error" id="role-slug-error" class="field-error">{{ roleV$.slug.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Descripción</ion-label>
                 <ion-textarea
                   v-model="form.description"
-                  placeholder="Descripción opcional"
+                  placeholder="Máx 500 caracteres"
+                  aria-describedby="role-desc-error"
+                  :aria-invalid="roleV$.description.$dirty ? roleV$.description.$invalid : undefined"
+                  @ion-blur="roleV$.description.$touch()"
                 ></ion-textarea>
               </ion-item>
+              <div v-if="roleV$.description.$error" id="role-desc-error" class="field-error">{{ roleV$.description.$errors[0].$message }}</div>
             </ion-list>
-            <div class="ion-padding">
-              <ion-button type="submit" expand="block" :disabled="saving">
-                {{ saving ? 'Guardando...' : 'Guardar' }}
-              </ion-button>
-            </div>
-          </form>
+            </form>
         </ion-content>
       </ion-modal>
       <!-- end modals -->
@@ -128,235 +140,265 @@
 </template>
 
 <script setup lang="ts">
-  // imports
-  import { ref, onMounted, computed } from 'vue';
-  import {
-    IonPage,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonButtons,
-    IonMenuButton,
-    IonContent,
-    IonList,
-    IonItem,
-    IonLabel,
-    IonBadge,
-    IonButton,
-    IonIcon,
-    IonSpinner,
-    IonModal,
-    IonInput,
-    IonTextarea,
-    IonAlert,
-    alertController,
-  } from '@ionic/vue';
-  import { add, create, trash, shieldOutline } from 'ionicons/icons';
+// 1. Imports (ionic/vue/ionicons)
+import { ref, onMounted, computed } from 'vue'
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonMenuButton,
+  IonContent,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonBadge,
+  IonButton,
+  IonIcon,
+  IonModal,
+  IonInput,
+  IonTextarea,
+  IonRefresher,
+  IonRefresherContent,
+  IonAlert,
+} from '@ionic/vue'
+import { add, create, trash, shieldOutline, closeOutline, saveOutline } from 'ionicons/icons'
 
-  // controllers
-  import { useRolesController } from '@/controllers/rolesController';
-  const rolesController = useRolesController();
+// 2. Controllers / Composables
+import { useRolesController } from '@/controllers/rolesController'
+const rolesController = useRolesController()
 
-  // components
-  // end components
+import { useFormValidation } from '@/composables/useFormValidation'
+import { useValidation, validators } from '@/composables/useValidation'
+const { handleApiError } = useValidation()
+const v = validators
 
-  // interface and types imports
-  import type { Role } from '@/types';
-  // end interface and types imports
+import { useToast } from '@/composables/useToast'
+const { showSuccess, showError } = useToast()
 
-  // main
-  // end main
+// 3. Components
+import SkeletonListItem from '@/components/SkeletonListItem.vue'
 
-  // vars and const
-  const saving = ref(false);
-  const showModal = ref(false);
-  const showDeleteAlert = ref(false);
-  const editingRole = ref<Role | null>(null);
-  const roleToDelete = ref<Role | null>(null);
+// 4. Interface and types imports
+import type { Role } from '@/types'
 
-  const form = ref({
-    name: '',
-    slug: '',
-    description: '',
-  });
+// 5. Main (props, emits, etc.)
 
-  async function deleteRole(): Promise<void> {
-    if (!roleToDelete.value) return;
+// 6. Vars and const
+const saving = ref(false)
+const showModal = ref(false)
+const showDeleteAlert = ref(false)
+const editingRole = ref<Role | null>(null)
+const roleToDelete = ref<Role | null>(null)
 
-    try {
-      await rolesController.deleteRole(roleToDelete.value.id);
-    } catch (error) {
-      console.error('Error deleting role:', error);
-    } finally {
-      showDeleteAlert.value = false;
-      roleToDelete.value = null;
-    }
+const form = ref({
+  name: '',
+  slug: '',
+  description: '',
+})
+
+// 7. Watch
+
+// 8. Computed
+const roles = computed(() => rolesController.roles.value)
+const loading = computed(() => rolesController.loading.value)
+
+const roleRules = computed(() => ({
+  name: { required: v.required('Nombre'), maxLength: v.maxLength('Nombre', 255) },
+  slug: editingRole.value
+    ? {}
+    : {
+        required: v.required('Slug'),
+        minLength: v.minLength('Slug', 2),
+        maxLength: v.maxLength('Slug', 255),
+        alphaNum: v.alphaNum('Slug'),
+      },
+  description: { maxLength: v.maxLength('Descripción', 500) },
+}))
+
+const { v$: roleV$, validate: validateRole, touchAll: touchRole } =
+  useFormValidation(roleRules, form)
+
+// 9. OnMounted
+onMounted(() => {
+  rolesController.fetchRoles()
+})
+
+// 10. Functions (named parameters pattern)
+const deleteRole = async (_params: object = {}): Promise<void> => {
+  if (!roleToDelete.value) return
+
+  try {
+    await rolesController.deleteRole(roleToDelete.value.id)
+    showSuccess({ message: 'Rol eliminado correctamente' })
+  } catch {
+    showError({ message: 'Error al eliminar rol' })
+  } finally {
+    showDeleteAlert.value = false
+    roleToDelete.value = null
+  }
+}
+
+const deleteAlertButtons = [
+  {
+    text: 'Cancelar',
+    role: 'cancel',
+    handler: () => {
+      showDeleteAlert.value = false
+      roleToDelete.value = null
+    },
+  },
+  {
+    text: 'Eliminar',
+    role: 'destructive',
+    handler: deleteRole,
+  },
+]
+
+const openCreateModal = (_params: object = {}): void => {
+  editingRole.value = null
+  form.value = { name: '', slug: '', description: '' }
+  showModal.value = true
+}
+
+const openEditModal = (params: { role: Role }): void => {
+  const { role } = params
+  editingRole.value = role
+  form.value = {
+    name: role.name,
+    slug: role.slug,
+    description: role.description || '',
+  }
+  showModal.value = true
+}
+
+const saveRole = async (_params: object = {}): Promise<void> => {
+  const isValid = await validateRole()
+  if (!isValid) {
+    touchRole()
+    return
   }
 
-  const deleteAlertButtons = [
-    {
-      text: 'Cancelar',
-      role: 'cancel',
-      handler: () => {
-        showDeleteAlert.value = false;
-        roleToDelete.value = null;
-      },
-    },
-    {
-      text: 'Eliminar',
-      role: 'destructive',
-      handler: deleteRole,
-    },
-  ];
-  // end vars and const
-
-  // watch
-  // end
-
-  // computed
-  const roles = computed(() => rolesController.roles.value);
-  const loading = computed(() => rolesController.loading.value);
-  // end computed
-
-  // onmounted
-  onMounted(() => {
-    rolesController.fetchRoles();
-  });
-  // end onmounted
-
-  // functions
-  const openCreateModal = (): void => {
-    editingRole.value = null;
-    form.value = { name: '', slug: '', description: '' };
-    showModal.value = true;
-  };
-
-  const openEditModal = (params: { role: Role }): void => {
-    const { role } = params;
-    editingRole.value = role;
-    form.value = {
-      name: role.name,
-      slug: role.slug,
-      description: role.description || '',
-    };
-    showModal.value = true;
-  };
-
-  const saveRole = async (): Promise<void> => {
-    saving.value = true;
-    try {
-      if (editingRole.value) {
-        await rolesController.updateRole({
-          id: editingRole.value.id,
-          data: {
-            name: form.value.name,
-            description: form.value.description || undefined,
-          },
-        });
-      } else {
-        await rolesController.createRole({
-          data: {
-            name: form.value.name,
-            slug: form.value.slug,
-            description: form.value.description || undefined,
-          },
-        });
-      }
-      showModal.value = false;
-    } catch (error) {
-      console.error('Error saving role:', error);
-    } finally {
-      saving.value = false;
+  saving.value = true
+  try {
+    if (editingRole.value) {
+      await rolesController.updateRole({
+        id: editingRole.value.id,
+        data: {
+          name: form.value.name,
+          description: form.value.description || undefined,
+        },
+      })
+      showSuccess({ message: 'Rol actualizado correctamente' })
+    } else {
+      await rolesController.createRole({
+        data: {
+          name: form.value.name,
+          slug: form.value.slug,
+          description: form.value.description || undefined,
+        },
+      })
+      showSuccess({ message: 'Rol creado correctamente' })
     }
-  };
+    showModal.value = false
+  } catch (err) {
+    handleApiError(err)
+  } finally {
+    saving.value = false
+  }
+}
 
-  const confirmDelete = (params: { role: Role }): void => {
-    const { role } = params;
-    roleToDelete.value = role;
-    showDeleteAlert.value = true;
-  };
-  // end functions
+const confirmDelete = (params: { role: Role }): void => {
+  const { role } = params
+  roleToDelete.value = role
+  showDeleteAlert.value = true
+}
+
+const handleRefresh = async (params: { event: CustomEvent }): Promise<void> => {
+  const { event } = params
+  await rolesController.fetchRoles()
+  event.detail.complete()
+}
 </script>
 
 <style scoped>
+.skeleton-container {
+  padding: 8px 0;
+}
+
+.roles-list {
+  background: transparent;
+}
+
+.roles-list ion-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --background: transparent;
+  border-bottom: 1px solid var(--glass-border);
+  transition: background 0.2s ease;
+}
+
+.roles-list ion-item:hover {
+  --background: var(--glass-bg-hover);
+}
+
+.roles-list ion-item:last-child {
+  border-bottom: none;
+}
+
+.role-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.role-description {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.role-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  margin-right: 8px;
+}
+
+.modal-form {
+  padding: 0;
+}
+
+@media (min-width: 768px) {
   .page-container {
-    padding: var(--dashboard-padding);
-    max-width: 600px;
-    margin: 0 auto;
+    padding: var(--dashboard-padding-lg);
   }
+}
 
-  .roles-card {
-    background: var(--background-contrast);
-    border-radius: var(--card-border-radius);
-    box-shadow:
-      var(--card-shadow-light) 0px 1px 3px 0px,
-      var(--card-shadow-heavy) 0px 0px 0px 1px;
-    overflow: hidden;
+@media (min-width: 1024px) {
+  .page-container {
+    max-width: 800px;
   }
+}
 
-  .loading-container,
-  .empty-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 16px;
-    color: var(--text-tertiary);
-  }
-
-  .empty-container ion-icon {
-    margin-bottom: 12px;
-    opacity: 0.5;
-  }
-
-  .loading-container p,
-  .empty-container p {
-    margin: 0;
-    font-size: 14px;
-  }
-
-  .roles-list {
-    background: transparent;
-  }
-
-  .roles-list ion-item {
-    --padding-start: 16px;
-    --padding-end: 16px;
-    --background: transparent;
-    border-bottom: 1px solid var(--ion-background-color-step-200);
-  }
-
-  .roles-list ion-item:last-child {
-    border-bottom: none;
+@media (max-width: 374px) {
+  .page-container {
+    padding: 8px;
   }
 
   .role-name {
-    color: var(--text-primary);
-    font-weight: 600;
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .role-description {
-    color: var(--text-secondary);
-    font-size: 13px;
-    margin-top: 2px;
+    font-size: 12px;
   }
 
   .role-badges {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: flex-end;
-    margin-right: 8px;
+    flex-direction: row;
+    margin-right: 4px;
   }
-
-  .modal-form {
-    padding: 16px;
-  }
-
-  @media (min-width: 768px) {
-    .page-container {
-      padding: var(--dashboard-padding-lg);
-    }
-  }
+}
 </style>

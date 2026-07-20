@@ -2,57 +2,47 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\AuthorizeRequest;
+use App\Http\Requests\TokenRequest;
 use App\Models\OAuthAuthCode;
-use App\Models\SsoClient;
-use App\Models\User;
-use App\Models\UserSession;
+use App\Models\OauthClientAuthorization;
+use App\Models\Setting;
+use App\Models\UserActivityLog;
+use App\Services\ActivityLogService;
+use App\Services\OAuth2Service;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Lcobucci\JWT\Configuration;
-use Lcobucci\JWT\Signer\Key\InMemory;
-use Lcobucci\JWT\Signer\Rsa\Sha256;
 
 class OAuth2Controller extends Controller
 {
-    private Configuration $jwtConfig;
-    private int $tokenExpiration;
-    private string $issuer;
-    private int $authCodeExpiration = 600;
+    private OAuth2Service $oauth2Service;
+    private ActivityLogService $activityLogService;
 
-    public function __construct()
+    public function __construct(OAuth2Service $oauth2Service, ActivityLogService $activityLogService)
     {
-        $this->jwtConfig = Configuration::forAsymmetricSigner(
-            new Sha256(),
-            InMemory::file(config('jwt.private_key_path')),
-            InMemory::file(config('jwt.public_key_path'))
-        );
-
-        $this->tokenExpiration = config('jwt.token_expiration', 3600);
-        $this->issuer = config('jwt.issuer', 'http://localhost:8001');
+        $this->oauth2Service = $oauth2Service;
+        $this->activityLogService = $activityLogService;
     }
 
-    public function authorize(Request $request)
+    public function authorize(AuthorizeRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'client_id' => 'required|string|exists:sso_clients,client_id',
-            'redirect_uri' => 'required|string',
-            'state' => 'nullable|string',
-            'code_challenge' => 'nullable|string',
-            'code_challenge_method' => 'nullable|string|in:S256,plain',
-            'code_verifier' => 'nullable|string|min:43|max:128',
-        ]);
+        $client = $this->oauth2Service->validateClientAndGet($request->client_id);
 
-        $client = SsoClient::where('client_id', $validated['client_id'])->first();
-
-        if (!$client->active) {
+        if (!$client) {
             return response()->json([
-                'message' => 'Cliente desactivado',
+                'message' => 'Cliente desactivado o no encontrado',
             ], 403);
         }
 
-        if ($client->redirect_url && $validated['redirect_uri'] !== $client->redirect_url) {
+        if ($client->redirect_url && $request->redirect_uri !== $client->redirect_url) {
             return response()->json([
                 'message' => 'redirect_uri no permitida',
+            ], 400);
+        }
+
+        if ($client->redirect_url && $this->isSslRequiredViolation($client->redirect_url)) {
+            return response()->json([
+                'message' => 'El redirect_url del cliente debe usar HTTPS cuando la opción de requerir SSL está activa',
             ], 400);
         }
 
@@ -63,220 +53,311 @@ class OAuth2Controller extends Controller
             ], 401);
         }
 
-        $code = Str::random(40);
+        $hasAuthorized = OauthClientAuthorization::where('user_id', $user->id)
+            ->where('sso_client_id', $client->id)
+            ->where('status', 'authorized')
+            ->exists();
 
-        OAuthAuthCode::create([
-            'code' => $code,
-            'user_id' => $user->id,
-            'sso_client_id' => $client->id,
-            'redirect_uri' => $validated['redirect_uri'],
-            'code_challenge' => $validated['code_challenge'] ?? null,
-            'code_challenge_method' => $validated['code_challenge_method'] ?? null,
-            'code_verifier' => $validated['code_verifier'] ?? null,
-            'expires_at' => now()->addSeconds($this->authCodeExpiration),
-        ]);
+        if (!$hasAuthorized) {
+            return response()->json([
+                'authorization_required' => true,
+                'client' => [
+                    'id' => $client->id,
+                    'name' => $client->name,
+                    'client_id' => $client->client_id,
+                ],
+                'user' => [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'user' => $user->user,
+                ],
+            ]);
+        }
 
-        return response()->json([
-            'code' => $code,
-            'state' => $validated['state'] ?? null,
-        ]);
+        $result = $this->oauth2Service->createAuthorizationCode($user, $client, $request->validated());
+
+        return response()->json($result);
     }
 
-    public function token(Request $request)
+    public function approveAuthorization(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'code' => 'required|string',
+        $request->validate([
             'client_id' => 'required|string|exists:sso_clients,client_id',
-            'client_secret' => 'nullable|string',
             'redirect_uri' => 'required|string',
-            'dpop_public_key' => 'nullable|json',
+            'state' => 'nullable|string',
+            'response_type' => 'nullable|string',
+            'code_challenge' => 'nullable|string',
+            'code_challenge_method' => 'nullable|string|in:S256,plain',
             'code_verifier' => 'nullable|string|min:43|max:128',
         ]);
 
-        $client = SsoClient::where('client_id', $validated['client_id'])->first();
-
-        if (!$client->active) {
-            return response()->json([
-                'message' => 'Cliente desactivado',
-            ], 403);
-        }
-
-        if ($client->redirect_url && $validated['redirect_uri'] !== $client->redirect_url) {
-            return response()->json([
-                'message' => 'redirect_uri no permitida',
-            ], 400);
-        }
-
-        if ($client->client_secret && $validated['client_secret']) {
-            if ($validated['client_secret'] !== $client->client_secret) {
-                return response()->json([
-                    'message' => 'client_secret inválido',
-                ], 401);
-            }
-        }
-
-        $authCode = OAuthAuthCode::where('code', $validated['code'])
-            ->where('sso_client_id', $client->id)
-            ->first();
-
-        if (!$authCode) {
-            return response()->json([
-                'message' => 'Código de autorización inválido',
-            ], 400);
-        }
-
-        if ($authCode->isExpired()) {
-            return response()->json([
-                'message' => 'Código de autorización expirado',
-            ], 400);
-        }
-
-        if ($authCode->isUsed()) {
-            return response()->json([
-                'message' => 'Código de autorización ya utilizado',
-            ], 400);
-        }
-
-        if ($authCode->redirect_uri !== $validated['redirect_uri']) {
-            return response()->json([
-                'message' => 'redirect_uri no coincide',
-            ], 400);
-        }
-
-        if ($authCode->code_challenge) {
-            $codeVerifier = $authCode->code_verifier ?? $validated['code_verifier'];
-
-            if (!$codeVerifier) {
-                return response()->json([
-                    'message' => 'code_verifier requerido',
-                ], 400);
-            }
-
-            $method = $authCode->code_challenge_method ?? 'S256';
-            $challengeFromVerifier = $this->computeCodeChallenge(
-                $codeVerifier,
-                $method
-            );
-
-            if ($challengeFromVerifier !== $authCode->code_challenge) {
-                return response()->json([
-                    'message' => 'code_verifier inválido',
-                ], 400);
-            }
-        } else {
-            return response()->json([
-                'message' => 'PKCE requerido: code_challenge no encontrado',
-            ], 400);
-        }
-
-        $authCode->update(['used_at' => now()]);
-
-        $user = User::with('roles')->find($authCode->user_id);
-
+        $user = $request->user();
         if (!$user) {
             return response()->json([
-                'message' => 'Usuario no encontrado',
+                'message' => 'No autenticado',
+            ], 401);
+        }
+
+        $client = $this->oauth2Service->validateClientAndGet($request->client_id);
+        if (!$client) {
+            return response()->json([
+                'message' => 'Cliente no encontrado o inactivo',
             ], 404);
         }
 
-        $dpopPublicKey = $validated['dpop_public_key'] ?? null;
-        $tokenData = $this->generateToken($user, $dpopPublicKey);
+        OauthClientAuthorization::updateOrCreate(
+            ['user_id' => $user->id, 'sso_client_id' => $client->id],
+            ['status' => 'authorized', 'updated_at' => now()]
+        );
 
-        $this->registerSession($user, $tokenData['token'], $request, $client, $dpopPublicKey);
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_AUTHORIZATION_GRANTED,
+            'Autorización concedida a ' . $client->name,
+            ['client_id' => $client->id, 'client_name' => $client->name],
+            $request,
+        );
 
-        $userArray = $user->toArray();
-        $userArray['roles'] = $user->roles->toArray();
+        $result = $this->oauth2Service->createAuthorizationCode($user, $client, $request->only([
+            'redirect_uri',
+            'state',
+            'code_challenge',
+            'code_challenge_method',
+            'code_verifier',
+        ]));
+
+        return response()->json($result);
+    }
+
+    public function denyAuthorization(Request $request): JsonResponse
+    {
+        $request->validate([
+            'client_id' => 'required|string|exists:sso_clients,client_id',
+        ]);
+
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'message' => 'No autenticado',
+            ], 401);
+        }
+
+        $client = $this->oauth2Service->validateClientAndGet($request->client_id);
+        if (!$client) {
+            return response()->json([
+                'message' => 'Cliente no encontrado o inactivo',
+            ], 404);
+        }
+
+        OauthClientAuthorization::updateOrCreate(
+            ['user_id' => $user->id, 'sso_client_id' => $client->id],
+            ['status' => 'denied', 'updated_at' => now()]
+        );
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_AUTHORIZATION_DENIED,
+            'Autorización denegada a ' . $client->name,
+            ['client_id' => $client->id, 'client_name' => $client->name],
+            $request,
+        );
 
         return response()->json([
-            'token' => $tokenData['token'],
-            'token_type' => $tokenData['token_type'],
-            'expires_in' => $tokenData['expires_in'],
-            'user' => $userArray,
+            'message' => 'Autorización denegada',
         ]);
     }
 
-    private function generateToken(User $user, ?string $dpopPublicKey = null): array
+    public function revokeAuthorization(Request $request): JsonResponse
     {
-        $now = time();
-        $expiresAt = $now + $this->tokenExpiration;
+        $request->validate([
+            'client_id' => 'required|string|exists:sso_clients,client_id',
+        ]);
 
-        $builder = $this->jwtConfig->builder()
-            ->issuedBy($this->issuer)
-            ->identifiedBy(bin2hex(random_bytes(16)))
-            ->issuedAt(new \DateTimeImmutable('@' . $now))
-            ->expiresAt(new \DateTimeImmutable('@' . $expiresAt))
-            ->relatedTo((string) $user->id)
-            ->withClaim('user', [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'user' => $user->user,
-            ]);
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'message' => 'No autenticado',
+            ], 401);
+        }
 
-        if ($dpopPublicKey) {
-            $publicKeyData = json_decode($dpopPublicKey, true);
-            if ($publicKeyData) {
-                if (!isset($publicKeyData['kty']) || !isset($publicKeyData['n']) || !isset($publicKeyData['e'])) {
-                    return [
-                        'token' => '',
-                        'token_type' => 'Bearer',
-                        'expires_in' => $this->tokenExpiration,
-                    ];
-                }
-                if (($publicKeyData['kty'] ?? '') !== 'RSA') {
-                    return [
-                        'token' => '',
-                        'token_type' => 'Bearer',
-                        'expires_in' => $this->tokenExpiration,
-                    ];
-                }
-                $jkt = $this->generateJWKThumbprint($publicKeyData);
-                $builder->withClaim('cnf', [
-                    'jkt' => $jkt
-                ]);
+        $client = $this->oauth2Service->validateClientAndGet($request->client_id);
+        if (!$client) {
+            return response()->json([
+                'message' => 'Cliente no encontrado o inactivo',
+            ], 404);
+        }
+
+        $deleted = OauthClientAuthorization::where('user_id', $user->id)
+            ->where('sso_client_id', $client->id)
+            ->delete();
+
+        if (!$deleted) {
+            return response()->json([
+                'message' => 'No se encontró autorización para revocar',
+            ], 404);
+        }
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_AUTHORIZATION_REVOKED,
+            'Acceso revocado a ' . $client->name,
+            ['client_id' => $client->id, 'client_name' => $client->name],
+            $request,
+        );
+
+        return response()->json([
+            'message' => 'Acceso revocado correctamente',
+        ]);
+    }
+
+    public function userAuthorizations(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'message' => 'No autenticado',
+            ], 401);
+        }
+
+        $perPage = min((int) $request->get('per_page', 20), 50);
+        $authorizations = OauthClientAuthorization::with('client')
+            ->where('user_id', $user->id)
+            ->orderBy('updated_at', 'desc')
+            ->paginate($perPage);
+
+        return response()->json([
+            'data' => $authorizations->map(function ($auth) {
+                return [
+                    'id' => $auth->id,
+                    'status' => $auth->status,
+                    'updated_at' => $auth->updated_at,
+                    'client' => $auth->client ? [
+                        'id' => $auth->client->id,
+                        'name' => $auth->client->name,
+                        'client_id' => $auth->client->client_id,
+                    ] : null,
+                ];
+            }),
+            'pagination' => [
+                'total' => $authorizations->total(),
+                'per_page' => $authorizations->perPage(),
+                'current_page' => $authorizations->currentPage(),
+                'last_page' => $authorizations->lastPage(),
+            ],
+        ]);
+    }
+
+    public function clientAuthorizations(Request $request, int $clientId): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'message' => 'No autenticado',
+            ], 401);
+        }
+
+        // Verify user has access to this client (admin or owner)
+        $client = \App\Models\SsoClient::find($clientId);
+        if (!$client) {
+            return response()->json([
+                'message' => 'Cliente no encontrado',
+            ], 404);
+        }
+
+        $authorizations = OauthClientAuthorization::with('user')
+            ->where('sso_client_id', $clientId)
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function ($auth) {
+                return [
+                    'id' => $auth->id,
+                    'status' => $auth->status,
+                    'updated_at' => $auth->updated_at,
+                    'user' => $auth->user ? [
+                        'id' => $auth->user->id,
+                        'name' => $auth->user->name,
+                        'user' => $auth->user->user,
+                        'email' => $auth->user->email,
+                    ] : null,
+                ];
+            });
+
+        return response()->json($authorizations);
+    }
+
+    public function token(TokenRequest $request): JsonResponse
+    {
+        $client = $this->oauth2Service->validateClientAndGet($request->client_id);
+
+        if (!$client) {
+            return response()->json([
+                'message' => 'Cliente desactivado o no encontrado',
+            ], 403);
+        }
+
+        if ($request->grant_type === 'client_credentials') {
+            $result = $this->oauth2Service->handleClientCredentials($client, $request->validated());
+
+            if (!$result) {
+                return response()->json([
+                    'message' => 'client_credentials no permitido o credenciales inválidas',
+                ], 403);
+            }
+
+            return response()->json($result);
+        }
+
+        $result = $this->oauth2Service->handleAuthorizationCode($request, $client, $request->validated());
+
+        if (!$result) {
+            return response()->json([
+                'message' => 'Código de autorización inválido o expirado',
+            ], 400);
+        }
+
+        if ($request->grant_type === 'authorization_code') {
+            $authCode = OAuthAuthCode::where('code', $request->code)->first();
+            $user = $authCode?->user;
+
+            if ($user) {
+                $this->activityLogService->logFromRequest(
+                    $user,
+                    UserActivityLog::ACTION_TOKEN_CREATED,
+                    'Acceso concedido a ' . $client->name,
+                    ['client_id' => $client->id, 'client_name' => $client->name],
+                    $request,
+                );
             }
         }
 
-        $token = $builder->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
-
-        return [
-            'token' => $token->toString(),
-            'token_type' => $dpopPublicKey ? 'DPoP' : 'Bearer',
-            'expires_in' => $this->tokenExpiration,
-        ];
+        return response()->json($result);
     }
 
-    private function generateJWKThumbprint(array $jwk): string
+    private function isSslRequiredViolation(string $redirectUrl): bool
     {
-        $jwkString = json_encode([
-            'e' => $jwk['e'] ?? null,
-            'kty' => $jwk['kty'] ?? 'RSA',
-            'n' => $jwk['n'] ?? null,
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        return rtrim(strtr(base64_encode(hash('sha256', $jwkString, true)), '+/', '-_'), '=');
-    }
-
-    private function registerSession(User $user, string $token, Request $request, SsoClient $client, ?string $dpopPublicKey = null)
-    {
-        UserSession::create([
-            'user_id' => $user->id,
-            'sso_client_id' => $client->id,
-            'token' => $token,
-            'dpop_public_key' => $dpopPublicKey,
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'last_used_at' => now(),
-        ]);
-    }
-
-    private function computeCodeChallenge(string $codeVerifier, string $method): string
-    {
-        if ($method === 'S256') {
-            $hash = hash('sha256', $codeVerifier, true);
-            return rtrim(strtr(base64_encode($hash), '+/', '-_'), '=');
+        if (!Setting::get('require_ssl', false)) {
+            return false;
         }
 
-        return $codeVerifier;
+        if (str_starts_with($redirectUrl, 'https://')) {
+            return false;
+        }
+
+        $host = parse_url($redirectUrl, PHP_URL_HOST);
+        if (!$host) {
+            return false;
+        }
+
+        $defaultExclusions = ['localhost', '127.0.0.1', '::1'];
+        if (in_array($host, $defaultExclusions)) {
+            return false;
+        }
+
+        $customExclusions = Setting::get('ssl_exclusions', []);
+        if (is_array($customExclusions) && in_array($host, $customExclusions)) {
+            return false;
+        }
+
+        return true;
     }
 }

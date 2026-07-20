@@ -18,7 +18,7 @@ class HandleDynamicCors
             return $next($request);
         }
 
-        $allowedOrigins = $this->getAllowedOrigins();
+        $allowedOrigins = $this->getAllowedOrigins($request);
         $normalizedOrigin = $this->normalizeOrigin($origin);
         $normalizedAllowedOrigins = array_map(
             [$this, 'normalizeOrigin'],
@@ -40,12 +40,20 @@ class HandleDynamicCors
         return $this->addCorsHeaders($response, $origin);
     }
 
-    private function getAllowedOrigins(): array
+    private function getAllowedOrigins(Request $request): array
     {
-        $origins = Cache::remember('sso_cors_origins', 60, function () {
-            $clients = SsoClient::where('active', true)
-                ->whereNotNull('allowed_origins')
-                ->get(['allowed_origins']);
+        $clientId = $this->getClientIdFromRequest($request);
+
+        $cacheKey = 'sso_cors_origins_' . ($clientId ?? '__sso__');
+
+        $origins = Cache::remember($cacheKey, 30, function () use ($clientId) {
+            $query = SsoClient::where('active', true)->whereNotNull('allowed_origins');
+
+            if ($clientId) {
+                $query->where('client_id', $clientId);
+            }
+
+            $clients = $query->get(['allowed_origins']);
 
             $origins = [];
             foreach ($clients as $client) {
@@ -61,6 +69,26 @@ class HandleDynamicCors
         }
 
         return $origins;
+    }
+
+    private function getClientIdFromRequest(Request $request): ?string
+    {
+        $token = $request->bearerToken();
+
+        if ($token) {
+            $parts = explode('.', $token);
+            if (count($parts) === 3) {
+                $payload = json_decode(base64_decode(
+                    strtr($parts[1], '-_', '+/')
+                ), true);
+
+                if ($payload && isset($payload['client_id'])) {
+                    return $payload['client_id'];
+                }
+            }
+        }
+
+        return $request->input('client_id');
     }
 
     private function handlePreflight(Request $request, string $origin): Response
