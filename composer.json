@@ -1,5 +1,5 @@
 {
-    "name": "tu-org/sso-server",
+    "name": "dowardev/sso-server",
     "description": "Server-side SSO authentication library for Laravel with DPoP verification",
     "type": "library",
     "license": "MIT",
