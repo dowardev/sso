@@ -40,6 +40,9 @@ php artisan jwt:generate-keys  # Creates back/keys/private.pem & public.pem
 php artisan migrate
 php artisan db:seed
 php artisan serve --port=8001
+
+**Setup token (opcional, recomendado en producción):**
+Genera `APP_SETUP_TOKEN` con `openssl rand -hex 32`. Si está definido, el endpoint `POST /api/setup/admin` requerirá el header `X-Setup-Token`.
 ```
 
 **Default credentials:** `admin@sso.local` / `admin123`

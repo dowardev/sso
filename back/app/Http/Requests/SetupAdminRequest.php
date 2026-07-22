@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class SetupAdminRequest extends FormRequest
 {
@@ -17,7 +18,7 @@ class SetupAdminRequest extends FormRequest
             'name' => 'required|string|max:255',
             'user' => 'required|string|max:255|unique:users,user',
             'email' => 'required|string|email|max:255|unique:users,email',
-            'password' => ['required', 'string', 'min:10', 'confirmed', 'regex:/[A-Z]/', 'regex:/[a-z]/', 'regex:/[0-9]/', 'regex:/[@$!%*?&]/'],
+            'password' => ['required', 'string', 'min:10', 'confirmed'],
         ];
     }
 
@@ -31,8 +32,28 @@ class SetupAdminRequest extends FormRequest
             'email.email' => 'Ingrese un correo electrónico válido.',
             'email.unique' => 'El correo electrónico ya está registrado.',
             'password.required' => 'La contraseña es obligatoria.',
-            'password.min' => 'La contraseña debe tener al menos 6 caracteres.',
+            'password.min' => 'La contraseña debe tener al menos 10 caracteres.',
             'password.confirmed' => 'Las contraseñas no coinciden.',
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function ($validator) {
+            $password = $this->input('password') ?? '';
+
+            if (!preg_match('/[A-Z]/', $password)) {
+                $validator->errors()->add('password', 'Debe contener al menos una letra mayúscula.');
+            }
+            if (!preg_match('/[a-z]/', $password)) {
+                $validator->errors()->add('password', 'Debe contener al menos una letra minúscula.');
+            }
+            if (!preg_match('/[0-9]/', $password)) {
+                $validator->errors()->add('password', 'Debe contener al menos un número.');
+            }
+            if (!preg_match('/[@$!%*?&]/', $password)) {
+                $validator->errors()->add('password', 'Debe contener al menos un símbolo especial (@ $ ! % * ? &).');
+            }
+        });
     }
 }
