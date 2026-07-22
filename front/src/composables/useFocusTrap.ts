@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { onMounted, onUnmounted, type Ref } from 'vue'
 
 export function useFocusTrap(params: { containerRef: Ref<HTMLElement | null>; active: Ref<boolean> }) {

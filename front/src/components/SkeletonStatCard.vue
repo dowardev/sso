@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <template>
   <div class="resource-card-skeleton" aria-hidden="true">
     <div class="skeleton-icon"></div>

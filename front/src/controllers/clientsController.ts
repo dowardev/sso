@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { computed } from 'vue';
 import { useClientsStore } from '@/stores/clients';
 import type { SsoClient } from '@/types';

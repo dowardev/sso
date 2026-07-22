@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export interface AuthGuardOptions {
   publicRoutes?: string[];
   loginRedirect?: boolean;

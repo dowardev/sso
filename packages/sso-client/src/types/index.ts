@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export interface Role {
   id: number;
   name: string;

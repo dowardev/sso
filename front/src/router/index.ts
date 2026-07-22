@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import type { RouteRecordRaw } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';

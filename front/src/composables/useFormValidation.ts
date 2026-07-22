@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { useVuelidate } from '@vuelidate/core'
 import type { ValidationRule } from '@vuelidate/core'
 import type { Ref, ComputedRef } from 'vue'

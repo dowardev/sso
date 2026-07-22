@@ -1,4 +1,5 @@
 <?php
+// SPDX-License-Identifier: AGPL-3.0-only
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CspReportController;

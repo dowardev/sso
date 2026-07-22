@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { computed } from 'vue';
 import { useRolesStore } from '@/stores/roles';
 import type { Role } from '@/types';

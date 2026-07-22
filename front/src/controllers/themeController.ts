@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { useThemeStore } from '@/stores/theme'
 import type { ThemeName, ResolvedThemeName } from '@/stores/theme'
 

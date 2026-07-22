@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export class TokenStorage {
   private readonly TOKEN_KEY = "@tu-org/sso-client:token";
   private readonly REFRESH_KEY = "@tu-org/sso-client:refresh-token";

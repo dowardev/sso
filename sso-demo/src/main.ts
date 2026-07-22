@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { SSOClient } from "@tu-org/sso-client";
 import { initApp } from "./app";
 

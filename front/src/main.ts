@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import App from './App.vue';

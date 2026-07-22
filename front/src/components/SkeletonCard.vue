@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <template>
   <ion-card aria-hidden="true">
     <div class="skeleton-card-content">
