@@ -62,7 +62,7 @@
                 label="Contraseña"
                 label-placement="floating"
                 type="password"
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mínimo 10 caracteres"
                 autocomplete="new-password"
                 aria-describedby="setup-password-error"
                 @ion-blur="v$.password.$touch()"
@@ -70,8 +70,37 @@
                 <ion-input-password-toggle slot="end" />
               </ion-input>
             </ion-item>
-            <div v-if="v$.password.$error" id="setup-password-error" class="field-error">
-              {{ v$.password.$errors[0].$message }}
+            <div v-if="form.password.length > 0 || v$.password.$dirty" id="setup-password-checklist" class="password-checklist" aria-live="polite">
+              <div class="check-item" :class="{ valid: passwordChecks.minLength }">
+                <span class="check-icon">
+                  <ion-icon :icon="passwordChecks.minLength ? checkmarkCircleOutline : closeCircleOutline" />
+                </span>
+                <span>Al menos 10 caracteres</span>
+              </div>
+              <div class="check-item" :class="{ valid: passwordChecks.hasUpperCase }">
+                <span class="check-icon">
+                  <ion-icon :icon="passwordChecks.hasUpperCase ? checkmarkCircleOutline : closeCircleOutline" />
+                </span>
+                <span>Al menos una mayúscula</span>
+              </div>
+              <div class="check-item" :class="{ valid: passwordChecks.hasLowerCase }">
+                <span class="check-icon">
+                  <ion-icon :icon="passwordChecks.hasLowerCase ? checkmarkCircleOutline : closeCircleOutline" />
+                </span>
+                <span>Al menos una minúscula</span>
+              </div>
+              <div class="check-item" :class="{ valid: passwordChecks.hasNumber }">
+                <span class="check-icon">
+                  <ion-icon :icon="passwordChecks.hasNumber ? checkmarkCircleOutline : closeCircleOutline" />
+                </span>
+                <span>Al menos un número</span>
+              </div>
+              <div class="check-item" :class="{ valid: passwordChecks.hasSymbol }">
+                <span class="check-icon">
+                  <ion-icon :icon="passwordChecks.hasSymbol ? checkmarkCircleOutline : closeCircleOutline" />
+                </span>
+                <span>Al menos un símbolo especial (@ $ ! % * ? &)</span>
+              </div>
             </div>
 
             <ion-item class="input-item" lines="none">
@@ -102,7 +131,7 @@
                 type="submit"
                 expand="block"
                 class="gradient-btn"
-                :disabled="setupController.loading.value"
+                :disabled="setupController.loading.value || (v$.$invalid && v$.$dirty)"
               >
                 <ion-spinner v-if="setupController.loading.value" name="lines"></ion-spinner>
                 <span v-else>Crear Administrador</span>
@@ -131,9 +160,9 @@ import {
   IonIcon,
   IonInputPasswordToggle,
 } from '@ionic/vue'
-import { alertCircle } from 'ionicons/icons'
+import { alertCircle, checkmarkCircleOutline, closeCircleOutline } from 'ionicons/icons'
 import { useVuelidate } from '@vuelidate/core'
-import { required, minLength, email, sameAs } from '@vuelidate/validators'
+import { helpers, required, minLength, email, sameAs } from '@vuelidate/validators'
 
 // 2. Controllers / Composables
 import { useSetupController } from '@/controllers/setupController'
@@ -160,12 +189,27 @@ const form = ref({
 // 7. Watch
 
 // 8. Computed
+const passwordChecks = computed(() => ({
+  minLength: form.value.password.length >= 10,
+  hasUpperCase: /[A-Z]/.test(form.value.password),
+  hasLowerCase: /[a-z]/.test(form.value.password),
+  hasNumber: /[0-9]/.test(form.value.password),
+  hasSymbol: /[@$!%*?&]/.test(form.value.password),
+}))
+
 const rules = computed(() => ({
-  name: { required: required },
-  user: { required: required },
-  email: { required: required, email: email },
-  password: { required: required, minLength: minLength(6) },
-  password_confirmation: { required: required, sameAs: sameAs(computed(() => form.value.password)) },
+  name: { required },
+  user: { required },
+  email: { required, email },
+  password: {
+    required: helpers.withMessage('La contraseña es obligatoria.', required),
+    minLength: helpers.withMessage('Debe tener al menos 10 caracteres.', minLength(10)),
+    hasUpperCase: helpers.withMessage('Debe contener al menos una mayúscula.', helpers.regex(/[A-Z]/)),
+    hasLowerCase: helpers.withMessage('Debe contener al menos una minúscula.', helpers.regex(/[a-z]/)),
+    hasNumber: helpers.withMessage('Debe contener al menos un número.', helpers.regex(/[0-9]/)),
+    hasSymbol: helpers.withMessage('Debe contener al menos un símbolo especial (@ $ ! % * ? &).', helpers.regex(/[@$!%*?&]/)),
+  },
+  password_confirmation: { required, sameAs: helpers.withMessage('Las contraseñas no coinciden.', sameAs(computed(() => form.value.password))) },
 }))
 
 const v$ = useVuelidate(rules, form)
@@ -201,5 +245,32 @@ const handleSetup = async (_params: object = {}): Promise<void> => {
   color: var(--ion-color-danger);
   font-size: 13px;
   padding: 8px 0;
+}
+
+.password-checklist {
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: var(--ion-color-light);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  color: var(--ion-color-medium);
+  transition: color 0.15s ease;
+}
+
+.check-item.valid {
+  color: var(--ion-color-success);
+}
+
+.check-icon {
+  font-size: 14px;
+  width: 16px;
+  text-align: center;
 }
 </style>

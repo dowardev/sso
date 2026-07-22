@@ -7,6 +7,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Setup form visual checklist**: Reactive password requirements indicator on `SetupPage.vue` with live status per rule (10 chars, uppercase, lowercase, number, symbol), using `ion-icon` (checkmark/close) for accessible contrast
+- **End-to-end test coverage for first-run setup**: 11 PHPUnit Feature tests in `SetupAdminRequestTest` covering password complexity rules, confirmation match, 403 guards (users already exist / setup token missing/invalid), and successful admin creation with admin role assignment
+
+### Changed
+
+- **`SetupAdminRequest`**: Moved password complexity regex rules (uppercase, lowercase, number, symbol) from `rules()` into `withValidator()` so each rule can return a specific translated error message instead of a generic regex failure
+- **Frontend error UX**: Removed duplicate password error message above the checklist (redundant with checklist's per-rule indicators); submit button now disables only when visible errors exist (`v$.$invalid && v$.$dirty`)
+- **Accessibility**: Replaced emoji ✅/❌ indicators with `ion-icon` (checkmark/close) and added `aria-live="polite"` to password checklist for screen reader announcements
+
+### Fixed
+
+- **Missing trailing newline** in `SetupAdminRequest.php` (POSIX file convention)
+
+### Documentation
+
+- **`AGENTS.md`**: Documented `APP_SETUP_TOKEN` setup flow: generation via `openssl rand -hex 32`, X-Setup-Token header requirement for `POST /api/setup/admin`
+- **`back/.env.example`** and **`back/.env.production.example`**: Added comment + empty `APP_SETUP_TOKEN` slot showing how to generate the token
+
+### Affected Files
+
+- Modified: `back/app/Http/Requests/SetupAdminRequest.php`, `front/src/views/SetupPage.vue`, `back/.env.example`, `back/.env.production.example`, `AGENTS.md`
+- Added: `back/tests/Feature/SetupAdminRequestTest.php`
+
 ## [0.28.1] - 2026-06-28
 
 ### Fixed
