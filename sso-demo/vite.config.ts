@@ -4,14 +4,14 @@ import { resolve } from "path";
 export default defineConfig({
   resolve: {
     alias: {
-      "@tu-org/sso-client": resolve(
+      "@dowardev/sso-client": resolve(
         __dirname,
         "../packages/sso-client/src/index.ts"
       ),
     },
   },
   optimizeDeps: {
-    exclude: ["@tu-org/sso-client"],
+    exclude: ["@dowardev/sso-client"],
   },
   server: {
     host: "0.0.0.0",

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 export class TokenStorage {
-  private readonly TOKEN_KEY = "@tu-org/sso-client:token";
-  private readonly REFRESH_KEY = "@tu-org/sso-client:refresh-token";
-  private readonly PKCE_PREFIX = "@tu-org/sso-client:pkce:";
-  private readonly REMEMBER_KEY = "@tu-org/sso-client:remember-me";
+  private readonly TOKEN_KEY = "@dowardev/sso-client:token";
+  private readonly REFRESH_KEY = "@dowardev/sso-client:refresh-token";
+  private readonly PKCE_PREFIX = "@dowardev/sso-client:pkce:";
+  private readonly REMEMBER_KEY = "@dowardev/sso-client:remember-me";
 
   async getToken(): Promise<string | null> {
     return localStorage.getItem(this.TOKEN_KEY);

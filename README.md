@@ -82,8 +82,8 @@ sso/
 │   ├── src/                # Services, Views, Router
 │   └── dist/               # Production build output
 ├── packages/                # Shared libraries
-│   ├── sso-client/         # @tu-org/sso-client (OAuth2 PKCE + DPoP + axios)
-│   └── sso-server/         # tu-org/sso-server (DPoP verification, Laravel middleware)
+│   ├── sso-client/         # @dowardev/sso-client (OAuth2 PKCE + DPoP + axios)
+│   └── sso-server/         # dowardev/sso-server (DPoP verification, Laravel middleware)
 ├── AGENTS.md               # Developer reference
 ├── DEPLOY.md               # Deployment guide
 ├── README.md               # This file
@@ -271,7 +271,7 @@ DPoP binds tokens to a specific RSA key pair for additional security:
 
 ## SSO Client Library
 
-The `@tu-org/sso-client` package provides a typed OAuth2 client with PKCE and DPoP support. Source code is at `packages/sso-client/`.
+The `@dowardev/sso-client` package provides a typed OAuth2 client with PKCE and DPoP support. Source code is at `packages/sso-client/`.
 
 ```bash
 # Build the library
@@ -281,7 +281,7 @@ pnpm run build:sso-client
 To integrate into a TypeScript application:
 
 ```ts
-import { SSOClient } from "@tu-org/sso-client";
+import { SSOClient } from "@dowardev/sso-client";
 
 const client = new SSOClient({
   clientId: "my-app",

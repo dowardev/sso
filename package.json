@@ -15,7 +15,7 @@
     "dev": "concurrently \"pnpm:dev:front\" \"pnpm:dev:back\"",
     "build:front": "pnpm --filter front build",
     "build:back": "cd back && php artisan build",
-    "build:sso-client": "pnpm --filter @tu-org/sso-client build",
+    "build:sso-client": "pnpm --filter @dowardev/sso-client build",
     "build": "pnpm run build:front && pnpm run build:back",
     "demo": "pnpm --filter sso-demo dev"
   },

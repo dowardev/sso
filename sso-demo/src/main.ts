@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-import { SSOClient } from "@tu-org/sso-client";
+import { SSOClient } from "@dowardev/sso-client";
 import { initApp } from "./app";
 
 let ssoClient: SSOClient;

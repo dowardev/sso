@@ -1,5 +1,5 @@
 {
-  "name": "@tu-org/sso-client",
+  "name": "@dowardev/sso-client",
   "version": "0.0.1",
   "description": "Client library for SSO authentication with DPoP support",
   "main": "dist/index.js",

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
-import type { SSOClient } from "@tu-org/sso-client";
-import type { AuthState, User } from "@tu-org/sso-client";
+import type { SSOClient } from "@dowardev/sso-client";
+import type { AuthState, User } from "@dowardev/sso-client";
 import "./style.css";
 
 let ssoClient: SSOClient;

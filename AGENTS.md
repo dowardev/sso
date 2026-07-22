@@ -5,9 +5,9 @@
 Monorepo with workspaces:
 - `back/` — Laravel 12 backend (PHP 8.2+)
 - `front/` — Ionic Vue 8 frontend (Node.js, pnpm)
-- `packages/sso-client/` — TS library `@tu-org/sso-client` (OAuth2 PKCE + DPoP + axios)
-- `packages/sso-server/` — PHP library `tu-org/sso-server` (Laravel, DPoP verification)
-- `sso-demo/` — Vanilla TS demo app consuming `@tu-org/sso-client`
+- `packages/sso-client/` — TS library `@dowardev/sso-client` (OAuth2 PKCE + DPoP + axios)
+- `packages/sso-server/` — PHP library `dowardev/sso-server` (Laravel, DPoP verification)
+- `sso-demo/` — Vanilla TS demo app consuming `@dowardev/sso-client`
 
 ## Developer Commands
 
