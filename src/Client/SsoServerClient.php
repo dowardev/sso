@@ -1,16 +1,16 @@
 <?php
 // SPDX-License-Identifier: MIT
 
-namespace TuOrg\SsoServer\Client;
+namespace Dowardev\SsoServer\Client;
 
-use TuOrg\SsoServer\Auth\RoleChecker;
-use TuOrg\SsoServer\Auth\SsoUserResolver;
-use TuOrg\SsoServer\Dpop\DpopVerifier;
-use TuOrg\SsoServer\Exceptions\DpopVerificationException;
-use TuOrg\SsoServer\Exceptions\SsoAuthenticationException;
-use TuOrg\SsoServer\Jwt\JwtValidator;
-use TuOrg\SsoServer\Types\SsoConfig;
-use TuOrg\SsoServer\Types\SsoUser;
+use Dowardev\SsoServer\Auth\RoleChecker;
+use Dowardev\SsoServer\Auth\SsoUserResolver;
+use Dowardev\SsoServer\Dpop\DpopVerifier;
+use Dowardev\SsoServer\Exceptions\DpopVerificationException;
+use Dowardev\SsoServer\Exceptions\SsoAuthenticationException;
+use Dowardev\SsoServer\Jwt\JwtValidator;
+use Dowardev\SsoServer\Types\SsoConfig;
+use Dowardev\SsoServer\Types\SsoUser;
 
 class SsoServerClient
 {

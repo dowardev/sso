@@ -1,7 +1,7 @@
 <?php
 // SPDX-License-Identifier: MIT
 
-namespace TuOrg\SsoServer\Types;
+namespace Dowardev\SsoServer\Types;
 
 use JsonSerializable;
 

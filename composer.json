@@ -2,7 +2,7 @@
     "name": "dowardev/sso-server",
     "description": "Server-side SSO authentication library for Laravel with DPoP verification",
     "type": "library",
-    "license": "MIT",
+    "license": "AGPL-3.0-only",
     "require": {
         "php": "^8.2",
         "laravel/framework": "^11.0 || ^12.0 || ^13.0",
@@ -15,21 +15,21 @@
     },
     "autoload": {
         "psr-4": {
-            "TuOrg\\SsoServer\\": "src/"
+            "Dowardev\\SsoServer\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "TuOrg\\SsoServer\\Tests\\": "tests/"
+            "Dowardev\\SsoServer\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "TuOrg\\SsoServer\\SsoServerServiceProvider"
+                "Dowardev\\SsoServer\\SsoServerServiceProvider"
             ],
             "aliases": {
-                "SsoAuth": "TuOrg\\SsoServer\\Facades\\SsoAuth"
+                "SsoAuth": "Dowardev\\SsoServer\\Facades\\SsoAuth"
             }
         }
     },

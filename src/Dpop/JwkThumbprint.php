@@ -1,7 +1,7 @@
 <?php
 // SPDX-License-Identifier: MIT
 
-namespace TuOrg\SsoServer\Dpop;
+namespace Dowardev\SsoServer\Dpop;
 
 class JwkThumbprint
 {

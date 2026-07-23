@@ -1,12 +1,12 @@
 <?php
 // SPDX-License-Identifier: MIT
 
-namespace TuOrg\SsoServer\Middleware;
+namespace Dowardev\SsoServer\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use TuOrg\SsoServer\Client\SsoServerClient;
+use Dowardev\SsoServer\Client\SsoServerClient;
 
 class SsoRoleMiddleware
 {

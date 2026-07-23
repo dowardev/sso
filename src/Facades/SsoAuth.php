@@ -1,10 +1,10 @@
 <?php
 // SPDX-License-Identifier: MIT
 
-namespace TuOrg\SsoServer\Facades;
+namespace Dowardev\SsoServer\Facades;
 
 use Illuminate\Support\Facades\Facade;
-use TuOrg\SsoServer\Types\SsoUser;
+use Dowardev\SsoServer\Types\SsoUser;
 
 /**
  * @method static SsoUser|null user()
@@ -13,7 +13,7 @@ use TuOrg\SsoServer\Types\SsoUser;
  * @method static array roles()
  * @method static bool hasRole(string $roleSlug)
  * @method static bool dpopVerified()
- * @see \TuOrg\SsoServer\Client\SsoServerClient
+ * @see \Dowardev\SsoServer\Client\SsoServerClient
  */
 class SsoAuth extends Facade
 {

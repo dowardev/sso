@@ -1,21 +1,21 @@
 <?php
 // SPDX-License-Identifier: MIT
 
-namespace TuOrg\SsoServer;
+namespace Dowardev\SsoServer;
 
 use Illuminate\Support\ServiceProvider;
-use TuOrg\SsoServer\Auth\RoleChecker;
-use TuOrg\SsoServer\Auth\SsoUserResolver;
-use TuOrg\SsoServer\Client\SsoServerClient;
-use TuOrg\SsoServer\Dpop\DpopVerifier;
-use TuOrg\SsoServer\Dpop\ReplayProtection;
-use TuOrg\SsoServer\Http\SsoHttpClient;
-use TuOrg\SsoServer\Jwt\JwkToPemConverter;
-use TuOrg\SsoServer\Jwt\JwksFetcher;
-use TuOrg\SsoServer\Jwt\JwtValidator;
-use TuOrg\SsoServer\Middleware\SsoAuthMiddleware;
-use TuOrg\SsoServer\Middleware\SsoRoleMiddleware;
-use TuOrg\SsoServer\Types\SsoConfig;
+use Dowardev\SsoServer\Auth\RoleChecker;
+use Dowardev\SsoServer\Auth\SsoUserResolver;
+use Dowardev\SsoServer\Client\SsoServerClient;
+use Dowardev\SsoServer\Dpop\DpopVerifier;
+use Dowardev\SsoServer\Dpop\ReplayProtection;
+use Dowardev\SsoServer\Http\SsoHttpClient;
+use Dowardev\SsoServer\Jwt\JwkToPemConverter;
+use Dowardev\SsoServer\Jwt\JwksFetcher;
+use Dowardev\SsoServer\Jwt\JwtValidator;
+use Dowardev\SsoServer\Middleware\SsoAuthMiddleware;
+use Dowardev\SsoServer\Middleware\SsoRoleMiddleware;
+use Dowardev\SsoServer\Types\SsoConfig;
 
 class SsoServerServiceProvider extends ServiceProvider
 {

@@ -1,11 +1,11 @@
 <?php
 // SPDX-License-Identifier: MIT
 
-namespace TuOrg\SsoServer\Http;
+namespace Dowardev\SsoServer\Http;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use TuOrg\SsoServer\Types\SsoConfig;
+use Dowardev\SsoServer\Types\SsoConfig;
 
 class SsoHttpClient
 {

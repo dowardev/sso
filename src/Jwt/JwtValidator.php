@@ -1,7 +1,7 @@
 <?php
 // SPDX-License-Identifier: MIT
 
-namespace TuOrg\SsoServer\Jwt;
+namespace Dowardev\SsoServer\Jwt;
 
 use Lcobucci\JWT\Configuration;
 use Lcobucci\JWT\Signer\Key\InMemory;
@@ -11,8 +11,8 @@ use Lcobucci\JWT\Validation\Constraint\SignedWith;
 use Lcobucci\JWT\Validation\Constraint\LooseValidAt;
 use Lcobucci\Clock\SystemClock;
 use Lcobucci\JWT\Token;
-use TuOrg\SsoServer\Exceptions\SsoAuthenticationException;
-use TuOrg\SsoServer\Types\SsoConfig;
+use Dowardev\SsoServer\Exceptions\SsoAuthenticationException;
+use Dowardev\SsoServer\Types\SsoConfig;
 
 class JwtValidator
 {

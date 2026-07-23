@@ -1,11 +1,11 @@
 <?php
 
-namespace TuOrg\SsoServer\Tests;
+namespace Dowardev\SsoServer\Tests;
 
 use Illuminate\Support\Facades\Cache;
-use TuOrg\SsoServer\Dpop\ReplayProtection;
-use TuOrg\SsoServer\Exceptions\DpopVerificationException;
-use TuOrg\SsoServer\Types\SsoConfig;
+use Dowardev\SsoServer\Dpop\ReplayProtection;
+use Dowardev\SsoServer\Exceptions\DpopVerificationException;
+use Dowardev\SsoServer\Types\SsoConfig;
 
 class ReplayProtectionTest extends TestCase
 {

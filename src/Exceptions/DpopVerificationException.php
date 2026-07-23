@@ -1,7 +1,7 @@
 <?php
 // SPDX-License-Identifier: MIT
 
-namespace TuOrg\SsoServer\Exceptions;
+namespace Dowardev\SsoServer\Exceptions;
 
 use RuntimeException;
 

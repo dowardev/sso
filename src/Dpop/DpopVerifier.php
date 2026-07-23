@@ -1,13 +1,13 @@
 <?php
 // SPDX-License-Identifier: MIT
 
-namespace TuOrg\SsoServer\Dpop;
+namespace Dowardev\SsoServer\Dpop;
 
 use Lcobucci\JWT\Token;
-use TuOrg\SsoServer\Exceptions\DpopVerificationException;
-use TuOrg\SsoServer\Jwt\JwkToPemConverter;
-use TuOrg\SsoServer\Jwt\JwtValidator;
-use TuOrg\SsoServer\Types\SsoConfig;
+use Dowardev\SsoServer\Exceptions\DpopVerificationException;
+use Dowardev\SsoServer\Jwt\JwkToPemConverter;
+use Dowardev\SsoServer\Jwt\JwtValidator;
+use Dowardev\SsoServer\Types\SsoConfig;
 
 class DpopVerifier
 {

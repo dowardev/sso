@@ -1,8 +1,8 @@
 <?php
 
-namespace TuOrg\SsoServer\Tests;
+namespace Dowardev\SsoServer\Tests;
 
-use TuOrg\SsoServer\Dpop\JwkThumbprint;
+use Dowardev\SsoServer\Dpop\JwkThumbprint;
 
 class JwkThumbprintTest extends TestCase
 {

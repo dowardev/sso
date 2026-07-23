@@ -1,7 +1,7 @@
 <?php
 // SPDX-License-Identifier: MIT
 
-namespace TuOrg\SsoServer\Jwt;
+namespace Dowardev\SsoServer\Jwt;
 
 class JwkToPemConverter
 {

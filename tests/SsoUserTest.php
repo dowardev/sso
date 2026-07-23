@@ -1,8 +1,8 @@
 <?php
 
-namespace TuOrg\SsoServer\Tests;
+namespace Dowardev\SsoServer\Tests;
 
-use TuOrg\SsoServer\Types\SsoUser;
+use Dowardev\SsoServer\Types\SsoUser;
 
 class SsoUserTest extends TestCase
 {

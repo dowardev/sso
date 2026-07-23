@@ -1,13 +1,13 @@
 <?php
 // SPDX-License-Identifier: MIT
 
-namespace TuOrg\SsoServer\Auth;
+namespace Dowardev\SsoServer\Auth;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use TuOrg\SsoServer\Exceptions\SsoUserResolveException;
-use TuOrg\SsoServer\Http\SsoHttpClient;
-use TuOrg\SsoServer\Types\SsoConfig;
+use Dowardev\SsoServer\Exceptions\SsoUserResolveException;
+use Dowardev\SsoServer\Http\SsoHttpClient;
+use Dowardev\SsoServer\Types\SsoConfig;
 
 class SsoUserResolver
 {

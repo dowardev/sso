@@ -1,10 +1,10 @@
 <?php
 
-namespace TuOrg\SsoServer\Tests;
+namespace Dowardev\SsoServer\Tests;
 
-use TuOrg\SsoServer\Exceptions\DpopVerificationException;
-use TuOrg\SsoServer\Exceptions\JwksFetchException;
-use TuOrg\SsoServer\Exceptions\SsoAuthenticationException;
+use Dowardev\SsoServer\Exceptions\DpopVerificationException;
+use Dowardev\SsoServer\Exceptions\JwksFetchException;
+use Dowardev\SsoServer\Exceptions\SsoAuthenticationException;
 
 class ExceptionsTest extends TestCase
 {
