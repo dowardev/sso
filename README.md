@@ -1,39 +1,39 @@
 # dowardev/sso-server
 
-Librería del lado servidor para autenticación SSO en Laravel con verificación **DPoP** (Demonstrating Proof-of-Possession) y validación de JWT vía JWKS.
+Server-side library for SSO authentication in Laravel with **DPoP** (Demonstrating Proof-of-Possession) verification and JWT validation via JWKS.
 
-Diseñada para integrarse con el servidor central SSO y exponer middleware de autenticación y roles (`SsoAuthMiddleware`, `SsoRoleMiddleware`), resolutores de usuario y un cliente HTTP (`SsoServerClient`) para consumir el endpoint `GET /api/auth/me` del servidor SSO.
+Designed to integrate with the central SSO server and expose authentication and role middleware (`SsoAuthMiddleware`, `SsoRoleMiddleware`), user resolvers, and an HTTP client (`SsoServerClient`) to consume the SSO server's `GET /api/auth/me` endpoint.
 
-## Requisitos
+## Requirements
 
 - PHP **8.2+**
 - Laravel **11.x / 12.x / 13.x**
 - `lcobucci/jwt ^5.x`
-- Conexión saliente al servidor SSO (para `/.well-known/jwks`)
+- Outbound connection to the SSO server (for `/.well-known/jwks`)
 
-## Instalación
+## Installation
 
 ```bash
 composer require dowardev/sso-server
 ```
 
-## Publicación y configuración
+## Publishing and configuration
 
 ```bash
 php artisan vendor:publish --provider="Dowardev\SsoServer\SsoServerServiceProvider"
 ```
 
-El archivo de configuración publicado define la URL del servidor SSO, el JWKS endpoint y mapeos de roles. Los middleware se registran vía alias:
+The published config file defines the SSO server URL, JWKS endpoint, and role mappings. Middleware is registered via alias:
 
 ```php
-// app/Http/Kernel.php (o bootstrap/app.php en Laravel 11+)
+// app/Http/Kernel.php (or bootstrap/app.php in Laravel 11+)
 protected $routeMiddleware = [
     'sso.auth' => \Dowardev\SsoServer\Middleware\SsoAuthMiddleware::class,
     'sso.role' => \Dowardev\SsoServer\Middleware\SsoRoleMiddleware::class,
 ];
 ```
 
-## Uso básico
+## Basic usage
 
 ```php
 use Dowardev\SsoServer\Facades\SsoAuth;
@@ -47,17 +47,17 @@ Route::middleware(['sso.auth', 'sso.role:admin'])->get('/admin', function () {
 });
 ```
 
-## Licencia y Modelo Comercial
+## License and Commercial Model
 
-Este proyecto está disponible bajo un esquema de **Dual Licensing**:
+This project is available under a **Dual Licensing** scheme:
 
-- **AGPLv3 (Open Source):** Libre para uso personal, desarrollo y proyectos que compartan su código fuente bajo AGPLv3. Si ejecutas o modificas este servicio en la nube (SaaS), estás obligado a liberar el código fuente de tus modificaciones.
-- **Licencia Comercial Privada:** Si deseas utilizar este servidor en un entorno empresarial cerrado, integrarlo en productos propietarios sin liberar código o requerir acuerdos de nivel de servicio (SLA), debes adquirir una Licencia Comercial.
+- **AGPLv3 (Open Source):** Free for personal use, development, and projects that share their source code under AGPLv3. If you run or modify this service in the cloud (SaaS), you are required to release the source code of your modifications.
+- **Commercial Private License:** If you wish to use this server in a closed enterprise environment, integrate it into proprietary products without releasing code, or require service-level agreements (SLA), you must acquire a Commercial License.
 
-Para consultas sobre licencias comerciales: `gonzalo@dowar.xyz`
+For commercial licensing inquiries: `gonzalo@dowar.xyz`
 
-El texto íntegro de la licencia AGPLv3 está en el archivo [LICENSE](./LICENSE).
+The full text of the AGPLv3 license is in the [LICENSE](./LICENSE) file.
 
-## Clientes / SDKs relacionados
+## Related Clients / SDKs
 
-- [`@dowardev/sso-client`](https://www.npmjs.com/package/@dowardev/sso-client) — SDK TypeScript para el navegador (licencia MIT, permisiva).
+- [`@dowardev/sso-client`](https://www.npmjs.com/package/@dowardev/sso-client) — TypeScript SDK for the browser (MIT license, permissive).
