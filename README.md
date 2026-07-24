@@ -54,7 +54,7 @@ This project is available under a **Dual Licensing** scheme:
 - **AGPLv3 (Open Source):** Free for personal use, development, and projects that share their source code under AGPLv3. If you run or modify this service in the cloud (SaaS), you are required to release the source code of your modifications.
 - **Commercial Private License:** If you wish to use this server in a closed enterprise environment, integrate it into proprietary products without releasing code, or require service-level agreements (SLA), you must acquire a Commercial License.
 
-For commercial licensing inquiries: `gonzalo@dowar.xyz`
+For commercial licensing inquiries: `contacto@dowardev.com`
 
 The full text of the AGPLv3 license is in the [LICENSE](./LICENSE) file.
 
