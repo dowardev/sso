@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <template>
   <ion-card class="auth-screen">
     <div class="blob blob-1" aria-hidden="true"></div>

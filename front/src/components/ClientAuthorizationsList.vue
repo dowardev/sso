@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <template>
   <div class="authorizations-card">
     <div class="section-header">

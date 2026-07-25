@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { TokenStorage } from "../storage/TokenStorage";
 import { DpopService } from "../dpop/DpopService";

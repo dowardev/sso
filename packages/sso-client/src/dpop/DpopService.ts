@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export class DpopService {
   private privateKey: CryptoKey | null = null;
   private publicKeyJwk: JsonWebKey | null = null;

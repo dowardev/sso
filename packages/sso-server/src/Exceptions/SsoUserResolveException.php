@@ -1,6 +1,7 @@
 <?php
+// SPDX-License-Identifier: AGPL-3.0-only
 
-namespace TuOrg\SsoServer\Exceptions;
+namespace Dowardev\SsoServer\Exceptions;
 
 use RuntimeException;
 use Throwable;

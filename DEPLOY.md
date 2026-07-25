@@ -410,4 +410,99 @@ pnpm run dev                   # Start frontend + backend concurrently
 
 ## License
 
-This project is developed under the MIT license.
+This project uses **dual licensing**:
+- **Server** (`back/`, `dowardev/sso-server`): AGPL-3.0-only
+- **SDKs and client packages** (`packages/sso-client/`, `front/`, `sso-demo/`): MIT
+
+See `LICENSE-COMMERCIAL.md` for commercial licensing options.
+
+---
+
+## Publishing sso-client to npm
+
+The `@dowardev/sso-client` package lives in `packages/sso-client/` of this monorepo.
+Unlike sso-server, npm accepts the package directly from the subdirectory — no
+mirror repo is required.
+
+### One-time setup
+
+- Create an npm account and organization `dowardev` at npmjs.com.
+- Run `npm login` once locally (auth persisted in ~/.npmrc).
+
+### Publishing a new release
+
+```bash
+# 1. Bump version in packages/sso-client/package.json
+#    (e.g. "version": "0.0.2")
+
+# 2. Build the library (Vite produces dist/)
+pnpm run build:sso-client
+
+# 3. Publish (scoped packages require --access public the first time)
+cd packages/sso-client
+npm publish --access public
+cd ../..
+
+# 4. Commit the version bump and push
+git add packages/sso-client/package.json
+git commit -m "release(sso-client): vX.Y.Z"
+git push origin <branch>
+```
+
+### Notes
+
+- Publish directly from the working branch — no merge to `main` required.
+- No tag needed for sso-client (npm is the registry of record, not git tags).
+- Files included in the published package are controlled by the `files` field
+  in `packages/sso-client/package.json` (currently only `dist`).
+
+---
+
+## Publishing sso-server to Packagist (manual subtree split)
+
+The `dowardev/sso-server` Composer package lives in `packages/sso-server/` of this
+monorepo. Packagist requires `composer.json` at the repository root, so we maintain a
+mirror repo at `gitlab.com/dowardev/sso-server` via `git subtree split`.
+
+### One-time setup
+
+1. Create a blank repo `gitlab.com/dowardev/sso-server` (public, no README/LICENSE).
+2. From the monorepo root:
+   ```bash
+   git subtree split --prefix=packages/sso-server -b sso-server-split
+   git checkout sso-server-split
+   composer install
+   vendor/bin/phpunit     # verify 31 tests pass
+   git checkout <original-branch>
+   ```
+3. Add the mirror remote and push:
+   ```bash
+   git remote add sso-server-mirror git@gitlab.com:dowardev/sso-server.git
+   git push sso-server-mirror sso-server-split:main
+   ```
+4. Tag the first release and push:
+   ```bash
+   git tag -a v0.1.0 sso-server-split -m "Initial release"
+   git push sso-server-mirror v0.1.0
+   ```
+5. Register at `packagist.org/packages/submit` with URL
+   `https://gitlab.com/dowardev/sso-server.git` (the mirror, NOT the monorepo).
+
+### Updating for a new release
+
+```bash
+cd /home/dowardev/Documentos/programacion/sso
+git subtree split --prefix=packages/sso-server -b sso-server-split
+git push sso-server-mirror sso-server-split:main
+git tag -a vX.Y.Z sso-server-split -m "Release vX.Y.Z"
+git push sso-server-mirror vX.Y.Z
+```
+
+Packagist updates automatically when the new tag is pushed.
+
+### Notes
+- The mirror repo should NOT have CI/CD pipelines configured; updates are manual.
+- Tags use standard semver `vX.Y.Z`. The `glab-head` remote mirrors the monorepo to
+  GitLab but has no CI triggers for the mirror repo.
+- The monorepo itself (`gitlab.com/dowardev/sso`) does not need tags for sso-server
+  releases — all release metadata lives in the mirror.

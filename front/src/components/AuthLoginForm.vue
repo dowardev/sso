@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <template>
   <AuthCard title="Iniciar Sesión" subtitle="Accede a tu cuenta de SSO Server">
     <form @submit.prevent="handleLogin">

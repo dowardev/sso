@@ -1,9 +1,9 @@
 <?php
 
-namespace TuOrg\SsoServer\Tests;
+namespace Dowardev\SsoServer\Tests;
 
 use Orchestra\Testbench\TestCase as BaseTestCase;
-use TuOrg\SsoServer\SsoServerServiceProvider;
+use Dowardev\SsoServer\SsoServerServiceProvider;
 
 abstract class TestCase extends BaseTestCase
 {

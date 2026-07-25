@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export interface User {
     id: number;
     name: string;

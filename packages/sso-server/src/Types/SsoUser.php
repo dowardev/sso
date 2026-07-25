@@ -1,6 +1,7 @@
 <?php
+// SPDX-License-Identifier: AGPL-3.0-only
 
-namespace TuOrg\SsoServer\Types;
+namespace Dowardev\SsoServer\Types;
 
 use JsonSerializable;
 

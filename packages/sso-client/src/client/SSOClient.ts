@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import axios from "axios";
 import { SSOServerConfig } from "../config/SSOServerConfig";
 import { DpopService } from "../dpop/DpopService";

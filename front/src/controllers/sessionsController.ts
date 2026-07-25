@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { computed } from 'vue';
 import { useSessionsStore } from '@/stores/sessions';
 

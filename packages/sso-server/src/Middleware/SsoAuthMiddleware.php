@@ -1,15 +1,16 @@
 <?php
+// SPDX-License-Identifier: AGPL-3.0-only
 
-namespace TuOrg\SsoServer\Middleware;
+namespace Dowardev\SsoServer\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use TuOrg\SsoServer\Client\SsoServerClient;
-use TuOrg\SsoServer\Exceptions\DpopVerificationException;
-use TuOrg\SsoServer\Exceptions\JwksFetchException;
-use TuOrg\SsoServer\Exceptions\SsoAuthenticationException;
-use TuOrg\SsoServer\Exceptions\SsoUserResolveException;
+use Dowardev\SsoServer\Client\SsoServerClient;
+use Dowardev\SsoServer\Exceptions\DpopVerificationException;
+use Dowardev\SsoServer\Exceptions\JwksFetchException;
+use Dowardev\SsoServer\Exceptions\SsoAuthenticationException;
+use Dowardev\SsoServer\Exceptions\SsoUserResolveException;
 
 class SsoAuthMiddleware
 {

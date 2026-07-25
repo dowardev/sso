@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { toastController } from '@ionic/vue';
 
 type ToastColor = 'success' | 'danger' | 'warning' | 'primary';
