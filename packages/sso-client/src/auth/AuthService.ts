@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { DpopService } from "../dpop/DpopService";
 import {
   AuthResponse,

@@ -1,8 +1,9 @@
 <?php
+// SPDX-License-Identifier: AGPL-3.0-only
 
-namespace TuOrg\SsoServer\Auth;
+namespace Dowardev\SsoServer\Auth;
 
-use TuOrg\SsoServer\Types\SsoConfig;
+use Dowardev\SsoServer\Types\SsoConfig;
 
 class RoleChecker
 {

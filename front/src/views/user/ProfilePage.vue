@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <template>
   <ion-page>
     <ion-header v-if="!embedMode" class="ion-no-border" mode="ios">

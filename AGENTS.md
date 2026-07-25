@@ -5,9 +5,9 @@
 Monorepo with workspaces:
 - `back/` — Laravel 12 backend (PHP 8.2+)
 - `front/` — Ionic Vue 8 frontend (Node.js, pnpm)
-- `packages/sso-client/` — TS library `@tu-org/sso-client` (OAuth2 PKCE + DPoP + axios)
-- `packages/sso-server/` — PHP library `tu-org/sso-server` (Laravel, DPoP verification)
-- `sso-demo/` — Vanilla TS demo app consuming `@tu-org/sso-client`
+- `packages/sso-client/` — TS library `@dowardev/sso-client` (OAuth2 PKCE + DPoP + axios)
+- `packages/sso-server/` — PHP library `dowardev/sso-server` (Laravel, DPoP verification)
+- `sso-demo/` — Vanilla TS demo app consuming `@dowardev/sso-client`
 
 ## Developer Commands
 
@@ -273,6 +273,38 @@ Prefer Ionic layout utilities over custom CSS:
 - Modals: `ion-modal` with `ion-header` + `ion-content`
 - Popovers: `ion-popover` with `ion-content`
 - Do NOT use `<div>` with manual styles when an equivalent Ionic component exists
+
+## Release Conventions
+
+Tags use standard semver format `vX.Y.Z` in both the monorepo and the mirror
+repo `gitlab.com/dowardev/sso-server`.
+
+## Package Registries
+
+| Package | Registry | Source | Status |
+|---|---|---|---|
+| `@dowardev/sso-client` | npm | `packages/sso-client/` (published from branch) | Published @0.0.1 |
+| `dowardev/sso-server` | Packagist | mirror `gitlab.com/dowardev/sso-server` (built via `git subtree split --prefix=packages/sso-server`) | Manual publish (last: v0.1.0) |
+
+### Publishing sso-client (npm)
+
+```bash
+pnpm run build:sso-client
+cd packages/sso-client && npm publish --access public && cd ../..
+git add packages/sso-client/package.json
+git commit -m "release(sso-client): vX.Y.Z"
+```
+
+### Publishing sso-server (Packagist)
+
+```bash
+git subtree split --prefix=packages/sso-server -b sso-server-split
+git push sso-server-mirror sso-server-split:main
+git tag -a vX.Y.Z sso-server-split -m "Release vX.Y.Z"
+git push sso-server-mirror vX.Y.Z
+```
+
+See `DEPLOY.md` for the full procedure with verification steps.
 
 ## Commit Policy
 

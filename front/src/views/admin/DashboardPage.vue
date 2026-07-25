@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <template>
   <ion-page>
     <ion-header class="ion-no-border dashboard-header" mode="ios">

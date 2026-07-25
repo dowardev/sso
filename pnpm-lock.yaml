@@ -163,12 +163,12 @@ importers:
 
   sso-demo:
     dependencies:
+      '@dowardev/sso-client':
+        specifier: workspace:*
+        version: link:../packages/sso-client
       '@faker-js/faker':
         specifier: ^9.3.0
         version: 9.9.0
-      '@tu-org/sso-client':
-        specifier: workspace:*
-        version: link:../packages/sso-client
     devDependencies:
       typescript:
         specifier: ^5.7.3

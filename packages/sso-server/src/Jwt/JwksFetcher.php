@@ -1,11 +1,12 @@
 <?php
+// SPDX-License-Identifier: AGPL-3.0-only
 
-namespace TuOrg\SsoServer\Jwt;
+namespace Dowardev\SsoServer\Jwt;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use TuOrg\SsoServer\Exceptions\JwksFetchException;
-use TuOrg\SsoServer\Types\SsoConfig;
+use Dowardev\SsoServer\Exceptions\JwksFetchException;
+use Dowardev\SsoServer\Types\SsoConfig;
 
 class JwksFetcher
 {

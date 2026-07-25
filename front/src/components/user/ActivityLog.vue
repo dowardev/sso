@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <template>
   <div class="section-header">
       <h3 class="section-title">Registro de Actividad</h3>

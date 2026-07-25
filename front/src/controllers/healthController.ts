@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { computed } from 'vue'
 import { useHealthStore } from '@/stores/health'
 

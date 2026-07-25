@@ -21,5 +21,6 @@ front/.eslintcache
 packages/*/dist/
 packages/*/node_modules/
 packages/*/vendor/
+/vendor/
 sso-demo/node_modules/
 .phpunit.result.cache

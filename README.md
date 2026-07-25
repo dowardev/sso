@@ -82,8 +82,8 @@ sso/
 │   ├── src/                # Services, Views, Router
 │   └── dist/               # Production build output
 ├── packages/                # Shared libraries
-│   ├── sso-client/         # @tu-org/sso-client (OAuth2 PKCE + DPoP + axios)
-│   └── sso-server/         # tu-org/sso-server (DPoP verification, Laravel middleware)
+│   ├── sso-client/         # @dowardev/sso-client (OAuth2 PKCE + DPoP + axios)
+│   └── sso-server/         # dowardev/sso-server (DPoP verification, Laravel middleware)
 ├── AGENTS.md               # Developer reference
 ├── DEPLOY.md               # Deployment guide
 ├── README.md               # This file
@@ -271,7 +271,7 @@ DPoP binds tokens to a specific RSA key pair for additional security:
 
 ## SSO Client Library
 
-The `@tu-org/sso-client` package provides a typed OAuth2 client with PKCE and DPoP support. Source code is at `packages/sso-client/`.
+The `@dowardev/sso-client` package provides a typed OAuth2 client with PKCE and DPoP support. Source code is at `packages/sso-client/`.
 
 ```bash
 # Build the library
@@ -281,7 +281,7 @@ pnpm run build:sso-client
 To integrate into a TypeScript application:
 
 ```ts
-import { SSOClient } from "@tu-org/sso-client";
+import { SSOClient } from "@dowardev/sso-client";
 
 const client = new SSOClient({
   clientId: "my-app",
@@ -291,6 +291,15 @@ const client = new SSOClient({
 
 await client.login({ email: "user@example.com", password: "..." });
 ```
+
+### Published packages
+
+| Package | Registry | Install |
+|---------|----------|---------|
+| `@dowardev/sso-client` | npm | `npm install @dowardev/sso-client` |
+| `dowardev/sso-server` | Packagist | `composer require dowardev/sso-server` |
+
+See [DEPLOY.md](./DEPLOY.md) for publishing and release procedures.
 
 ---
 
@@ -359,6 +368,20 @@ pnpm run build                      # Production build (lint + typecheck)
 
 ---
 
-## License
+## Licencia y Modelo Comercial
 
-This project is developed under the **MIT** license.
+Este monorepo contiene componentes con licencias distintas:
+
+| Componente | Licencia | Descripción |
+|------------|----------|-------------|
+| **Servidor Core (`back/`)** | **AGPLv3** (Dual: AGPLv3 + Comercial) | Servidor SSO principal. Uso SaaS requiere liberar código o licencia comercial. |
+| **SDKs / Clientes (`packages/`, `front/`, `sso-demo/`)** | **MIT** | Libre uso en cualquier proyecto (comercial u open source). |
+
+### Dual Licensing (Servidor Core)
+
+- **AGPLv3:** Libre uso si compartes tus modificaciones bajo AGPLv3. Aplicable si operas el servidor como servicio (SaaS).
+- **Licencia Comercial:** Para uso cerrado/empresarial sin liberar código. Contacto: `contacto@dowardev.com`
+
+Ver `LICENSE` (AGPLv3) y `LICENSE-COMMERCIAL.md` en la raíz.
+Ver `back/LICENSE` para el servidor.
+Ver `packages/*/LICENSE`, `front/LICENSE`, `sso-demo/LICENSE` para SDKs (MIT).

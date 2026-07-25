@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <template>
   <ion-item aria-hidden="true">
     <ion-avatar slot="start">

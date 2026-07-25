@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { helpers, required, email, minLength, maxLength, sameAs, url as urlValidator } from '@vuelidate/validators'
 import type { ValidationRule } from '@vuelidate/core'
 import type { ComputedRef } from 'vue'

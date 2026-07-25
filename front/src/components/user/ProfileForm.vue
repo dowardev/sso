@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <template>
   <div class="profile-form-container">
     <!-- Información del Perfil -->

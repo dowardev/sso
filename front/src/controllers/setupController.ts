@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { ref } from 'vue';
 import { api } from '@/services/api';
 

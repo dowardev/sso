@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/services/api';
