@@ -1,10 +1,10 @@
 <?php
 
-namespace TuOrg\SsoServer\Tests;
+namespace Dowardev\SsoServer\Tests;
 
 use Illuminate\Support\Facades\Http;
-use TuOrg\SsoServer\Http\SsoHttpClient;
-use TuOrg\SsoServer\Types\SsoConfig;
+use Dowardev\SsoServer\Http\SsoHttpClient;
+use Dowardev\SsoServer\Types\SsoConfig;
 
 class SsoHttpClientTest extends TestCase
 {

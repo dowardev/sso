@@ -1,9 +1,9 @@
 <?php
 
-namespace TuOrg\SsoServer\Tests;
+namespace Dowardev\SsoServer\Tests;
 
-use TuOrg\SsoServer\Auth\RoleChecker;
-use TuOrg\SsoServer\Types\SsoConfig;
+use Dowardev\SsoServer\Auth\RoleChecker;
+use Dowardev\SsoServer\Types\SsoConfig;
 
 class RoleCheckerTest extends TestCase
 {

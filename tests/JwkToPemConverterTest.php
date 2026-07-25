@@ -1,8 +1,8 @@
 <?php
 
-namespace TuOrg\SsoServer\Tests;
+namespace Dowardev\SsoServer\Tests;
 
-use TuOrg\SsoServer\Jwt\JwkToPemConverter;
+use Dowardev\SsoServer\Jwt\JwkToPemConverter;
 
 class JwkToPemConverterTest extends TestCase
 {

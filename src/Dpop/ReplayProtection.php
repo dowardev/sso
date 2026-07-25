@@ -1,10 +1,11 @@
 <?php
+// SPDX-License-Identifier: AGPL-3.0-only
 
-namespace TuOrg\SsoServer\Dpop;
+namespace Dowardev\SsoServer\Dpop;
 
 use Illuminate\Support\Facades\Cache;
-use TuOrg\SsoServer\Exceptions\DpopVerificationException;
-use TuOrg\SsoServer\Types\SsoConfig;
+use Dowardev\SsoServer\Exceptions\DpopVerificationException;
+use Dowardev\SsoServer\Types\SsoConfig;
 
 class ReplayProtection
 {
