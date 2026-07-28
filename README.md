@@ -392,7 +392,7 @@ Este monorepo contiene componentes con licencias distintas:
 | Componente | Licencia | Descripción |
 |------------|----------|-------------|
 | **Servidor Core (`back/`)** | **AGPLv3** (Dual: AGPLv3 + Comercial) | Servidor SSO principal. Uso SaaS requiere liberar código o licencia comercial. |
-| **SDKs / Clientes (`packages/`, `front/`, `sso-demo/`)** | **MIT** | Libre uso en cualquier proyecto (comercial u open source). |
+| **SDKs / Clientes (`packages/`, `front/`)** | **MIT** | Libre uso en cualquier proyecto (comercial u open source). |
 
 ### Dual Licensing (Servidor Core)
 
@@ -401,4 +401,4 @@ Este monorepo contiene componentes con licencias distintas:
 
 Ver `LICENSE` (AGPLv3) y `LICENSE-COMMERCIAL.md` en la raíz.
 Ver `back/LICENSE` para el servidor.
-Ver `packages/*/LICENSE`, `front/LICENSE`, `sso-demo/LICENSE` para SDKs (MIT).
+Ver `packages/*/LICENSE`, `front/LICENSE` para SDKs (MIT).

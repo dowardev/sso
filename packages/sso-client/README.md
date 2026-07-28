@@ -57,7 +57,7 @@ router.beforeEach(createAuthGuard({ ssoClient }));
 
 ## Demo
 
-See [`sso-demo/`](../../sso-demo) for a reference Vanilla TS app.
+The `front/` workspace serves as the main reference app for SSO integration.
 
 ## License
 

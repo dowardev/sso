@@ -412,7 +412,7 @@ pnpm run dev                   # Start frontend + backend concurrently
 
 This project uses **dual licensing**:
 - **Server** (`back/`, `dowardev/sso-server`): AGPL-3.0-only
-- **SDKs and client packages** (`packages/sso-client/`, `front/`, `sso-demo/`): MIT
+- **SDKs and client packages** (`packages/sso-client/`, `front/`): MIT
 
 See `LICENSE-COMMERCIAL.md` for commercial licensing options.
 

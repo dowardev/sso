@@ -7,7 +7,6 @@ Monorepo with workspaces:
 - `front/` — Ionic Vue 8 frontend (Node.js, pnpm)
 - `packages/sso-client/` — TS library `@dowardev/sso-client` (OAuth2 PKCE + DPoP + axios)
 - `packages/sso-server/` — PHP library `dowardev/sso-server` (Laravel, DPoP verification)
-- `sso-demo/` — Vanilla TS demo app consuming `@dowardev/sso-client`
 
 ## Developer Commands
 
@@ -24,9 +23,6 @@ cd front && pnpm run build
 
 # Build sso-client library
 cd packages/sso-client && pnpm run build
-
-# Run sso-demo
-cd sso-demo && pnpm run dev
 ```
 
 ## Setup Script
@@ -103,7 +99,6 @@ cd front && pnpm run lint
 - `front/src/` — Vue components, views, router, stores
 - `packages/sso-client/src/` — OAuth2 PKCE + DPoP client library source
 - `packages/sso-server/src/` — DPoP verification, JWT validation, middleware
-- `sso-demo/src/` — Demo app showing SSOClient usage
 - `/.well-known/jwks` — JWKS endpoint for JWT verification
 
 ## Code Conventions
