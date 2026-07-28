@@ -122,9 +122,9 @@
               {{ v$.password_confirmation.$errors[0].$message }}
             </div>
 
-            <div v-if="setupController.error.value" class="error-message" role="alert" aria-live="assertive">
+            <div v-if="error" class="error-message" role="alert" aria-live="assertive">
               <ion-icon :icon="alertCircle" size="small"></ion-icon>
-              {{ setupController.error.value }}
+              {{ error }}
             </div>
 
             <div class="ion-padding-top">
@@ -132,9 +132,9 @@
                 type="submit"
                 expand="block"
                 class="gradient-btn"
-                :disabled="setupController.loading.value || (v$.$invalid && v$.$dirty)"
+                :disabled="loading || (v$.$invalid && v$.$dirty)"
               >
-                <ion-spinner v-if="setupController.loading.value" name="lines"></ion-spinner>
+                <ion-spinner v-if="loading" name="lines"></ion-spinner>
                 <span v-else>Crear Administrador</span>
               </ion-button>
             </div>
@@ -148,6 +148,7 @@
 // 1. Imports (ionic/vue/ionicons)
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { alertCircle, checkmarkCircleOutline, closeCircleOutline } from 'ionicons/icons'
 import {
   IonPage,
   IonHeader,
@@ -161,7 +162,6 @@ import {
   IonIcon,
   IonInputPasswordToggle,
 } from '@ionic/vue'
-import { alertCircle, checkmarkCircleOutline, closeCircleOutline } from 'ionicons/icons'
 import { useVuelidate } from '@vuelidate/core'
 import { helpers, required, minLength, email, sameAs } from '@vuelidate/validators'
 
@@ -178,6 +178,8 @@ import AuthCard from '@/components/AuthCard.vue'
 
 // 6. Vars and const
 const router = useRouter()
+const loading = ref(false)
+const error = ref('')
 
 const form = ref({
   name: '',
@@ -222,6 +224,8 @@ const handleSetup = async (_params: object = {}): Promise<void> => {
   const isValid = await v$.value.$validate()
   if (!isValid) return
 
+  loading.value = true
+  error.value = ''
   try {
     await setupController.createAdmin({
       name: form.value.name,
@@ -231,9 +235,11 @@ const handleSetup = async (_params: object = {}): Promise<void> => {
       password_confirmation: form.value.password_confirmation,
     })
     localStorage.setItem('setup_completed', 'true')
-    router.replace('/login')
-  } catch {
-    // error is stored in setupController.error
+    await router.replace('/login')
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : 'Error al crear el administrador'
+  } finally {
+    loading.value = false
   }
 }
 </script>

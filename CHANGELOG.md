@@ -9,30 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-07-27
+
 ### Added
 
 - **Setup form visual checklist**: Reactive password requirements indicator on `SetupPage.vue` with live status per rule (10 chars, uppercase, lowercase, number, symbol), using `ion-icon` (checkmark/close) for accessible contrast
 - **End-to-end test coverage for first-run setup**: 11 PHPUnit Feature tests in `SetupAdminRequestTest` covering password complexity rules, confirmation match, 403 guards (users already exist / setup token missing/invalid), and successful admin creation with admin role assignment
+- **One-command setup script**: New `setup.sh` (713 lines) for full project initialization — `.env` generation, key creation, JWT keys, DB migration/seeding, and frontend configuration
 
 ### Changed
 
 - **`SetupAdminRequest`**: Moved password complexity regex rules (uppercase, lowercase, number, symbol) from `rules()` into `withValidator()` so each rule can return a specific translated error message instead of a generic regex failure
 - **Frontend error UX**: Removed duplicate password error message above the checklist (redundant with checklist's per-rule indicators); submit button now disables only when visible errors exist (`v$.$invalid && v$.$dirty`)
 - **Accessibility**: Replaced emoji ✅/❌ indicators with `ion-icon` (checkmark/close) and added `aria-live="polite"` to password checklist for screen reader announcements
+- **Wizard security**: Replaced `APP_SETUP_TOKEN` with `User::exists()` guard — setup self-protects once any admin exists, no env token required
+- **Frontend router**: Always calls `/api/setup/status` API instead of caching in localStorage
+- **Env templates**: Added `APP_KEY=` placeholder, removed `APP_SETUP_TOKEN=` entries
 
 ### Fixed
 
 - **Missing trailing newline** in `SetupAdminRequest.php` (POSIX file convention)
+- **Setup script regressions**: DB password check, `APP_ENV` configuration, wizard spinner visibility, and code review feedback
 
-### Documentation
+### Removed
 
-- **`AGENTS.md`**: Documented `APP_SETUP_TOKEN` setup flow: generation via `openssl rand -hex 32`, X-Setup-Token header requirement for `POST /api/setup/admin`
-- **`back/.env.example`** and **`back/.env.production.example`**: Added comment + empty `APP_SETUP_TOKEN` slot showing how to generate the token
+- **`APP_SETUP_TOKEN`**: Removed from backend (`SetupController`, `EnsureSetupNotCompleted`, `config/app.php`) — setup wizard now relies solely on `User::exists()` guard
 
 ### Affected Files
 
 - Modified: `back/app/Http/Requests/SetupAdminRequest.php`, `front/src/views/SetupPage.vue`, `back/.env.example`, `back/.env.production.example`, `AGENTS.md`
 - Added: `back/tests/Feature/SetupAdminRequestTest.php`
+- Added: `setup.sh`
+- Modified: `back/bootstrap/app.php`, `back/config/app.php`, `back/app/Http/Controllers/SetupController.php`, `front/src/router/index.ts`, `DEPLOY.md`, `README.md`
 
 ## [0.28.1] - 2026-06-28
 
@@ -53,7 +61,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Health monitoring panel**: Real-time dashboard showing system metrics, pending cleanups, CSP reports, and active sessions
 - **JWKS endpoint**: Public JSON Web Key Set with 24-hour caching for external JWT verification
 - **Password policy enforcement**: Minimum 10 characters with uppercase, lowercase, number, and special character requirements
-- **Setup token validation**: Optional `APP_SETUP_TOKEN` environment variable to secure the setup flow
 - **Console commands**: `dpop:cleanup` and `refresh-tokens:cleanup` for scheduled maintenance
 - **Database migrations**: Missing performance indexes on OAuth and sessions tables, plain_token to SHA256 token_hash migration
 - **XSRF-TOKEN support**: API service now handles XSRF cookie-based CSRF protection

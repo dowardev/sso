@@ -133,25 +133,4 @@ class SetupAdminRequestTest extends TestCase
         $response->assertStatus(403);
         $response->assertJson(['message' => 'Ya existen usuarios registrados en el sistema.']);
     }
-
-    public function test_returns_403_without_setup_token(): void
-    {
-        config(['app.setup_token' => 'test-token-123']);
-
-        $response = $this->postJson('/api/setup/admin', $this->validPayload());
-
-        $response->assertStatus(403);
-        $response->assertJson(['message' => 'Token de setup inválido.']);
-    }
-
-    public function test_creates_admin_with_valid_setup_token(): void
-    {
-        config(['app.setup_token' => 'test-token-123']);
-
-        $response = $this->postJson('/api/setup/admin', $this->validPayload(), [
-            'X-Setup-Token' => 'test-token-123',
-        ]);
-
-        $response->assertStatus(201);
-    }
 }
