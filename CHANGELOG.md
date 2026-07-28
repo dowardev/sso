@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-07-28
+
+### Removed
+
+- **`sso-demo/` workspace**: Eliminado el directorio demo de vanilla TS que consumía `@dowardev/sso-client`. Se quitaron todas las referencias: entrada en `pnpm-workspace.yaml`, entrada `sso-demo` en `package.json` workspaces, script npm `demo`, importer en `pnpm-lock.yaml` (con dependencias huérfanas `@faker-js/faker`, `typescript`, `vite`), y menciones en `AGENTS.md`, `DEPLOY.md`, `README.md`, `.gitignore`
+
+### Changed
+
+- **`packages/sso-client/README.md`**: La sección Demo ahora referencia `front/` como app de referencia principal para la integración de SSO, en lugar del enlace al demo eliminado
+
 ## [0.29.0] - 2026-07-27
 
 ### Added

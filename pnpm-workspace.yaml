@@ -2,7 +2,6 @@ packages:
   - 'back'
   - 'front'
   - 'packages/*'
-  - 'sso-demo'
 allowBuilds:
   core-js: true
   cypress: true
