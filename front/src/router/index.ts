@@ -186,11 +186,6 @@ router.beforeEach(async (to, from, next) => {
     }
 
     if (to.path === '/login' || to.path === '/') {
-        const setupCompleted = localStorage.getItem('setup_completed');
-        if (setupCompleted === 'true') {
-            next();
-            return;
-        }
         try {
             const { api } = await import('@/services/api');
             const status = await api.get<{ setup_completed: boolean }>({ endpoint: '/setup/status' });

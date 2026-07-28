@@ -118,8 +118,9 @@ php artisan jwt:generate-keys
 # Run migrations
 php artisan migrate
 
-# Seed database
-php artisan db:seed
+# Seed database (roles and settings only — first admin via setup wizard)
+php artisan db:seed --class=RoleSeeder
+php artisan db:seed --class=SettingSeeder
 
 # Start server
 php artisan serve --port=8001
@@ -152,7 +153,6 @@ pnpm run dev
 | `APP_ENV`                  | Environment                      | `production` _(default: `local`)_ |
 | `APP_DEBUG`                | Debug mode                       | `false`                           |
 | `APP_URL`                  | Backend URL                      | `https://sso.example.com`         |
-| `APP_SETUP_TOKEN`          | Setup authentication token       | _(auto-generated)_                |
 | `FRONTEND_URL`             | Frontend/panel URL (for CORS)    | `https://panel.sso.example.com`   |
 | `BROADCAST_CONNECTION`     | Broadcasting driver              | `log`                             |
 | `VITE_APP_NAME`            | Vite app name (frontend)         | `"${APP_NAME}"`                   |

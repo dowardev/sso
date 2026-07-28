@@ -29,6 +29,34 @@ cd packages/sso-client && pnpm run build
 cd sso-demo && pnpm run dev
 ```
 
+## Setup Script
+
+A single `./setup.sh` script at repo root handles the entire setup process:
+
+```bash
+# Interactive (recommended for first time)
+./setup.sh
+
+# Development mode (.env.development.example)
+./setup.sh --dev
+
+# Non-interactive (uses SSO_* env vars)
+SSO_DB_DATABASE=myapp ./setup.sh --non-interactive
+
+# Skip backups
+./setup.sh --no-backup
+```
+
+The script:
+- Detects hosting type (VPS vs shared)
+- Copies the correct `.env` template
+- Generates APP_KEY, JWT keys
+- Runs migrations and seeders
+- Configures the frontend `.env`
+- Validates everything with healthchecks
+
+See `.opencode/plans/2026-07-24-setup-script-design.md` for the full design spec.
+
 ## Backend Setup
 
 ```bash
@@ -38,14 +66,11 @@ cp .env.example .env
 php artisan key:generate
 php artisan jwt:generate-keys  # Creates back/keys/private.pem & public.pem
 php artisan migrate
-php artisan db:seed
+php artisan db:seed --class=RoleSeeder
+php artisan db:seed --class=SettingSeeder
 php artisan serve --port=8001
 
-**Setup token (opcional, recomendado en producción):**
-Genera `APP_SETUP_TOKEN` con `openssl rand -hex 32`. Si está definido, el endpoint `POST /api/setup/admin` requerirá el header `X-Setup-Token`.
-```
-
-**Default credentials:** `admin@sso.local` / `admin123`
+> **First admin:** created via the frontend setup wizard at `/setup` on first access (blocked by `EnsureSetupNotCompleted` middleware once any user exists). `AdminUserSeeder` is intentionally omitted — use it only for manual dev seeding.
 
 ## Testing
 

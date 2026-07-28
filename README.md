@@ -38,6 +38,22 @@ Access the production frontend at: [SSO Frontend](https://sso.example.com)
 
 ---
 
+## Quick Setup
+
+The easiest way to get started is running the setup script from the repo root:
+
+```bash
+# Development setup (uses .env.development.example)
+./setup.sh --dev
+
+# Production setup (interactive prompts for all values)
+./setup.sh
+```
+
+The script handles the entire setup: dependencies, environment files, JWT keys, database migrations, seeders, and frontend configuration. See `./setup.sh --help` for all options.
+
+---
+
 ## Tech Stack
 
 ### Backend
@@ -64,7 +80,7 @@ Access the production frontend at: [SSO Frontend](https://sso.example.com)
 - PHP 8.2+
 - Composer
 - OpenSSL
-- MySQL (development & production)
+- MySQL
 
 ---
 
@@ -112,14 +128,15 @@ php artisan key:generate
 # Run migrations
 php artisan migrate
 
-# Seed database
-php artisan db:seed
+# Seed database (roles and settings only — first admin created via setup wizard)
+php artisan db:seed --class=RoleSeeder
+php artisan db:seed --class=SettingSeeder
 
 # Start server
 php artisan serve --port=8001
 ```
 
-> **Note:** After seeding, the first admin user is created via the setup wizard on first access (see [Initial Setup](#initial-setup-first-run)).
+> **Note:** The first admin user is created via the setup wizard on first access (see [Initial Setup](#initial-setup-first-run)). `AdminUserSeeder` is omitted intentionally — use it only for manual dev seeding.
 
 ### Frontend
 
