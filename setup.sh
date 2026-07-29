@@ -154,6 +154,7 @@ Options:
   --dev               Development mode (.env.development.example)
   --non-interactive   Non-interactive mode (requires SSO_* env vars)
   --no-backup         Skip backups of existing files
+  --skip-front-build  Skip the frontend build step
   --help              Show this help message and exit
 
 Exit codes:
@@ -172,6 +173,7 @@ while [ $# -gt 0 ]; do
         --dev) DEV_MODE=true; shift ;;
         --non-interactive) NON_INTERACTIVE=true; shift ;;
         --no-backup) NO_BACKUP=true; shift ;;
+        --skip-front-build) SKIP_FRONT_BUILD=true; shift ;;
         --help) usage ;;
         *) log_error "Unknown option: $1"; usage; exit 2 ;;
     esac

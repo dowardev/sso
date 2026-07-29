@@ -41,6 +41,9 @@ SSO_DB_DATABASE=myapp ./setup.sh --non-interactive
 
 # Skip backups
 ./setup.sh --no-backup
+
+# Skip frontend build
+./setup.sh --skip-front-build
 ```
 
 The script:
