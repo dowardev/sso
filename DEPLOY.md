@@ -506,3 +506,99 @@ Packagist updates automatically when the new tag is pushed.
   GitLab but has no CI triggers for the mirror repo.
 - The monorepo itself (`gitlab.com/dowardev/sso`) does not need tags for sso-server
   releases — all release metadata lives in the mirror.
+
+---
+
+## CI/CD Pipeline (GitLab)
+
+Este proyecto usa GitLab CI/CD para despliegue automatizado en tags semver.
+
+### Variables CI/CD requeridas
+
+Configurar en **Settings → CI/CD → Variables** (todas `Masked` salvo `NPM_TOKEN` que es `Protected`):
+
+| Variable | Descripción | Ejemplo |
+|---|---|---|
+| `SSH_PRIVATE_KEY` | Clave privada SSH deploy (sin passphrase) | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
+| `SSH_KNOWN_HOSTS` | Fingerprint RSA del servidor | `[195.179.236.189]:65002 ssh-rsa AAAAB3...` |
+| `SSH_HOST` | IP/host del servidor | `195.179.236.189` |
+| `SSH_PORT` | Puerto SSH | `65002` |
+| `SSH_USER` | Usuario SSH | `u902881280` |
+| `DEPLOY_PATH_BACKEND` | Path en servidor para backend | `/home/u902881280/sso/back` |
+| `DEPLOY_PATH_FRONTEND` | Path en servidor para frontend | `/home/u902881280/sso/front` |
+| `HEALTHCHECK_URL_BACKEND` | URL healthcheck backend | `https://sso.dowar.xyz/api/health` |
+| `HEALTHCHECK_URL_FRONTEND` | URL healthcheck frontend | `https://panel.sso.dowar.xyz` |
+| `APP_KEY` | Laravel APP_KEY producción (Masked+Protected) | `base64:...` |
+| `NPM_TOKEN` | Token npm para @dowardev/sso-client (Protected) | `npm_...` |
+
+> **Obtener `SSH_KNOWN_HOSTS`:** `ssh-keyscan -p 65002 195.179.236.189` → copiar la línea completa.
+
+### Stages del pipeline
+
+```text
+lint → test → build → deploy → post-deploy → rollback
+```
+
+| Stage | Jobs | Qué hace |
+|---|---|---|
+| `lint` | `backend_lint`, `frontend_lint`, `client_lint`, `server_lint` | Código estilo (pint, oxlint/eslint, typecheck) |
+| `test` | `backend_test`, `frontend_test_unit`, `client_test`, `server_test` | Tests unitarios (phpunit, vitest) |
+| `build` | `backend_build`, `frontend_build`, `client_build`, `server_build` | Compila/optimiza artefactos |
+| `deploy` | `backend_deploy`, `frontend_deploy`, `client_publish_npm` (manual) | Despliega a servidor / publica npm |
+| `post-deploy` | `post_deploy_backend`, `post_deploy_frontend` | Healthcheck wget a URLs públicas |
+| `rollback` | `rollback_backend`, `rollback_frontend` (manual) | Revierte a tag anterior |
+
+### Disparar un deploy
+
+```bash
+# Crear y pushear tag semver (con prerelease opcional)
+git tag v1.0.0
+git push origin v1.0.0
+
+# O con prerelease
+git tag v1.0.0-rc.1
+git push origin v1.0.0-rc.1
+```
+
+El pipeline corre **solo en tags** que coincidan con `^v\d+\.\d+\.\d+(-(alpha|beta|rc)\.\d+)?$`. Commits a `main`/`master` **no** disparan pipeline.
+
+### Publicar @dowardev/sso-client a npm (manual)
+
+En la UI de GitLab, al llegar al stage `deploy`, el job `client_publish_npm` aparece como **manual**. Click ▶️ para publicar:
+
+```bash
+# Equivalente local (usa NPM_TOKEN de CI):
+cd packages/sso-client && npm publish --access public
+```
+
+### Rollback manual
+
+En UI de GitLab, stage `rollback` → jobs `rollback_backend` / `rollback_frontend` → ▶️
+
+Busca el tag anterior (`git tag --list "v*" --sort=-version:refname | sed -n '2p'`), hace checkout, rebuild y despliega.
+
+### Verificación post-deploy
+
+Los jobs `post_deploy_backend` y `post_deploy_frontend` hacen `wget --spider` a:
+- `HEALTHCHECK_URL_BACKEND` (ej. `https://sso.dowar.xyz/api/health`)
+- `HEALTHCHECK_URL_FRONTEND` (ej. `https://panel.sso.dowar.xyz`)
+
+Deben responder **200 OK** en < 30s. Si fallan, revisar logs del server.
+
+### Requisitos del servidor
+
+- PHP 8.2+ + Composer
+- MySQL/MariaDB (producción)
+- Node.js **no requerido** (el build ocurre en CI, solo sirve `dist/`)
+- Git **no requerido** (deploy vía tar+scp)
+- `cron` para `php artisan schedule:run` (purga tokens JWT expirados)
+
+### Troubleshooting CI
+
+| Error | Causa | Solución |
+|---|---|---|
+| `Host key verification failed` | `SSH_KNOWN_HOSTS` vacío o formato erróneo | Verificar que coincida con `SSH_HOST` (prefijo `[host]:port`) |
+| `Access denied for user` | `APP_KEY` o DB credenciales | Verificar vars en GitLab UI, `APP_KEY` = `base64:...` del `.env` server |
+| `wget: bad address` | `HEALTHCHECK_URL_*` mal formadas | Deben ser URLs completas `https://...` |
+| `npm publish 403` | `NPM_TOKEN` inválido o sin scope | Regenerar token en npmjs.com con acceso a `@dowardev/*` |
+
