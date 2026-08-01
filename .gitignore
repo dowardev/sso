@@ -23,3 +23,7 @@ packages/*/node_modules/
 packages/*/vendor/
 /vendor/
 .phpunit.result.cache
+
+# Local AI runtime state
+.atl/
+.codegraph/
