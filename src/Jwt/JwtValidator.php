@@ -1,18 +1,19 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Dowardev\SsoServer\Jwt;
 
+use Dowardev\SsoServer\Exceptions\SsoAuthenticationException;
+use Dowardev\SsoServer\Types\SsoConfig;
+use Lcobucci\Clock\SystemClock;
 use Lcobucci\JWT\Configuration;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
-use Lcobucci\JWT\Validation\Constraint\IssuedBy;
-use Lcobucci\JWT\Validation\Constraint\SignedWith;
-use Lcobucci\JWT\Validation\Constraint\LooseValidAt;
-use Lcobucci\Clock\SystemClock;
 use Lcobucci\JWT\Token;
-use Dowardev\SsoServer\Exceptions\SsoAuthenticationException;
-use Dowardev\SsoServer\Types\SsoConfig;
+use Lcobucci\JWT\Validation\Constraint\IssuedBy;
+use Lcobucci\JWT\Validation\Constraint\LooseValidAt;
+use Lcobucci\JWT\Validation\Constraint\SignedWith;
 
 class JwtValidator
 {
@@ -26,7 +27,7 @@ class JwtValidator
         $publicKeyPem = $this->jwksFetcher->getPublicKeyPem();
 
         $jwtConfig = Configuration::forAsymmetricSigner(
-            new Sha256(),
+            new Sha256,
             InMemory::plainText('unused-signing-key'),
             InMemory::plainText($publicKeyPem)
         );
@@ -39,7 +40,7 @@ class JwtValidator
             new LooseValidAt(new SystemClock(new \DateTimeZone('UTC'))),
         ];
 
-        if (!$jwtConfig->validator()->validate($parsedToken, ...$constraints)) {
+        if (! $jwtConfig->validator()->validate($parsedToken, ...$constraints)) {
             $this->jwksFetcher->clearCache();
             throw SsoAuthenticationException::tokenInvalid();
         }
@@ -50,7 +51,7 @@ class JwtValidator
     public function parse(string $jwt): Token
     {
         $config = Configuration::forAsymmetricSigner(
-            new Sha256(),
+            new Sha256,
             InMemory::plainText('unused'),
             InMemory::plainText('unused')
         );
@@ -61,7 +62,7 @@ class JwtValidator
     public function validateDpopProofSignature(string $dpopProof, string $pem): Token
     {
         $verificationKey = InMemory::plainText($pem);
-        $signer = new Sha256();
+        $signer = new Sha256;
 
         $dpopConfig = Configuration::forAsymmetricSigner(
             $signer,
@@ -72,7 +73,7 @@ class JwtValidator
         $parsedToken = $dpopConfig->parser()->parse($dpopProof);
 
         $signedWith = new SignedWith($signer, $verificationKey);
-        if (!$dpopConfig->validator()->validate($parsedToken, $signedWith)) {
+        if (! $dpopConfig->validator()->validate($parsedToken, $signedWith)) {
             throw SsoAuthenticationException::tokenInvalid('Firma del DPoP proof inválida');
         }
 

@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Dowardev\SsoServer\Auth;
@@ -51,10 +52,11 @@ class RoleChecker
     private function matchesMapping(array $role, array $mapping): bool
     {
         foreach ($mapping as $key => $value) {
-            if (!isset($role[$key]) || $role[$key] !== $value) {
+            if (! isset($role[$key]) || $role[$key] !== $value) {
                 return false;
             }
         }
+
         return true;
     }
 }

@@ -1,12 +1,14 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Dowardev\SsoServer\Jwt;
 
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 use Dowardev\SsoServer\Exceptions\JwksFetchException;
 use Dowardev\SsoServer\Types\SsoConfig;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class JwksFetcher
 {
@@ -43,7 +45,7 @@ class JwksFetcher
     {
         $jwks = $this->fetchJwks();
 
-        if (!$jwks || empty($jwks['keys'])) {
+        if (! $jwks || empty($jwks['keys'])) {
             throw JwksFetchException::emptyJwks();
         }
 
@@ -55,9 +57,9 @@ class JwksFetcher
     private function fetchJwks(): ?array
     {
         try {
-            $url = $this->config->ssoUrl . '/.well-known/jwks';
+            $url = $this->config->ssoUrl.'/.well-known/jwks';
 
-            $response = \Illuminate\Support\Facades\Http::timeout(5)->get($url);
+            $response = Http::timeout(5)->get($url);
 
             if ($response->successful()) {
                 return $response->json();
@@ -67,7 +69,7 @@ class JwksFetcher
         } catch (JwksFetchException $e) {
             throw $e;
         } catch (\Exception $e) {
-            Log::error('Failed to connect to SSO JWKS endpoint: ' . $e->getMessage());
+            Log::error('Failed to connect to SSO JWKS endpoint: '.$e->getMessage());
             throw JwksFetchException::unreachable($this->config->ssoUrl);
         }
     }

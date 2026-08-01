@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Dowardev\SsoServer\Exceptions;
@@ -8,7 +9,7 @@ use Throwable;
 
 class SsoUserResolveException extends RuntimeException
 {
-    public function __construct(string $message = "", ?Throwable $previous = null)
+    public function __construct(string $message = '', ?Throwable $previous = null)
     {
         parent::__construct($message, 0, $previous);
     }

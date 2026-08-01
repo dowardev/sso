@@ -1,11 +1,12 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Dowardev\SsoServer\Http;
 
+use Dowardev\SsoServer\Types\SsoConfig;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Dowardev\SsoServer\Types\SsoConfig;
 
 class SsoHttpClient
 {
@@ -28,16 +29,16 @@ class SsoHttpClient
     private function request(string $method, string $path, string $bearerToken, array $data = []): ?array
     {
         try {
-            $url = $this->config->ssoUrl . '/' . ltrim($path, '/');
+            $url = $this->config->ssoUrl.'/'.ltrim($path, '/');
 
             if (in_array($path, self::CLIENT_ID_ROUTES, true)) {
                 $separator = str_contains($url, '?') ? '&' : '?';
-                $url .= $separator . 'client_id=' . urlencode($this->config->clientId);
+                $url .= $separator.'client_id='.urlencode($this->config->clientId);
             }
 
             $request = Http::withHeaders([
                 'Accept' => 'application/json',
-                'Authorization' => 'Bearer ' . $bearerToken,
+                'Authorization' => 'Bearer '.$bearerToken,
             ])->timeout(5)->retry(2, 100);
 
             $response = $method === 'post'
@@ -54,7 +55,8 @@ class SsoHttpClient
 
             return null;
         } catch (\Exception $e) {
-            Log::warning("SSO HTTP request error: {$method} {$path}: " . $e->getMessage());
+            Log::warning("SSO HTTP request error: {$method} {$path}: ".$e->getMessage());
+
             return null;
         }
     }

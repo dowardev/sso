@@ -1,10 +1,12 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Dowardev\SsoServer\Facades;
 
-use Illuminate\Support\Facades\Facade;
+use Dowardev\SsoServer\Client\SsoServerClient;
 use Dowardev\SsoServer\Types\SsoUser;
+use Illuminate\Support\Facades\Facade;
 
 /**
  * @method static SsoUser|null user()
@@ -13,7 +15,8 @@ use Dowardev\SsoServer\Types\SsoUser;
  * @method static array roles()
  * @method static bool hasRole(string $roleSlug)
  * @method static bool dpopVerified()
- * @see \Dowardev\SsoServer\Client\SsoServerClient
+ *
+ * @see SsoServerClient
  */
 class SsoAuth extends Facade
 {
