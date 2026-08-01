@@ -134,7 +134,7 @@ backend_test:
     - cp .env.testing.example .env
     - composer install --prefer-dist --no-progress --no-interaction
   script:
-    - php artisan test --parallel
+    - php artisan test
 
 frontend_test_unit:
   stage: test
