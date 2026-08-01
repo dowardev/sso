@@ -134,6 +134,8 @@ backend_test:
     - echo "APP_KEY=" >> .env
     - composer install --prefer-dist --no-progress --no-interaction
     - php artisan key:generate --force
+    - mkdir -p keys
+    - php artisan jwt:generate-keys || true
     - php artisan config:clear
   script:
     - php artisan test
