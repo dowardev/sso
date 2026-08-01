@@ -134,6 +134,7 @@ backend_test:
     - cp .env.testing.example .env
     - composer install --prefer-dist --no-progress --no-interaction
     - php artisan key:generate --force
+    - php artisan config:clear
   script:
     - php artisan test
 
