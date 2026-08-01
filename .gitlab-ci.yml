@@ -37,6 +37,9 @@ cache:
     - chmod 600 ~/.ssh/id_rsa
     - eval $(ssh-agent -s) && ssh-add ~/.ssh/id_rsa
     - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - echo "Host *" > ~/.ssh/config
+    - echo "  HostKeyAlgorithms +ssh-rsa" >> ~/.ssh/config
+    - echo "  PubkeyAcceptedAlgorithms +ssh-rsa" >> ~/.ssh/config
 
 # Setup pnpm comun: corepack + pnpm@11 + frozen-lockfile
 .pnpm_setup:
