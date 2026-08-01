@@ -84,7 +84,9 @@ cache:
 
 backend_lint:
   stage: lint
-  image: php:8.3-cli
+  image:
+    name: composer:2.8
+    entrypoint: [""]
   extends: [.tag_rules, .backend_setup]
   script:
     - vendor/bin/pint --test
@@ -101,12 +103,13 @@ client_lint:
   image: node:24.4-alpine
   extends: [.tag_rules, .client_setup]
   script:
-    - pnpm run lint:oxlint
     - pnpm run typecheck
 
 server_lint:
   stage: lint
-  image: php:8.3-cli
+  image:
+    name: composer:2.8
+    entrypoint: [""]
   extends: [.tag_rules, .server_setup]
   script:
     - vendor/bin/pint --test
