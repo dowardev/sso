@@ -125,7 +125,6 @@ backend_test:
     entrypoint: [""]
   extends: [.tag_rules, .backend_setup]
   variables:
-    APP_KEY: $APP_KEY
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
   before_script:
