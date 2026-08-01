@@ -164,7 +164,9 @@ server_test:
 
 backend_build:
   stage: build
-  image: php:8.3-cli
+  image:
+    name: composer:2.8
+    entrypoint: [""]
   extends: [.tag_rules, .backend_setup]
   script:
     - composer install --no-dev --optimize-autoloader --no-interaction
@@ -199,7 +201,9 @@ client_build:
 
 server_build:
   stage: build
-  image: php:8.3-cli
+  image:
+    name: composer:2.8
+    entrypoint: [""]
   extends: [.tag_rules, .server_setup]
   script:
     - composer install --no-dev --optimize-autoloader --no-interaction
