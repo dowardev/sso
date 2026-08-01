@@ -84,9 +84,7 @@ cache:
 
 backend_lint:
   stage: lint
-  image:
-    name: composer:2.8
-    entrypoint: [""]
+  image: php:8.3-cli
   extends: [.tag_rules, .backend_setup]
   script:
     - vendor/bin/pint --test
@@ -103,13 +101,12 @@ client_lint:
   image: node:24.4-alpine
   extends: [.tag_rules, .client_setup]
   script:
+    - pnpm run lint:oxlint
     - pnpm run typecheck
 
 server_lint:
   stage: lint
-  image:
-    name: composer:2.8
-    entrypoint: [""]
+  image: php:8.3-cli
   extends: [.tag_rules, .server_setup]
   script:
     - vendor/bin/pint --test
@@ -120,7 +117,9 @@ server_lint:
 
 backend_test:
   stage: test
-  image: php:8.3-cli
+  image:
+    name: composer:2.8
+    entrypoint: [""]
   extends: [.tag_rules, .backend_setup]
   variables:
     APP_KEY: $APP_KEY
@@ -141,16 +140,13 @@ frontend_test_unit:
   script:
     - pnpm run test:unit
 
-client_test:
-  stage: test
-  image: node:24.4-alpine
-  extends: [.tag_rules, .client_setup]
-  script:
-    - pnpm run test
+# client_test: sso-client no tiene tests (no tests/ dir). Solo typecheck en lint.
 
 server_test:
   stage: test
-  image: php:8.3-cli
+  image:
+    name: composer:2.8
+    entrypoint: [""]
   extends: [.tag_rules, .server_setup]
   script:
     - php vendor/bin/phpunit
@@ -314,9 +310,6 @@ rollback_backend:
   image: alpine
   extends: [.ssh_setup, .tag_rules]
   when: manual
-  before_script:
-    - !reference [.ssh_setup, before_script]
-    - apk add --no-cache git
   script:
     - |
       PREVIOUS_TAG=$(git tag --list "v*" --sort=-version:refname | sed -n '2p')
@@ -348,9 +341,6 @@ rollback_frontend:
   image: alpine
   extends: [.ssh_setup, .tag_rules]
   when: manual
-  before_script:
-    - !reference [.ssh_setup, before_script]
-    - apk add --no-cache git
   script:
     - |
       PREVIOUS_TAG=$(git tag --list "v*" --sort=-version:refname | sed -n '2p')
