@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Dowardev\SsoServer\Types;
@@ -27,6 +28,7 @@ class SsoUser implements JsonSerializable
                 return true;
             }
         }
+
         return false;
     }
 

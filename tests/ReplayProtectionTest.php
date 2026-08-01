@@ -2,10 +2,10 @@
 
 namespace Dowardev\SsoServer\Tests;
 
-use Illuminate\Support\Facades\Cache;
 use Dowardev\SsoServer\Dpop\ReplayProtection;
 use Dowardev\SsoServer\Exceptions\DpopVerificationException;
 use Dowardev\SsoServer\Types\SsoConfig;
+use Illuminate\Support\Facades\Cache;
 
 class ReplayProtectionTest extends TestCase
 {

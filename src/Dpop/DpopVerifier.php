@@ -1,13 +1,14 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Dowardev\SsoServer\Dpop;
 
-use Lcobucci\JWT\Token;
 use Dowardev\SsoServer\Exceptions\DpopVerificationException;
 use Dowardev\SsoServer\Jwt\JwkToPemConverter;
 use Dowardev\SsoServer\Jwt\JwtValidator;
 use Dowardev\SsoServer\Types\SsoConfig;
+use Lcobucci\JWT\Token;
 
 class DpopVerifier
 {
@@ -64,12 +65,12 @@ class DpopVerifier
     private function extractAndValidateJwk(Token $dpopToken): array
     {
         $jwkHeader = $this->jwtValidator->getHeader($dpopToken, 'jwk');
-        if (!$jwkHeader) {
+        if (! $jwkHeader) {
             throw DpopVerificationException::missingJwk();
         }
 
         $jwkArray = (array) $jwkHeader;
-        if (!isset($jwkArray['kty']) || !isset($jwkArray['n']) || !isset($jwkArray['e'])) {
+        if (! isset($jwkArray['kty']) || ! isset($jwkArray['n']) || ! isset($jwkArray['e'])) {
             throw DpopVerificationException::incompleteJwk();
         }
 
@@ -79,7 +80,7 @@ class DpopVerifier
     private function validateThumbprint(array $jwkArray, string $expectedJkt): void
     {
         $jktFromProof = JwkThumbprint::compute($jwkArray);
-        if (!hash_equals($expectedJkt, $jktFromProof)) {
+        if (! hash_equals($expectedJkt, $jktFromProof)) {
             throw DpopVerificationException::thumbprintMismatch();
         }
     }
@@ -96,7 +97,7 @@ class DpopVerifier
         $jti = $this->jwtValidator->getClaim($dpopToken, 'jti');
         $ath = $this->jwtValidator->getClaim($dpopToken, 'ath');
 
-        if (!$htm || !$htu || !$iat || !$jti || !$ath) {
+        if (! $htm || ! $htu || ! $iat || ! $jti || ! $ath) {
             throw DpopVerificationException::missingClaims();
         }
 
@@ -115,7 +116,7 @@ class DpopVerifier
         }
 
         $tokenHash = JwkToPemConverter::base64UrlEncode(hash('sha256', $accessToken, true));
-        if (!hash_equals($tokenHash, $ath)) {
+        if (! hash_equals($tokenHash, $ath)) {
             throw DpopVerificationException::accessTokenHashMismatch();
         }
     }

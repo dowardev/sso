@@ -2,8 +2,8 @@
 
 namespace Dowardev\SsoServer\Tests;
 
-use Orchestra\Testbench\TestCase as BaseTestCase;
 use Dowardev\SsoServer\SsoServerServiceProvider;
+use Orchestra\Testbench\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {

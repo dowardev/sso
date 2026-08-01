@@ -1,28 +1,29 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Dowardev\SsoServer;
 
-use Illuminate\Support\ServiceProvider;
 use Dowardev\SsoServer\Auth\RoleChecker;
 use Dowardev\SsoServer\Auth\SsoUserResolver;
 use Dowardev\SsoServer\Client\SsoServerClient;
 use Dowardev\SsoServer\Dpop\DpopVerifier;
 use Dowardev\SsoServer\Dpop\ReplayProtection;
 use Dowardev\SsoServer\Http\SsoHttpClient;
-use Dowardev\SsoServer\Jwt\JwkToPemConverter;
 use Dowardev\SsoServer\Jwt\JwksFetcher;
+use Dowardev\SsoServer\Jwt\JwkToPemConverter;
 use Dowardev\SsoServer\Jwt\JwtValidator;
 use Dowardev\SsoServer\Middleware\SsoAuthMiddleware;
 use Dowardev\SsoServer\Middleware\SsoRoleMiddleware;
 use Dowardev\SsoServer\Types\SsoConfig;
+use Illuminate\Support\ServiceProvider;
 
 class SsoServerServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/sso.php',
+            __DIR__.'/../config/sso.php',
             'sso'
         );
 
@@ -45,7 +46,7 @@ class SsoServerServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__ . '/../config/sso.php' => config_path('sso.php'),
+                __DIR__.'/../config/sso.php' => config_path('sso.php'),
             ], 'sso-config');
         }
 
