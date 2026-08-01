@@ -133,6 +133,7 @@ backend_test:
     - export COMPOSER_HOME="$CI_PROJECT_DIR/back/.composer"
     - cp .env.testing.example .env
     - composer install --prefer-dist --no-progress --no-interaction
+    - php artisan key:generate --force
   script:
     - php artisan test
 
