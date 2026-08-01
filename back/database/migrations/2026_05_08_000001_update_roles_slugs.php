@@ -1,9 +1,8 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
@@ -30,7 +29,7 @@ return new class extends Migration
             ]
         );
 
-        if (!$existsBefore) {
+        if (! $existsBefore) {
             DB::table('roles')->where('slug', 'editor')->update(['created_at' => now()]);
         }
     }

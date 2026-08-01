@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Models;
@@ -16,7 +17,7 @@ class Setting extends Model
             return static::where('key', $key)->first();
         });
 
-        if (!$setting) {
+        if (! $setting) {
             return $default;
         }
 

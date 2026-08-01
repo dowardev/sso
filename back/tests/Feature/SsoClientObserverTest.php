@@ -12,8 +12,11 @@ class SsoClientObserverTest extends TestCase
     use RefreshDatabase;
 
     private const CLIENT_ID = 'test-client-123';
+
     private const EXPECTED_KEY = 'sso_cors_origins_test-client-123';
+
     private const FALLBACK_KEY = 'sso_cors_origins___sso__';
+
     private const STALE_KEY = 'sso_cors_origins';
 
     public function test_create_sso_client_invalidates_expected_cache_keys(): void

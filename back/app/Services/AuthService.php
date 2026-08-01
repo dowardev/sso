@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Services;
@@ -14,6 +15,7 @@ use Illuminate\Support\Str;
 class AuthService
 {
     private JwtService $jwtService;
+
     private SessionService $sessionService;
 
     public function __construct(JwtService $jwtService, SessionService $sessionService)
@@ -40,7 +42,7 @@ class AuthService
             ->orWhere('user', $loginField)
             ->first();
 
-        if (!$user || !Hash::check($password, $user->password)) {
+        if (! $user || ! Hash::check($password, $user->password)) {
             return null;
         }
 
@@ -61,14 +63,14 @@ class AuthService
     {
         $token = $this->jwtService->parseAndValidateToken($tokenString);
 
-        if (!$token) {
+        if (! $token) {
             return null;
         }
 
         $userId = $token->claims()->get('sub');
         $user = User::with('roles')->find($userId);
 
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -99,7 +101,7 @@ class AuthService
                 'name' => $user->name,
                 'user' => $user->user,
                 'email' => $user->email,
-                'roles' => $user->roles->map(fn($role) => [
+                'roles' => $user->roles->map(fn ($role) => [
                     'id' => $role->id,
                     'name' => $role->name,
                     'slug' => $role->slug,
@@ -149,7 +151,7 @@ class AuthService
         $hash = hash('sha256', $plainRefreshToken);
         $existing = UserRefreshToken::where('token_hash', $hash)->first();
 
-        if (!$existing || !$existing->isValid()) {
+        if (! $existing || ! $existing->isValid()) {
             return null;
         }
 
@@ -157,6 +159,7 @@ class AuthService
         $inactivitySeconds = (int) config('jwt.refresh_inactivity', 604800);
         if ($existing->last_used_at !== null && $existing->last_used_at->addSeconds($inactivitySeconds)->isPast()) {
             $existing->revoke();
+
             return null;
         }
 
@@ -166,11 +169,12 @@ class AuthService
             UserRefreshToken::where('user_id', $existing->user_id)
                 ->whereNull('revoked_at')
                 ->update(['revoked_at' => now()]);
+
             return null;
         }
 
         $user = User::with('roles')->find($existing->user_id);
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -215,7 +219,7 @@ class AuthService
                 'name' => $user->name,
                 'user' => $user->user,
                 'email' => $user->email,
-                'roles' => $user->roles->map(fn($role) => [
+                'roles' => $user->roles->map(fn ($role) => [
                     'id' => $role->id,
                     'name' => $role->name,
                     'slug' => $role->slug,
@@ -229,7 +233,7 @@ class AuthService
     public function revokeRefreshToken(string $plainRefreshToken): void
     {
         $hash = hash('sha256', $plainRefreshToken);
-        UserRefreshToken::where('token_hash', $hash)->each(fn($t) => $t->revoke());
+        UserRefreshToken::where('token_hash', $hash)->each(fn ($t) => $t->revoke());
     }
 
     public function revokeAllUserRefreshTokens(User $user): void
@@ -248,11 +252,12 @@ class AuthService
     {
         $token = $this->jwtService->parseAndValidateToken($tokenString);
 
-        if (!$token) {
+        if (! $token) {
             return null;
         }
 
         $userId = $token->claims()->get('sub');
+
         return User::find($userId);
     }
 
@@ -262,7 +267,7 @@ class AuthService
             $privateKeyContent = file_get_contents(config('jwt.private_key_path'));
             $keyDetails = openssl_pkey_get_details(openssl_pkey_get_private($privateKeyContent));
 
-            if (!$keyDetails) {
+            if (! $keyDetails) {
                 return ['error' => 'Unable to get key details'];
             }
 
@@ -278,8 +283,8 @@ class AuthService
                         'kid' => 'sso-key-1',
                         'n' => $n,
                         'e' => $e,
-                    ]
-                ]
+                    ],
+                ],
             ];
         });
     }
@@ -288,19 +293,19 @@ class AuthService
     {
         $ssoUserId = $request->get('sso_user_id');
 
-        if (!$ssoUserId) {
+        if (! $ssoUserId) {
             $tokenString = $request->bearerToken();
 
-            if (!$tokenString) {
+            if (! $tokenString) {
                 $tokenString = $request->cookie('sso_token');
             }
 
-            if (!$tokenString) {
+            if (! $tokenString) {
                 return ['authenticated' => false];
             }
 
             $token = $this->jwtService->parseAndValidateToken($tokenString);
-            if (!$token) {
+            if (! $token) {
                 return ['authenticated' => false];
             }
 
@@ -309,7 +314,7 @@ class AuthService
 
         $user = User::with('roles')->find($ssoUserId);
 
-        if (!$user) {
+        if (! $user) {
             return ['authenticated' => false];
         }
 
@@ -320,7 +325,7 @@ class AuthService
                 'name' => $user->name,
                 'user' => $user->user,
                 'email' => $user->email,
-                'roles' => $user->roles->map(fn($role) => [
+                'roles' => $user->roles->map(fn ($role) => [
                     'id' => $role->id,
                     'name' => $role->name,
                     'slug' => $role->slug,

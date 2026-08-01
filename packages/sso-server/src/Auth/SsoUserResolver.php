@@ -1,13 +1,14 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Dowardev\SsoServer\Auth;
 
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 use Dowardev\SsoServer\Exceptions\SsoUserResolveException;
 use Dowardev\SsoServer\Http\SsoHttpClient;
 use Dowardev\SsoServer\Types\SsoConfig;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class SsoUserResolver
 {
@@ -28,18 +29,20 @@ class SsoUserResolver
 
             if ($userData && isset($userData['roles'])) {
                 $this->cacheRoles($userId, $userData['roles']);
+
                 return $userData['roles'];
             }
         } catch (SsoUserResolveException $e) {
-            Log::warning('SSO user resolution failed: ' . $e->getMessage());
+            Log::warning('SSO user resolution failed: '.$e->getMessage());
             throw $e;
         } catch (\Exception $e) {
-            Log::warning('Failed to fetch user roles from SSO: ' . $e->getMessage());
+            Log::warning('Failed to fetch user roles from SSO: '.$e->getMessage());
         }
 
         $stale = $this->getStaleRoles($userId);
         if ($stale !== null) {
             Log::warning("Using stale roles cache for user {$userId}");
+
             return $stale;
         }
 
@@ -48,9 +51,9 @@ class SsoUserResolver
 
     private function cacheRoles(string $userId, array $roles): void
     {
-        Cache::put('sso_user_roles:' . $userId, $roles, $this->config->rolesCacheTtl);
+        Cache::put('sso_user_roles:'.$userId, $roles, $this->config->rolesCacheTtl);
         Cache::put(
-            'sso_user_roles_stale:' . $userId,
+            'sso_user_roles_stale:'.$userId,
             $roles,
             $this->config->rolesCacheTtl * 6,
         );
@@ -58,11 +61,11 @@ class SsoUserResolver
 
     private function getCachedRoles(string $userId): ?array
     {
-        return Cache::get('sso_user_roles:' . $userId);
+        return Cache::get('sso_user_roles:'.$userId);
     }
 
     private function getStaleRoles(string $userId): ?array
     {
-        return Cache::get('sso_user_roles_stale:' . $userId);
+        return Cache::get('sso_user_roles_stale:'.$userId);
     }
 }

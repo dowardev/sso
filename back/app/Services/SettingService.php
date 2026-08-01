@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Services;
@@ -23,6 +24,7 @@ class SettingService
         $setting = Setting::where('key', $key)->firstOrFail();
         $setting->update(['value' => $value]);
         Setting::clearCache($key);
+
         return $setting;
     }
 
@@ -37,6 +39,7 @@ class SettingService
             ]
         );
         Setting::clearCache($key);
+
         return $setting;
     }
 }

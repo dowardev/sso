@@ -1,13 +1,13 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Controllers;
 
 use App\Http\Requests\LoginRequest;
-use App\Http\Requests\RefreshTokenRequest;
 use App\Http\Requests\RegisterRequest;
-use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\UpdatePasswordRequest;
+use App\Http\Requests\UpdateProfileRequest;
 use App\Models\UserActivityLog;
 use App\Services\ActivityLogService;
 use App\Services\AuthService;
@@ -21,7 +21,9 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     private AuthService $authService;
+
     private SessionService $sessionService;
+
     private ActivityLogService $activityLogService;
 
     public function __construct(AuthService $authService, SessionService $sessionService, ActivityLogService $activityLogService)
@@ -64,7 +66,7 @@ class AuthController extends Controller
     {
         $loginField = $request->email ?? $request->user;
 
-        if (!$loginField) {
+        if (! $loginField) {
             return response()->json([
                 'message' => 'Error de validación',
                 'errors' => ['email' => ['El email o usuario es requerido']],
@@ -73,7 +75,7 @@ class AuthController extends Controller
 
         $user = $this->authService->login($loginField, $request->password);
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'message' => 'Credenciales inválidas',
             ], 401);
@@ -129,7 +131,7 @@ class AuthController extends Controller
     {
         $plainRefreshToken = $request->get('refresh_token_value');
 
-        if (!$plainRefreshToken) {
+        if (! $plainRefreshToken) {
             return response()->json([
                 'message' => 'Refresh token no proporcionado',
             ], 401);
@@ -137,7 +139,7 @@ class AuthController extends Controller
 
         $result = $this->authService->refreshAccessToken($plainRefreshToken, $request);
 
-        if (!$result) {
+        if (! $result) {
             return response()->json([
                 'message' => 'Refresh token inválido, expirado o revocado',
             ], 401)->withCookie(Cookie::forget('refresh_token', '/', null, true, true));
@@ -167,7 +169,7 @@ class AuthController extends Controller
     {
         $tokenString = $request->bearerToken();
 
-        if (!$tokenString) {
+        if (! $tokenString) {
             return response()->json(['message' => 'Token no proporcionado'], 401);
         }
 
@@ -181,7 +183,7 @@ class AuthController extends Controller
             $this->sessionService->revokeSessionByToken($tokenString);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Error al cerrar sesión: ' . $e->getMessage(),
+                'message' => 'Error al cerrar sesión: '.$e->getMessage(),
             ], 500);
         }
 
@@ -207,7 +209,7 @@ class AuthController extends Controller
         $ssoUserId = $request->get('sso_user_id');
         $user = $this->authService->getUserById($ssoUserId);
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'User not found'], 404);
         }
 
@@ -216,7 +218,7 @@ class AuthController extends Controller
             'name' => $user->name,
             'user' => $user->user,
             'email' => $user->email,
-            'roles' => $user->roles->map(fn($role) => [
+            'roles' => $user->roles->map(fn ($role) => [
                 'id' => $role->id,
                 'name' => $role->name,
                 'slug' => $role->slug,
@@ -240,13 +242,14 @@ class AuthController extends Controller
     public function checkSession(Request $request): JsonResponse
     {
         $result = $this->authService->checkSessionFromRequest($request);
+
         return response()->json($result);
     }
 
     public function getUserProfile(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'No autenticado'], 401);
         }
 
@@ -261,7 +264,7 @@ class AuthController extends Controller
             'created_at' => $user->created_at,
             'sessions_count' => $user->sessions_count ?? $user->sessions()->count(),
             'tokens_count' => $user->tokens_count ?? $user->tokens()->count(),
-            'roles' => $user->roles->map(fn($role) => [
+            'roles' => $user->roles->map(fn ($role) => [
                 'id' => $role->id,
                 'name' => $role->name,
                 'slug' => $role->slug,
@@ -274,7 +277,7 @@ class AuthController extends Controller
     public function updateUserProfile(UpdateProfileRequest $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'No autenticado'], 401);
         }
 
@@ -312,13 +315,13 @@ class AuthController extends Controller
     public function updateUserPassword(UpdatePasswordRequest $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'No autenticado'], 401);
         }
 
         $validated = $request->validated();
 
-        if (!Hash::check($validated['current_password'], $user->password)) {
+        if (! Hash::check($validated['current_password'], $user->password)) {
             return response()->json([
                 'message' => 'Contraseña actual incorrecta',
                 'errors' => ['current_password' => ['La contraseña actual es incorrecta']],
@@ -344,7 +347,7 @@ class AuthController extends Controller
     public function getUserSessions(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'No autenticado'], 401);
         }
 
@@ -364,7 +367,7 @@ class AuthController extends Controller
                     'user_agent' => $session->user_agent,
                     'last_used_at' => $session->last_used_at,
                     'created_at' => $session->created_at,
-                    'token_active' => $session->token ? !$session->token->isExpired() : false,
+                    'token_active' => $session->token ? ! $session->token->isExpired() : false,
                 ];
             }),
             'pagination' => [
@@ -379,12 +382,12 @@ class AuthController extends Controller
     public function revokeUserSession(Request $request, int $sessionId): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'No autenticado'], 401);
         }
 
         $session = $user->sessions()->find($sessionId);
-        if (!$session) {
+        if (! $session) {
             return response()->json(['message' => 'Sesión no encontrada'], 404);
         }
 
@@ -409,7 +412,7 @@ class AuthController extends Controller
     public function revokeAllUserSessions(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'No autenticado'], 401);
         }
 
@@ -436,7 +439,7 @@ class AuthController extends Controller
     public function deleteAccount(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'No autenticado'], 401);
         }
 
@@ -445,7 +448,7 @@ class AuthController extends Controller
             'confirmation' => 'required|string|in:ELIMINAR',
         ]);
 
-        if (!Hash::check($validated['password'], $user->password)) {
+        if (! Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'password' => ['La contraseña es incorrecta'],
             ]);
@@ -483,7 +486,7 @@ class AuthController extends Controller
     public function getUserActivityLog(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'No autenticado'], 401);
         }
 

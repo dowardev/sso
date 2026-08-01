@@ -1,7 +1,14 @@
 <?php
 
+use App\Http\Middleware\ClientCredentialsAuth;
+use App\Http\Middleware\EnsureSetupNotCompleted;
 use App\Http\Middleware\HandleDynamicCors;
+use App\Http\Middleware\IsAdmin;
+use App\Http\Middleware\JwtAuth;
 use App\Http\Middleware\RefreshToken;
+use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\ThrottleLoginAttempts;
+use App\Http\Middleware\VerifyDpopProof;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,16 +24,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->replace(HandleCors::class, HandleDynamicCors::class);
         $middleware->alias([
-            'admin' => \App\Http\Middleware\IsAdmin::class,
-            'jwt.auth' => \App\Http\Middleware\JwtAuth::class,
-            'dpop' => \App\Http\Middleware\VerifyDpopProof::class,
-            'client.credentials' => \App\Http\Middleware\ClientCredentialsAuth::class,
-            'setup.not_completed' => \App\Http\Middleware\EnsureSetupNotCompleted::class,
+            'admin' => IsAdmin::class,
+            'jwt.auth' => JwtAuth::class,
+            'dpop' => VerifyDpopProof::class,
+            'client.credentials' => ClientCredentialsAuth::class,
+            'setup.not_completed' => EnsureSetupNotCompleted::class,
             'refresh.token' => RefreshToken::class,
-            'throttle.login' => \App\Http\Middleware\ThrottleLoginAttempts::class,
+            'throttle.login' => ThrottleLoginAttempts::class,
         ]);
 
-        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+        $middleware->append(SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

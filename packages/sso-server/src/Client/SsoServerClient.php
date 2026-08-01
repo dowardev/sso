@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Dowardev\SsoServer\Client;
@@ -6,7 +7,6 @@ namespace Dowardev\SsoServer\Client;
 use Dowardev\SsoServer\Auth\RoleChecker;
 use Dowardev\SsoServer\Auth\SsoUserResolver;
 use Dowardev\SsoServer\Dpop\DpopVerifier;
-use Dowardev\SsoServer\Exceptions\DpopVerificationException;
 use Dowardev\SsoServer\Exceptions\SsoAuthenticationException;
 use Dowardev\SsoServer\Jwt\JwtValidator;
 use Dowardev\SsoServer\Types\SsoConfig;
@@ -40,7 +40,7 @@ class SsoServerClient
         }
 
         if ($jkt !== null) {
-            if (!$dpopProof) {
+            if (! $dpopProof) {
                 throw SsoAuthenticationException::dpopRequired();
             }
 

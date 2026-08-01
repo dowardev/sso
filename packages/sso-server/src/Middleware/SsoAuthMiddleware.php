@@ -1,16 +1,17 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Dowardev\SsoServer\Middleware;
 
 use Closure;
-use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Dowardev\SsoServer\Client\SsoServerClient;
 use Dowardev\SsoServer\Exceptions\DpopVerificationException;
 use Dowardev\SsoServer\Exceptions\JwksFetchException;
 use Dowardev\SsoServer\Exceptions\SsoAuthenticationException;
 use Dowardev\SsoServer\Exceptions\SsoUserResolveException;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class SsoAuthMiddleware
 {
@@ -22,7 +23,7 @@ class SsoAuthMiddleware
     {
         $bearerToken = $request->bearerToken();
 
-        if (!$bearerToken) {
+        if (! $bearerToken) {
             return response()->json([
                 'message' => 'Token no proporcionado',
                 'error' => 'sso_authentication_failed',
@@ -33,7 +34,7 @@ class SsoAuthMiddleware
         $requireDpop = $mode === 'dpop';
 
         try {
-            $uri = $request->getSchemeAndHttpHost() . $request->getBaseUrl() . $request->getPathInfo();
+            $uri = $request->getSchemeAndHttpHost().$request->getBaseUrl().$request->getPathInfo();
 
             $this->ssoClient->authenticateRequest(
                 $bearerToken,
@@ -68,7 +69,7 @@ class SsoAuthMiddleware
             ], 500);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Token inválido: ' . $e->getMessage(),
+                'message' => 'Token inválido: '.$e->getMessage(),
                 'error' => 'sso_authentication_failed',
             ], 401);
         }

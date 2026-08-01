@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Services;
@@ -7,17 +8,22 @@ use App\Models\User;
 use Lcobucci\JWT\Configuration;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
+use Lcobucci\JWT\Token\Plain;
+use Lcobucci\JWT\Validation\Constraint\IssuedBy;
+use Lcobucci\JWT\Validation\Constraint\SignedWith;
 
 class JwtService
 {
     private Configuration $jwtConfig;
+
     private int $tokenExpiration;
+
     private string $issuer;
 
     public function __construct()
     {
         $this->jwtConfig = Configuration::forAsymmetricSigner(
-            new Sha256(),
+            new Sha256,
             InMemory::file(config('jwt.private_key_path')),
             InMemory::file(config('jwt.public_key_path'))
         );
@@ -49,8 +55,8 @@ class JwtService
         $builder = $this->jwtConfig->builder()
             ->issuedBy($this->issuer)
             ->identifiedBy(bin2hex(random_bytes(16)))
-            ->issuedAt(new \DateTimeImmutable('@' . $now))
-            ->expiresAt(new \DateTimeImmutable('@' . $expiresAt))
+            ->issuedAt(new \DateTimeImmutable('@'.$now))
+            ->expiresAt(new \DateTimeImmutable('@'.$expiresAt))
             ->relatedTo((string) $user->id)
             ->withClaim('user', [
                 'id' => $user->id,
@@ -66,7 +72,7 @@ class JwtService
         if ($dpopPublicKey) {
             $publicKeyData = json_decode($dpopPublicKey, true);
             if ($publicKeyData) {
-                if (!isset($publicKeyData['kty']) || !isset($publicKeyData['n']) || !isset($publicKeyData['e'])) {
+                if (! isset($publicKeyData['kty']) || ! isset($publicKeyData['n']) || ! isset($publicKeyData['e'])) {
                     throw new \InvalidArgumentException('JWK incompleto: se requieren los campos kty, n y e');
                 }
                 if (($publicKeyData['kty'] ?? '') !== 'RSA') {
@@ -74,7 +80,7 @@ class JwtService
                 }
                 $jkt = $this->generateJWKThumbprint($publicKeyData);
                 $builder->withClaim('cnf', [
-                    'jkt' => $jkt
+                    'jkt' => $jkt,
                 ]);
             }
         }
@@ -96,8 +102,8 @@ class JwtService
         $builder = $this->jwtConfig->builder()
             ->issuedBy($this->issuer)
             ->identifiedBy(bin2hex(random_bytes(16)))
-            ->issuedAt(new \DateTimeImmutable('@' . $now))
-            ->expiresAt(new \DateTimeImmutable('@' . $expiresAt))
+            ->issuedAt(new \DateTimeImmutable('@'.$now))
+            ->expiresAt(new \DateTimeImmutable('@'.$expiresAt))
             ->relatedTo($clientId)
             ->withClaim('grant_type', $grantType ?? 'client_credentials')
             ->withClaim('client_id', $clientId);
@@ -127,20 +133,20 @@ class JwtService
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
     }
 
-    public function parseAndValidateToken(string $tokenString): ?\Lcobucci\JWT\Token\Plain
+    public function parseAndValidateToken(string $tokenString): ?Plain
     {
         try {
             $token = $this->jwtConfig->parser()->parse($tokenString);
 
             $constraints = [
-                new \Lcobucci\JWT\Validation\Constraint\SignedWith(
+                new SignedWith(
                     $this->jwtConfig->signer(),
                     $this->jwtConfig->verificationKey()
                 ),
-                new \Lcobucci\JWT\Validation\Constraint\IssuedBy($this->issuer),
+                new IssuedBy($this->issuer),
             ];
 
-            if (!$this->jwtConfig->validator()->validate($token, ...$constraints)) {
+            if (! $this->jwtConfig->validator()->validate($token, ...$constraints)) {
                 return null;
             }
 

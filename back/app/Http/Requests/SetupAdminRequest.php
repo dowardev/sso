@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Requests;
@@ -43,16 +44,16 @@ class SetupAdminRequest extends FormRequest
         $validator->after(function ($validator) {
             $password = $this->input('password') ?? '';
 
-            if (!preg_match('/[A-Z]/', $password)) {
+            if (! preg_match('/[A-Z]/', $password)) {
                 $validator->errors()->add('password', 'Debe contener al menos una letra mayúscula.');
             }
-            if (!preg_match('/[a-z]/', $password)) {
+            if (! preg_match('/[a-z]/', $password)) {
                 $validator->errors()->add('password', 'Debe contener al menos una letra minúscula.');
             }
-            if (!preg_match('/[0-9]/', $password)) {
+            if (! preg_match('/[0-9]/', $password)) {
                 $validator->errors()->add('password', 'Debe contener al menos un número.');
             }
-            if (!preg_match('/[@$!%*?&]/', $password)) {
+            if (! preg_match('/[@$!%*?&]/', $password)) {
                 $validator->errors()->add('password', 'Debe contener al menos un símbolo especial (@ $ ! % * ? &).');
             }
         });

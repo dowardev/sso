@@ -1,8 +1,10 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Models;
 
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -13,7 +15,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
@@ -73,8 +75,8 @@ class User extends Authenticatable
     protected function isAdmin(): Attribute
     {
         return Attribute::make(
-            get: fn() => $this->relationLoaded('roles')
-                ? $this->roles->contains(fn(Role $role) => $role->slug === 'admin')
+            get: fn () => $this->relationLoaded('roles')
+                ? $this->roles->contains(fn (Role $role) => $role->slug === 'admin')
                 : $this->hasRole('admin'),
         );
     }

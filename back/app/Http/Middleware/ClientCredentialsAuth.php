@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Middleware;
@@ -15,7 +16,7 @@ class ClientCredentialsAuth
 
         if ($grantType !== 'client_credentials') {
             return response()->json([
-                'message' => 'Se requiere token de client_credentials'
+                'message' => 'Se requiere token de client_credentials',
             ], 403);
         }
 

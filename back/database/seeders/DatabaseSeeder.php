@@ -1,13 +1,13 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use App\Models\Role;
+use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Database\Seeders\AdminUserSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -36,7 +36,7 @@ class DatabaseSeeder extends Seeder
         );
 
         $viewerRole = Role::where('slug', 'viewer')->first();
-        if ($viewerRole && !$testUser->hasRole('viewer')) {
+        if ($viewerRole && ! $testUser->hasRole('viewer')) {
             $testUser->roles()->attach($viewerRole->id, ['sso_client_id' => null]);
         }
     }

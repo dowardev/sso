@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Controllers;
@@ -22,6 +23,7 @@ class UserSessionController extends Controller
     public function index(Request $request): JsonResponse
     {
         $sessions = $this->sessionService->paginate($request);
+
         return response()->json($sessions);
     }
 

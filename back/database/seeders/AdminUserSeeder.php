@@ -1,11 +1,11 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace Database\Seeders;
 
 use App\Models\Role;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -23,7 +23,7 @@ class AdminUserSeeder extends Seeder
         );
 
         $adminRole = Role::where('slug', 'admin')->first();
-        if ($adminRole && !$user->hasRole('admin')) {
+        if ($adminRole && ! $user->hasRole('admin')) {
             $user->roles()->attach($adminRole->id, ['sso_client_id' => null]);
         }
 

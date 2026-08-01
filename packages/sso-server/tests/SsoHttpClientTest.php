@@ -2,9 +2,9 @@
 
 namespace Dowardev\SsoServer\Tests;
 
-use Illuminate\Support\Facades\Http;
 use Dowardev\SsoServer\Http\SsoHttpClient;
 use Dowardev\SsoServer\Types\SsoConfig;
+use Illuminate\Support\Facades\Http;
 
 class SsoHttpClientTest extends TestCase
 {
@@ -27,6 +27,7 @@ class SsoHttpClientTest extends TestCase
 
         Http::assertSent(function ($request) {
             $url = $request->url();
+
             return str_contains($url, '/me') && str_contains($url, 'client_id=1');
         });
     }
@@ -41,7 +42,8 @@ class SsoHttpClientTest extends TestCase
 
         Http::assertSent(function ($request) {
             $url = $request->url();
-            return str_contains($url, '/roles') && !str_contains($url, 'client_id');
+
+            return str_contains($url, '/roles') && ! str_contains($url, 'client_id');
         });
     }
 
@@ -62,6 +64,7 @@ class SsoHttpClientTest extends TestCase
 
         Http::assertSent(function ($request) {
             $url = $request->url();
+
             return str_contains($url, '&client_id=1');
         });
     }

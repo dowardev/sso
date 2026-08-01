@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Services;
@@ -33,6 +34,7 @@ class UserSessionService
         $sessions->getCollection()->transform(function ($session) {
             $session->token_active = $session->token &&
                 ($session->token->expires_at === null || $session->token->expires_at->isFuture());
+
             return $session;
         });
 
@@ -49,6 +51,7 @@ class UserSessionService
         $sessions->transform(function ($session) {
             $session->token_active = $session->token &&
                 ($session->token->expires_at === null || $session->token->expires_at->isFuture());
+
             return $session;
         });
 

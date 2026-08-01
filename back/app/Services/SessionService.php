@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Services;
@@ -12,11 +13,11 @@ class SessionService
 {
     public function registerSession(User $user, string $token, Request $request, ?string $dpopPublicKey = null, bool $rememberMe = false, ?SsoClient $client = null): UserSession
     {
-        if (!$client && $request->client_id) {
+        if (! $client && $request->client_id) {
             $client = SsoClient::where('client_id', $request->client_id)->first();
         }
 
-        $deviceFingerprint = hash('sha256', ($request->userAgent() ?? '') . ($request->ip() ?? ''));
+        $deviceFingerprint = hash('sha256', ($request->userAgent() ?? '').($request->ip() ?? ''));
 
         if ($rememberMe) {
             $count = UserSession::where('user_id', $user->id)

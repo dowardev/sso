@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Services;
@@ -52,6 +53,7 @@ class UserService
         $user->load(['sessions.client', 'sessions.token']);
         $user->tokens_count = $user->tokens()->count();
         $user->active_tokens_count = $user->activeTokens()->count();
+
         return $user;
     }
 
@@ -62,6 +64,7 @@ class UserService
         }
 
         $user->update($data);
+
         return $user;
     }
 

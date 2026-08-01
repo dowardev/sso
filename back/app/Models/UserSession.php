@@ -1,9 +1,11 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class UserSession extends Model
 {
@@ -36,7 +38,7 @@ class UserSession extends Model
 
     public function token()
     {
-        return $this->belongsTo(\Laravel\Sanctum\PersonalAccessToken::class, 'token_id');
+        return $this->belongsTo(PersonalAccessToken::class, 'token_id');
     }
 
     public function scopeActive($query)

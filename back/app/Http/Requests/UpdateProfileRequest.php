@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Requests;
@@ -15,11 +16,11 @@ class UpdateProfileRequest extends FormRequest
     public function rules(): array
     {
         $userId = $this->route('user') ?? $this->user()->id;
-        
+
         return [
             'name' => 'required|string|max:255',
-            'user' => 'required|string|max:255|unique:users,user,' . $userId,
-            'email' => 'required|string|email|max:255|unique:users,email,' . $userId,
+            'user' => 'required|string|max:255|unique:users,user,'.$userId,
+            'email' => 'required|string|email|max:255|unique:users,email,'.$userId,
         ];
     }
 }
