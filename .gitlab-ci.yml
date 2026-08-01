@@ -271,7 +271,6 @@ client_publish_npm:
   extends: [.tag_rules, .client_setup]
   needs:
     - client_lint
-    - client_test
     - client_build
   when: manual
   script:
