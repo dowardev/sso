@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use Illuminate\Support\Str;
@@ -161,10 +162,11 @@ return [
         $url = config('app.url');
         if ($url) {
             $host = parse_url($url, PHP_URL_HOST);
-            if ($host && $host !== 'localhost' && !str_contains($host, '127.0.0.1')) {
-                return '.' . $host;
+            if ($host && $host !== 'localhost' && ! str_contains($host, '127.0.0.1')) {
+                return '.'.$host;
             }
         }
+
         return null;
     })()),
 

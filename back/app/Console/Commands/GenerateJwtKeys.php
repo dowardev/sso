@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Console\Commands;
@@ -30,6 +31,7 @@ class GenerateJwtKeys extends Command
         if (File::exists($privateKeyPath) || File::exists($publicKeyPath)) {
             if (! $this->option('force')) {
                 $this->error('Keys already exist. Use --force to overwrite.');
+
                 return self::FAILURE;
             }
             $this->warn('Overwriting existing keys...');
@@ -43,19 +45,22 @@ class GenerateJwtKeys extends Command
         ]);
 
         if (! $privateKey) {
-            $this->error('Failed to generate private key: ' . openssl_error_string());
+            $this->error('Failed to generate private key: '.openssl_error_string());
+
             return self::FAILURE;
         }
 
         $privateKeyExport = '';
         if (! openssl_pkey_export($privateKey, $privateKeyExport)) {
-            $this->error('Failed to export private key: ' . openssl_error_string());
+            $this->error('Failed to export private key: '.openssl_error_string());
+
             return self::FAILURE;
         }
 
         $publicKeyDetails = openssl_pkey_get_details($privateKey);
         if (! $publicKeyDetails || empty($publicKeyDetails['key'])) {
-            $this->error('Failed to extract public key: ' . openssl_error_string());
+            $this->error('Failed to extract public key: '.openssl_error_string());
+
             return self::FAILURE;
         }
         $publicKeyExport = $publicKeyDetails['key'];

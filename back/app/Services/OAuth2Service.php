@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Services;
@@ -12,7 +13,9 @@ use Illuminate\Support\Str;
 class OAuth2Service
 {
     private JwtService $jwtService;
+
     private SessionService $sessionService;
+
     private int $authCodeExpiration = 600;
 
     public function __construct(JwtService $jwtService, SessionService $sessionService)
@@ -46,7 +49,7 @@ class OAuth2Service
     {
         $client = SsoClient::where('client_id', $clientId)->first();
 
-        if (!$client || !$client->active) {
+        if (! $client || ! $client->active) {
             return null;
         }
 
@@ -57,15 +60,15 @@ class OAuth2Service
     {
         $grantTypes = $client->grant_types ?? [];
 
-        if (!in_array('client_credentials', $grantTypes)) {
+        if (! in_array('client_credentials', $grantTypes)) {
             return null;
         }
 
-        if (!$client->client_secret) {
+        if (! $client->client_secret) {
             return null;
         }
 
-        if (!isset($data['client_secret']) || $data['client_secret'] !== $client->client_secret) {
+        if (! isset($data['client_secret']) || $data['client_secret'] !== $client->client_secret) {
             return null;
         }
 
@@ -78,7 +81,7 @@ class OAuth2Service
             ->where('sso_client_id', $client->id)
             ->first();
 
-        if (!$authCode) {
+        if (! $authCode) {
             return null;
         }
 
@@ -97,7 +100,7 @@ class OAuth2Service
         if ($authCode->code_challenge) {
             $codeVerifier = $authCode->code_verifier ?? ($data['code_verifier'] ?? null);
 
-            if (!$codeVerifier) {
+            if (! $codeVerifier) {
                 return null;
             }
 
@@ -115,7 +118,7 @@ class OAuth2Service
 
         $user = User::with('roles')->find($authCode->user_id);
 
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -136,6 +139,7 @@ class OAuth2Service
     {
         if ($method === 'S256') {
             $hash = hash('sha256', $codeVerifier, true);
+
             return rtrim(strtr(base64_encode($hash), '+/', '-_'), '=');
         }
 

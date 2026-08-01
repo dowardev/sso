@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Middleware;
@@ -15,7 +16,7 @@ class HandleDynamicCors
     {
         $origin = $request->header('Origin');
 
-        if (!$origin) {
+        if (! $origin) {
             return $next($request);
         }
 
@@ -26,9 +27,10 @@ class HandleDynamicCors
             $allowedOrigins
         );
 
-        if (!in_array($normalizedOrigin, $normalizedAllowedOrigins, true)) {
+        if (! in_array($normalizedOrigin, $normalizedAllowedOrigins, true)) {
             $response = $next($request);
             $this->addVaryOrigin($response);
+
             return $response;
         }
 
@@ -45,7 +47,7 @@ class HandleDynamicCors
     {
         $clientId = $this->getClientIdFromRequest($request);
 
-        $cacheKey = 'sso_cors_origins_' . ($clientId ?? '__sso__');
+        $cacheKey = 'sso_cors_origins_'.($clientId ?? '__sso__');
 
         $origins = Cache::remember($cacheKey, 30, function () use ($clientId) {
             $query = SsoClient::where('active', true)->whereNotNull('allowed_origins');
@@ -109,7 +111,7 @@ class HandleDynamicCors
         $response->headers->set('Access-Control-Max-Age', (string) config('cors.max_age', 86400));
 
         $exposedHeaders = config('cors.exposed_headers', []);
-        if (!empty($exposedHeaders)) {
+        if (! empty($exposedHeaders)) {
             $response->headers->set('Access-Control-Expose-Headers', implode(', ', $exposedHeaders));
         }
 
@@ -121,7 +123,7 @@ class HandleDynamicCors
         $existing = $response->headers->get('Vary');
         if ($existing) {
             $parts = array_map('trim', explode(',', $existing));
-            if (!in_array('Origin', $parts, true)) {
+            if (! in_array('Origin', $parts, true)) {
                 $parts[] = 'Origin';
             }
             $response->headers->set('Vary', implode(', ', $parts));

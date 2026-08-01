@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Requests\Admin;
@@ -23,10 +24,10 @@ class UpdateUserRequest extends FormRequest
                 'string',
                 'min:3',
                 'max:255',
-                'unique:users,user,' . $userId,
+                'unique:users,user,'.$userId,
                 'regex:/^[a-zA-Z0-9_-]+$/',
             ],
-            'email' => 'sometimes|string|email|max:255|unique:users,email,' . $userId,
+            'email' => 'sometimes|string|email|max:255|unique:users,email,'.$userId,
             'password' => [
                 'sometimes',
                 'string',

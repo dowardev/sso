@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Controllers;
@@ -20,6 +21,7 @@ class SettingController extends Controller
     public function index(): JsonResponse
     {
         $settings = $this->settingService->all();
+
         return response()->json(SettingResource::collection($settings));
     }
 

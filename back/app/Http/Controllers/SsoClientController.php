@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Controllers;
@@ -22,6 +23,7 @@ class SsoClientController extends Controller
     public function index(): JsonResponse
     {
         $clients = $this->clientService->all();
+
         return response()->json(SsoClientResource::collection($clients));
     }
 

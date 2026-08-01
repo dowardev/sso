@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Controllers;
@@ -22,12 +23,14 @@ class RoleController extends Controller
     public function index(): JsonResponse
     {
         $roles = $this->roleService->publicList();
+
         return response()->json(['data' => $roles]);
     }
 
     public function adminIndex(): JsonResponse
     {
         $roles = $this->roleService->all();
+
         return response()->json(RoleResource::collection($roles));
     }
 

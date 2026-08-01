@@ -1,8 +1,10 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,17 +15,17 @@ class IsAdmin
     {
         $ssoUserId = $request->get('sso_user_id');
 
-        if (!$ssoUserId) {
+        if (! $ssoUserId) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $user = \App\Models\User::find($ssoUserId);
+        $user = User::find($ssoUserId);
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'User not found'], 404);
         }
 
-        if (!$user->hasRole('admin')) {
+        if (! $user->hasRole('admin')) {
             return response()->json(['error' => 'Forbidden - admin role required'], 403);
         }
 

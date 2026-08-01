@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Middleware;
@@ -35,7 +36,7 @@ class ThrottleLoginAttempts
         $response = $next($request);
 
         if ($response->getStatusCode() === 401 && $identifier) {
-            DB::statement("
+            DB::statement('
                 INSERT INTO login_attempts (identifier, ip, attempts, locked_until, created_at, updated_at)
                 VALUES (?, ?, 1, NULL, NOW(), NOW())
                 ON DUPLICATE KEY UPDATE
@@ -46,7 +47,7 @@ class ThrottleLoginAttempts
                         IF(attempts + 1 >= 4, DATE_ADD(NOW(), INTERVAL 15 MINUTE), NULL)
                     ),
                     updated_at = NOW()
-            ", [$identifier, $ip]);
+            ', [$identifier, $ip]);
         }
 
         if ($response->getStatusCode() === 200 && $identifier) {

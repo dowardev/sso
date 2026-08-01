@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Console\Commands;
@@ -9,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 class CleanupDpopNonces extends Command
 {
     protected $signature = 'dpop:cleanup';
+
     protected $description = 'Delete expired DPoP nonces';
 
     public function handle(): void

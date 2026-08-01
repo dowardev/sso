@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Requests;
@@ -18,8 +19,8 @@ class UpdateUserRequest extends FormRequest
 
         return [
             'name' => 'sometimes|string|max:255',
-            'user' => 'sometimes|string|max:255|unique:users,user,' . $userId,
-            'email' => 'sometimes|string|email|max:255|unique:users,email,' . $userId,
+            'user' => 'sometimes|string|max:255|unique:users,user,'.$userId,
+            'email' => 'sometimes|string|email|max:255|unique:users,email,'.$userId,
             'password' => 'sometimes|string|min:6|confirmed',
         ];
     }

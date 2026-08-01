@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Services;
@@ -36,6 +37,7 @@ class RoleService
     public function update(Role $role, array $data): Role
     {
         $role->update($data);
+
         return $role;
     }
 

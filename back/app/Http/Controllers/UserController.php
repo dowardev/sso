@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Controllers;
@@ -24,7 +25,7 @@ class UserController extends Controller
     {
         $users = $this->userService->paginate($request);
 
-        $users->through(fn(User $user) => [
+        $users->through(fn (User $user) => [
             'id' => $user->id,
             'name' => $user->name,
             'user' => $user->user,
@@ -44,12 +45,14 @@ class UserController extends Controller
     public function show(User $user): JsonResponse
     {
         $user = $this->userService->findWithSessions($user);
+
         return response()->json(new UserDetailResource($user));
     }
 
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
         $this->userService->update($user, $request->validated());
+
         return response()->json([
             'message' => 'Usuario actualizado correctamente',
             'user' => new UserResource($user),
@@ -95,6 +98,7 @@ class UserController extends Controller
     public function indexRoles(User $user): JsonResponse
     {
         $roles = $this->userService->getUserRoles($user);
+
         return response()->json($roles);
     }
 
@@ -117,6 +121,7 @@ class UserController extends Controller
     public function apiIndex(Request $request): JsonResponse
     {
         $users = $this->userService->searchForApi($request);
+
         return response()->json($users);
     }
 }

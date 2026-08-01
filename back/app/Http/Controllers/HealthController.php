@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Controllers;
@@ -110,7 +111,7 @@ class HealthController extends Controller
 
         $config['script_hashes'][] = $hash;
 
-        $content = '<?php' . "\n\nreturn " . var_export($config, true) . ";\n";
+        $content = '<?php'."\n\nreturn ".var_export($config, true).";\n";
         file_put_contents($configPath, $content);
 
         config(['csp.script_hashes' => $config['script_hashes']]);

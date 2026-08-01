@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Services;
@@ -17,7 +18,7 @@ class SsoClientService
 
     public function create(array $data): SsoClient
     {
-        if (!isset($data['grant_types'])) {
+        if (! isset($data['grant_types'])) {
             $data['grant_types'] = ['authorization_code'];
         }
 
@@ -27,6 +28,7 @@ class SsoClientService
     public function update(SsoClient $client, array $data): SsoClient
     {
         $client->update($data);
+
         return $client;
     }
 

@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Console\Commands;
@@ -9,6 +10,7 @@ use Illuminate\Console\Command;
 class CleanupRefreshTokens extends Command
 {
     protected $signature = 'tokens:cleanup';
+
     protected $description = 'Delete expired or revoked refresh tokens older than 30 days';
 
     public function handle(): void

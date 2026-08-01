@@ -1,6 +1,10 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Laravel\Sanctum\Http\Middleware\AuthenticateSession;
 use Laravel\Sanctum\Sanctum;
 
 return [
@@ -16,15 +20,15 @@ return [
     |
     */
 
-'stateful' => env('SANCTUM_STATEFUL_DOMAINS')
-        ? explode(',', env('SANCTUM_STATEFUL_DOMAINS'))
-        : array_values(array_filter(array_merge(
-            ['localhost', 'localhost:3000', '127.0.0.1', '127.0.0.1:8000', '::1'],
-            [parse_url(config('app.url'), PHP_URL_HOST) ?: null],
-            config('app.frontend_url')
-                ? [parse_url(config('app.frontend_url'), PHP_URL_HOST) ?: null]
-                : []
-        ))),
+    'stateful' => env('SANCTUM_STATEFUL_DOMAINS')
+            ? explode(',', env('SANCTUM_STATEFUL_DOMAINS'))
+            : array_values(array_filter(array_merge(
+                ['localhost', 'localhost:3000', '127.0.0.1', '127.0.0.1:8000', '::1'],
+                [parse_url(config('app.url'), PHP_URL_HOST) ?: null],
+                config('app.frontend_url')
+                    ? [parse_url(config('app.frontend_url'), PHP_URL_HOST) ?: null]
+                    : []
+            ))),
 
     /*
     |--------------------------------------------------------------------------
@@ -80,9 +84,9 @@ return [
     */
 
     'middleware' => [
-        'authenticate_session' => Laravel\Sanctum\Http\Middleware\AuthenticateSession::class,
-        'encrypt_cookies' => Illuminate\Cookie\Middleware\EncryptCookies::class,
-        'validate_csrf_token' => Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        'authenticate_session' => AuthenticateSession::class,
+        'encrypt_cookies' => EncryptCookies::class,
+        'validate_csrf_token' => ValidateCsrfToken::class,
     ],
 
 ];

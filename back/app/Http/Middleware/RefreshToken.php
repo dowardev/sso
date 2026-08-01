@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Middleware;
@@ -13,7 +14,7 @@ class RefreshToken
     {
         $refreshToken = $request->cookie('refresh_token');
 
-        if (!$refreshToken) {
+        if (! $refreshToken) {
             return response()->json([
                 'message' => 'Refresh token no proporcionado',
             ], 401);

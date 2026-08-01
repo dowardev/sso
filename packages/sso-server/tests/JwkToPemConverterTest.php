@@ -11,7 +11,7 @@ class JwkToPemConverterTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->converter = new JwkToPemConverter();
+        $this->converter = new JwkToPemConverter;
     }
 
     public function test_convert_returns_valid_pem_format(): void

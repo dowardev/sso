@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Controllers;
@@ -8,6 +9,7 @@ use App\Http\Requests\TokenRequest;
 use App\Models\OAuthAuthCode;
 use App\Models\OauthClientAuthorization;
 use App\Models\Setting;
+use App\Models\SsoClient;
 use App\Models\UserActivityLog;
 use App\Services\ActivityLogService;
 use App\Services\OAuth2Service;
@@ -17,6 +19,7 @@ use Illuminate\Http\Request;
 class OAuth2Controller extends Controller
 {
     private OAuth2Service $oauth2Service;
+
     private ActivityLogService $activityLogService;
 
     public function __construct(OAuth2Service $oauth2Service, ActivityLogService $activityLogService)
@@ -29,7 +32,7 @@ class OAuth2Controller extends Controller
     {
         $client = $this->oauth2Service->validateClientAndGet($request->client_id);
 
-        if (!$client) {
+        if (! $client) {
             return response()->json([
                 'message' => 'Cliente desactivado o no encontrado',
             ], 403);
@@ -48,7 +51,7 @@ class OAuth2Controller extends Controller
         }
 
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'message' => 'No autenticado',
             ], 401);
@@ -59,7 +62,7 @@ class OAuth2Controller extends Controller
             ->where('status', 'authorized')
             ->exists();
 
-        if (!$hasAuthorized) {
+        if (! $hasAuthorized) {
             return response()->json([
                 'authorization_required' => true,
                 'client' => [
@@ -93,14 +96,14 @@ class OAuth2Controller extends Controller
         ]);
 
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'message' => 'No autenticado',
             ], 401);
         }
 
         $client = $this->oauth2Service->validateClientAndGet($request->client_id);
-        if (!$client) {
+        if (! $client) {
             return response()->json([
                 'message' => 'Cliente no encontrado o inactivo',
             ], 404);
@@ -114,7 +117,7 @@ class OAuth2Controller extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_AUTHORIZATION_GRANTED,
-            'Autorización concedida a ' . $client->name,
+            'Autorización concedida a '.$client->name,
             ['client_id' => $client->id, 'client_name' => $client->name],
             $request,
         );
@@ -137,14 +140,14 @@ class OAuth2Controller extends Controller
         ]);
 
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'message' => 'No autenticado',
             ], 401);
         }
 
         $client = $this->oauth2Service->validateClientAndGet($request->client_id);
-        if (!$client) {
+        if (! $client) {
             return response()->json([
                 'message' => 'Cliente no encontrado o inactivo',
             ], 404);
@@ -158,7 +161,7 @@ class OAuth2Controller extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_AUTHORIZATION_DENIED,
-            'Autorización denegada a ' . $client->name,
+            'Autorización denegada a '.$client->name,
             ['client_id' => $client->id, 'client_name' => $client->name],
             $request,
         );
@@ -175,14 +178,14 @@ class OAuth2Controller extends Controller
         ]);
 
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'message' => 'No autenticado',
             ], 401);
         }
 
         $client = $this->oauth2Service->validateClientAndGet($request->client_id);
-        if (!$client) {
+        if (! $client) {
             return response()->json([
                 'message' => 'Cliente no encontrado o inactivo',
             ], 404);
@@ -192,7 +195,7 @@ class OAuth2Controller extends Controller
             ->where('sso_client_id', $client->id)
             ->delete();
 
-        if (!$deleted) {
+        if (! $deleted) {
             return response()->json([
                 'message' => 'No se encontró autorización para revocar',
             ], 404);
@@ -201,7 +204,7 @@ class OAuth2Controller extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_AUTHORIZATION_REVOKED,
-            'Acceso revocado a ' . $client->name,
+            'Acceso revocado a '.$client->name,
             ['client_id' => $client->id, 'client_name' => $client->name],
             $request,
         );
@@ -214,7 +217,7 @@ class OAuth2Controller extends Controller
     public function userAuthorizations(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'message' => 'No autenticado',
             ], 401);
@@ -251,15 +254,15 @@ class OAuth2Controller extends Controller
     public function clientAuthorizations(Request $request, int $clientId): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'message' => 'No autenticado',
             ], 401);
         }
 
         // Verify user has access to this client (admin or owner)
-        $client = \App\Models\SsoClient::find($clientId);
-        if (!$client) {
+        $client = SsoClient::find($clientId);
+        if (! $client) {
             return response()->json([
                 'message' => 'Cliente no encontrado',
             ], 404);
@@ -290,7 +293,7 @@ class OAuth2Controller extends Controller
     {
         $client = $this->oauth2Service->validateClientAndGet($request->client_id);
 
-        if (!$client) {
+        if (! $client) {
             return response()->json([
                 'message' => 'Cliente desactivado o no encontrado',
             ], 403);
@@ -299,7 +302,7 @@ class OAuth2Controller extends Controller
         if ($request->grant_type === 'client_credentials') {
             $result = $this->oauth2Service->handleClientCredentials($client, $request->validated());
 
-            if (!$result) {
+            if (! $result) {
                 return response()->json([
                     'message' => 'client_credentials no permitido o credenciales inválidas',
                 ], 403);
@@ -310,7 +313,7 @@ class OAuth2Controller extends Controller
 
         $result = $this->oauth2Service->handleAuthorizationCode($request, $client, $request->validated());
 
-        if (!$result) {
+        if (! $result) {
             return response()->json([
                 'message' => 'Código de autorización inválido o expirado',
             ], 400);
@@ -324,7 +327,7 @@ class OAuth2Controller extends Controller
                 $this->activityLogService->logFromRequest(
                     $user,
                     UserActivityLog::ACTION_TOKEN_CREATED,
-                    'Acceso concedido a ' . $client->name,
+                    'Acceso concedido a '.$client->name,
                     ['client_id' => $client->id, 'client_name' => $client->name],
                     $request,
                 );
@@ -336,7 +339,7 @@ class OAuth2Controller extends Controller
 
     private function isSslRequiredViolation(string $redirectUrl): bool
     {
-        if (!Setting::get('require_ssl', false)) {
+        if (! Setting::get('require_ssl', false)) {
             return false;
         }
 
@@ -345,7 +348,7 @@ class OAuth2Controller extends Controller
         }
 
         $host = parse_url($redirectUrl, PHP_URL_HOST);
-        if (!$host) {
+        if (! $host) {
             return false;
         }
 

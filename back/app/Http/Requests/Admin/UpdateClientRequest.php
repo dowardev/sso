@@ -1,4 +1,5 @@
 <?php
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 namespace App\Http\Requests\Admin;
@@ -18,7 +19,7 @@ class UpdateClientRequest extends FormRequest
 
         return [
             'name' => 'sometimes|string|max:255',
-            'client_id' => 'sometimes|string|max:255|unique:sso_clients,client_id,' . $clientId,
+            'client_id' => 'sometimes|string|max:255|unique:sso_clients,client_id,'.$clientId,
             'client_secret' => 'nullable|string|max:255',
             'redirect_url' => 'nullable|string|max:255|url',
             'allowed_origins' => 'nullable|array',

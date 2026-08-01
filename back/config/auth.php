@@ -1,4 +1,7 @@
 <?php
+
+use App\Models\User;
+
 // SPDX-License-Identifier: AGPL-3.0-only
 
 return [
@@ -63,7 +66,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\User::class),
+            'model' => env('AUTH_MODEL', User::class),
         ],
 
         // 'users' => [
