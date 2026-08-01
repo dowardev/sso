@@ -131,6 +131,7 @@ backend_test:
     - cd back
     - export COMPOSER_HOME="$CI_PROJECT_DIR/back/.composer"
     - cp .env.testing.example .env
+    - echo "APP_KEY=" >> .env
     - composer install --prefer-dist --no-progress --no-interaction
     - php artisan key:generate --force
     - php artisan config:clear
