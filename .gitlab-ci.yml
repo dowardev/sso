@@ -301,10 +301,6 @@ client_publish_npm:
   script:
     - cd packages/sso-client && npm publish --access public
 
-# ============================================
-# STAGE: post-deploy (healthchecks)
-# ============================================
-
 
 
 rollback_backend:
