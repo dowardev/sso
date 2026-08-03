@@ -9,7 +9,6 @@ stages:
   - test
   - build
   - deploy
-  - post-deploy
   - rollback
 
 cache:
@@ -306,29 +305,7 @@ client_publish_npm:
 # STAGE: post-deploy (healthchecks)
 # ============================================
 
-post_deploy_backend:
-  stage: post-deploy
-  image: alpine:3.20
-  extends: [.tag_rules]
-  needs:
-    - backend_deploy
-  script:
-    - apk add --no-cache wget
-    - wget -q -S --spider --timeout=30 --tries=3 "$HEALTHCHECK_URL_BACKEND"
 
-post_deploy_frontend:
-  stage: post-deploy
-  image: alpine:3.20
-  extends: [.tag_rules]
-  needs:
-    - frontend_deploy
-  script:
-    - apk add --no-cache wget
-    - wget -q -S --spider --timeout=30 --tries=3 "$HEALTHCHECK_URL_FRONTEND"
-
-# ============================================
-# STAGE: rollback (manual)
-# ============================================
 
 rollback_backend:
   stage: rollback
