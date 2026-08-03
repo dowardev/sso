@@ -7,36 +7,67 @@ namespace App\Http\Controllers;
 use App\Models\CspReport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class CspReportController extends Controller
 {
-    public function store(Request $request): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $data = $request->all();
+        $perPage = min((int) $request->get('per_page', 20), 100);
+        $status = $request->get('status');
 
-        $cspReport = $data['csp-report'] ?? $data;
+        $query = CspReport::query();
 
-        CspReport::create([
-            'blocked_uri' => $cspReport['blocked-uri'] ?? null,
-            'document_uri' => $cspReport['document-uri'] ?? null,
-            'referrer' => $cspReport['referrer'] ?? null,
-            'violated_directive' => $cspReport['violated-directive'] ?? null,
-            'effective_directive' => $cspReport['effective-directive'] ?? null,
-            'original_policy' => $cspReport['original-policy'] ?? null,
-            'source_file' => $cspReport['source-file'] ?? null,
-            'line_number' => $cspReport['line-number'] ?? null,
-            'script_sample' => isset($cspReport['script-sample'])
-                ? substr($cspReport['script-sample'], 0, 512)
-                : null,
+        if ($status === 'pending') {
+            $query->whereNull('resolved_at');
+        } elseif ($status === 'resolved') {
+            $query->whereNotNull('resolved_at');
+        }
+
+        $reports = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+        return response()->json([
+            'data' => $reports->items(),
+            'current_page' => $reports->current_page,
+            'last_page' => $reports->last_page,
+            'per_page' => $reports->per_page,
+            'total' => $reports->total(),
+        ]);
+    }
+
+    public function allowScript(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'hash' => 'required|string|regex:/^sha256-[A-Za-z0-9+\/=_-]+$/',
+            'report_id' => 'nullable|integer|exists:csp_reports,id',
         ]);
 
-        Log::warning('CSP Violation', [
-            'blocked_uri' => $cspReport['blocked-uri'] ?? null,
-            'violated_directive' => $cspReport['violated-directive'] ?? null,
-            'document_uri' => $cspReport['document-uri'] ?? null,
-        ]);
+        $configPath = config_path('csp.php');
+        $config = require $configPath;
 
-        return response()->json(['status' => 'ok']);
+        $hash = $validated['hash'];
+
+        if (in_array($hash, $config['script_hashes'], true)) {
+            return response()->json([
+                'message' => 'El hash ya está en la lista de permitidos',
+            ], 409);
+        }
+
+        $config['script_hashes'][] = $hash;
+
+        $content = '<?php'."\n\nreturn ".var_export($config, true).";\n";
+        file_put_contents($configPath, $content);
+
+        config(['csp.script_hashes' => $config['script_hashes']]);
+
+        if (isset($validated['report_id'])) {
+            CspReport::where('id', $validated['report_id'])->update([
+                'resolved_at' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Hash agregado al CSP. Requiere deploy para producción.',
+            'hash' => $hash,
+        ]);
     }
 }

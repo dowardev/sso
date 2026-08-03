@@ -4,7 +4,6 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CspReportController;
-use App\Http\Controllers\HealthController;
 use App\Http\Controllers\OAuth2Controller;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SettingController;
@@ -82,8 +81,7 @@ Route::middleware('jwt.auth')->group(function () {
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings/{key}', [SettingController::class, 'update']);
 
-        Route::get('/health', [HealthController::class, 'index']);
-        Route::get('/health/csp-reports', [HealthController::class, 'cspReports']);
-        Route::post('/health/csp-allow', [HealthController::class, 'allowScript']);
+        Route::get('/csp-reports', [CspReportController::class, 'index']);
+        Route::post('/csp-allow', [CspReportController::class, 'allowScript']);
     });
 });
