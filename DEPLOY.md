@@ -390,6 +390,35 @@ When registering an SSO client, ensure the `redirect_url` exactly matches your a
 
 ---
 
+## CI/CD Validation Deploys (dryrun)
+
+> **Note:** sso's release flow is more complex than other projects in the org
+> (subtree split to mirror repo, npm publish for `@dowardev/sso-client`,
+> Packagist publish for `dowardev/sso-server`). The full release procedure
+> lives in `AGENTS.md` under "Release Conventions". This section only covers
+> the `dryrun` tag suffix for pipeline validation.
+
+To exercise the GitLab CI pipeline end-to-end against the real server without
+polluting the release history, push a tag with the `-dryrun.N` suffix:
+
+```bash
+git tag -a v0.0.0-dryrun.1 -m "dryrun: validate CI changes against server"
+git push origin v0.0.0-dryrun.1
+# ... watch pipeline, verify behaviour ...
+git tag -d v0.0.0-dryrun.1
+git push origin :refs/tags/v0.0.0-dryrun.1
+```
+
+The pipeline accepts `vX.Y.Z`, `vX.Y.Z-alpha.N`, `vX.Y.Z-beta.N`,
+`vX.Y.Z-rc.N`, and `vX.Y.Z-dryrun.N`. Anything else is ignored.
+
+⚠️ **Important:** `dryrun` tags trigger the full pipeline including deploy,
+but they do **not** trigger the mirror/publish jobs (`client_publish_npm`,
+`server_publish_*`). Those jobs require a real release tag and a manual
+mirror push. See `AGENTS.md` → Release Conventions.
+
+---
+
 ## Useful Commands
 
 ```bash
