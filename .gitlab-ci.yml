@@ -22,7 +22,7 @@ cache:
 # Tags semver con prerelease opcional: vX.Y.Z, vX.Y.Z-alpha.N, vX.Y.Z-beta.N, vX.Y.Z-rc.N
 .tag_rules:
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-(alpha|beta|rc)\.\d+)?$/'
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-(alpha|beta|rc|dryrun)\.\d+)?$/'
 
 # Setup SSH comun: usa SSH_KNOWN_HOSTS (CI var masked) en vez de ssh-keyscan
 .ssh_setup:
