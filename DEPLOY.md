@@ -413,9 +413,8 @@ The pipeline accepts `vX.Y.Z`, `vX.Y.Z-alpha.N`, `vX.Y.Z-beta.N`,
 `vX.Y.Z-rc.N`, and `vX.Y.Z-dryrun.N`. Anything else is ignored.
 
 ⚠️ **Important:** `dryrun` tags trigger the full pipeline including deploy,
-but they do **not** trigger the mirror/publish jobs (`client_publish_npm`,
-`server_publish_*`). Those jobs require a real release tag and a manual
-mirror push. See `AGENTS.md` → Release Conventions.
+but they never publish `@dowardev/sso-client` — npm publishing is manual
+from your local terminal (see "Publishing sso-client to npm" below).
 
 ---
 

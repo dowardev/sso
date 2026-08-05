@@ -289,20 +289,6 @@ frontend_deploy:
         rm /tmp/frontend.tar.gz
       "
 
-# Publicación manual de @dowardev/sso-client a npm (solo cuando se quiera)
-client_publish_npm:
-  stage: deploy
-  image: node:24.4-alpine
-  extends: [.tag_rules, .client_setup]
-  needs:
-    - client_lint
-    - client_build
-  when: manual
-  script:
-    - cd packages/sso-client && npm publish --access public
-
-
-
 rollback_backend:
   stage: rollback
   image: alpine:3.20
