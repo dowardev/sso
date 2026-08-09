@@ -33,6 +33,8 @@
 #   Single:    BUILD_CMD, ARTIFACT_EXCLUDES, REMOTE_CMD
 #   Docs:      BUILD_CMD, ARTIFACT_SOURCE, ARTIFACT_NAME,
 #              VERSION_CHECK_PKG, VERSION_CHECK_FILE (optional)
+#   All types: SETUP_SCRIPT (optional) — repo-root first-run setup script
+#              uploaded to the server app root and made executable (never run)
 
 set -euo pipefail
 
@@ -689,6 +691,53 @@ deploy_docs() {
 }
 
 # ============================================================
+# Setup Script (optional) — uploads a first-run setup script
+# ============================================================
+# If SETUP_SCRIPT is set in deploy.conf (path relative to repo root), the
+# file is uploaded to the app root on the server (parent of the backend path
+# for fullstack, DEPLOY_PATH otherwise), made executable, and a reminder is
+# printed. It is NEVER executed automatically — setup scripts prompt for
+# secrets (DB creds, JWT keys, etc.). Applies to all project types.
+SETUP_REMOTE_DIR=""
+SETUP_DEPLOYED=false
+
+deploy_setup() {
+  if [[ -z "${SETUP_SCRIPT:-}" ]]; then
+    log_debug "No SETUP_SCRIPT configured (skipped)"
+    return 0
+  fi
+
+  local local_path="$REPO_ROOT/$SETUP_SCRIPT"
+  if [[ ! -f "$local_path" ]]; then
+    log_warn "SETUP_SCRIPT configured ($SETUP_SCRIPT) but file not found at $local_path — skipped"
+    return 0
+  fi
+
+  case "$PROJECT_TYPE" in
+    fullstack) SETUP_REMOTE_DIR="$(dirname "$DEPLOY_PATH_BACKEND")" ;;
+    single|docs) SETUP_REMOTE_DIR="$DEPLOY_PATH" ;;
+  esac
+
+  if [[ -z "$SETUP_REMOTE_DIR" || "$SETUP_REMOTE_DIR" == "/" ]]; then
+    log_warn "Cannot derive a safe setup remote dir — setup upload skipped"
+    return 0
+  fi
+
+  local base
+  base="$(basename "$SETUP_SCRIPT")"
+
+  log_phase "SETUP SCRIPT"
+  log_info "Uploading $SETUP_SCRIPT → $SETUP_REMOTE_DIR/$base (not executed)"
+
+  run_remote "Setup: ensure remote app root" "mkdir -p '$SETUP_REMOTE_DIR'"
+  run_cmd "Setup: upload $base" \
+    "scp ${SCP_OPTS[*]} '$local_path' '$SSH_USER@$SSH_HOST:$SETUP_REMOTE_DIR/$base'"
+  run_remote "Setup: chmod +x $base" "chmod +x '$SETUP_REMOTE_DIR/$base'"
+
+  SETUP_DEPLOYED=true
+}
+
+# ============================================================
 # Version Check (optional, for all project types)
 # ============================================================
 # Supports up to two published packages per repo:
@@ -869,6 +918,8 @@ case "$PROJECT_TYPE" in
   docs)      deploy_docs ;;
 esac
 
+deploy_setup
+
 if [[ "$DRY_RUN" == "true" ]]; then
   log_debug "SKIP version check (dry-run)"
 else
@@ -893,3 +944,12 @@ case "$PROJECT_TYPE" in
     ;;
 esac
 [[ "$DRY_RUN" == "true" ]] && log_warn "DRY-RUN — no actual changes made"
+
+if [[ "$SETUP_DEPLOYED" == "true" ]]; then
+  log_phase "SETUP REMINDER"
+  echo -e "${YELLOW}============================================================${NC}"
+  echo -e "${YELLOW}  Configure the environment on the server (setup.sh is NOT run automatically):${NC}"
+  echo -e "${YELLOW}  ssh -p $SSH_PORT $SSH_USER@$SSH_HOST \"cd $SETUP_REMOTE_DIR && ./$(basename "$SETUP_SCRIPT") --non-interactive\"${NC}"
+  echo -e "${YELLOW}  (omit --non-interactive for an interactive run)${NC}"
+  echo -e "${YELLOW}============================================================${NC}"
+fi
