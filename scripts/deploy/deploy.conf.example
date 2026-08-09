@@ -1,0 +1,36 @@
+# deploy.conf.example — sso
+# Configuración del proyecto para deploy.sh
+# ESTE ARCHIVO SE COMMITEA — Config de build, paths, excludes, comandos
+# Copia a scripts/deploy.conf si necesitas overrides locales (gitignored)
+
+# ============================================================
+# Project Type
+# ============================================================
+PROJECT_TYPE="fullstack"
+
+# ============================================================
+# Project Structure & Build Commands
+# ============================================================
+BACKEND_DIR="back"
+FRONTEND_DIR="front"
+
+# Backend build command (runs in isolated temp dir)
+BACKEND_BUILD_CMD="composer install --no-dev --optimize-autoloader && php artisan config:cache && php artisan route:cache"
+
+# Files to exclude from backend tarball
+BACKEND_ARTIFACT_EXCLUDES=".git node_modules vendor .env* storage/* bootstrap/cache/*.php"
+
+# Remote commands after extract (on server)
+BACKEND_REMOTE_CMD="composer install --no-dev --optimize-autoloader && php artisan migrate --force && php artisan config:cache && php artisan route:cache"
+
+# Frontend build command
+FRONTEND_BUILD_CMD="pnpm install --frozen-lockfile && pnpm exec vite build"
+
+# Frontend dist directory (relative to repo root)
+FRONTEND_ARTIFACT_SOURCE="front/dist"
+
+# ============================================================
+# Version Check (optional)
+# ============================================================
+# VERSION_CHECK_PKG="@tu-org/tu-paquete"
+# VERSION_CHECK_FILE="packages/tu-paquete/package.json"
