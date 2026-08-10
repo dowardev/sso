@@ -31,3 +31,10 @@ scripts/deploy.conf
 .env
 scripts/deploy.conf
 scripts/deploy/.env
+
+# Backups
+task_plan.md
+progress.md
+findings.md
+*.bak
+.php-cs-fixer.cache
