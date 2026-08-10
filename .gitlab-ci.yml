@@ -197,6 +197,7 @@ frontend_build:
   image: node:24.4-alpine
   extends: [.tag_rules, .frontend_setup]
   script:
+    - cp "$FRONTEND_ENV_FILE" .env.production
     - pnpm run build
   artifacts:
     paths:
@@ -346,6 +347,7 @@ rollback_frontend:
       git checkout "$PREVIOUS_TAG" -- front/
       cd front
       pnpm install --frozen-lockfile
+      cp "$FRONTEND_ENV_FILE" .env.production
       pnpm run build
       cd ..
       tar -czf /tmp/frontend-rollback.tar.gz -C front/dist .
