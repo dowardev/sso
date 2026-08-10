@@ -9,36 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.1] - 2026-08-10
+
 ### Fixed
 
-- **`back/app/Http/Controllers/SetupController.php`**: El wizard de configuración ahora garantiza que el rol `admin` exista al crear el primer usuario administrador. Si el seeder `RoleSeeder` no se ejecutó (usuario saltó seeding en `setup.sh` o accedió manualmente al wizard), el controlador crea el rol `admin` inline antes de asignarlo, evitando que el admin quede sin rol y sea redirigido a `/account` en lugar de `/admin/dashboard` tras el login.
+- **`back/app/Http/Controllers/SetupController.php`**: The setup wizard now ensures the `admin` role exists when creating the first administrator user. If the `RoleSeeder` did not run (user skipped seeding in `setup.sh` or accessed the wizard manually), the controller creates the `admin` role inline before assigning it, preventing the admin from being created without the role and being redirected to `/account` instead of `/admin/dashboard` after login.
 
 ## [0.30.0] - 2026-08-09
 
 ### Added
 
-- **`scripts/deploy/deploy.sh`**: Script de deploy unificado y endurecido con verificación de versiones de npm y composer, modo dry-run, y subida opcional del script de setup al servidor (`SETUP_SCRIPT`). Nueva config en `scripts/deploy/deploy.conf` (+ `.example`)
-- **`front/public/.htaccess`**: Regla de reescritura SPA para que el routing de history mode funcione al recargar (`RewriteRule . /index.html [L]`)
+- **`scripts/deploy/deploy.sh`**: Unified, hardened deploy script with npm and composer version verification, dry-run mode, and optional upload of the setup script to the server (`SETUP_SCRIPT`). New config in `scripts/deploy/deploy.conf` (+ `.example`)
+- **`front/public/.htaccess`**: SPA rewrite rule so history-mode routing works on page reload (`RewriteRule . /index.html [L]`)
 
 ### Changed
 
-- **`setup.sh`**: El `.env` existente ya no se pisa al re-ejecutar — el script copia el example solo si el archivo no existe, captura los valores previos como defaults de las preguntas y persiste cada respuesta de inmediato, así una corrida cancelada o fallida conserva lo respondido. Nuevo helper `unquote_env_val` para evitar el doble escape de valores con comillas
+- **`setup.sh`**: Existing `.env` is no longer overwritten on re-run — the script copies the example only if the file does not exist, captures previous values as question defaults, and persists each answer immediately so a cancelled or failed run preserves what was answered. New `unquote_env_val` helper to avoid double-escaping quoted values
 
 ### Fixed
 
-- **`scripts/deploy/deploy.sh`**: Se desactiva la expansión de globs al construir los excludes del tarball, evitando que los `.env` locales viajen al servidor y pisen la configuración de producción
-- **`scripts/deploy/deploy.sh`**: El comando remoto crea `storage/framework/{views,cache/data,sessions}` antes de `artisan`, corrigiendo "Please provide a valid cache path"
-- **Frontend producción**: Se configuró `front/.env.production` con `VITE_API_URL` apuntando al dominio real (`https://auth.dowar.xyz/api`), eliminando el fallback a `http://localhost:8001/api` que rompía las llamadas CORS en el navegador. Nota: este archivo está ignorado por git (`.env.*`) y es config de despliegue, no versionada
+- **`scripts/deploy/deploy.sh`**: Glob expansion disabled while building tarball excludes, preventing local `.env` files from traveling to the server and overwriting production config
+- **`scripts/deploy/deploy.sh`**: Remote command creates `storage/framework/{views,cache/data,sessions}` before `artisan`, fixing "Please provide a valid cache path"
+- **Frontend production**: Configured `front/.env.production` with `VITE_API_URL` pointing to the real domain (`https://auth.dowar.xyz/api`), removing the fallback to `http://localhost:8001/api` that broke CORS calls in the browser. Note: this file is git-ignored (`.env.*`) and is deploy config, not versioned
 
 ## [0.29.1] - 2026-07-28
 
 ### Removed
 
-- **`sso-demo/` workspace**: Eliminado el directorio demo de vanilla TS que consumía `@dowardev/sso-client`. Se quitaron todas las referencias: entrada en `pnpm-workspace.yaml`, entrada `sso-demo` en `package.json` workspaces, script npm `demo`, importer en `pnpm-lock.yaml` (con dependencias huérfanas `@faker-js/faker`, `typescript`, `vite`), y menciones en `AGENTS.md`, `DEPLOY.md`, `README.md`, `.gitignore`
+- **`sso-demo/` workspace**: Removed the vanilla TS demo directory that consumed `@dowardev/sso-client`. All references were removed: entry in `pnpm-workspace.yaml`, `sso-demo` entry in `package.json` workspaces, `demo` npm script, importer in `pnpm-lock.yaml` (with orphaned dependencies `@faker-js/faker`, `typescript`, `vite`), and mentions in `AGENTS.md`, `DEPLOY.md`, `README.md`, `.gitignore`
 
 ### Changed
 
-- **`packages/sso-client/README.md`**: La sección Demo ahora referencia `front/` como app de referencia principal para la integración de SSO, en lugar del enlace al demo eliminado
+- **`packages/sso-client/README.md`**: The Demo section now references `front/` as the main reference app for SSO integration, instead of the removed demo link
 
 ## [0.29.0] - 2026-07-27
 
@@ -455,7 +457,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Simplified `IsAdmin` middleware: removed per-client role logic, now only checks for global `admin` role
-- Simplified `AuthController.me()` and `checkSession()`: removed `client_id` requirement and per-client role filtering
+- Refactored `AuthController.me()` and `checkSession()`: removed `client_id` requirement and per-client role filtering
 - Refactored `User` model: removed `withPivot('sso_client_id')` from roles relationship and removed `getEffectiveRole()` method
 - Updated backend environment template (`.env.example`): switched from SQLite to MySQL defaults, added JWT configuration, Sanctum stateful domains, and Spanish locale
 - Updated frontend environment structure: removed deprecated `.env` and `.env.example`, replaced with proper `.env.development` / `.env.development.example` / `.env.production` / `.env.production.example` split
@@ -617,6 +619,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Modified: front/src/theme/files/catppuccin-latte-maroon.css
 - Modified: front/src/theme/files/catppuccin-macchiato-maroon.css
 - Modified: front/src/theme/files/light.css
+- Modified: front/src/theme/files/dark.css
 - Modified: front/src/views/HomePage.vue
 - Modified: front/src/views/admin/DashboardPage.vue
 - Modified: front/src/views/admin/DesignPage.vue
@@ -742,7 +745,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Complete theme system with 5 themes: Auto, Light, Dark, Catppuccin Latte, Catppuccin Macchiato
 - Auto theme mode that follows system preference with customizable light/dark sub-selectors
-- Configuration menu item in sidebar with Personalización link
+- Configuration menu item in sidebar with Personalization link
 - Responsive ion-grid layouts in DashboardPage, UserDetailPage, and DesignPage
 - Centered desktop layout with reduced max-width (600-900px) for better presentation
 
@@ -1057,4 +1060,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial SSO Server implementation
 - User registration, login, logout, profile endpoints
 - Laravel Sanctum integration for API token authentication
-
