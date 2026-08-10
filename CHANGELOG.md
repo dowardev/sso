@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-08-09
+
+### Added
+
+- **`scripts/deploy/deploy.sh`**: Script de deploy unificado y endurecido con verificación de versiones de npm y composer, modo dry-run, y subida opcional del script de setup al servidor (`SETUP_SCRIPT`). Nueva config en `scripts/deploy/deploy.conf` (+ `.example`)
+- **`front/public/.htaccess`**: Regla de reescritura SPA para que el routing de history mode funcione al recargar (`RewriteRule . /index.html [L]`)
+
+### Changed
+
+- **`setup.sh`**: El `.env` existente ya no se pisa al re-ejecutar — el script copia el example solo si el archivo no existe, captura los valores previos como defaults de las preguntas y persiste cada respuesta de inmediato, así una corrida cancelada o fallida conserva lo respondido. Nuevo helper `unquote_env_val` para evitar el doble escape de valores con comillas
+
+### Fixed
+
+- **`scripts/deploy/deploy.sh`**: Se desactiva la expansión de globs al construir los excludes del tarball, evitando que los `.env` locales viajen al servidor y pisen la configuración de producción
+- **`scripts/deploy/deploy.sh`**: El comando remoto crea `storage/framework/{views,cache/data,sessions}` antes de `artisan`, corrigiendo "Please provide a valid cache path"
+- **Frontend producción**: Se configuró `front/.env.production` con `VITE_API_URL` apuntando al dominio real (`https://auth.dowar.xyz/api`), eliminando el fallback a `http://localhost:8001/api` que rompía las llamadas CORS en el navegador. Nota: este archivo está ignorado por git (`.env.*`) y es config de despliegue, no versionada
+
 ## [0.29.1] - 2026-07-28
 
 ### Removed
