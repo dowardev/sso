@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`back/app/Http/Controllers/SetupController.php`**: El wizard de configuración ahora garantiza que el rol `admin` exista al crear el primer usuario administrador. Si el seeder `RoleSeeder` no se ejecutó (usuario saltó seeding en `setup.sh` o accedió manualmente al wizard), el controlador crea el rol `admin` inline antes de asignarlo, evitando que el admin quede sin rol y sea redirigido a `/account` en lugar de `/admin/dashboard` tras el login.
+
 ## [0.30.0] - 2026-08-09
 
 ### Added
