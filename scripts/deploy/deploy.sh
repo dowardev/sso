@@ -577,10 +577,16 @@ deploy_fullstack() {
     run_cmd "Backend: cache config & routes" \
       "cd '$BUILD_DIR' && php artisan config:cache && php artisan route:cache"
 
+    # Build excludes with globbing disabled so patterns like ".env*" reach
+    # tar literally. With globbing on, ".env*" expands against the cwd (repo
+    # root has .env.example) and the real .env silently ships in the tarball,
+    # overwriting the server's .env on extract.
+    set -f
     EXCLUDES=""
     for excl in $BACKEND_ARTIFACT_EXCLUDES; do
       EXCLUDES="$EXCLUDES --exclude='$excl'"
     done
+    set +f
 
     run_cmd "Backend: create tarball" \
       "eval tar -czf '$TARBALL' $EXCLUDES -C '$BUILD_DIR' ."
@@ -643,10 +649,13 @@ deploy_single() {
   log_phase "DEPLOY"
 
   TARBALL="/tmp/deploy.tar.gz"
+  # Globbing off so exclude patterns reach tar literally (see backend build).
+  set -f
   EXCLUDES=""
   for excl in $ARTIFACT_EXCLUDES; do
     EXCLUDES="$EXCLUDES --exclude='$excl'"
   done
+  set +f
 
   run_cmd "Create deployment tarball" \
     "eval tar -czf '$TARBALL' $EXCLUDES ."

@@ -21,7 +21,9 @@ BACKEND_BUILD_CMD="composer install --no-dev --optimize-autoloader && php artisa
 BACKEND_ARTIFACT_EXCLUDES=".git node_modules vendor .env* storage/* bootstrap/cache/*.php"
 
 # Remote commands after extract (on server)
-BACKEND_REMOTE_CMD="composer install --no-dev --optimize-autoloader && php artisan migrate --force && php artisan config:cache && php artisan route:cache"
+# storage/framework/* is excluded from the tarball, so the framework dirs
+# must be created on the server or Blade fails with "Please provide a valid cache path."
+BACKEND_REMOTE_CMD="mkdir -p storage/framework/views storage/framework/cache/data storage/framework/sessions && chmod -R 775 storage bootstrap/cache && composer install --no-dev --optimize-autoloader && php artisan migrate --force && php artisan config:cache && php artisan route:cache"
 
 # Frontend build command
 FRONTEND_BUILD_CMD="pnpm install --frozen-lockfile && pnpm exec vite build"
