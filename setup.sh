@@ -592,6 +592,21 @@ configure_frontend() {
         fi
     fi
 
+    # Verify the frontend env file is configured. The Vite build bakes these
+    # values into the bundle at compile time, so deploying without the file
+    # configured (or with example placeholders) breaks the app in production.
+    if [ ! -f "$target_file" ]; then
+        log_warn "Frontend env file not found: $target_file"
+        log_warn "You must configure it: copy $example_file to $target_file and set the real URLs (VITE_API_URL, etc.) before building."
+        if [ "$DEV_MODE" = true ]; then
+            log_info "Development mode: creating $target_file from the example template. You can adjust the values afterwards."
+        else
+            log_error "Production mode requires a configured $target_file. Create it from $example_file with the real production URLs, then re-run the script."
+            cd "$SCRIPT_DIR"
+            return 1
+        fi
+    fi
+
     # Preserve the existing VITE_API_URL so a re-run doesn't lose it.
     local prev_api_url=""
     if [ -f "$target_file" ]; then
