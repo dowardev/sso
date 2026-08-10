@@ -128,7 +128,7 @@ export function useAuthController() {
       throw new Error('Token no disponible');
     }
 
-    const ssoUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
+    const ssoUrl = import.meta.env.VITE_API_URL;
 
     await dpopService.initialize();
     const dpopProof = await dpopService.createDpopProof({
@@ -177,7 +177,7 @@ export function useAuthController() {
       throw new Error('Token no disponible');
     }
 
-    const ssoUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
+    const ssoUrl = import.meta.env.VITE_API_URL;
 
     await dpopService.initialize();
     const dpopProof = await dpopService.createDpopProof({
