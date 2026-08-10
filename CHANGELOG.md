@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-08-10
+
+### Added
+
+- **`.gitlab-ci.yml`**: `frontend_build` and `rollback_frontend` now copy the `FRONTEND_ENV_FILE` CI/CD File variable into `front/.env.production` before building, so the pipeline compiles the frontend with the configured production URLs without versioning any `.env.*` file
+
+### Changed
+
+- **`setup.sh`**: `configure_frontend` now verifies that the frontend env file (`.env.development` in `--dev`, `.env.production` otherwise) exists before building. Development mode continues and creates the file from the example template; production mode aborts with an error asking for a configured file with the real URLs
+- **`front/src/services/api.ts`**, **`front/src/controllers/authController.ts`**: Removed the hardcoded `http://localhost:8001/api` fallbacks; the API URL is read only from `import.meta.env.VITE_API_URL`, so a production build without a configured `.env.production` breaks loudly instead of silently calling localhost
+
 ## [0.30.1] - 2026-08-10
 
 ### Fixed
