@@ -42,6 +42,24 @@ export class SSOClient {
   readonly http: HttpClient;
 
   constructor(config: SSOClientConfig) {
+    if (!config.ssoUrl || !isValidUrl(config.ssoUrl)) {
+      throw new Error(
+        "SSOClient: ssoUrl is required and must be a valid URL (e.g., https://auth.example.com/api/)"
+      );
+    }
+    if (!config.ssoFrontendUrl || !isValidUrl(config.ssoFrontendUrl)) {
+      throw new Error(
+        "SSOClient: ssoFrontendUrl is required and must be a valid URL (e.g., https://auth.example.com)"
+      );
+    }
+    if (!config.apiBaseUrl || !isValidUrl(config.apiBaseUrl)) {
+      throw new Error(
+        "SSOClient: apiBaseUrl is required and must be a valid URL (e.g., https://api.example.com/api/)"
+      );
+    }
+    if (!config.clientId) {
+      throw new Error("SSOClient: clientId is required");
+    }
     this.configService = new SSOServerConfig({
       baseUrl: config.ssoUrl,
       ssoFrontendUrl: config.ssoFrontendUrl,
@@ -364,6 +382,15 @@ export class SSOClient {
       data,
     });
     return response.data;
+  }
+}
+
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
   }
 }
 
