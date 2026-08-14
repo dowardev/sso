@@ -254,8 +254,14 @@ configure_backend() {
     fi
 
     if [ ! -f "$example_file" ]; then
-        log_error "Example file not found: $example_file"
-        exit 6
+        log_warn "Backend example file not found: $example_file, trying .env.example"
+        if [ -f ".env.example" ]; then
+            example_file=".env.example"
+        else
+            log_error "Backend: no example file found (tried $example_file and .env.example)"
+            log_error "Restore it from the repository (it is tracked in git) or re-run the deploy to upload the templates."
+            exit 6
+        fi
     fi
 
     # Preserve existing values so a re-run after a mid-way failure doesn't
@@ -860,7 +866,19 @@ main() {
     generate_jwt_keys
     migrate_db
     seed_db
-    configure_frontend
+
+    # The frontend env (.env.production) is only needed where the frontend is
+    # actually built: Vite bakes the VITE_* values into the bundle at compile
+    # time. On shared hosting (or without Node.js/pnpm, or with
+    # --skip-front-build) the dist/ directory is built on a dev machine and
+    # uploaded, so there is no build here that would read .env.production —
+    # requiring it would block setup with a file that is never used on the
+    # server. configure_frontend is therefore skipped in those environments.
+    if [ "$HOSTING_ENV" = "shared" ] || [ "$HAS_NODE" = false ] || [ "$HAS_PNPM" = false ] || [ "$SKIP_FRONT_BUILD" = true ]; then
+        log_info "Frontend env config skipped: frontend is built on a dev machine and dist/ is uploaded (shared hosting / no Node.js / --skip-front-build)"
+    else
+        configure_frontend
+    fi
 
     if [ "$SKIP_FRONT_BUILD" != true ]; then
         build_frontend
