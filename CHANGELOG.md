@@ -9,8 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **`back/tests/Feature/OAuth2RedirectUrlProtectionTest.php`**: Added feature tests proving the `redirect_url` allowlist protection in `OAuth2Controller::authorize`. A client with a configured `redirect_url` rejects a foreign `redirect_uri` with `400`, while a client without `redirect_url` (the pre-fix production state of oneSpend/portafolio) accepts any redirect — documenting the token-leakage gap that PKCE alone does not cover
+
 ### Fixed
 
+- **`scripts/deploy/deploy.sh`**: `deploy_setup` now uploads the `.env.*.example` templates into the deployed backend/frontend directories alongside `setup.sh`. The deploy tarballs exclude every `.env*` file (secrets policy), which also stripped the non-secret example templates, so `setup.sh` would abort on a fresh server with "example file not found" before it could create the real `.env` files
+- **`setup.sh`**: `configure_backend` falls back to `.env.example` when the specific example file is missing, aborting only when no example exists. `configure_frontend` is now skipped when the frontend is built on a dev machine (shared hosting, no Node.js/pnpm, or `--skip-front-build`), since Vite bakes `VITE_*` values at compile time and the uploaded `dist/` never reads `.env.production` on the server — previously setup blocked on a file it never used
 - **`packages/sso-client`** (0.0.3): The `SSOClient` constructor now validates `ssoUrl`, `ssoFrontendUrl`, `apiBaseUrl`, and `clientId`, throwing clear errors when required URLs are missing or invalid. Previously a production build with an empty `VITE_SSO_FRONTEND_URL` only crashed at login with `TypeError: URL constructor: is not a valid URL.`
 
 ## [0.31.0] - 2026-08-10
