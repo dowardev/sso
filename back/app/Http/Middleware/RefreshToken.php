@@ -12,7 +12,9 @@ class RefreshToken
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $refreshToken = $request->cookie('refresh_token');
+        $refreshToken = $request->input('refreshToken')
+            ?? $request->input('refresh_token')
+            ?? $request->cookie('refresh_token');
 
         if (! $refreshToken) {
             return response()->json([

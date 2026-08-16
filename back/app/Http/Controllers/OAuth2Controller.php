@@ -311,6 +311,18 @@ class OAuth2Controller extends Controller
             return response()->json($result);
         }
 
+        if ($request->grant_type === 'refresh_token') {
+            $result = $this->oauth2Service->handleRefreshToken($client, $request->validated(), $request);
+
+            if (! $result) {
+                return response()->json([
+                    'message' => 'Refresh token inválido, expirado o revocado',
+                ], 401);
+            }
+
+            return response()->json($result);
+        }
+
         $result = $this->oauth2Service->handleAuthorizationCode($request, $client, $request->validated());
 
         if (! $result) {

@@ -69,11 +69,28 @@ export class AuthService {
   }
 
   async refreshToken(params: RefreshTokenParams): Promise<AuthResponse> {
-    const response = await this.ssoClient.post<AuthResponse>({
+    const response = await this.ssoClient.post<AuthResponse & { refresh_token?: string; remember_me?: boolean }>({
       url: "refresh-token",
-      data: { refreshToken: params.refreshToken },
+      data: {
+        refreshToken: params.refreshToken,
+        client_id: this.ssoClient.getClientId(),
+      },
     });
-    return response;
+
+    return {
+      token: response.token,
+      refreshToken: response.refreshToken ?? response.refresh_token,
+      user: response.user,
+      rememberMe: response.rememberMe ?? response.remember_me,
+    };
+  }
+
+  async checkSession(): Promise<{ authenticated: boolean; user?: User }> {
+    const clientId = this.ssoClient.getClientId();
+
+    return this.ssoClient.get<{ authenticated: boolean; user?: User }>(
+      `session/check?client_id=${clientId}`
+    );
   }
 
   async recoverPassword(params: RecoverPasswordParams): Promise<void> {

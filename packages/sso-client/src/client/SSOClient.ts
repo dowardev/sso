@@ -208,6 +208,7 @@ export class SSOClient {
       token_type: string;
       expires_in: number;
       user: User;
+      refresh_token?: string;
       refreshToken?: string;
     }>("oauth/token", data);
 
@@ -217,7 +218,7 @@ export class SSOClient {
 
     await this.handleAuthResponse({
       token: response.token,
-      refreshToken: response.refreshToken,
+      refreshToken: response.refresh_token ?? response.refreshToken,
       user: response.user,
     });
 
@@ -282,6 +283,25 @@ export class SSOClient {
       this.currentUser = user;
     }
     return user;
+  }
+
+  async checkSession(): Promise<{ authenticated: boolean; user?: User }> {
+    const result = await this.authService.checkSession();
+
+    if (result.authenticated) {
+      this.currentUser = result.user ?? this.currentUser;
+      this._isAuthenticated = true;
+    } else {
+      this.currentUser = null;
+      this._isAuthenticated = false;
+    }
+
+    this.emitAuthState({
+      isAuthenticated: this._isAuthenticated,
+      user: this.currentUser,
+    });
+
+    return result;
   }
 
   onAuthStateChange(callback: (state: AuthState) => void): () => void {

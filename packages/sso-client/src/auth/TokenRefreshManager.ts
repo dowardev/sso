@@ -94,7 +94,7 @@ export class TokenRefreshManager {
       ? await this.dpopService.createDpopProof("POST", fullUrl, cleanAccessToken)
       : undefined;
 
-    const response = await axios.request<AuthResponse>({
+    const response = await axios.request<AuthResponse & { refresh_token?: string }>({
       url: fullUrl,
       method: "POST",
       headers: {
@@ -109,11 +109,12 @@ export class TokenRefreshManager {
       },
     });
 
-    const { token, refreshToken: newRefreshToken } = response.data;
+    const { token, refreshToken: newRefreshToken, refresh_token: newRefreshTokenSnake } = response.data;
 
     await this.tokenStorage.setToken(token);
-    if (newRefreshToken) {
-      await this.tokenStorage.setRefreshToken(newRefreshToken);
+    const rotatedRefreshToken = newRefreshToken ?? newRefreshTokenSnake;
+    if (rotatedRefreshToken) {
+      await this.tokenStorage.setRefreshToken(rotatedRefreshToken);
     }
 
     return token;

@@ -291,30 +291,40 @@ class AuthService
 
     public function checkSessionFromRequest(Request $request): array
     {
-        $ssoUserId = $request->get('sso_user_id');
+        $tokenString = $request->bearerToken();
 
-        if (! $ssoUserId) {
-            $tokenString = $request->bearerToken();
-
-            if (! $tokenString) {
-                $tokenString = $request->cookie('sso_token');
-            }
-
-            if (! $tokenString) {
-                return ['authenticated' => false];
-            }
-
-            $token = $this->jwtService->parseAndValidateToken($tokenString);
-            if (! $token) {
-                return ['authenticated' => false];
-            }
-
-            $ssoUserId = $token->claims()->get('sub');
+        if (! $tokenString) {
+            $tokenString = $request->cookie('sso_token');
         }
+
+        if (! $tokenString) {
+            return ['authenticated' => false];
+        }
+
+        $token = $this->jwtService->parseAndValidateToken($tokenString);
+        if (! $token) {
+            return ['authenticated' => false];
+        }
+
+        // Service/client tokens are never interactive user sessions
+        if ($token->claims()->get('grant_type') === 'client_credentials') {
+            return ['authenticated' => false];
+        }
+
+        $ssoUserId = $token->claims()->get('sub');
 
         $user = User::with('roles')->find($ssoUserId);
 
         if (! $user) {
+            return ['authenticated' => false];
+        }
+
+        // Logout deletes every session row, so a user without any active session
+        // is treated as logged out. This is checked per user (not per token hash)
+        // because access tokens rotate on refresh while the session row stays.
+        $hasActiveSession = UserSession::where('user_id', $user->id)->exists();
+
+        if (! $hasActiveSession) {
             return ['authenticated' => false];
         }
 
