@@ -173,10 +173,25 @@ class AuthController extends Controller
             return response()->json(['message' => 'Token no proporcionado'], 401);
         }
 
-        // Revoke refresh token if present
+        // Revoke refresh token sent in body (OAuth client flow)
+        $bodyRefreshToken = $request->input('refreshToken') ?? $request->input('refresh_token');
+        if ($bodyRefreshToken) {
+            $this->authService->revokeRefreshToken($bodyRefreshToken);
+        }
+
+        // Revoke cookie refresh token (SSO web flow)
         $refreshTokenCookie = $request->cookie('refresh_token');
         if ($refreshTokenCookie) {
             $this->authService->revokeRefreshToken($refreshTokenCookie);
+        }
+
+        $user = $this->authService->getUserFromToken($tokenString);
+
+        if ($user) {
+            // Revoke every refresh token and session so OAuth clients and other
+            // devices detect the logout instead of relying on the access token TTL.
+            $this->authService->revokeAllUserRefreshTokens($user);
+            $this->sessionService->revokeAllUserSessions($user);
         }
 
         try {
@@ -187,7 +202,6 @@ class AuthController extends Controller
             ], 500);
         }
 
-        $user = $this->authService->getUserFromToken($tokenString);
         if ($user) {
             $this->activityLogService->logFromRequest(
                 $user,

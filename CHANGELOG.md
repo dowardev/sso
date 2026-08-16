@@ -9,8 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`packages/sso-client`** (0.0.4): `SSOClient.checkSession()` exposes a real HTTP session check (no cache) so OAuth clients can revalidate their session against the server. `AuthService.refreshToken()` now sends `client_id` and maps the `refresh_token` response field; `TokenRefreshManager` stores the rotated refresh token from either `refreshToken` or `refresh_token`.
+- **`back/app/Http/Controllers/OAuth2Controller.php`**: `token()` now accepts the `refresh_token` grant, delegating to `OAuth2Service::handleRefreshToken()` (rotation via `AuthService::refreshAccessToken`)
+- **`back/app/Services/OAuth2Service.php`**: `handleAuthorizationCode()` now emits a `refresh_token` in the token response so OAuth clients can refresh without relying on cookies; added `handleRefreshToken()` for the new grant
+- **`back/app/Http/Middleware/RefreshToken.php`**: refresh token is now read from the request body (`refreshToken`/`refresh_token`) before falling back to the cookie, aligning transport with the `sso-client` package
+
 ### Security
 
+- **`back/app/Http/Controllers/AuthController.php`**: `logout()` now revokes the refresh token sent in the body (OAuth client flow), the cookie refresh token (SSO web flow), every refresh token of the user, and every active session — a logout in the SSO invalidates OAuth clients and other devices instead of waiting for the access token TTL
+- **`back/app/Services/AuthService.php`**: `checkSessionFromRequest()` removed the `sso_user_id` bypass (a request with only `{sso_user_id: 1}` no longer returns `authenticated: true` without a token), rejects `client_credentials` service tokens, and now requires at least one active `user_sessions` row per user — so `/session/check` detects revoked/logged-out sessions
 - **`back/tests/Feature/OAuth2RedirectUrlProtectionTest.php`**: Added feature tests proving the `redirect_url` allowlist protection in `OAuth2Controller::authorize`. A client with a configured `redirect_url` rejects a foreign `redirect_uri` with `400`, while a client without `redirect_url` (the pre-fix production state of oneSpend/portafolio) accepts any redirect — documenting the token-leakage gap that PKCE alone does not cover
 
 ### Fixed

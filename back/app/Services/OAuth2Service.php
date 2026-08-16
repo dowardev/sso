@@ -16,12 +16,15 @@ class OAuth2Service
 
     private SessionService $sessionService;
 
+    private AuthService $authService;
+
     private int $authCodeExpiration = 600;
 
-    public function __construct(JwtService $jwtService, SessionService $sessionService)
+    public function __construct(JwtService $jwtService, SessionService $sessionService, AuthService $authService)
     {
         $this->jwtService = $jwtService;
         $this->sessionService = $sessionService;
+        $this->authService = $authService;
     }
 
     public function createAuthorizationCode(User $user, SsoClient $client, array $data): array
@@ -127,12 +130,26 @@ class OAuth2Service
 
         $this->sessionService->registerSession($user, $tokenData['token'], $request, $dpopPublicKey, false, $client);
 
+        $refreshTokenData = $this->authService->generateRefreshToken($user, $request, false);
+
         return [
             'token' => $tokenData['token'],
             'token_type' => $tokenData['token_type'],
             'expires_in' => $tokenData['expires_in'],
+            'refresh_token' => $refreshTokenData['plain'],
             'user' => array_merge($user->toArray(), ['roles' => $user->roles->toArray()]),
         ];
+    }
+
+    public function handleRefreshToken(SsoClient $client, array $data, Request $request): ?array
+    {
+        $plainRefreshToken = $data['refresh_token'] ?? $data['refreshToken'] ?? null;
+
+        if (! $plainRefreshToken) {
+            return null;
+        }
+
+        return $this->authService->refreshAccessToken($plainRefreshToken, $request);
     }
 
     private function computeCodeChallenge(string $codeVerifier, string $method): string
