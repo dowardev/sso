@@ -528,6 +528,7 @@ migrate_db() {
 
     cd "$BACK_DIR"
     php artisan migrate --force || { log_error "Migration failed"; exit 5; }
+    php artisan storage:link --force 2>/dev/null || true
     log_ok "Database migrated"
     cd "$SCRIPT_DIR"
 }

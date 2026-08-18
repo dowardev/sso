@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 Route::post('/csp-report', [CspReportController::class, 'store']);
 Route::get('/setup/status', [SetupController::class, 'status']);
 Route::post('/setup/admin', [SetupController::class, 'storeAdmin'])->middleware(['setup.not_completed', 'throttle:1,5']);
+Route::get('/settings/public', [SettingController::class, 'publicIndex']);
 
 Route::post('/login', [AuthController::class, 'login'])->middleware(['throttle.login', 'throttle:5,1']);
 Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->middleware('refresh.token');
@@ -80,6 +81,8 @@ Route::middleware('jwt.auth')->group(function () {
 
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings/{key}', [SettingController::class, 'update']);
+        Route::post('/settings/auth-logo', [SettingController::class, 'uploadLogo']);
+        Route::delete('/settings/auth-logo', [SettingController::class, 'destroyLogo']);
 
         Route::get('/csp-reports', [CspReportController::class, 'index']);
         Route::post('/csp-allow', [CspReportController::class, 'allowScript']);
