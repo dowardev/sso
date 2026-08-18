@@ -8,8 +8,18 @@
     <div class="auth-card-content">
       <slot name="header">
         <div class="auth-card-header">
-          <div class="auth-logo-circle">
-            <img alt="Logo SSO Server" src="@/assets/images/lambda_v1.svg" class="auth-logo" />
+          <div
+            class="auth-logo-circle"
+            :class="{ 'auth-logo-circle--plain': logoUrl }"
+          >
+            <img
+              :src="logoUrl || lambdaLogo"
+              :class="[
+                'auth-logo',
+                logoUrl ? 'auth-logo--custom' : 'auth-logo--filtered',
+              ]"
+              alt="Logo SSO Server"
+            />
           </div>
           <h2>{{ title }}</h2>
           <p>{{ subtitle }}</p>
@@ -23,9 +33,13 @@
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
+import { onMounted } from 'vue'
 import { IonCard } from '@ionic/vue'
+import lambdaLogo from '@/assets/images/lambda_v1.svg'
 
 // 2. Controllers / Composables
+import { useBranding } from '@/composables/useBranding'
+const { logoUrl, loadBranding } = useBranding()
 
 // 3. Components
 
@@ -44,6 +58,9 @@ defineProps<{
 // 8. Computed
 
 // 9. OnMounted
+onMounted(() => {
+  void loadBranding()
+})
 
 // 10. Functions (named parameters pattern)
 </script>
@@ -151,9 +168,24 @@ defineProps<{
   box-shadow: 0 4px 20px rgba(var(--gradient-primary-rgb), 0.3);
 }
 
+.auth-logo-circle--plain {
+  width: auto;
+  height: auto;
+  background: transparent;
+  box-shadow: none;
+}
+
 .auth-logo {
   max-width: 32px;
   height: auto;
+}
+
+.auth-logo--custom {
+  max-width: 96px;
+  max-height: 96px;
+}
+
+.auth-logo--filtered {
   filter: brightness(0) invert(1);
 }
 

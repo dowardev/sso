@@ -82,6 +82,65 @@
                   </ion-item>
                 </template>
               </ion-list>
+
+              <ion-list class="design-list">
+                <ion-list-header class="section-header"
+                  >Logo</ion-list-header
+                >
+
+                <div class="logo-section">
+                  <div
+                    class="logo-preview"
+                    :class="{ 'logo-preview--plain': brandingLogoUrl }"
+                  >
+                    <img
+                      v-if="brandingLogoUrl"
+                      :src="brandingLogoUrl"
+                      alt="Logo actual"
+                      class="logo-preview-img logo-preview-img--custom"
+                    />
+                    <img
+                      v-else
+                      :src="lambdaLogo"
+                      alt="Logo por defecto"
+                      class="logo-preview-img logo-preview-img--filtered"
+                    />
+                  </div>
+
+                  <label class="file-input">
+                    <span class="file-input-label">Imagen del logo</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                      class="file-input-control"
+                      @change="onLogoFileSelected({ event: $event })"
+                    />
+                  </label>
+
+                  <div class="logo-actions">
+                    <ion-button
+                      expand="block"
+                      class="gradient-btn"
+                      :disabled="!selectedLogo || uploading"
+                      @click="saveLogo"
+                    >
+                      <ion-spinner v-if="uploading" name="lines"></ion-spinner>
+                      <span v-else>Guardar logo</span>
+                    </ion-button>
+
+                    <ion-button
+                      v-if="brandingLogoUrl"
+                      expand="block"
+                      fill="outline"
+                      color="danger"
+                      :disabled="uploading"
+                      @click="removeLogo"
+                    >
+                      Quitar logo
+                    </ion-button>
+                  </div>
+                </div>
+              </ion-list>
             </ion-col>
 
             <ion-col size="12" size-md="5">
@@ -119,6 +178,7 @@
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
+import { ref, onMounted } from 'vue'
 import {
   IonPage,
   IonHeader,
@@ -126,6 +186,7 @@ import {
   IonTitle,
   IonButtons,
   IonBackButton,
+  IonButton,
   IonContent,
   IonList,
   IonListHeader,
@@ -135,6 +196,7 @@ import {
   IonGrid,
   IonRow,
   IonCol,
+  IonSpinner,
   popoverController,
 } from '@ionic/vue'
 import {
@@ -144,13 +206,23 @@ import {
   sunnyOutline,
   moonOutline,
 } from 'ionicons/icons'
+import lambdaLogo from '@/assets/images/lambda_v1.svg'
 
 // 2. Controllers / Composables
 import {
   useThemeController,
   type ResolvedThemeName,
 } from '@/controllers/themeController'
+import { useBranding } from '@/composables/useBranding'
+import { useToast } from '@/composables/useToast'
 const themeController = useThemeController()
+const {
+  logoUrl: brandingLogoUrl,
+  loadBranding,
+  uploadLogo,
+  removeLogo: removeBrandingLogo,
+} = useBranding()
+const { showSuccess, showError } = useToast()
 
 // 3. Components
 import ThemePopover from '@/components/ThemePopover.vue'
@@ -165,6 +237,9 @@ const isAuto = themeController.isAuto
 const autoLightThemeInfo = themeController.autoLightThemeInfo
 const autoDarkThemeInfo = themeController.autoDarkThemeInfo
 
+const selectedLogo = ref<File | null>(null)
+const uploading = ref(false)
+
 const setAutoLightTheme = (name: ResolvedThemeName): void => {
   themeController.setAutoLightTheme({ themeName: name })
 }
@@ -177,6 +252,9 @@ const setAutoDarkTheme = (name: ResolvedThemeName): void => {
 // 8. Computed
 
 // 9. OnMounted
+onMounted(() => {
+  void loadBranding()
+})
 
 // 10. Functions (named parameters pattern)
 const openThemePopover = async (params: { event: Event }): Promise<void> => {
@@ -225,6 +303,42 @@ const openDarkThemePopover = async (params: {
     translucent: true,
   })
   await popover.present()
+}
+
+const onLogoFileSelected = (params: { event: Event }): void => {
+  const { event } = params
+  const input = event.target as HTMLInputElement
+  selectedLogo.value = input.files?.[0] ?? null
+}
+
+const saveLogo = async (): Promise<void> => {
+  if (!selectedLogo.value) return
+  uploading.value = true
+  try {
+    await uploadLogo(selectedLogo.value)
+    selectedLogo.value = null
+    showSuccess({ message: 'Logo actualizado correctamente' })
+  } catch (err: unknown) {
+    showError({
+      message: err instanceof Error ? err.message : 'Error al subir el logo',
+    })
+  } finally {
+    uploading.value = false
+  }
+}
+
+const removeLogo = async (): Promise<void> => {
+  uploading.value = true
+  try {
+    await removeBrandingLogo()
+    showSuccess({ message: 'Logo eliminado correctamente' })
+  } catch (err: unknown) {
+    showError({
+      message: err instanceof Error ? err.message : 'Error al quitar el logo',
+    })
+  } finally {
+    uploading.value = false
+  }
 }
 </script>
 
@@ -348,6 +462,68 @@ const openDarkThemePopover = async (params: {
   font-size: 12px;
   color: var(--text-tertiary);
   text-align: center;
+}
+
+.logo-section {
+  background: var(--background-contrast);
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: var(--space-2, 8px);
+}
+
+.logo-preview {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.logo-preview--plain {
+  width: auto;
+  height: auto;
+  background: transparent;
+}
+
+.logo-preview-img {
+  max-width: 32px;
+  height: auto;
+}
+
+.logo-preview-img--custom {
+  max-width: 96px;
+  max-height: 96px;
+}
+
+.logo-preview-img--filtered {
+  filter: brightness(0) invert(1);
+}
+
+.file-input {
+  display: block;
+}
+
+.file-input-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+}
+
+.file-input-control {
+  width: 100%;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.logo-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 @media (min-width: 768px) {
