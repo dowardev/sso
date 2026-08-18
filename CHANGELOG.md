@@ -9,12 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-08-18
+
 ### Added
 
 - **`packages/sso-client`** (0.0.4): `SSOClient.checkSession()` exposes a real HTTP session check (no cache) so OAuth clients can revalidate their session against the server. `AuthService.refreshToken()` now sends `client_id` and maps the `refresh_token` response field; `TokenRefreshManager` stores the rotated refresh token from either `refreshToken` or `refresh_token`.
 - **`back/app/Http/Controllers/OAuth2Controller.php`**: `token()` now accepts the `refresh_token` grant, delegating to `OAuth2Service::handleRefreshToken()` (rotation via `AuthService::refreshAccessToken`)
 - **`back/app/Services/OAuth2Service.php`**: `handleAuthorizationCode()` now emits a `refresh_token` in the token response so OAuth clients can refresh without relying on cookies; added `handleRefreshToken()` for the new grant
 - **`back/app/Http/Middleware/RefreshToken.php`**: refresh token is now read from the request body (`refreshToken`/`refresh_token`) before falling back to the cookie, aligning transport with the `sso-client` package
+- **`back/routes/api.php`**, **`back/app/Http/Controllers/SettingController.php`**: new public endpoint `GET /api/settings/public` exposing `auth_logo_url`, plus admin-only `POST`/`DELETE /api/admin/settings/auth-logo` to upload and remove the auth logo
+- **`back/app/Http/Requests/UploadLogoRequest.php`**: upload validation for the auth logo (mimes `png`/`jpg`/`jpeg`/`svg`/`webp`, max 2 MB)
+- **`back/app/Services/SettingService.php`**: added `uploadLogo()` and `clearLogo()` to persist the logo on the public disk under `branding/` and clear the `auth_logo_url` setting (deleting the stored file)
+- **`front/src/composables/useBranding.ts`**: new `useBranding()` composable that reads `GET /api/settings/public` and exposes `logoUrl`, `loadBranding`, `uploadLogo` and `removeLogo`, resolving the returned logo URL against the API origin
+- **`front/src/views/admin/DesignPage.vue`**: new "Logo" section to preview, upload, save and remove the custom auth logo
+
+### Changed
+
+- **`front/src/components/AuthCard.vue`**, **`front/src/views/OAuthAuthorizationPage.vue`**: the configured logo replaces the default logo on the login, register and OAuth authorization screens; a custom logo renders standalone without the monochrome filter or decorative circle, falling back to the default asset otherwise
+- **`setup.sh`**: `migrate_db()` now runs `php artisan storage:link` so uploaded logos are served through the public `/storage` symlink
 
 ### Security
 

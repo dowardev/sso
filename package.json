@@ -1,6 +1,6 @@
 {
   "name": "sso",
-  "version": "0.29.1",
+  "version": "0.32.0",
   "private": true,
   "description": "SSO Server with Laravel backend and Ionic/Vue frontend",
   "workspaces": [
