@@ -528,8 +528,30 @@ migrate_db() {
 
     cd "$BACK_DIR"
     php artisan migrate --force || { log_error "Migration failed"; exit 5; }
-    php artisan storage:link --force 2>/dev/null || true
+    link_storage
     log_ok "Database migrated"
+    cd "$SCRIPT_DIR"
+}
+
+link_storage() {
+    CURRENT_STEP=$((CURRENT_STEP + 1))
+    log_info "Step $CURRENT_STEP: Linking public storage..."
+
+    cd "$BACK_DIR"
+    if [ -L "public/storage" ]; then
+        log_ok "Public storage already linked"
+    elif [ -d "public" ] && [ -d "storage/app/public" ]; then
+        # Use plain ln -s instead of `php artisan storage:link`: shared hosts
+        # often disable PHP symlink()/exec(), which makes the artisan command
+        # fail with "Call to undefined function ... exec()".
+        if ln -s ../storage/app/public public/storage 2>/dev/null; then
+            log_ok "Public storage linked"
+        else
+            log_warn "Could not link public/storage - uploaded images may 404"
+        fi
+    else
+        log_warn "public/ or storage/app/public missing - skipping storage link"
+    fi
     cd "$SCRIPT_DIR"
 }
 

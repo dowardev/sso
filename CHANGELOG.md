@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`setup.sh`**: `migrate_db()` now links the public storage via a new `link_storage()` function using `ln -s ../storage/app/public public/storage` instead of `php artisan storage:link`. Shared hosts commonly disable PHP `symlink()`/`exec()`, which made the artisan command fail silently (`|| true` swallowed the error) and left the `/storage` symlink missing — uploaded logos (and any future public-storage file) returned 404 in production. The previous symlink existing in production also pointed to an absolute dev machine path (`/home/dowardev/...`), so this binary fix is required on first deploy after upgrading. Manually recreate it on existing installs: `cd back && ln -s ../storage/app/public public/storage`
+
+## [0.32.0] - 2026-08-18
+
 ## [0.32.0] - 2026-08-18
 
 ### Added
