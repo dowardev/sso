@@ -370,29 +370,14 @@ export function useAuthController() {
       requestData.client_id = params.client_id;
     }
 
+    // Registration no longer issues a token or auto-logs-in: the account must
+    // be email-verified first (hard gate). The OAuth context is persisted by
+    // the calling page via saveOauthPending so the flow can resume after
+    // verification.
     await api.post({
       endpoint: '/register',
       data: requestData,
     });
-
-    const isOAuthFlow = !!params.client_id;
-
-    if (isOAuthFlow) {
-      await login({
-        user: params.email,
-        password: params.password,
-        client_id: params.client_id,
-      });
-
-      const oauthParams: OauthParams = {
-        client_id: params.client_id || '',
-        redirect_uri: '',
-        state: '',
-        response_type: 'code',
-      };
-
-      await oauthAuthorize(oauthParams);
-    }
   }
 
   return {

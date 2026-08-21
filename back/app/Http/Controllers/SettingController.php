@@ -69,4 +69,37 @@ class SettingController extends Controller
             'auth_logo_url' => null,
         ]);
     }
+
+    public function getEmailLogo(): JsonResponse
+    {
+        $logo = $this->settingService->get('email_logo_url');
+        $logoUrl = is_string($logo) && $logo !== '' ? $logo : null;
+
+        return response()->json(['email_logo_url' => $logoUrl]);
+    }
+
+    public function uploadEmailLogo(UploadLogoRequest $request): JsonResponse
+    {
+        $file = $request->file('image');
+        if (! $file instanceof UploadedFile) {
+            return response()->json(['message' => 'Imagen requerida'], 422);
+        }
+
+        $url = $this->settingService->uploadEmailLogo($file);
+
+        return response()->json([
+            'message' => 'Logo del email actualizado correctamente',
+            'email_logo_url' => $url,
+        ]);
+    }
+
+    public function destroyEmailLogo(): JsonResponse
+    {
+        $this->settingService->clearEmailLogo();
+
+        return response()->json([
+            'message' => 'Logo del email eliminado correctamente',
+            'email_logo_url' => null,
+        ]);
+    }
 }

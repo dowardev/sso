@@ -32,6 +32,8 @@ class UserActivityLog extends Model
 
     const ACTION_ACCOUNT_DELETED = 'account_deleted';
 
+    const ACTION_EMAIL_VERIFIED = 'email_verified';
+
     const UPDATED_AT = null;
 
     protected $fillable = [

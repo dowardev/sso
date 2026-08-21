@@ -83,7 +83,7 @@
                 </template>
               </ion-list>
 
-              <ion-list class="design-list">
+                <ion-list class="design-list">
                 <ion-list-header class="section-header"
                   >Logo</ion-list-header
                 >
@@ -137,6 +137,67 @@
                       @click="removeLogo"
                     >
                       Quitar logo
+                    </ion-button>
+                  </div>
+                </div>
+              </ion-list>
+
+              <ion-list class="design-list">
+                <ion-list-header class="section-header"
+                  >Logo del email</ion-list-header
+                >
+
+                <div class="logo-section">
+                  <div
+                    class="email-logo-preview"
+                    :class="{ 'email-logo-preview--plain': emailLogoUrl }"
+                  >
+                    <img
+                      v-if="emailLogoUrl"
+                      :src="emailLogoUrl"
+                      alt="Logo del email actual"
+                      class="email-logo-preview-img"
+                    />
+                    <span v-else class="email-logo-preview-placeholder">
+                      Sin logo para el email
+                    </span>
+                  </div>
+
+                  <label class="file-input">
+                    <span class="file-input-label"
+                      >Imagen del logo del email</span
+                    >
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                      class="file-input-control"
+                      @change="onEmailLogoFileSelected({ event: $event })"
+                    />
+                  </label>
+
+                  <div class="logo-actions">
+                    <ion-button
+                      expand="block"
+                      class="gradient-btn"
+                      :disabled="!selectedEmailLogo || uploadingEmailLogo"
+                      @click="saveEmailLogo"
+                    >
+                      <ion-spinner
+                        v-if="uploadingEmailLogo"
+                        name="lines"
+                      ></ion-spinner>
+                      <span v-else>Guardar logo del email</span>
+                    </ion-button>
+
+                    <ion-button
+                      v-if="emailLogoUrl"
+                      expand="block"
+                      fill="outline"
+                      color="danger"
+                      :disabled="uploadingEmailLogo"
+                      @click="removeEmailLogo"
+                    >
+                      Quitar logo del email
                     </ion-button>
                   </div>
                 </div>
@@ -214,6 +275,7 @@ import {
   type ResolvedThemeName,
 } from '@/controllers/themeController'
 import { useBranding } from '@/composables/useBranding'
+import { useEmailBranding } from '@/composables/useEmailBranding'
 import { useToast } from '@/composables/useToast'
 const themeController = useThemeController()
 const {
@@ -222,6 +284,12 @@ const {
   uploadLogo,
   removeLogo: removeBrandingLogo,
 } = useBranding()
+const {
+  logoUrl: emailLogoUrl,
+  loadEmailLogo,
+  uploadEmailLogo,
+  removeEmailLogo: removeEmailBrandingLogo,
+} = useEmailBranding()
 const { showSuccess, showError } = useToast()
 
 // 3. Components
@@ -239,6 +307,8 @@ const autoDarkThemeInfo = themeController.autoDarkThemeInfo
 
 const selectedLogo = ref<File | null>(null)
 const uploading = ref(false)
+const selectedEmailLogo = ref<File | null>(null)
+const uploadingEmailLogo = ref(false)
 
 const setAutoLightTheme = (name: ResolvedThemeName): void => {
   themeController.setAutoLightTheme({ themeName: name })
@@ -254,6 +324,7 @@ const setAutoDarkTheme = (name: ResolvedThemeName): void => {
 // 9. OnMounted
 onMounted(() => {
   void loadBranding()
+  void loadEmailLogo()
 })
 
 // 10. Functions (named parameters pattern)
@@ -338,6 +409,44 @@ const removeLogo = async (): Promise<void> => {
     })
   } finally {
     uploading.value = false
+  }
+}
+
+const onEmailLogoFileSelected = (params: { event: Event }): void => {
+  const { event } = params
+  const input = event.target as HTMLInputElement
+  selectedEmailLogo.value = input.files?.[0] ?? null
+}
+
+const saveEmailLogo = async (): Promise<void> => {
+  if (!selectedEmailLogo.value) return
+  uploadingEmailLogo.value = true
+  try {
+    await uploadEmailLogo(selectedEmailLogo.value)
+    selectedEmailLogo.value = null
+    showSuccess({ message: 'Logo del email actualizado correctamente' })
+  } catch (err: unknown) {
+    showError({
+      message:
+        err instanceof Error ? err.message : 'Error al subir el logo del email',
+    })
+  } finally {
+    uploadingEmailLogo.value = false
+  }
+}
+
+const removeEmailLogo = async (): Promise<void> => {
+  uploadingEmailLogo.value = true
+  try {
+    await removeEmailBrandingLogo()
+    showSuccess({ message: 'Logo del email eliminado correctamente' })
+  } catch (err: unknown) {
+    showError({
+      message:
+        err instanceof Error ? err.message : 'Error al quitar el logo del email',
+    })
+  } finally {
+    uploadingEmailLogo.value = false
   }
 }
 </script>
@@ -500,6 +609,35 @@ const removeLogo = async (): Promise<void> => {
 
 .logo-preview-img--filtered {
   filter: brightness(0) invert(1);
+}
+
+.email-logo-preview {
+  max-width: 280px;
+  margin: 0 auto 16px;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px dashed var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.email-logo-preview--plain {
+  border-style: solid;
+}
+
+.email-logo-preview-img {
+  max-width: 100%;
+  max-height: 48px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.email-logo-preview-placeholder {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
 }
 
 .file-input {

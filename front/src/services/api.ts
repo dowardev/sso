@@ -130,7 +130,15 @@ async function fetchApi<T>(params: {
       const error = await response
         .json()
         .catch(() => ({ message: 'Error de conexión' }));
-      throw new Error(error.message || 'Error en la solicitud');
+      const apiError = new Error(error.message || 'Error en la solicitud') as Error & {
+        code?: string;
+        status?: number;
+        email?: string;
+      };
+      if (error.code) apiError.code = error.code;
+      if (error.email) apiError.email = error.email;
+      apiError.status = response.status;
+      throw apiError;
     }
 
     return response.json();

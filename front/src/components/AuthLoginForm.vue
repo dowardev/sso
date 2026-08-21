@@ -113,8 +113,10 @@
   import useVuelidate from '@vuelidate/core';
   import { required } from '@vuelidate/validators';
   import { useValidation, withMsg } from '@/composables/useValidation';
+  import { useToast } from '@/composables/useToast';
 
   const { handleApiError } = useValidation();
+  const { showSuccess } = useToast();
 
   // 2. Controllers
   import { useAuthController } from '@/controllers/authController';
@@ -166,6 +168,10 @@
 
   // 9. OnMounted
   onMounted(async () => {
+    if (route.query.verified === 'true') {
+      showSuccess({ message: 'Email verificado. Ahora puedes iniciar sesión.' });
+    }
+
     const {
       client_id,
       redirect_uri,
@@ -284,6 +290,16 @@
         await router.replace(props.isPublic ? '/' : '/admin/dashboard');
       }
     } catch (err) {
+      const apiError = err as Error & { code?: string; email?: string };
+      if (apiError.code === 'EMAIL_NOT_VERIFIED') {
+        // The account exists but is unverified: send the user to the pending
+        // screen with the canonical email so they can resend the link.
+        router.replace({
+          name: 'VerifyEmailPending',
+          query: { email: apiError.email || credentials.value.user },
+        });
+        return;
+      }
       error.value = handleApiError(err);
     } finally {
       loading.value = false;

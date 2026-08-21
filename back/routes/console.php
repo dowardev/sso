@@ -19,6 +19,7 @@ Artisan::registerCommand(app(CleanupRefreshTokens::class));
 Artisan::registerCommand(app(CleanupDpopNonces::class));
 Schedule::command('tokens:cleanup')->daily();
 Schedule::command('dpop:cleanup')->everyFiveMinutes();
+Schedule::command('verification-tokens:cleanup')->daily();
 
 Schedule::call(function () {
     DB::table('login_attempts')

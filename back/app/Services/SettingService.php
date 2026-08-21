@@ -59,10 +59,34 @@ class SettingService
 
     public function clearLogo(): void
     {
-        collect(Storage::disk('public')->files('branding'))
-            ->filter(fn ($path) => str_starts_with(basename($path), 'auth-logo.'))
-            ->each(fn ($path) => Storage::disk('public')->delete($path));
+        $this->purgeBranding('auth-logo.');
 
         $this->set('auth_logo_url', '', 'string');
+    }
+
+    public function uploadEmailLogo(UploadedFile $file): string
+    {
+        $extension = strtolower($file->guessExtension());
+        $path = "branding/email-logo.{$extension}";
+
+        Storage::disk('public')->putFileAs('branding', $file, "email-logo.{$extension}");
+
+        $this->set('email_logo_url', "/storage/{$path}", 'string');
+
+        return "/storage/{$path}";
+    }
+
+    public function clearEmailLogo(): void
+    {
+        $this->purgeBranding('email-logo.');
+
+        $this->set('email_logo_url', '', 'string');
+    }
+
+    private function purgeBranding(string $prefix): void
+    {
+        collect(Storage::disk('public')->files('branding'))
+            ->filter(fn ($path) => str_starts_with(basename($path), $prefix))
+            ->each(fn ($path) => Storage::disk('public')->delete($path));
     }
 }

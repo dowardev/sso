@@ -158,6 +158,9 @@ const { handleApiError } = useValidation()
 import { useToast } from '@/composables/useToast'
 const { showSuccess } = useToast()
 
+import { saveOauthPending } from '@/services/oauthPending'
+import { saveEmailVerifyOrigin } from '@/services/emailVerifyOrigin'
+
 // 3. Components
 import AuthCard from '@/components/AuthCard.vue'
 
@@ -285,8 +288,22 @@ const handleRegister = async (_params: object = {}): Promise<void> => {
       client_id: oauthParams.value.client_id || undefined,
     })
     await loader.dismiss()
-    showSuccess({ message: 'Cuenta creada correctamente. Ya puedes iniciar sesión.' })
-    router.push('/login')
+
+    // Persist the OAuth context so the flow can resume after verification.
+    if (oauthParams.value.client_id) {
+      saveOauthPending(oauthParams.value)
+    }
+
+    // Remember the registration area so post-verify redirects to AdminLogin.
+    saveEmailVerifyOrigin('admin')
+
+    showSuccess({ message: 'Revisa tu email para completar el registro.' })
+
+    const query: Record<string, string> = {}
+    if (form.value.email) {
+      query.email = form.value.email
+    }
+    await router.push({ name: 'VerifyEmailPending', query })
   } catch (err: unknown) {
     await loader.dismiss()
     console.error('[Register Error]', err)

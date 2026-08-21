@@ -34,6 +34,16 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/PublicRegisterPage.vue'),
   },
   {
+    path: '/verify-email',
+    name: 'VerifyEmailPending',
+    component: () => import('../views/VerifyEmailPendingPage.vue'),
+  },
+  {
+    path: '/verify/:token',
+    name: 'VerifyEmail',
+    component: () => import('../views/VerifyEmailPage.vue'),
+  },
+  {
     path: '/auth/logout',
     name: 'AuthLogout',
     component: () => import('../views/LogoutPage.vue'),
