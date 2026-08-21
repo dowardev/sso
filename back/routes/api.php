@@ -11,6 +11,7 @@ use App\Http\Controllers\SetupController;
 use App\Http\Controllers\SsoClientController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserSessionController;
+use App\Http\Controllers\EmailVerificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/csp-report', [CspReportController::class, 'store']);
@@ -21,6 +22,8 @@ Route::get('/settings/public', [SettingController::class, 'publicIndex']);
 Route::post('/login', [AuthController::class, 'login'])->middleware(['throttle.login', 'throttle:5,1']);
 Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->middleware('refresh.token');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
+Route::get('/email/verify/{token}', [EmailVerificationController::class, 'verify'])->middleware('throttle:10,1');
+Route::post('/resend-confirmation-email', [EmailVerificationController::class, 'resend'])->middleware('throttle:3,1');
 Route::post('/oauth/token', [OAuth2Controller::class, 'token'])->middleware('throttle:10,1');
 Route::get('/.well-known/jwks', [AuthController::class, 'jwks']);
 Route::get('/session/check', [AuthController::class, 'checkSession']);
@@ -83,6 +86,9 @@ Route::middleware('jwt.auth')->group(function () {
         Route::put('/settings/{key}', [SettingController::class, 'update']);
         Route::post('/settings/auth-logo', [SettingController::class, 'uploadLogo']);
         Route::delete('/settings/auth-logo', [SettingController::class, 'destroyLogo']);
+        Route::get('/settings/email-logo', [SettingController::class, 'getEmailLogo']);
+        Route::post('/settings/email-logo', [SettingController::class, 'uploadEmailLogo']);
+        Route::delete('/settings/email-logo', [SettingController::class, 'destroyEmailLogo']);
 
         Route::get('/csp-reports', [CspReportController::class, 'index']);
         Route::post('/csp-allow', [CspReportController::class, 'allowScript']);

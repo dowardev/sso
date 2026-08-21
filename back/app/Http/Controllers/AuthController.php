@@ -11,6 +11,7 @@ use App\Http\Requests\UpdateProfileRequest;
 use App\Models\UserActivityLog;
 use App\Services\ActivityLogService;
 use App\Services\AuthService;
+use App\Services\EmailVerificationService;
 use App\Services\SessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,11 +27,14 @@ class AuthController extends Controller
 
     private ActivityLogService $activityLogService;
 
-    public function __construct(AuthService $authService, SessionService $sessionService, ActivityLogService $activityLogService)
+    private EmailVerificationService $emailVerificationService;
+
+    public function __construct(AuthService $authService, SessionService $sessionService, ActivityLogService $activityLogService, EmailVerificationService $emailVerificationService)
     {
         $this->authService = $authService;
         $this->sessionService = $sessionService;
         $this->activityLogService = $activityLogService;
+        $this->emailVerificationService = $emailVerificationService;
     }
 
     public function register(RegisterRequest $request): JsonResponse
@@ -38,10 +42,7 @@ class AuthController extends Controller
         $result = $this->authService->register($request->validated());
         $user = $result['user'];
 
-        $dpopPublicKey = $request->input('dpop_public_key');
-        $tokenData = $this->authService->generateAuthToken($user, $dpopPublicKey, false);
-
-        $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, false);
+        $this->emailVerificationService->createForUser($user);
 
         // Load roles so they're included in the JSON response
         $user->load('roles');
@@ -55,10 +56,8 @@ class AuthController extends Controller
         );
 
         return response()->json([
+            'message' => 'Revisa tu email',
             'user' => $user,
-            'token' => $tokenData['token'],
-            'token_type' => $tokenData['token_type'],
-            'expires_in' => $tokenData['expires_in'],
         ], 201);
     }
 
@@ -79,6 +78,14 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'Credenciales inválidas',
             ], 401);
+        }
+
+        if ($user->email_verified_at === null) {
+            return response()->json([
+                'code' => 'EMAIL_NOT_VERIFIED',
+                'message' => 'Verifica tu email antes de iniciar sesión.',
+                'email' => $user->email,
+            ], 403);
         }
 
         $user->load('roles');

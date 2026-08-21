@@ -34,6 +34,7 @@ class SetupController extends Controller
             'user' => $request->user,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'email_verified_at' => now(),
         ]);
 
         // Ensure admin role exists (run RoleSeeder logic inline if needed)

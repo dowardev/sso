@@ -9,9 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-08-21
+
+### Added
+
+- **Email verification system**: complete flow requiring email verification before login
+  - **`back/app/Services/EmailVerificationService.php`**: domain service for create, verify, resend, and purge operations with token hashing (SHA-256), anti-enumeration on resend, and previous token revocation on new issuance
+  - **`back/app/Models/EmailVerificationToken.php`**: token model with `pending()` scope, `isValid()` check, and TTL-based expiration
+  - **`back/app/Mail/VerifyEmail.php`**: mailable with inline data URI for local logos, bulletproof CTA button, and plain-text fallback
+  - **`back/app/Http/Controllers/EmailVerificationController.php`**: `verify` (GET), `resend` (POST) endpoints with throttle middleware
+  - **`back/app/Console/Commands/CleanupVerificationTokens.php`**: daily Artisan command to purge expired tokens
+  - **`back/database/migrations/2026_08_21_000000_create_email_verification_tokens_table.php`**: table with `verified_at` backfill for existing users
+  - **`back/routes/api.php`**: `GET /email/verify/{token}`, `POST /email/verify/resend`
+- **Login gate**: `AuthController` blocks login with `EMAIL_NOT_VERIFIED` code when `email_verified_at` is null; frontend `AuthLoginForm.vue` catches the error and redirects to the pending verification screen
+- **Frontend verification pages**:
+  - **`front/src/views/VerifyEmailPendingPage.vue`**: pending screen with resend button, countdown timer, and link back to login
+  - **`front/src/views/VerifyEmailPage.vue`**: auto-verifies token from URL params, restores OAuth context, and redirects to the correct login
+- **OAuth context persistence**: `front/src/services/oauthPending.ts` stores PKCE params (including `code_verifier`) in localStorage with 30-minute TTL, surviving the verification redirect hop; `refreshOauthPendingTtl()` extends TTL on resend
+- **Email verify origin tracking**: `front/src/services/emailVerifyOrigin.ts` persists the registration origin (admin/public) so post-verify redirect targets the correct login
+- **Email branding**: `front/src/composables/useEmailBranding.ts` composable for configurable email logo (separate from auth branding), with upload/remove in `DesignPage.vue`
+- **Test coverage**: 40 backend tests (EmailVerificationService, EmailVerificationController, CleanupVerificationTokens, LoginEmailVerificationGate, RegisterEmailVerification, SetupAdminEmailVerified, EmailLogo, EmailVerificationMigration) + 20 frontend tests (useEmailBranding, emailVerifyOrigin, oauthPending)
+
+### Changed
+
+- **`front/src/controllers/authController.ts`**: `register()` no longer auto-logs-in; the account must be email-verified first; OAuth context is persisted via `saveOauthPending`
+- **`front/src/views/PublicRegisterPage.vue`**, **`front/src/views/RegisterPage.vue`**: registration navigates to VerifyEmailPending instead of auto-login; saves OAuth pending context before redirect
+- **`front/src/services/api.ts`**: added `EMAIL_NOT_VERIFIED` error code handling
+- **`front/src/router/index.ts`**: added `VerifyEmail` and `VerifyEmailPending` routes
+- **`back/app/Http/Controllers/SetupController.php`**: first admin is created with `email_verified_at` set
+- **`back/app/Http/Controllers/SettingController.php`**: email logo upload/remove endpoints (separate from auth logo)
+- **`back/app/Services/SettingService.php`**: added `uploadEmailLogo()` and `clearEmailLogo()` for the `email_logo_url` setting
+- **`back/app/Models/SsoClient.php`**: added `email_logo_url` to fillable
+- **`back/routes/console.php`**: scheduled `tokens:cleanup` daily command
+- **`back/.env.development.example`**, **`back/.env.testing.example`**: added `MAIL_MAILER=log` for local email verification testing
+
 ### Fixed
 
-- **`setup.sh`**: `migrate_db()` now links the public storage via a new `link_storage()` function using `ln -s ../storage/app/public public/storage` instead of `php artisan storage:link`. Shared hosts commonly disable PHP `symlink()`/`exec()`, which made the artisan command fail silently (`|| true` swallowed the error) and left the `/storage` symlink missing — uploaded logos (and any future public-storage file) returned 404 in production. The previous symlink existing in production also pointed to an absolute dev machine path (`/home/dowardev/...`), so this binary fix is required on first deploy after upgrading. Manually recreate it on existing installs: `cd back && ln -s ../storage/app/public public/storage`
+- **`1c951c4`**: post-verify redirect now routes to the corresponding login (admin vs public) instead of always targeting the public login
+- **`730e10b`**: backfill test user isolation for MySQL DDL in migration tests
 
 ## [0.32.0] - 2026-08-18
 
