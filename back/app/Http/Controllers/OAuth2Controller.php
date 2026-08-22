@@ -92,7 +92,6 @@ class OAuth2Controller extends Controller
             'response_type' => 'nullable|string',
             'code_challenge' => 'nullable|string',
             'code_challenge_method' => 'nullable|string|in:S256,plain',
-            'code_verifier' => 'nullable|string|min:43|max:128',
         ]);
 
         $user = $request->user();
@@ -127,7 +126,6 @@ class OAuth2Controller extends Controller
             'state',
             'code_challenge',
             'code_challenge_method',
-            'code_verifier',
         ]));
 
         return response()->json($result);

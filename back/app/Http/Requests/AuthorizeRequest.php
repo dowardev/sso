@@ -21,7 +21,6 @@ class AuthorizeRequest extends FormRequest
             'state' => 'nullable|string',
             'code_challenge' => 'nullable|string',
             'code_challenge_method' => 'nullable|string|in:S256,plain',
-            'code_verifier' => 'nullable|string|min:43|max:128',
         ];
     }
 }

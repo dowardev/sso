@@ -38,7 +38,6 @@ class OAuth2Service
             'redirect_uri' => $data['redirect_uri'],
             'code_challenge' => $data['code_challenge'] ?? null,
             'code_challenge_method' => $data['code_challenge_method'] ?? null,
-            'code_verifier' => $data['code_verifier'] ?? null,
             'expires_at' => now()->addSeconds($this->authCodeExpiration),
         ]);
 
@@ -100,20 +99,20 @@ class OAuth2Service
             return null;
         }
 
-        if ($authCode->code_challenge) {
-            $codeVerifier = $authCode->code_verifier ?? ($data['code_verifier'] ?? null);
+        if (! $authCode->code_challenge) {
+            return null;
+        }
 
-            if (! $codeVerifier) {
-                return null;
-            }
+        $codeVerifier = $data['code_verifier'] ?? null;
 
-            $method = $authCode->code_challenge_method ?? 'S256';
-            $challengeFromVerifier = $this->computeCodeChallenge($codeVerifier, $method);
+        if (! $codeVerifier) {
+            return null;
+        }
 
-            if ($challengeFromVerifier !== $authCode->code_challenge) {
-                return null;
-            }
-        } else {
+        $method = $authCode->code_challenge_method ?? 'S256';
+        $challengeFromVerifier = $this->computeCodeChallenge($codeVerifier, $method);
+
+        if (! hash_equals($authCode->code_challenge, $challengeFromVerifier)) {
             return null;
         }
 

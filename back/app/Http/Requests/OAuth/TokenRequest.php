@@ -22,7 +22,7 @@ class TokenRequest extends FormRequest
             'code' => 'required_if:grant_type,authorization_code|string',
             'redirect_uri' => 'required_if:grant_type,authorization_code|string',
             'dpop_public_key' => 'nullable|json',
-            'code_verifier' => 'nullable|string|min:43|max:128',
+            'code_verifier' => 'required_if:grant_type,authorization_code|string|min:43|max:128',
         ];
     }
 }

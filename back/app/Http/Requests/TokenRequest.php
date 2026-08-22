@@ -24,7 +24,7 @@ class TokenRequest extends FormRequest
             'refresh_token' => 'nullable|string',
             'refreshToken' => 'nullable|string',
             'dpop_public_key' => 'nullable|json',
-            'code_verifier' => 'nullable|string|min:43|max:128',
+            'code_verifier' => 'required_if:grant_type,authorization_code|string|min:43|max:128',
         ];
     }
 }

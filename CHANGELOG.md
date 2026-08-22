@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **PKCE (RFC 7636) enforcement**: the server no longer stores `code_verifier` in the `oauth_auth_codes` table nor accepts it as a fallback during token exchange, closing the security hole where an intercepted authorization code could be redeemed without the real verifier. `code_verifier` is now required at the token endpoint (`required_if:grant_type,authorization_code`) and verified against the stored `code_challenge` with `hash_equals()` for timing-safe comparison
+  - **`back/app/Services/OAuth2Service.php`**: removed stored-verifier fallback, enforced verifier requirement, timing-safe challenge comparison
+  - **`back/app/Http/Requests/TokenRequest.php`**, **`back/app/Http/Requests/OAuth/TokenRequest.php`**: `code_verifier` now required for `authorization_code` grants
+  - **`back/app/Http/Controllers/OAuth2Controller.php`**, **`back/app/Http/Requests/AuthorizeRequest.php`**, **`back/app/Http/Requests/OAuth/AuthorizeRequest.php`**: removed `code_verifier` acceptance at the authorize endpoint (only `code_challenge`/`code_challenge_method` belong there)
+  - **`back/app/Models/OAuthAuthCode.php`**: removed `code_verifier` from fillable
+  - **`back/database/migrations/2026_08_21_000000_drop_code_verifier_from_oauth_auth_codes_table.php`**: drops the `code_verifier` column
+  - **`front/src/controllers/authController.ts`**: removed `code_verifier` transmission to the authorize/approve endpoints
+
+### Changed
+
+- **`front/src/controllers/authController.ts`** moved to **`front/src/composables/authController.ts`**: the module exposes reactive state via `computed`, so it now lives in `composables/` per the Controller vs Composable convention; imports updated across 13 Vue components/views
+
 ## [0.33.0] - 2026-08-21
 
 ### Added
