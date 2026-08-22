@@ -182,7 +182,7 @@
   } from 'ionicons/icons';
 
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useAuthController } from '@/controllers/authController';
+import { useAuthController } from '@/composables/authController';
 import { useThemeStore } from '@/stores/theme';
 
   const router = useRouter();

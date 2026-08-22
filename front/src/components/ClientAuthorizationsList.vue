@@ -74,7 +74,7 @@
   } from 'ionicons/icons';
 
   // 2. Controllers
-  import { useAuthController } from '@/controllers/authController';
+  import { useAuthController } from '@/composables/authController';
   const authController = useAuthController();
 
   // 3. Components
