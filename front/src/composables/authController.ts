@@ -285,7 +285,11 @@ export function useAuthController() {
     const encrypted_profile = await cryptoService.encryptProfile({ dek, profile });
 
     // Compute seed verification
-    const encrypted_seed_verification = await cryptoService.computeAuthProof({ keyA: keyR }); // HMAC(Key_R, "verify")
+    // HMAC(Key_R, "verify") — the backend compares this exact context on recovery.
+    const encrypted_seed_verification = await cryptoService.computeHmacProof({
+      key: keyR,
+      context: 'verify',
+    });
 
     // Compute login_id = HMAC(username) - for privacy
     const loginId = await computeLoginId({ username: params.user });
@@ -417,15 +421,15 @@ export function useAuthController() {
 
         // Step 5: Re-encrypt profile with DEK (same plaintext, same DEK)
         const advancedUser = authStore.user as User & {
-        encrypted_profile?: string;
-        wrapped_dek_r?: string;
+          encrypted_profile?: string;
+          wrapped_dek_r?: string;
         };
         if (!advancedUser.encrypted_profile) {
-        throw new Error('Perfil cifrado no disponible');
+          throw new Error('Perfil cifrado no disponible');
         }
         const profile = await cryptoService.decryptProfile({
-        dek,
-        blob: JSON.parse(advancedUser.encrypted_profile) as EncryptedBlob,
+          dek,
+          blob: JSON.parse(advancedUser.encrypted_profile) as EncryptedBlob,
         });
         const newEncryptedProfile = await cryptoService.encryptProfile({ dek, profile });
 
@@ -468,6 +472,10 @@ export function useAuthController() {
     const loginId = authStore.getLoginId();
     if (!loginId || !authStore.isAdvanced()) {
       throw new Error('Usuario no tiene cifrado avanzado');
+    }
+
+    if (params.new_password !== params.new_password_confirmation) {
+      throw new Error('Las contraseñas no coinciden');
     }
 
     const dek = authStore.getDek();
