@@ -7,6 +7,7 @@ the zero-knowledge encryption scheme, key hierarchy, data model, and security
 properties.
 
 - **Linear ticket:** LBDS-185
+- 🇪🇸 Spanish version: [AUTENTICACION.md](./AUTENTICACION.md)
 - **Crypto core:** Web Crypto API inside a dedicated Web Worker (frontend)
 - **Backend role:** stores opaque blobs; never derives, decrypts, or sees keys
 
