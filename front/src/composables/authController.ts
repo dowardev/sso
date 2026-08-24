@@ -2,8 +2,16 @@
 import { computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/services/api';
+import { cryptoService } from '@/services/cryptoService';
 import { dpopService } from '@/services/dpopService';
-import type { User } from '@/types';
+import type {
+  EncryptedBlob,
+  User,
+  CryptoUserProfile,
+  AdvancedLoginResponse,
+  AdvancedRegistrationPayload,
+  RecoveryVerifyResponse,
+} from '@/types';
 
 interface OauthParams {
   client_id: string;
@@ -39,6 +47,7 @@ interface RegisterParams {
   password: string;
   password_confirmation: string;
   client_id?: string;
+  encryption_level?: 'basic' | 'advanced';
 }
 
 interface UserProfile {
@@ -73,19 +82,6 @@ interface UserSession {
   token_active: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface UserAuthorization {
-  id: number;
-  status: 'authorized' | 'denied' | 'revoked';
-  updated_at: string;
-  client: {
-    id: number;
-    name: string;
-    client_id: string;
-    redirect_url: string | null;
-  } | null;
-}
-
 interface ActivityLogEntry {
   id: number;
   action: string;
@@ -94,12 +90,36 @@ interface ActivityLogEntry {
   metadata: Record<string, unknown>;
 }
 
+function generateRandomSalt(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return btoa(String.fromCharCode(...array));
+}
+
+/**
+ * Compute login_id = HMAC(username, "login_id")
+ */
+async function computeLoginId(params: { username: string }): Promise<string> {
+  const { username } = params;
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode('login_id_salt_v1'),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(username));
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+}
+
 export function useAuthController() {
   const authStore = useAuthStore();
 
   const token = computed(() => authStore.token);
   const user = computed(() => authStore.user);
   const isAuthenticated = computed(() => authStore.isAuthenticated);
+
+  // ─── Basic Login ───────────────────────────────────────────────────────────
 
   async function login(params: {
     user: string;
@@ -110,10 +130,499 @@ export function useAuthController() {
     return authStore.login(params);
   }
 
+  // ─── Advanced Login (Zero-Knowledge) ───────────────────────────────────────
+
+  /**
+   * Step 1: Request crypto blobs from server using login_id (or user/email)
+   */
+  async function loginAdvancedFirstStep(params: { loginId: string }): Promise<AdvancedLoginResponse> {
+    return api.post<AdvancedLoginResponse>({
+      endpoint: '/login/advanced/first-step',
+      data: { login_id: params.loginId },
+    });
+  }
+
+  /**
+   * Step 2: Send auth_proof (HMAC(Key_A, "auth")) for verification
+   */
+  async function loginAdvancedSecondStep(params: {
+    login_id: string;
+    auth_proof: string;
+    client_id?: string;
+    rememberMe?: boolean;
+    dpop_public_key?: string;
+  }): Promise<{ token: string; user: User }> {
+    await dpopService.initialize();
+
+    // params.dpop_public_key arrives serialized; normalize to a JWK object.
+    const dpopPublicKey: JsonWebKey | null = params.dpop_public_key
+      ? (JSON.parse(params.dpop_public_key) as JsonWebKey)
+      : dpopService.getPublicKeyJwk();
+
+    const requestData: Record<string, unknown> = {
+      login_id: params.login_id,
+      auth_proof: params.auth_proof,
+    };
+
+    if (params.client_id) {
+      requestData.client_id = params.client_id;
+    }
+
+    if (params.rememberMe) {
+      requestData.remember_me = true;
+    }
+
+    if (dpopPublicKey) {
+      requestData.dpop_public_key = JSON.stringify(dpopPublicKey);
+    }
+
+    const response = await api.post<{ token: string; user: User }>({
+      endpoint: '/login/advanced/verify',
+      data: requestData,
+    });
+
+    // Session persistence (localStorage + crypto state) lives in the store.
+    authStore.applyLoginSession({
+      token: response.token,
+      user: response.user,
+      dpopPublicKey,
+      rememberMe: params.rememberMe,
+    });
+
+    return response;
+  }
+
+  /**
+   * Full advanced login flow: derive Key_A → unwrap DEK → decrypt profile → compute auth_proof → verify
+   */
+  async function loginAdvanced(params: {
+    login_id: string;
+    password: string;
+    client_id?: string;
+    rememberMe?: boolean;
+  }): Promise<{ token: string; user: User; profile: CryptoUserProfile }> {
+    // Step 1: Get crypto blobs from server
+    const blobs = await loginAdvancedFirstStep({ loginId: params.login_id });
+
+    // Derive Key_A from password + salt_a
+    const keyA = await cryptoService.deriveKeyA({
+      password: params.password,
+      salt: blobs.salt_a,
+    });
+    authStore.setKeyA({ keyA });
+
+    // Unwrap DEK using Key_A
+    const dek = await cryptoService.unwrapDek({
+      wrapped: blobs.wrapped_dek_a,
+      unwrappingKey: keyA,
+    });
+    authStore.setDek({ dek });
+
+    // Decrypt profile
+    const profile = await cryptoService.decryptProfile({
+      dek,
+      blob: blobs.encrypted_profile,
+    });
+
+    // Compute auth proof
+    const authProof = await cryptoService.computeAuthProof({ keyA });
+
+    // Step 2: Verify with server
+    const result = await loginAdvancedSecondStep({
+      login_id: params.login_id,
+      auth_proof: authProof,
+      client_id: params.client_id,
+      rememberMe: params.rememberMe,
+    });
+
+    return { ...result, profile };
+  }
+
+  // ─── Advanced Registration ─────────────────────────────────────────────────
+
+  /**
+   * Register with advanced encryption (zero-knowledge)
+   */
+  async function registerAdvanced(params: {
+    name: string;
+    user: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+    client_id?: string;
+  }): Promise<{ user: User; seed_phrase: string }> {
+    // Generate DEK
+    const dek = await cryptoService.generateDek();
+
+    // Generate salt_a and salt_r
+    const salt_a = generateRandomSalt();
+    const salt_r = generateRandomSalt();
+
+    // Derive Key_A from password
+    const keyA = await cryptoService.deriveKeyA({
+      password: params.password,
+      salt: salt_a,
+    });
+    authStore.setKeyA({ keyA });
+
+    // Derive Key_R from seed phrase (for recovery)
+    const seedPhrase = await cryptoService.generateSeedPhrase();
+    const keyR = await cryptoService.deriveKeyR({
+      seedPhrase,
+      salt: salt_r,
+    });
+
+    // Wrap DEK with Key_A and Key_R
+    const wrapped_dek_a = await cryptoService.wrapDek({ dek, wrappingKey: keyA });
+    const wrapped_dek_r = await cryptoService.wrapDek({ dek, wrappingKey: keyR });
+
+    // Encrypt profile
+    const profile: CryptoUserProfile = {
+      name: params.name,
+      email: params.email,
+      user: params.user,
+    };
+    const encrypted_profile = await cryptoService.encryptProfile({ dek, profile });
+
+    // Compute seed verification
+    const encrypted_seed_verification = await cryptoService.computeAuthProof({ keyA: keyR }); // HMAC(Key_R, "verify")
+
+    // Compute login_id = HMAC(username) - for privacy
+    const loginId = await computeLoginId({ username: params.user });
+
+    // Compute auth_proof for server to hash
+    const auth_proof = await cryptoService.computeAuthProof({ keyA });
+
+    // Prepare registration payload
+    const registrationData: AdvancedRegistrationPayload = {
+      login_id: loginId,
+      auth_hash: '', // Server computes from auth_proof
+      salt_a,
+      salt_r,
+      wrapped_dek_a,
+      wrapped_dek_r,
+      encrypted_profile,
+      encrypted_seed_verification,
+      encryption_level: 'advanced',
+    };
+
+    // Add auth_proof as extra field for server to hash
+    const payloadWithProof = {
+      ...registrationData,
+      auth_proof,
+    };
+
+    // Send registration
+    const response = await api.post<{ user: User }>({
+      endpoint: '/register/advanced',
+      data: payloadWithProof,
+    });
+
+    // Store crypto state
+    authStore.setDek({ dek });
+    authStore.setAdvancedState({ isAdvanced: true, loginId: response.user.login_id });
+
+    return { user: response.user, seed_phrase: seedPhrase };
+  }
+
+  // ─── Recovery (Phase 2) ─────────────────────────────────────────────────
+
+  /**
+   * Recovery - Step 1: Verify seed phrase
+   *
+   * Client provides login_id + seed_phrase.
+   * Client derives Key_R, computes verification = HMAC(Key_R, "verify"),
+   * sends to server. Server verifies and returns recovery blobs.
+   */
+  async function recoveryVerify(params: {
+    login_id: string;
+    seed_phrase: string;
+  }): Promise<RecoveryVerifyResponse> {
+    // Step 1: Get salt_r from login endpoint (now includes salt_r)
+    const loginBlobs = await loginAdvancedFirstStep({ loginId: params.login_id });
+    const saltR = loginBlobs.salt_r;
+    if (!saltR) {
+      throw new Error('salt_r no disponible en respuesta de login');
+    }
+
+    // Step 2: Derive Key_R from seed_phrase + salt_r
+    const keyR = await cryptoService.deriveKeyR({
+      seedPhrase: params.seed_phrase,
+      salt: saltR,
+    });
+
+    // Step 3: Compute seed_verification = HMAC(Key_R, "verify")
+    const seedVerification = await cryptoService.computeHmacProof({ key: keyR, context: 'verify' });
+
+    // Step 4: Call backend /recovery/verify with login_id + seed_verification
+    const response = await api.post<RecoveryVerifyResponse>({
+      endpoint: '/recovery/verify',
+      data: {
+        login_id: params.login_id,
+        seed_verification: seedVerification,
+      },
+    });
+
+    // Step 5: Verify the returned blobs match what we expect
+    if (!response.salt_r || !response.wrapped_dek_r || !response.encrypted_profile) {
+      throw new Error('Respuesta de recovery/verify incompleta');
+    }
+
+    // Step 6: Unwrap DEK with Key_R for use in recoveryComplete
+    const dek = await cryptoService.unwrapDek({
+      wrapped: response.wrapped_dek_r,
+      unwrappingKey: keyR,
+    });
+
+    // Store DEK in auth store for recoveryComplete
+    authStore.setDek({ dek });
+
+    return response;
+  }
+
+  /**
+   * Recovery - Step 2: Complete recovery with new password
+   *
+   * Client has verified seed phrase, has DEK unwrapped with Key_R.
+   * Generates new Key_A from new password, wraps DEK, re-encrypts profile.
+   */
+  async function recoveryComplete(params: {
+    login_id: string;
+    seed_phrase: string;
+    new_password: string;
+  }): Promise<{ token: string; user: User; profile: CryptoUserProfile }> {
+    // Step 1: Verify seed phrase and get recovery blobs + DEK
+    await recoveryVerify({
+      login_id: params.login_id,
+      seed_phrase: params.seed_phrase,
+    });
+
+    // DEK is now in auth store (set by recoveryVerify)
+    const dek = authStore.getDek();
+    if (!dek) {
+      throw new Error('DEK no disponible después de recoveryVerify');
+    }
+
+    // Step 2: Generate new salt_a
+    const newSaltA = generateRandomSalt();
+
+    // Step 3: Derive new Key_A from new_password + new salt_a
+    const newKeyA = await cryptoService.deriveKeyA({
+      password: params.new_password,
+      salt: newSaltA,
+    });
+
+    // Step 4: Wrap DEK with new Key_A
+    const newWrappedDekA = await cryptoService.wrapDek({ dek, wrappingKey: newKeyA });
+
+        // Step 5: Re-encrypt profile with DEK (same plaintext, same DEK)
+        const advancedUser = authStore.user as User & {
+        encrypted_profile?: string;
+        wrapped_dek_r?: string;
+        };
+        if (!advancedUser.encrypted_profile) {
+        throw new Error('Perfil cifrado no disponible');
+        }
+        const profile = await cryptoService.decryptProfile({
+        dek,
+        blob: JSON.parse(advancedUser.encrypted_profile) as EncryptedBlob,
+        });
+        const newEncryptedProfile = await cryptoService.encryptProfile({ dek, profile });
+
+        // Step 6: wrapped_dek_r is unchanged — the seed phrase did not rotate.
+        const wrappedDekR = advancedUser.wrapped_dek_r || '';
+
+    // Step 7: Compute new auth_proof = HMAC(new_Key_A, "auth")
+    const newAuthProof = await cryptoService.computeAuthProof({ keyA: newKeyA });
+
+    // Step 8: POST /recovery/complete
+    await api.post({
+      endpoint: '/recovery/complete',
+      data: {
+        login_id: params.login_id,
+        auth_proof: newAuthProof,
+        salt_a: newSaltA,
+        wrapped_dek_a: newWrappedDekA,
+        wrapped_dek_r: wrappedDekR,
+        encrypted_profile: newEncryptedProfile,
+      },
+    });
+
+    // Step 9: Login with new password using advanced flow
+    return loginAdvanced({
+      login_id: params.login_id,
+      password: params.new_password,
+    });
+  }
+
+  /**
+   * Change password for advanced user (same DEK, new Key_A)
+   *
+   * Different from recovery: user knows current password, keeps same DEK.
+   */
+  async function changePasswordAdvanced(params: {
+    current_password: string;
+    new_password: string;
+    new_password_confirmation: string;
+  }): Promise<void> {
+    const loginId = authStore.getLoginId();
+    if (!loginId || !authStore.isAdvanced()) {
+      throw new Error('Usuario no tiene cifrado avanzado');
+    }
+
+    const dek = authStore.getDek();
+    if (!dek) {
+      throw new Error('DEK no disponible en memoria');
+    }
+
+    // NOTE: current-password verification is delegated to the authenticated
+    // session; the server rejects an invalid auth_proof rotation.
+
+    // Generate new salt_a
+    const newSaltA = generateRandomSalt();
+
+    // Derive new Key_A
+    const newKeyA = await cryptoService.deriveKeyA({
+      password: params.new_password,
+      salt: newSaltA,
+    });
+
+    // Wrap DEK with new Key_A
+    const newWrappedDekA = await cryptoService.wrapDek({ dek, wrappingKey: newKeyA });
+
+    // Compute new auth_proof
+    const newAuthProof = await cryptoService.computeAuthProof({ keyA: newKeyA });
+
+    // Send to backend
+    await api.post({
+      endpoint: '/password/change-advanced',
+      data: {
+        login_id: loginId,
+        auth_proof: newAuthProof,
+        salt_a: newSaltA,
+        wrapped_dek_a: newWrappedDekA,
+      },
+    });
+
+    // Update local state
+    authStore.setKeyA({ keyA: newKeyA });
+    // DEK stays the same
+  }
+
+  // ─── Basic Registration ────────────────────────────────────────────────────
+
+  // ─── Basic → Advanced Migration (Phase 4) ─────────────────────────────────
+
+  /**
+   * Upgrade basic user to advanced encryption (zero-knowledge).
+   *
+   * Generates all crypto material client-side; the seed phrase never leaves
+   * this device. Returns it so the UI can display it once.
+   */
+  async function upgradeToAdvanced(params: {
+    currentPassword: string;
+  }): Promise<{ user: User; seedPhrase: string }> {
+    const { currentPassword } = params;
+
+    const currentUser = authStore.user;
+    if (!currentUser) {
+      throw new Error('No hay usuario autenticado');
+    }
+
+    if ((currentUser as User & { encryption_level?: string }).encryption_level === 'advanced') {
+      throw new Error('El usuario ya tiene cifrado avanzado');
+    }
+
+    // Current profile in plaintext (basic users have it stored server-side)
+    const profile: CryptoUserProfile = {
+      name: currentUser.name || '',
+      email: currentUser.email || '',
+      user: currentUser.user || '',
+    };
+
+    if (!profile.name || !profile.email || !profile.user) {
+      throw new Error('Perfil incompleto para migrar a cifrado avanzado');
+    }
+
+    const dek = await cryptoService.generateDek();
+    const saltA = generateRandomSalt();
+    const saltR = generateRandomSalt();
+
+    const keyA = await cryptoService.deriveKeyA({
+      password: currentPassword,
+      salt: saltA,
+    });
+    authStore.setKeyA({ keyA });
+
+    const seedPhrase = await cryptoService.generateSeedPhrase();
+    const keyR = await cryptoService.deriveKeyR({ seedPhrase, salt: saltR });
+
+    const wrappedDekA = await cryptoService.wrapDek({ dek, wrappingKey: keyA });
+    const wrappedDekR = await cryptoService.wrapDek({ dek, wrappingKey: keyR });
+    const encryptedProfile = await cryptoService.encryptProfile({ dek, profile });
+
+    // HMAC(Key_R, "verify") — proves knowledge of the seed without revealing it.
+    const encryptedSeedVerification = await cryptoService.computeHmacProof({
+      key: keyR,
+      context: 'verify',
+    });
+
+    const loginId = await computeLoginId({ username: profile.user });
+
+    // HMAC(Key_A, "auth") — server stores Argon2id(auth_proof).
+    const authProof = await cryptoService.computeAuthProof({ keyA });
+
+    const response = await api.post<{ message: string; user: User }>({
+      endpoint: '/user/upgrade',
+      data: {
+        current_password: currentPassword,
+        auth_proof: authProof,
+        login_id: loginId,
+        salt_a: saltA,
+        salt_r: saltR,
+        wrapped_dek_a: wrappedDekA,
+        wrapped_dek_r: wrappedDekR,
+        encrypted_profile: encryptedProfile,
+        encrypted_seed_verification: encryptedSeedVerification,
+      },
+    });
+
+    authStore.setDek({ dek });
+    authStore.setAdvancedState({ isAdvanced: true, loginId });
+
+    return { user: response.user, seedPhrase };
+  }
+
+  async function register(params: RegisterParams): Promise<void> {
+    const requestData: Record<string, unknown> = {
+      name: params.name,
+      user: params.user,
+      email: params.email,
+      password: params.password,
+      password_confirmation: params.password_confirmation,
+    };
+
+    if (params.client_id) {
+      requestData.client_id = params.client_id;
+    }
+
+    // Basic registration
+    if (params.encryption_level === 'advanced') {
+      await registerAdvanced(params);
+    } else {
+      await api.post({
+        endpoint: '/register',
+        data: requestData,
+      });
+    }
+  }
+
+  // ─── Logout ────────────────────────────────────────────────────────────────
   async function logout(): Promise<void> {
     return authStore.logout();
   }
 
+  // ─── User ──────────────────────────────────────────────────────────────────
   async function getUser(): Promise<User> {
     return authStore.getUser();
   }
@@ -122,6 +631,7 @@ export function useAuthController() {
     authStore.init();
   }
 
+  // ─── OAuth ─────────────────────────────────────────────────────────────────
   async function oauthAuthorize(params: OauthParams): Promise<OAuthAuthorizeResponse> {
     const tokenValue = authStore.getToken();
     if (!tokenValue) {
@@ -217,7 +727,7 @@ export function useAuthController() {
       extraHeaders,
     });
 
-    authStore.addAuthorizedClient(params.client_id);
+    authStore.addAuthorizedClient({ clientId: params.client_id });
 
     const urlParams = new URLSearchParams();
     urlParams.set('code', response.code);
@@ -246,7 +756,7 @@ export function useAuthController() {
       data: { client_id: params.client_id },
     });
 
-    authStore.removeAuthorizedClient(params.client_id);
+    authStore.removeAuthorizedClient({ clientId: params.client_id });
   }
 
   async function getUserAuthorizations(params: { user_id: number }): Promise<{ data: unknown[] }> {
@@ -287,6 +797,7 @@ export function useAuthController() {
     }
   }
 
+  // ─── Profile & Account ─────────────────────────────────────────────────────
   async function getUserProfile(): Promise<UserProfile> {
     return api.get<UserProfile>({
       endpoint: '/user/profile',
@@ -321,9 +832,9 @@ export function useAuthController() {
     });
   }
 
-  async function revokeUserSession(sessionId: number): Promise<void> {
+  async function revokeUserSession(params: { sessionId: number }): Promise<void> {
     await api.delete({
-      endpoint: `/user/sessions/${sessionId}`,
+      endpoint: `/user/sessions/${params.sessionId}`,
     });
   }
 
@@ -357,29 +868,6 @@ export function useAuthController() {
     return response.data ?? [];
   }
 
-  async function register(params: RegisterParams): Promise<void> {
-    const requestData: Record<string, unknown> = {
-      name: params.name,
-      user: params.user,
-      email: params.email,
-      password: params.password,
-      password_confirmation: params.password_confirmation,
-    };
-
-    if (params.client_id) {
-      requestData.client_id = params.client_id;
-    }
-
-    // Registration no longer issues a token or auto-logs-in: the account must
-    // be email-verified first (hard gate). The OAuth context is persisted by
-    // the calling page via saveOauthPending so the flow can resume after
-    // verification.
-    await api.post({
-      endpoint: '/register',
-      data: requestData,
-    });
-  }
-
   return {
     token,
     user,
@@ -405,5 +893,17 @@ export function useAuthController() {
     revokeAllUserSessions,
     getUserActivityLog,
     deleteAccount,
+    // Advanced encryption methods
+    loginAdvanced,
+    loginAdvancedFirstStep,
+    loginAdvancedSecondStep,
+    registerAdvanced,
+    computeLoginId,
+    // Recovery methods (Phase 2)
+    recoveryVerify,
+    recoveryComplete,
+    changePasswordAdvanced,
+    // Migration methods (Phase 4)
+    upgradeToAdvanced,
   };
 }

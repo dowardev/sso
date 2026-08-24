@@ -24,11 +24,31 @@ class User extends Authenticatable
         'email',
         'email_verified_at',
         'password',
+        'login_id',
+        'encryption_level',
+        'salt_a',
+        'salt_r',
+        'wrapped_dek_a',
+        'wrapped_dek_r',
+        'encrypted_profile',
+        'encrypted_seed_verification',
+        'passkey_public_key',
+        'passkey_credential_id',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'login_id',
+        'encryption_level',
+        'salt_a',
+        'salt_r',
+        'wrapped_dek_a',
+        'wrapped_dek_r',
+        'encrypted_profile',
+        'encrypted_seed_verification',
+        'passkey_public_key',
+        'passkey_credential_id',
     ];
 
     protected function casts(): array
@@ -36,6 +56,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'encryption_level' => 'string',
         ];
     }
 
@@ -82,7 +103,15 @@ class User extends Authenticatable
         );
     }
 
+    protected function isAdvanced(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->encryption_level === 'advanced',
+        );
+    }
+
     protected $appends = [
         'is_admin',
+        'is_advanced',
     ];
 }

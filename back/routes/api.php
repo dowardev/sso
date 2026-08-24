@@ -20,8 +20,20 @@ Route::post('/setup/admin', [SetupController::class, 'storeAdmin'])->middleware(
 Route::get('/settings/public', [SettingController::class, 'publicIndex']);
 
 Route::post('/login', [AuthController::class, 'login'])->middleware(['throttle.login', 'throttle:5,1']);
+Route::post('/login/advanced/first-step', [AuthController::class, 'loginAdvancedFirstStep'])->middleware(['throttle.login', 'throttle:5,1']);
+Route::post('/login/advanced/verify', [AuthController::class, 'loginAdvancedVerify'])->middleware(['throttle.login', 'throttle:5,1']);
 Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->middleware('refresh.token');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
+Route::post('/register/advanced', [AuthController::class, 'registerAdvanced'])->middleware('throttle:3,1');
+Route::post('/recovery/verify', [AuthController::class, 'recoveryVerify'])->middleware('throttle:3,1');
+Route::post('/recovery/complete', [AuthController::class, 'recoveryComplete'])->middleware('throttle:3,1');
+Route::post('/password/change-advanced', [AuthController::class, 'changePasswordAdvanced'])->middleware('throttle:3,1');
+Route::post('/user/upgrade', [AuthController::class, 'upgradeToAdvanced'])->middleware(['jwt.auth', 'throttle:3,1']);
+Route::post('/passkey/register/start', [AuthController::class, 'passkeyRegisterStart'])->middleware('throttle:3,1');
+Route::post('/passkey/register/finish', [AuthController::class, 'passkeyRegisterFinish'])->middleware('throttle:3,1');
+Route::post('/passkey/authenticate/start', [AuthController::class, 'passkeyAuthenticateStart'])->middleware('throttle:5,1');
+Route::post('/passkey/authenticate/finish', [AuthController::class, 'passkeyAuthenticateFinish'])->middleware('throttle:5,1');
+Route::delete('/passkey', [AuthController::class, 'passkeyDelete'])->middleware('jwt.auth');
 Route::get('/email/verify/{token}', [EmailVerificationController::class, 'verify'])->middleware('throttle:10,1');
 Route::post('/resend-confirmation-email', [EmailVerificationController::class, 'resend'])->middleware('throttle:3,1');
 Route::post('/oauth/token', [OAuth2Controller::class, 'token'])->middleware('throttle:10,1');

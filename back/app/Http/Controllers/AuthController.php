@@ -8,16 +8,32 @@ use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\UpdatePasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Models\User;
 use App\Models\UserActivityLog;
 use App\Services\ActivityLogService;
 use App\Services\AuthService;
 use App\Services\EmailVerificationService;
+use App\Services\PasskeyService;
 use App\Services\SessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Webauthn\AuthenticatorAssertionResponse;
+use Webauthn\AuthenticatorAttestationResponse;
+use Webauthn\AuthenticatorAuthenticatorAttachment;
+use Webauthn\AuthenticatorSelectionCriteria;
+use Webauthn\AuthenticatorTransport;
+use Webauthn\CredentialRecord;
+use Webauthn\PublicKeyCredentialCreationOptions;
+use Webauthn\PublicKeyCredentialDescriptor;
+use Webauthn\PublicKeyCredentialParameters;
+use Webauthn\PublicKeyCredentialRequestOptions;
+use Webauthn\PublicKeyCredentialRpEntity;
+use Webauthn\PublicKeyCredentialType;
+use Webauthn\PublicKeyCredentialUserEntity;
+use Webauthn\UserVerificationRequirement;
 
 class AuthController extends Controller
 {
@@ -29,12 +45,15 @@ class AuthController extends Controller
 
     private EmailVerificationService $emailVerificationService;
 
-    public function __construct(AuthService $authService, SessionService $sessionService, ActivityLogService $activityLogService, EmailVerificationService $emailVerificationService)
+    private PasskeyService $passkeyService;
+
+    public function __construct(AuthService $authService, SessionService $sessionService, ActivityLogService $activityLogService, EmailVerificationService $emailVerificationService, PasskeyService $passkeyService)
     {
         $this->authService = $authService;
         $this->sessionService = $sessionService;
         $this->activityLogService = $activityLogService;
         $this->emailVerificationService = $emailVerificationService;
+        $this->passkeyService = $passkeyService;
     }
 
     public function register(RegisterRequest $request): JsonResponse
@@ -133,6 +152,362 @@ class AuthController extends Controller
 
         return $response;
     }
+
+    /**
+     * Advanced login - Step 1: Return crypto blobs for client-side decryption
+     */
+    public function loginAdvancedFirstStep(Request $request): JsonResponse
+    {
+        $request->validate([
+            'login_id' => 'required|string',
+        ]);
+
+        $blobs = $this->authService->loginAdvancedFirstStep($request->login_id);
+
+        if (! $blobs) {
+            return response()->json([
+                'message' => 'Usuario no encontrado',
+            ], 404);
+        }
+
+        return response()->json($blobs);
+    }
+
+    /**
+     * Advanced login - Step 2: Verify auth_proof and issue token
+     */
+    public function loginAdvancedVerify(Request $request): JsonResponse
+    {
+        $request->validate([
+            'login_id' => 'required|string',
+            'auth_proof' => 'required|string',
+            'client_id' => 'nullable|string',
+            'remember_me' => 'nullable|boolean',
+            'dpop_public_key' => 'nullable|string',
+        ]);
+
+        $user = $this->authService->verifyAuthProof($request->login_id, $request->auth_proof);
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Credenciales inválidas',
+            ], 401);
+        }
+
+        if ($user->email_verified_at === null) {
+            return response()->json([
+                'code' => 'EMAIL_NOT_VERIFIED',
+                'message' => 'Verifica tu email antes de iniciar sesión.',
+                'email' => $user->email,
+            ], 403);
+        }
+
+        $user->load('roles');
+
+        $dpopPublicKey = $request->input('dpop_public_key');
+        $rememberMe = $request->boolean('remember_me');
+
+        $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
+
+        $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
+
+        $responseData = [
+            'user' => $user,
+            'token' => $tokenData['token'],
+            'token_type' => $tokenData['token_type'],
+            'expires_in' => $tokenData['expires_in'],
+        ];
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_LOGIN,
+            'Inicio de sesión (cifrado avanzado)',
+            ['login_method' => 'password_advanced', 'remember_me' => $rememberMe],
+            $request,
+        );
+
+        $response = response()->json($responseData);
+
+        if (isset($tokenData['refresh_token'])) {
+            $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
+            $minutes = $rememberMe ? $refreshExpirationDays * 1440 : 0;
+            $response->withCookie(cookie(
+                'refresh_token',
+                $tokenData['refresh_token'],
+                $minutes,
+                '/',
+                null,
+                config('session.secure', false),
+                true,
+                false,
+                'Lax'
+            ));
+        }
+
+        return $response;
+    }
+
+    /**
+     * Advanced registration with zero-knowledge encryption
+     */
+    public function registerAdvanced(Request $request): JsonResponse
+    {
+        $request->validate([
+            'login_id' => 'required|string',
+            'auth_proof' => 'required|string',
+            'salt_a' => 'required|string',
+            'salt_r' => 'required|string',
+            'wrapped_dek_a' => 'required|string',
+            'wrapped_dek_r' => 'required|string',
+            'encrypted_profile' => 'required|string',
+            'encrypted_seed_verification' => 'required|string',
+            'encryption_level' => 'required|in:advanced',
+            'passkey_public_key' => 'nullable|string',
+            'passkey_credential_id' => 'nullable|string',
+            'client_id' => 'nullable|string',
+        ]);
+
+        // Hash the auth_proof with Argon2id for storage
+        $authHash = Hash::make($request->auth_proof);
+
+        $result = $this->authService->registerAdvanced([
+            'login_id' => $request->login_id,
+            'auth_hash' => $authHash,
+            'salt_a' => $request->salt_a,
+            'salt_r' => $request->salt_r,
+            'wrapped_dek_a' => $request->wrapped_dek_a,
+            'wrapped_dek_r' => $request->wrapped_dek_r,
+            'encrypted_profile' => $request->encrypted_profile,
+            'encrypted_seed_verification' => $request->encrypted_seed_verification,
+            'passkey_public_key' => $request->passkey_public_key,
+            'passkey_credential_id' => $request->passkey_credential_id,
+        ]);
+
+        $user = $result['user'];
+
+        $this->emailVerificationService->createForUser($user);
+
+        $user->load('roles');
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_REGISTER,
+            'Registro de cuenta (cifrado avanzado)',
+            ['encryption_level' => 'advanced'],
+            $request,
+        );
+
+        return response()->json([
+            'message' => 'Revisa tu email',
+            'user' => $user,
+        ], 201);
+    }
+
+    /**
+     * Recovery - Step 1: Verify seed phrase (client-side verification)
+     *
+     * Client derives Key_R from seed_phrase + salt_r, computes
+     * verification = HMAC(Key_R, "verify"), compares with stored
+     * encrypted_seed_verification. If match, proceeds to step 2.
+     */
+    public function recoveryVerify(Request $request): JsonResponse
+    {
+        $request->validate([
+            'login_id' => 'required|string',
+            'seed_verification' => 'required|string', // HMAC(Key_R, "verify")
+        ]);
+
+        $user = $this->authService->recoveryVerify($request->login_id, '');
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Usuario no encontrado',
+            ], 404);
+        }
+
+        // Verify the client's computed verification matches stored value
+        if (! hash_equals($user->encrypted_seed_verification, $request->seed_verification)) {
+            return response()->json([
+                'message' => 'Frase semilla incorrecta',
+            ], 401);
+        }
+
+        // Return crypto blobs needed for recovery (salt_r, wrapped_dek_r)
+        return response()->json([
+            'salt_r' => $user->salt_r,
+            'wrapped_dek_r' => $user->wrapped_dek_r,
+            'encrypted_profile' => $user->encrypted_profile,
+        ]);
+    }
+
+    /**
+     * Recovery - Step 2: Complete recovery with new password.
+     *
+     * Client has verified seed phrase, derived Key_R, unwrapped DEK,
+     * generated new Key_A from new password, wrapped DEK with new Key_A,
+     * re-encrypted profile, computed new auth_proof.
+     */
+    public function recoveryComplete(Request $request): JsonResponse
+    {
+        $request->validate([
+            'login_id' => 'required|string',
+            'auth_proof' => 'required|string', // HMAC(new_Key_A, "auth")
+            'salt_a' => 'required|string',
+            'wrapped_dek_a' => 'required|string',
+            'wrapped_dek_r' => 'required|string',
+            'encrypted_profile' => 'required|string',
+        ]);
+
+        // Hash the new auth_proof for storage
+        $authHash = Hash::make($request->auth_proof);
+
+        try {
+            $result = $this->authService->recoveryComplete([
+                'login_id' => $request->login_id,
+                'auth_hash' => $authHash,
+                'salt_a' => $request->salt_a,
+                'wrapped_dek_a' => $request->wrapped_dek_a,
+                'wrapped_dek_r' => $request->wrapped_dek_r,
+                'encrypted_profile' => $request->encrypted_profile,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+
+        $user = $result['user'];
+        $user->load('roles');
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_PASSWORD_CHANGE,
+            'Recuperación de cuenta (cifrado avanzado)',
+            ['recovery' => true],
+            $request,
+        );
+
+        return response()->json([
+            'message' => 'Cuenta recuperada correctamente. Inicia sesión con tu nueva contraseña.',
+            'user' => $user,
+        ]);
+    }
+
+    /**
+     * Change password for advanced user (DEK rotation, same seed).
+     *
+     * Different from recovery: keeps same DEK, only re-wraps with new Key_A.
+     * Client sends new salt_a, new wrapped_dek_a, new auth_proof.
+     */
+    public function changePasswordAdvanced(Request $request): JsonResponse
+    {
+        $request->validate([
+            'login_id' => 'required|string',
+            'auth_proof' => 'required|string',
+            'salt_a' => 'required|string',
+            'wrapped_dek_a' => 'required|string',
+        ]);
+
+        $authHash = Hash::make($request->auth_proof);
+
+        try {
+            $result = $this->authService->changePasswordAdvanced([
+                'login_id' => $request->login_id,
+                'auth_hash' => $authHash,
+                'salt_a' => $request->salt_a,
+                'wrapped_dek_a' => $request->wrapped_dek_a,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+
+        $user = $result['user'];
+        $user->load('roles');
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_PASSWORD_CHANGE,
+            'Cambio de contraseña (cifrado avanzado)',
+            ['dek_rotated' => false],
+            $request,
+        );
+
+        return response()->json([
+            'message' => 'Contraseña actualizada correctamente. Todas las sesiones han sido revocadas.',
+            'user' => $user,
+        ]);
+    }
+
+
+        /**
+         * Upgrade basic user to advanced encryption (zero-knowledge).
+         *
+         * Client provides current password, generates all crypto material,
+         * encrypts current profile, and sends blobs to server.
+         * Server stores blobs, sets encryption_level='advanced', nullifies name/user/email.
+         */
+        public function upgradeToAdvanced(Request $request): JsonResponse
+        {
+            $user = $request->user();
+            if (! $user) {
+                return response()->json(['message' => 'No autenticado'], 401);
+            }
+
+            $request->validate([
+                'current_password' => 'required|string',
+                'auth_proof' => 'required|string',
+                'login_id' => 'required|string',
+                'salt_a' => 'required|string',
+                'salt_r' => 'required|string',
+                'wrapped_dek_a' => 'required|string',
+                'wrapped_dek_r' => 'required|string',
+                'encrypted_profile' => 'required|string',
+                'encrypted_seed_verification' => 'required|string',
+                'passkey_public_key' => 'nullable|string',
+                'passkey_credential_id' => 'nullable|string',
+            ]);
+
+            $authHash = Hash::make($request->auth_proof);
+
+            try {
+                $result = $this->authService->upgradeToAdvanced($user, [
+                    'current_password' => $request->current_password,
+                    'auth_hash' => $authHash,
+                    'login_id' => $request->login_id,
+                    'salt_a' => $request->salt_a,
+                    'salt_r' => $request->salt_r,
+                    'wrapped_dek_a' => $request->wrapped_dek_a,
+                    'wrapped_dek_r' => $request->wrapped_dek_r,
+                    'encrypted_profile' => $request->encrypted_profile,
+                    'encrypted_seed_verification' => $request->encrypted_seed_verification,
+                    'passkey_public_key' => $request->passkey_public_key,
+                    'passkey_credential_id' => $request->passkey_credential_id,
+                ]);
+            } catch (Exception $e) {
+                return response()->json([
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
+
+            $user = $result['user'];
+            $user->load('roles');
+
+            $this->activityLogService->logFromRequest(
+                $user,
+                UserActivityLog::ACTION_PASSWORD_CHANGE,
+                'Actualización a cifrado avanzado',
+                ['encryption_level' => 'advanced'],
+                $request,
+            );
+
+            return response()->json([
+                'message' => 'Cuenta actualizada a cifrado avanzado. Inicia sesión con tu nueva contraseña.',
+                'user' => $user,
+                'seed_phrase' => $request->input('seed_phrase'), // Client should show this to user
+            ]);
+        }
 
     public function refreshToken(Request $request): JsonResponse
     {
@@ -276,11 +651,8 @@ class AuthController extends Controller
 
         $user->load('roles');
 
-        return response()->json([
+        $baseResponse = [
             'id' => $user->id,
-            'name' => $user->name,
-            'user' => $user->user,
-            'email' => $user->email,
             'is_admin' => $user->is_admin ?? false,
             'created_at' => $user->created_at,
             'sessions_count' => $user->sessions_count ?? $user->sessions()->count(),
@@ -292,7 +664,30 @@ class AuthController extends Controller
                 'description' => $role->description,
                 'is_protected' => $role->is_protected,
             ]),
-        ]);
+            'encryption_level' => $user->encryption_level,
+        ];
+
+        // For advanced users, return encrypted blobs instead of plaintext
+        if ($user->encryption_level === 'advanced') {
+            return response()->json(array_merge($baseResponse, [
+                'name' => null,
+                'user' => null,
+                'email' => null,
+                'login_id' => $user->login_id,
+                'salt_a' => $user->salt_a,
+                'salt_r' => $user->salt_r,
+                'wrapped_dek_a' => $user->wrapped_dek_a,
+                'encrypted_profile' => $user->encrypted_profile,
+            ]));
+        }
+
+        // Basic users: return plaintext profile
+        return response()->json(array_merge($baseResponse, [
+            'name' => $user->name,
+            'user' => $user->user,
+            'email' => $user->email,
+            'login_id' => null,
+        ]));
     }
 
     public function updateUserProfile(UpdateProfileRequest $request): JsonResponse
@@ -304,6 +699,45 @@ class AuthController extends Controller
 
         $validated = $request->validated();
 
+        // Handle advanced encryption: client sends encrypted_profile
+        if ($user->encryption_level === 'advanced') {
+            if (! isset($validated['encrypted_profile'])) {
+                return response()->json([
+                    'message' => 'encrypted_profile requerido para usuarios avanzados',
+                ], 422);
+            }
+
+            $oldEncryptedProfile = $user->encrypted_profile;
+            $user->encrypted_profile = $validated['encrypted_profile'];
+            $user->save();
+
+            $this->activityLogService->logFromRequest(
+                $user,
+                UserActivityLog::ACTION_PROFILE_UPDATE,
+                'Actualización de perfil cifrado',
+                ['changed_fields' => ['encrypted_profile']],
+                $request,
+            );
+
+            return response()->json([
+                'message' => 'Perfil actualizado correctamente',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => null,
+                    'user' => null,
+                    'email' => null,
+                    'is_admin' => $user->is_admin ?? false,
+                    'created_at' => $user->created_at,
+                    'encryption_level' => 'advanced',
+                    'login_id' => $user->login_id,
+                    'salt_a' => $user->salt_a,
+                    'wrapped_dek_a' => $user->wrapped_dek_a,
+                    'encrypted_profile' => $user->encrypted_profile,
+                ],
+            ]);
+        }
+
+        // Basic users: standard update
         $changedFields = array_keys(array_intersect_key($validated, $user->getOriginal()));
         $oldValues = [];
         foreach ($changedFields as $field) {
@@ -329,6 +763,7 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'is_admin' => $user->is_admin ?? false,
                 'created_at' => $user->created_at,
+                'encryption_level' => 'basic',
             ],
         ]);
     }
@@ -352,17 +787,298 @@ class AuthController extends Controller
         $user->password = Hash::make($validated['new_password']);
         $user->save();
 
+        // Revoke all sessions and refresh tokens (security requirement)
+        $this->authService->revokeAllUserRefreshTokens($user);
+        $this->sessionService->revokeAllUserSessions($user);
+
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_PASSWORD_CHANGE,
             'Cambio de contraseña',
-            null,
+            ['sessions_revoked' => true, 'tokens_revoked' => true],
             $request,
         );
 
         return response()->json([
-            'message' => 'Contraseña actualizada correctamente',
+            'message' => 'Contraseña actualizada correctamente. Todas las sesiones han sido revocadas.',
         ]);
+    }
+
+    // ─── Passkey / WebAuthn Endpoints ────────────────────────────────────────
+
+    /**
+     * Start passkey registration: returns PublicKeyCredentialCreationOptions
+     */
+    public function passkeyRegisterStart(Request $request): JsonResponse
+    {
+        $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+        ]);
+
+        $user = User::find($request->user_id);
+        if (! $user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+        // Get existing credentials to exclude
+        $existingCredentials = [];
+        if ($user->passkey_credential_id) {
+            $existingCredentials[] = $user->passkey_credential_id;
+        }
+
+        $options = $this->passkeyService->generateRegistrationOptions($user, $existingCredentials);
+
+        // Store challenge in session for verification
+        $request->session()->put('passkey_registration_challenge', $options->getChallenge());
+        $request->session()->put('passkey_registration_user_id', $user->id);
+
+        return response()->json($options->jsonSerialize());
+    }
+
+    /**
+     * Complete passkey registration: verify attestation and store credential
+     */
+    public function passkeyRegisterFinish(Request $request): JsonResponse
+    {
+        $challenge = $request->session()->pull('passkey_registration_challenge');
+        $userId = $request->session()->pull('passkey_registration_user_id');
+
+        if (! $challenge || ! $userId) {
+            return response()->json(['message' => 'Sesión de registro expirada'], 400);
+        }
+
+        $user = User::find($userId);
+        if (! $user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+        // Recreate the options object with the stored challenge
+        $options = PublicKeyCredentialCreationOptions::create(
+            $this->passkeyService->getRelyingPartyEntity(),
+            PublicKeyCredentialUserEntity::create(
+                (string) $user->id,
+                $user->user ?? $user->email,
+                $user->name ?? $user->user ?? $user->email,
+                null,
+                null
+            ),
+            PublicKeyCredentialParameters::create([
+                PublicKeyCredentialParameters::create(PublicKeyCredentialType::PUBLIC_KEY, -7), // ES256
+                PublicKeyCredentialParameters::create(PublicKeyCredentialType::PUBLIC_KEY, -257), // RS256
+            ]),
+            [], // excludeCredentials - empty for finish
+            AuthenticatorSelectionCriteria::create(
+                AuthenticatorAuthenticatorAttachment::PLATFORM,
+                UserVerificationRequirement::REQUIRED,
+                false
+            ),
+            null,
+            null,
+            60000
+        );
+
+        // Override the challenge with the stored one
+        $options = $options->withChallenge($challenge);
+
+        try {
+            $credentialRecord = $this->passkeyService->verifyRegistrationResponse($options, $request->all(), $request->getHttpHost());
+            $this->passkeyService->storeCredential($user, $credentialRecord);
+
+            $this->activityLogService->logFromRequest(
+                $user,
+                UserActivityLog::ACTION_PASSWORD_CHANGE,
+                'Passkey registrado',
+                ['credential_id' => base64_encode($credentialRecord->credentialId)],
+                $request,
+            );
+
+            return response()->json([
+                'message' => 'Passkey registrado correctamente',
+                'credential_id' => base64_encode($credentialRecord->credentialId),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al registrar passkey: ' . $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * Start passkey authentication: returns PublicKeyCredentialRequestOptions
+     */
+    public function passkeyAuthenticateStart(Request $request): JsonResponse
+    {
+        $request->validate([
+            'user_id' => 'nullable|integer|exists:users,id',
+            'login_id' => 'nullable|string',
+        ]);
+
+        $user = null;
+        if ($request->has('user_id')) {
+            $user = User::find($request->user_id);
+        } elseif ($request->has('login_id')) {
+            $user = User::where('login_id', $request->login_id)->where('encryption_level', 'advanced')->first();
+        }
+
+        if (! $user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+        // Get stored credential records
+        $records = $this->passkeyService->getUserCredentialRecords($user);
+        if (empty($records)) {
+            return response()->json(['message' => 'Usuario no tiene passkeys registrados'], 400);
+        }
+
+        $options = $this->passkeyService->generateAuthenticationOptions(
+            array_map(fn ($r) => base64_encode($r->credentialId), $records)
+        );
+
+        // Store challenge and user_id in session
+        $request->session()->put('passkey_auth_challenge', $options->getChallenge());
+        $request->session()->put('passkey_auth_user_id', $user->id);
+
+        return response()->json($options->jsonSerialize());
+    }
+
+    /**
+     * Complete passkey authentication: verify assertion and issue token
+     */
+    public function passkeyAuthenticateFinish(Request $request): JsonResponse
+    {
+        $challenge = $request->session()->pull('passkey_auth_challenge');
+        $userId = $request->session()->pull('passkey_auth_user_id');
+
+        if (! $challenge || ! $userId) {
+            return response()->json(['message' => 'Sesión de autenticación expirada'], 400);
+        }
+
+        $user = User::find($userId);
+        if (! $user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+        $records = $this->passkeyService->getUserCredentialRecords($user);
+        if (empty($records)) {
+            return response()->json(['message' => 'Usuario no tiene passkeys registrados'], 400);
+        }
+
+        // Recreate the options object with the stored challenge
+        $options = PublicKeyCredentialRequestOptions::create(
+            array_map(fn ($r) => PublicKeyCredentialDescriptor::create(
+                PublicKeyCredentialType::PUBLIC_KEY,
+                $r->credentialId,
+                [AuthenticatorTransport::USB, AuthenticatorTransport::NFC, AuthenticatorTransport::BLE, AuthenticatorTransport::INTERNAL]
+            ), $records),
+            null, // timeout
+            UserVerificationRequirement::PREFERRED,
+            null, // extensions
+            null // rpId
+        );
+
+        $options = $options->withChallenge($challenge);
+
+        // Find matching credential record by credential ID from request
+        $credentialId = $request->input('id');
+        $matchedRecord = null;
+        foreach ($records as $record) {
+            if (base64_encode($record->credentialId) === $credentialId) {
+                $matchedRecord = $record;
+                break;
+            }
+        }
+
+        if (! $matchedRecord) {
+            return response()->json(['message' => 'Credencial no encontrada'], 400);
+        }
+
+        try {
+            $verifiedRecord = $this->passkeyService->verifyAuthenticationResponse($options, $request->all(), $matchedRecord, $request->getHttpHost());
+
+            // Check email verification for advanced users
+            if ($user->encryption_level === 'advanced' && $user->email_verified_at === null) {
+                return response()->json([
+                    'code' => 'EMAIL_NOT_VERIFIED',
+                    'message' => 'Verifica tu email antes de iniciar sesión.',
+                    'email' => $user->email,
+                ], 403);
+            }
+
+            $user->load('roles');
+
+            $dpopPublicKey = $request->input('dpop_public_key');
+            $rememberMe = $request->boolean('remember_me');
+
+            $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
+
+            $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
+
+            $responseData = [
+                'user' => $user,
+                'token' => $tokenData['token'],
+                'token_type' => $tokenData['token_type'],
+                'expires_in' => $tokenData['expires_in'],
+            ];
+
+            $this->activityLogService->logFromRequest(
+                $user,
+                UserActivityLog::ACTION_LOGIN,
+                'Inicio de sesión (passkey)',
+                ['login_method' => 'passkey'],
+                $request,
+            );
+
+            $response = response()->json($responseData);
+
+            if (isset($tokenData['refresh_token'])) {
+                $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
+                $minutes = $rememberMe ? $refreshExpirationDays * 1440 : 0;
+                $response->withCookie(cookie(
+                    'refresh_token',
+                    $tokenData['refresh_token'],
+                    $minutes,
+                    '/',
+                    null,
+                    config('session.secure', false),
+                    true,
+                    false,
+                    'Lax'
+                ));
+            }
+
+            return $response;
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error en autenticación passkey: ' . $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * Delete user's passkey
+     */
+    public function passkeyDelete(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        if (! $user->passkey_credential_id) {
+            return response()->json(['message' => 'No hay passkey registrado'], 400);
+        }
+
+        $this->passkeyService->removeCredential($user);
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_PASSWORD_CHANGE,
+            'Passkey eliminado',
+            null,
+            $request,
+        );
+
+        return response()->json(['message' => 'Passkey eliminado correctamente']);
     }
 
     public function getUserSessions(Request $request): JsonResponse

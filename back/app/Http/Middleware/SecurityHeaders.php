@@ -24,7 +24,12 @@ class SecurityHeaders
         $response->headers->set('X-Frame-Options', 'DENY');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+        // publickey-credentials-create/get must be allowed for WebAuthn/Passkeys
+        $response->headers->set(
+            'Permissions-Policy',
+            'camera=(), microphone=(), geolocation=(), publickey-credentials-create=(self), publickey-credentials-get=(self)'
+        );
 
         $cspBase = "default-src 'self'; script-src 'self'".$this->cspHashList()."; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' ".config('app.url').';';
 
