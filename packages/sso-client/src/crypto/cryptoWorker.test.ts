@@ -29,9 +29,9 @@ function makeProfile() {
   return { name: 'Ada', user: 'ada', email: 'ada@example.com' };
 }
 
-function b64(bytes: Uint8Array): string {
+function b64(params: { bytes: Uint8Array }): string {
   let s = '';
-  for (const b of bytes) s += String.fromCharCode(b);
+  for (const b of params.bytes) s += String.fromCharCode(b);
   return btoa(s);
 }
 
@@ -51,14 +51,14 @@ describe('crypto worker protocol (DEK residency)', () => {
     const handle = await loadWorker();
 
     const dek = await generateDek();
-    await handle({ type: 'set-dek', payload: { dekBytes: b64(dek) } });
+    await handle({ type: 'set-dek', payload: { dekBytes: b64({ bytes: dek }) } });
     sent.length = 0; // clear the 'ok' ack
 
     await handle({ type: 'encrypt-payload', payload: { profile: makeProfile() } });
-    const enc = sent.at(-1)?.payload.blob as Record<string, string>;
+    const enc = sent[sent.length-1]?.payload.blob as Record<string, string>;
 
     await handle({ type: 'decrypt-payload', payload: { blob: enc } });
-    const dec = sent.at(-1)?.payload.profile as typeof makeProfile;
+    const dec = sent[sent.length-1]?.payload.profile as ReturnType<typeof makeProfile>;
 
     expect(dec.name).toBe('Ada');
     expect(dec.email).toBe('ada@example.com');
@@ -76,22 +76,22 @@ describe('crypto worker protocol (DEK residency)', () => {
       },
     });
 
-    expect(sent.at(-1)?.type).toBe('error');
+    expect(sent[sent.length-1]?.type).toBe('error');
   });
 
   it('clear wipes the resident DEK', async () => {
     const handle = await loadWorker();
     const dek = await generateDek();
-    await handle({ type: 'set-dek', payload: { dekBytes: b64(dek) } });
+    await handle({ type: 'set-dek', payload: { dekBytes: b64({ bytes: dek }) } });
     sent.length = 0;
 
     await handle({ type: 'clear', payload: {} });
-    expect(sent.at(-1)?.type).toBe('ok');
+    expect(sent[sent.length-1]?.type).toBe('ok');
 
     await handle({
       type: 'decrypt-payload',
       payload: { blob: { ciphertext: 'xx', iv: 'xx', authTag: 'xx' } },
     });
-    expect(sent.at(-1)?.type).toBe('error');
+    expect(sent[sent.length-1]?.type).toBe('error');
   });
 });
