@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/services/api';
 import { cryptoService } from '@/services/cryptoService';
+import { deviceKeyService } from '@/services/deviceKeyService';
 import { dpopService } from '@/services/dpopService';
 import type {
   User,
@@ -239,11 +240,12 @@ export function useAuthController() {
     });
     authStore.setKeyA({ keyA });
 
-    // Unwrap DEK using Key_A
+    // Unwrap DEK using Key_A and persist it for silent restore on this device
     const dek = await cryptoService.unwrapDek({
       wrapped: blobs.wrapped_dek_a,
       unwrappingKey: keyA,
     });
+    await deviceKeyService.persistDek({ dek });
     authStore.setDek({ dek });
 
     // Decrypt profile
@@ -351,6 +353,7 @@ export function useAuthController() {
     });
 
     // Store crypto state
+    await deviceKeyService.persistDek({ dek });
     authStore.setDek({ dek });
     authStore.setAdvancedState({ isAdvanced: true, loginId: response.user.login_id });
 
@@ -630,6 +633,7 @@ export function useAuthController() {
       },
     });
 
+    await deviceKeyService.persistDek({ dek });
     authStore.setDek({ dek });
     authStore.setAdvancedState({ isAdvanced: true, loginId });
 
@@ -660,8 +664,42 @@ export function useAuthController() {
     }
   }
 
+  /**
+   * Silently refresh the cached profile for an advanced user with a
+   * persistent session. Uses the device-persisted DEK (no password).
+   * Returns true when the profile was refreshed.
+   */
+  async function syncProfileSilently(): Promise<boolean> {
+    if (!authStore.isAdvanced()) {
+      return false;
+    }
+
+    const loginId = authStore.getLoginId();
+    if (!loginId) {
+      return false;
+    }
+
+    const dek = await deviceKeyService.restoreDek();
+    if (!dek) {
+      return false;
+    }
+
+    try {
+      const blobs = await fetchCryptoBlobs({ loginId });
+      const profile = await cryptoService.decryptProfile({
+        dek,
+        blob: blobs.encrypted_profile,
+      });
+      cryptoService.setCachedProfile({ profile, version: blobs.profile_version });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // ─── Logout ────────────────────────────────────────────────────────────────
   async function logout(): Promise<void> {
+    await deviceKeyService.clear();
     return authStore.logout();
   }
 
@@ -954,5 +992,7 @@ export function useAuthController() {
     changePasswordAdvanced,
     // Migration methods (Phase 4)
     upgradeToAdvanced,
+    // Silent profile sync (device-wrapped DEK)
+    syncProfileSilently,
   };
 }
