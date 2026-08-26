@@ -4,27 +4,29 @@
 
 namespace App\Services;
 
+use App\Models\PasskeyCredential;
 use App\Models\User;
-use Webauthn\CeremonyStep\CeremonyStepManagerFactory;
-use Webauthn\CeremonyStep\CeremonyStepManager;
-use Webauthn\AuthenticatorAttestationResponseValidator;
+use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Component\Uid\Uuid;
+use Webauthn\AttestationStatement\AttestationStatementSupportManager;
+use Webauthn\AuthenticationExtensions\AuthenticationExtensions;
+use Webauthn\AuthenticatorAssertionResponse;
 use Webauthn\AuthenticatorAssertionResponseValidator;
 use Webauthn\AuthenticatorAttestationResponse;
-use Webauthn\AuthenticatorAssertionResponse;
+use Webauthn\AuthenticatorAttestationResponseValidator;
+use Webauthn\AuthenticatorSelectionCriteria;
+use Webauthn\CeremonyStep\CeremonyStepManager;
+use Webauthn\CeremonyStep\CeremonyStepManagerFactory;
+use Webauthn\CredentialRecord;
+use Webauthn\Denormalizer\WebauthnSerializerFactory;
+use Webauthn\PublicKeyCredential;
 use Webauthn\PublicKeyCredentialCreationOptions;
+use Webauthn\PublicKeyCredentialDescriptor;
+use Webauthn\PublicKeyCredentialParameters;
 use Webauthn\PublicKeyCredentialRequestOptions;
 use Webauthn\PublicKeyCredentialRpEntity;
 use Webauthn\PublicKeyCredentialUserEntity;
-use Webauthn\PublicKeyCredentialDescriptor;
-use Webauthn\PublicKeyCredentialParameters;
-use Webauthn\PublicKeyCredentialType;
-use Webauthn\AuthenticatorSelectionCriteria;
-use Webauthn\AuthenticatorTransport;
-use Webauthn\AuthenticatorAttachment;
-use Webauthn\AuthenticatorAuthenticatorAttachment;
-use Webauthn\UserVerificationRequirement;
-use Webauthn\CredentialRecord;
-use Webauthn\Exception\AuthenticatorResponseVerificationException;
+use Webauthn\TrustPath\EmptyTrustPath;
 use Exception;
 
 class PasskeyService
@@ -35,27 +37,33 @@ class PasskeyService
     private AuthenticatorAttestationResponseValidator $attestationValidator;
     private AuthenticatorAssertionResponseValidator $assertionValidator;
     private PublicKeyCredentialRpEntity $rpEntity;
+    private SerializerInterface $serializer;
 
     public function __construct()
     {
         $this->factory = new CeremonyStepManagerFactory();
-        
+
         // Configure allowed origins
         $appUrl = config('app.url', 'http://localhost:8101');
         $this->factory->setAllowedOrigins([$appUrl], true);
-        
+
         // Configure relying party ID
         $rpId = config('passkey.rp_id', parse_url($appUrl, PHP_URL_HOST) ?? 'localhost');
         $this->factory->setSecuredRelyingPartyId([$rpId]);
-        
+
         // Create ceremony managers
         $this->creationCeremony = $this->factory->creationCeremony();
         $this->requestCeremony = $this->factory->requestCeremony();
-        
+
         // Create validators
         $this->attestationValidator = AuthenticatorAttestationResponseValidator::create($this->creationCeremony);
         $this->assertionValidator = AuthenticatorAssertionResponseValidator::create($this->requestCeremony);
-        
+
+        // Serializer builds/reads web-auth DTOs (options, responses) from JSON
+        $this->serializer = (new WebauthnSerializerFactory(
+            AttestationStatementSupportManager::create()
+        ))->create();
+
         // Relying Party Entity
         $this->rpEntity = PublicKeyCredentialRpEntity::create(
             config('app.name', 'SSO Server'),
@@ -66,6 +74,11 @@ class PasskeyService
 
     /**
      * Generate registration options for a new passkey.
+     *
+     * The `prf` extension is enabled at creation time so the authenticator
+     * exposes a device-bound PRF secret. The SSO client then wraps the ZKE
+     * DEK with a key derived from that secret (HKDF), enabling silent profile
+     * refresh gated only by a biometric gesture — never a password.
      */
     public function generateRegistrationOptions(User $user, array $excludeCredentials = []): PublicKeyCredentialCreationOptions
     {
@@ -80,31 +93,30 @@ class PasskeyService
         $excludeDescriptors = [];
         foreach ($excludeCredentials as $credId) {
             $excludeDescriptors[] = PublicKeyCredentialDescriptor::create(
-                PublicKeyCredentialType::PUBLIC_KEY,
+                'public-key',
                 base64_decode($credId),
-                [AuthenticatorTransport::USB, AuthenticatorTransport::NFC, AuthenticatorTransport::BLE, AuthenticatorTransport::INTERNAL]
+                ['usb', 'nfc', 'ble', 'internal']
             );
         }
 
-        $options = PublicKeyCredentialCreationOptions::create(
+        return PublicKeyCredentialCreationOptions::create(
             $this->rpEntity,
             $userEntity,
-            PublicKeyCredentialParameters::create([
-                PublicKeyCredentialParameters::create(PublicKeyCredentialType::PUBLIC_KEY, -7), // ES256
-                PublicKeyCredentialParameters::create(PublicKeyCredentialType::PUBLIC_KEY, -257), // RS256
-            ]),
-            $excludeDescriptors,
+            $this->generateChallenge(),
+            [
+                PublicKeyCredentialParameters::create('public-key', -7), // ES256
+                PublicKeyCredentialParameters::create('public-key', -257), // RS256
+            ],
             AuthenticatorSelectionCriteria::create(
-                AuthenticatorAuthenticatorAttachment::PLATFORM, // prefer platform authenticators
-                UserVerificationRequirement::REQUIRED,
-                false // requireResidentKey
+                AuthenticatorSelectionCriteria::AUTHENTICATOR_ATTACHMENT_PLATFORM,
+                AuthenticatorSelectionCriteria::USER_VERIFICATION_REQUIREMENT_REQUIRED,
+                AuthenticatorSelectionCriteria::RESIDENT_KEY_REQUIREMENT_NO_PREFERENCE
             ),
             null, // attestation
-            null, // extensions
-            60000 // timeout 60 seconds
+            $excludeDescriptors,
+            60000, // timeout 60s
+            AuthenticationExtensions::create(['prf' => ['enable' => true]])
         );
-
-        return $options;
     }
 
     /**
@@ -115,21 +127,48 @@ class PasskeyService
         $allowDescriptors = [];
         foreach ($allowCredentials as $credId) {
             $allowDescriptors[] = PublicKeyCredentialDescriptor::create(
-                PublicKeyCredentialType::PUBLIC_KEY,
+                'public-key',
                 base64_decode($credId),
-                [AuthenticatorTransport::USB, AuthenticatorTransport::NFC, AuthenticatorTransport::BLE, AuthenticatorTransport::INTERNAL]
+                ['usb', 'nfc', 'ble', 'internal']
             );
         }
 
-        $options = PublicKeyCredentialRequestOptions::create(
+        return PublicKeyCredentialRequestOptions::create(
+            $this->generateChallenge(),
+            null, // rpId (use default)
             $allowDescriptors,
-            null, // timeout (use default)
-            UserVerificationRequirement::PREFERRED,
-            null, // extensions
-            null // rpId (use default from relying party)
+            AuthenticatorSelectionCriteria::USER_VERIFICATION_REQUIREMENT_PREFERRED,
+            null, // timeout
+            null // extensions
         );
+    }
 
-        return $options;
+    /**
+     * Serialize web-auth options DTO to the JSON array the client consumes.
+     */
+    public function serializeOptions(PublicKeyCredentialCreationOptions|PublicKeyCredentialRequestOptions $options): array
+    {
+        $json = $this->serializer->serialize($options, 'json');
+
+        return json_decode($json, true);
+    }
+
+    /**
+     * Rehydrate a stored (serialized) creation/request options DTO. The
+     * challenge round-trips through serialization, so the exact challenge the
+     * client signed is reconstructed.
+     */
+    public function deserializeOptions(array $data, string $class): PublicKeyCredentialCreationOptions|PublicKeyCredentialRequestOptions
+    {
+        return $this->serializer->deserialize(json_encode($data), $class, 'json');
+    }
+
+    /**
+     * Deserialize the client's PublicKeyCredential submission.
+     */
+    public function deserializePublicKeyCredential(array $data): PublicKeyCredential
+    {
+        return $this->serializer->deserialize(json_encode($data), PublicKeyCredential::class, 'json');
     }
 
     /**
@@ -140,48 +179,48 @@ class PasskeyService
         array $responseData,
         string $host
     ): CredentialRecord {
-        $response = AuthenticatorAttestationResponse::createFromArray($responseData);
+        $publicKeyCredential = $this->deserializePublicKeyCredential($responseData);
+
+        /** @var AuthenticatorAttestationResponse $response */
+        $response = $publicKeyCredential->response;
 
         return $this->attestationValidator->check($response, $options, $host);
     }
 
     /**
-     * Verify authentication response (assertion).
+     * Verify authentication response (assertion) and return the credential record.
      */
     public function verifyAuthenticationResponse(
         PublicKeyCredentialRequestOptions $options,
         array $responseData,
         CredentialRecord $credentialRecord,
-        string $host
+        string $host,
+        ?string $userHandle = null
     ): CredentialRecord {
-        $response = AuthenticatorAssertionResponse::createFromArray($responseData);
+        $publicKeyCredential = $this->deserializePublicKeyCredential($responseData);
 
-        return $this->assertionValidator->check($response, $options, $credentialRecord, $host);
+        /** @var AuthenticatorAssertionResponse $response */
+        $response = $publicKeyCredential->response;
+
+        return $this->assertionValidator->check($credentialRecord, $response, $options, $host, $userHandle);
     }
 
     /**
-     * Create a CredentialRecord from stored user data.
+     * Build a CredentialRecord from a stored PasskeyCredential row.
      */
-    public function createCredentialRecord(User $user): ?CredentialRecord
+    public function createCredentialRecord(PasskeyCredential $credential): ?CredentialRecord
     {
-        if (! $user->passkey_public_key || ! $user->passkey_credential_id) {
-            return null;
-        }
-
         try {
-            $credentialId = base64_decode($user->passkey_credential_id);
-            $publicKey = base64_decode($user->passkey_public_key);
-
             return CredentialRecord::create(
-                $credentialId,
-                $publicKey,
-                0, // counter
-                [], // transports
-                false, // backupEligibility
-                false, // backupStatus
-                [], // extensions
-                '', // aaguid (not stored)
-                null // userHandle
+                base64_decode($credential->credential_id),
+                'public-key',
+                $credential->transports ?? [],
+                'none',
+                new EmptyTrustPath(),
+                Uuid::fromString('00000000-0000-0000-0000-000000000000'),
+                base64_decode($credential->public_key),
+                '', // userHandle
+                0 // counter
             );
         } catch (Exception $e) {
             return null;
@@ -189,32 +228,53 @@ class PasskeyService
     }
 
     /**
-     * Get stored credential sources for a user.
+     * Get all stored credential records for a user (multi-passkey).
      */
     public function getUserCredentialRecords(User $user): array
     {
-        $record = $this->createCredentialRecord($user);
-        return $record ? [$record] : [];
+        $records = [];
+        foreach ($user->passkeyCredentials as $credential) {
+            $record = $this->createCredentialRecord($credential);
+            if ($record) {
+                $records[] = $record;
+            }
+        }
+
+        return $records;
     }
 
     /**
-     * Store passkey credential for user.
+     * Get all stored credential ids (base64) for a user.
      */
-    public function storeCredential(User $user, CredentialRecord $credentialRecord): void
+    public function getCredentialIds(User $user): array
     {
-        $user->passkey_credential_id = base64_encode($credentialRecord->credentialId);
-        $user->passkey_public_key = base64_encode($credentialRecord->publicKey);
-        $user->save();
+        return $user->passkeyCredentials()
+            ->pluck('credential_id')
+            ->all();
     }
 
     /**
-     * Remove passkey credential for user.
+     * Store a new passkey credential (inserts — never overwrites).
      */
-    public function removeCredential(User $user): void
+    public function storeCredential(User $user, CredentialRecord $record, array $meta = []): PasskeyCredential
     {
-        $user->passkey_credential_id = null;
-        $user->passkey_public_key = null;
-        $user->save();
+        return PasskeyCredential::create([
+            'user_id' => $user->id,
+            'credential_id' => base64_encode($record->publicKeyCredentialId),
+            'public_key' => base64_encode($record->credentialPublicKey),
+            'transports' => $meta['transports'] ?? null,
+            'device_name' => $meta['device_name'] ?? null,
+        ]);
+    }
+
+    /**
+     * Remove a single credential by its base64 id.
+     */
+    public function removeCredential(User $user, string $credentialId): void
+    {
+        PasskeyCredential::where('user_id', $user->id)
+            ->where('credential_id', $credentialId)
+            ->delete();
     }
 
     /**
@@ -239,5 +299,10 @@ class PasskeyService
     public function getRequestCeremony(): CeremonyStepManager
     {
         return $this->requestCeremony;
+    }
+
+    private function generateChallenge(): string
+    {
+        return base64_encode(random_bytes(32));
     }
 }

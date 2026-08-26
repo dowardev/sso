@@ -22,18 +22,14 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Webauthn\AuthenticatorAssertionResponse;
 use Webauthn\AuthenticatorAttestationResponse;
-use Webauthn\AuthenticatorAuthenticatorAttachment;
 use Webauthn\AuthenticatorSelectionCriteria;
-use Webauthn\AuthenticatorTransport;
 use Webauthn\CredentialRecord;
 use Webauthn\PublicKeyCredentialCreationOptions;
 use Webauthn\PublicKeyCredentialDescriptor;
 use Webauthn\PublicKeyCredentialParameters;
 use Webauthn\PublicKeyCredentialRequestOptions;
 use Webauthn\PublicKeyCredentialRpEntity;
-use Webauthn\PublicKeyCredentialType;
 use Webauthn\PublicKeyCredentialUserEntity;
-use Webauthn\UserVerificationRequirement;
 
 class AuthController extends Controller
 {
@@ -825,19 +821,18 @@ class AuthController extends Controller
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
 
-        // Get existing credentials to exclude
-        $existingCredentials = [];
-        if ($user->passkey_credential_id) {
-            $existingCredentials[] = $user->passkey_credential_id;
-        }
+        // Get existing credentials to exclude (multi-passkey)
+        $existingCredentials = $this->passkeyService->getCredentialIds($user);
 
         $options = $this->passkeyService->generateRegistrationOptions($user, $existingCredentials);
+        $optionsJson = $this->passkeyService->serializeOptions($options);
 
-        // Store challenge in session for verification
-        $request->session()->put('passkey_registration_challenge', $options->getChallenge());
+        // Store the full options (incl. challenge) so finish() can rehydrate
+        // the exact challenge the client signs.
+        $request->session()->put('passkey_registration_options', $optionsJson);
         $request->session()->put('passkey_registration_user_id', $user->id);
 
-        return response()->json($options->jsonSerialize());
+        return response()->json($optionsJson);
     }
 
     /**
@@ -845,10 +840,10 @@ class AuthController extends Controller
      */
     public function passkeyRegisterFinish(Request $request): JsonResponse
     {
-        $challenge = $request->session()->pull('passkey_registration_challenge');
+        $optionsData = $request->session()->pull('passkey_registration_options');
         $userId = $request->session()->pull('passkey_registration_user_id');
 
-        if (! $challenge || ! $userId) {
+        if (! $optionsData || ! $userId) {
             return response()->json(['message' => 'Sesión de registro expirada'], 400);
         }
 
@@ -857,33 +852,11 @@ class AuthController extends Controller
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
 
-        // Recreate the options object with the stored challenge
-        $options = PublicKeyCredentialCreationOptions::create(
-            $this->passkeyService->getRelyingPartyEntity(),
-            PublicKeyCredentialUserEntity::create(
-                (string) $user->id,
-                $user->user ?? $user->email,
-                $user->name ?? $user->user ?? $user->email,
-                null,
-                null
-            ),
-            PublicKeyCredentialParameters::create([
-                PublicKeyCredentialParameters::create(PublicKeyCredentialType::PUBLIC_KEY, -7), // ES256
-                PublicKeyCredentialParameters::create(PublicKeyCredentialType::PUBLIC_KEY, -257), // RS256
-            ]),
-            [], // excludeCredentials - empty for finish
-            AuthenticatorSelectionCriteria::create(
-                AuthenticatorAuthenticatorAttachment::PLATFORM,
-                UserVerificationRequirement::REQUIRED,
-                false
-            ),
-            null,
-            null,
-            60000
+        // Rehydrate the creation options (challenge included) from stored JSON
+        $options = $this->passkeyService->deserializeOptions(
+            $optionsData,
+            PublicKeyCredentialCreationOptions::class
         );
-
-        // Override the challenge with the stored one
-        $options = $options->withChallenge($challenge);
 
         try {
             $credentialRecord = $this->passkeyService->verifyRegistrationResponse($options, $request->all(), $request->getHttpHost());
@@ -893,13 +866,13 @@ class AuthController extends Controller
                 $user,
                 UserActivityLog::ACTION_PASSWORD_CHANGE,
                 'Passkey registrado',
-                ['credential_id' => base64_encode($credentialRecord->credentialId)],
+                ['credential_id' => base64_encode($credentialRecord->publicKeyCredentialId)],
                 $request,
             );
 
             return response()->json([
                 'message' => 'Passkey registrado correctamente',
-                'credential_id' => base64_encode($credentialRecord->credentialId),
+                'credential_id' => base64_encode($credentialRecord->publicKeyCredentialId),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -936,14 +909,14 @@ class AuthController extends Controller
         }
 
         $options = $this->passkeyService->generateAuthenticationOptions(
-            array_map(fn ($r) => base64_encode($r->credentialId), $records)
+            array_map(fn ($r) => base64_encode($r->publicKeyCredentialId), $records)
         );
+        $optionsJson = $this->passkeyService->serializeOptions($options);
 
-        // Store challenge and user_id in session
-        $request->session()->put('passkey_auth_challenge', $options->getChallenge());
+        $request->session()->put('passkey_auth_options', $optionsJson);
         $request->session()->put('passkey_auth_user_id', $user->id);
 
-        return response()->json($options->jsonSerialize());
+        return response()->json($optionsJson);
     }
 
     /**
@@ -951,10 +924,10 @@ class AuthController extends Controller
      */
     public function passkeyAuthenticateFinish(Request $request): JsonResponse
     {
-        $challenge = $request->session()->pull('passkey_auth_challenge');
+        $optionsData = $request->session()->pull('passkey_auth_options');
         $userId = $request->session()->pull('passkey_auth_user_id');
 
-        if (! $challenge || ! $userId) {
+        if (! $optionsData || ! $userId) {
             return response()->json(['message' => 'Sesión de autenticación expirada'], 400);
         }
 
@@ -968,26 +941,16 @@ class AuthController extends Controller
             return response()->json(['message' => 'Usuario no tiene passkeys registrados'], 400);
         }
 
-        // Recreate the options object with the stored challenge
-        $options = PublicKeyCredentialRequestOptions::create(
-            array_map(fn ($r) => PublicKeyCredentialDescriptor::create(
-                PublicKeyCredentialType::PUBLIC_KEY,
-                $r->credentialId,
-                [AuthenticatorTransport::USB, AuthenticatorTransport::NFC, AuthenticatorTransport::BLE, AuthenticatorTransport::INTERNAL]
-            ), $records),
-            null, // timeout
-            UserVerificationRequirement::PREFERRED,
-            null, // extensions
-            null // rpId
+        $options = $this->passkeyService->deserializeOptions(
+            $optionsData,
+            PublicKeyCredentialRequestOptions::class
         );
-
-        $options = $options->withChallenge($challenge);
 
         // Find matching credential record by credential ID from request
         $credentialId = $request->input('id');
         $matchedRecord = null;
         foreach ($records as $record) {
-            if (base64_encode($record->credentialId) === $credentialId) {
+            if (base64_encode($record->publicKeyCredentialId) === $credentialId) {
                 $matchedRecord = $record;
                 break;
             }
@@ -998,66 +961,73 @@ class AuthController extends Controller
         }
 
         try {
-            $verifiedRecord = $this->passkeyService->verifyAuthenticationResponse($options, $request->all(), $matchedRecord, $request->getHttpHost());
-
-            // Check email verification for advanced users
-            if ($user->encryption_level === 'advanced' && $user->email_verified_at === null) {
-                return response()->json([
-                    'code' => 'EMAIL_NOT_VERIFIED',
-                    'message' => 'Verifica tu email antes de iniciar sesión.',
-                    'email' => $user->email,
-                ], 403);
-            }
-
-            $user->load('roles');
-
-            $dpopPublicKey = $request->input('dpop_public_key');
-            $rememberMe = $request->boolean('remember_me');
-
-            $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
-
-            $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
-
-            $responseData = [
-                'user' => $user,
-                'token' => $tokenData['token'],
-                'token_type' => $tokenData['token_type'],
-                'expires_in' => $tokenData['expires_in'],
-            ];
-
-            $this->activityLogService->logFromRequest(
-                $user,
-                UserActivityLog::ACTION_LOGIN,
-                'Inicio de sesión (passkey)',
-                ['login_method' => 'passkey'],
-                $request,
+            $userHandle = $user->user ?? (string) $user->id;
+            $verifiedRecord = $this->passkeyService->verifyAuthenticationResponse(
+                $options,
+                $request->all(),
+                $matchedRecord,
+                $request->getHttpHost(),
+                $userHandle
             );
 
-            $response = response()->json($responseData);
+                // Check email verification for advanced users
+                if ($user->encryption_level === 'advanced' && $user->email_verified_at === null) {
+                    return response()->json([
+                        'code' => 'EMAIL_NOT_VERIFIED',
+                        'message' => 'Verifica tu email antes de iniciar sesión.',
+                        'email' => $user->email,
+                    ], 403);
+                }
 
-            if (isset($tokenData['refresh_token'])) {
-                $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
-                $minutes = $rememberMe ? $refreshExpirationDays * 1440 : 0;
-                $response->withCookie(cookie(
-                    'refresh_token',
-                    $tokenData['refresh_token'],
-                    $minutes,
-                    '/',
-                    null,
-                    config('session.secure', false),
-                    true,
-                    false,
-                    'Lax'
-                ));
+                $user->load('roles');
+
+                $dpopPublicKey = $request->input('dpop_public_key');
+                $rememberMe = $request->boolean('remember_me');
+
+                $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
+
+                $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
+
+                $responseData = [
+                    'user' => $user,
+                    'token' => $tokenData['token'],
+                    'token_type' => $tokenData['token_type'],
+                    'expires_in' => $tokenData['expires_in'],
+                ];
+
+                $this->activityLogService->logFromRequest(
+                    $user,
+                    UserActivityLog::ACTION_LOGIN,
+                    'Inicio de sesión (passkey)',
+                    ['login_method' => 'passkey'],
+                    $request,
+                );
+
+                $response = response()->json($responseData);
+
+                if (isset($tokenData['refresh_token'])) {
+                    $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
+                    $minutes = $rememberMe ? $refreshExpirationDays * 1440 : 0;
+                    $response->withCookie(cookie(
+                        'refresh_token',
+                        $tokenData['refresh_token'],
+                        $minutes,
+                        '/',
+                        null,
+                        config('session.secure', false),
+                        true,
+                        false,
+                        'Lax'
+                    ));
+                }
+
+                return $response;
+            } catch (\Exception $e) {
+                return response()->json([
+                    'message' => 'Error en autenticación passkey: ' . $e->getMessage(),
+                ], 400);
             }
-
-            return $response;
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error en autenticación passkey: ' . $e->getMessage(),
-            ], 400);
         }
-    }
 
     /**
      * Delete user's passkey
@@ -1069,11 +1039,16 @@ class AuthController extends Controller
             return response()->json(['message' => 'No autenticado'], 401);
         }
 
-        if (! $user->passkey_credential_id) {
-            return response()->json(['message' => 'No hay passkey registrado'], 400);
+        $request->validate([
+            'credential_id' => 'required|string',
+        ]);
+
+        $owned = $this->passkeyService->getCredentialIds($user);
+        if (! in_array($request->credential_id, $owned, true)) {
+            return response()->json(['message' => 'Credencial no encontrada'], 404);
         }
 
-        $this->passkeyService->removeCredential($user);
+        $this->passkeyService->removeCredential($user, $request->credential_id);
 
         $this->activityLogService->logFromRequest(
             $user,
