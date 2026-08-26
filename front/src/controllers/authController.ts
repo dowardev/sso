@@ -159,11 +159,13 @@ export function useAuthController() {
   // ─── Advanced Login (Zero-Knowledge) ───────────────────────────────────────
 
   /**
-   * Step 1: Request crypto blobs from server using login_id (or user/email)
+   * Fetch the client-side crypto material (salts, wrapped DEK, encrypted
+   * profile) for an advanced user. Used by login, recovery and profile
+   * refresh flows — decryption always happens locally.
    */
-  async function loginAdvancedFirstStep(params: { loginId: string }): Promise<AdvancedLoginResponse> {
+  async function fetchCryptoBlobs(params: { loginId: string }): Promise<AdvancedLoginResponse> {
     return api.post<AdvancedLoginResponse>({
-      endpoint: '/login/advanced/first-step',
+      endpoint: '/crypto/blobs',
       data: { login_id: params.loginId },
     });
   }
@@ -228,7 +230,7 @@ export function useAuthController() {
     rememberMe?: boolean;
   }): Promise<{ token: string; user: User; profile: CryptoUserProfile }> {
     // Step 1: Get crypto blobs from server
-    const blobs = await loginAdvancedFirstStep({ loginId: params.login_id });
+    const blobs = await fetchCryptoBlobs({ loginId: params.login_id });
 
     // Derive Key_A from password + salt_a
     const keyA = await cryptoService.deriveKeyA({
@@ -369,7 +371,7 @@ export function useAuthController() {
     seed_phrase: string;
   }): Promise<RecoveryVerifyResponse> {
     // Step 1: Get salt_r from login endpoint (now includes salt_r)
-    const loginBlobs = await loginAdvancedFirstStep({ loginId: params.login_id });
+    const loginBlobs = await fetchCryptoBlobs({ loginId: params.login_id });
     const saltR = loginBlobs.salt_r;
     if (!saltR) {
       throw new Error('salt_r no disponible en respuesta de login');
@@ -445,21 +447,21 @@ export function useAuthController() {
     // Step 4: Wrap DEK with new Key_A
     const newWrappedDekA = await cryptoService.wrapDek({ dek, wrappingKey: newKeyA });
 
-        // Step 5: Re-encrypt profile with DEK (same plaintext, same DEK).
-        // recoveryVerify already decrypted it; use the in-memory cache.
-        const profile = cryptoService.getCachedProfile();
-        if (!profile) {
-          throw new Error('Perfil descifrado no disponible en memoria');
-        }
-        const newEncryptedProfile = await cryptoService.encryptProfile({ dek, profile });
+    // Step 5: Re-encrypt profile with DEK (same plaintext, same DEK).
+    // recoveryVerify already decrypted it; use the in-memory cache.
+    const profile = cryptoService.getCachedProfile();
+    if (!profile) {
+      throw new Error('Perfil descifrado no disponible en memoria');
+    }
+    const newEncryptedProfile = await cryptoService.encryptProfile({ dek, profile });
 
-        // Step 6: re-wrap DEK with Key_R — the seed phrase did not rotate,
-        // but wrapped_dek_r must be regenerated for the new DEK material.
-        const keyR = await cryptoService.deriveKeyR({
-          seedPhrase: params.seed_phrase,
-          salt: (authStore.user as User & { salt_r?: string }).salt_r || '',
-        });
-        const wrappedDekR = await cryptoService.wrapDek({ dek, wrappingKey: keyR });
+    // Step 6: re-wrap DEK with Key_R — the seed phrase did not rotate,
+    // but wrapped_dek_r must be regenerated for the new DEK material.
+    const keyR = await cryptoService.deriveKeyR({
+      seedPhrase: params.seed_phrase,
+      salt: (authStore.user as User & { salt_r?: string }).salt_r || '',
+    });
+    const wrappedDekR = await cryptoService.wrapDek({ dek, wrappingKey: keyR });
 
     // Step 7: Compute new auth_proof = HMAC(new_Key_A, "auth")
     const newAuthProof = await cryptoService.computeAuthProof({ keyA: newKeyA });
@@ -934,7 +936,7 @@ export function useAuthController() {
     deleteAccount,
     // Advanced encryption methods
     loginAdvanced,
-    loginAdvancedFirstStep,
+    fetchCryptoBlobs,
     loginAdvancedSecondStep,
     registerAdvanced,
     computeLoginId,

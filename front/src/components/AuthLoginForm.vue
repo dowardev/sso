@@ -133,7 +133,7 @@ const { handleApiError } = useValidation();
 const { showSuccess } = useToast();
 
 // 2. Controllers
-import { useAuthController } from '@/composables/authController';
+import { useAuthController } from '@/controllers/authController';
 
 const authController = useAuthController();
 

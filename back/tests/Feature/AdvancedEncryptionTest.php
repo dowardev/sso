@@ -39,7 +39,7 @@ class AdvancedEncryptionTest extends TestCase
     {
         $user = $this->createAdvancedUser();
 
-        $this->postJson('/api/login/advanced/first-step', [
+        $this->postJson('/api/crypto/blobs', [
             'login_id' => $user->login_id,
         ])
             ->assertOk()
@@ -49,7 +49,7 @@ class AdvancedEncryptionTest extends TestCase
 
     public function test_advanced_first_step_hides_unknown_login_id(): void
     {
-        $this->postJson('/api/login/advanced/first-step', [
+        $this->postJson('/api/crypto/blobs', [
             'login_id' => 'unknown-id',
         ])
             ->assertStatus(404);
@@ -145,7 +145,7 @@ class AdvancedEncryptionTest extends TestCase
         ]);
 
         // login_id of a basic user does not match any advanced user
-        $this->postJson('/api/login/advanced/first-step', [
+        $this->postJson('/api/crypto/blobs', [
             'login_id' => 'any-basic-login-id',
         ])
             ->assertStatus(404);

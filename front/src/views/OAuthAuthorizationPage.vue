@@ -106,7 +106,7 @@ import { checkmarkCircle, alertCircle } from 'ionicons/icons'
 import lambdaLogo from '@/assets/images/lambda_v1.svg'
 
 // 2. Controllers / Composables
-import { useAuthController } from '@/composables/authController'
+import { useAuthController } from '@/controllers/authController'
 import { useValidation } from '@/composables/useValidation'
 import { useBranding } from '@/composables/useBranding'
 const authController = useAuthController()

@@ -154,15 +154,17 @@ class AuthController extends Controller
     }
 
     /**
-     * Advanced login - Step 1: Return crypto blobs for client-side decryption
+     * Return crypto blobs (salts, wrapped DEK, encrypted profile) for the
+     * given login_id. Public material — decryption happens client-side.
+     * Consumed by advanced login, recovery and profile refresh flows.
      */
-    public function loginAdvancedFirstStep(Request $request): JsonResponse
+    public function cryptoBlobs(Request $request): JsonResponse
     {
         $request->validate([
             'login_id' => 'required|string',
         ]);
 
-        $blobs = $this->authService->loginAdvancedFirstStep($request->login_id);
+        $blobs = $this->authService->getCryptoBlobs($request->login_id);
 
         if (! $blobs) {
             return response()->json([

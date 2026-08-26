@@ -167,7 +167,7 @@
   import { useSessionsController } from '@/controllers/sessionsController';
   import { useClientsController } from '@/controllers/clientsController';
   import { useRolesController } from '@/controllers/rolesController';
-  import { useAuthController } from '@/composables/authController';
+  import { useAuthController } from '@/controllers/authController';
 
   const usersController = useUsersController();
   const sessionsController = useSessionsController();

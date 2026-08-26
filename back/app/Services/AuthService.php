@@ -89,12 +89,13 @@ class AuthService
     }
 
     /**
-     * First step of advanced login: return crypto blobs for client-side decryption.
+     * Return the client-side crypto material for an advanced user.
      *
-     * Client provides login_id + password (or just login_id for lookup).
-     * Server returns salt_a, wrapped_dek_a, encrypted_profile, encryption_level.
+     * Used by login, recovery, and profile refresh flows: the caller
+     * derives Key_A/Key_R locally and unwraps the DEK.
+     * Public data only (salts + wrapped keys + encrypted profile).
      */
-    public function loginAdvancedFirstStep(string $loginId): ?array
+    public function getCryptoBlobs(string $loginId): ?array
     {
         $user = User::where('login_id', $loginId)
             ->where('encryption_level', 'advanced')

@@ -29,7 +29,7 @@ import {
 } from '@ionic/vue'
 
 // 2. Controllers / Composables
-import { useAuthController } from '@/composables/authController'
+import { useAuthController } from '@/controllers/authController'
 const authController = useAuthController()
 
 // 3. Components

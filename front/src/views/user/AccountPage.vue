@@ -14,7 +14,7 @@
   import { computed } from 'vue';
 
   // 2. Controllers
-  import { useAuthController } from '@/composables/authController';
+  import { useAuthController } from '@/controllers/authController';
 
   const authController = useAuthController();
 

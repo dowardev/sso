@@ -244,7 +244,7 @@ import { useVuelidate } from '@vuelidate/core'
 import { required, email, minLength, sameAs } from '@vuelidate/validators'
 
 // 2. Controllers / Composables
-import { useAuthController } from '@/composables/authController'
+import { useAuthController } from '@/controllers/authController'
 import { useValidation, withMsg } from '@/composables/useValidation'
 const authController = useAuthController()
 const { handleApiError } = useValidation()
