@@ -150,4 +150,94 @@ class AdvancedEncryptionTest extends TestCase
         ])
             ->assertStatus(404);
     }
-}
+
+        /**
+         * The upgrade path (basic -> advanced) is the ONLY way to reach advanced
+         * encryption now that registration is basic-only. It must null the
+         * plaintext identity fields, swap the password to the auth_proof hash,
+         * bump profile_version, and revoke every session.
+         */
+        public function test_basic_user_upgrades_to_advanced_via_profile(): void
+        {
+            $user = User::factory()->create([
+                'email' => 'upgrade@example.com',
+                'user' => 'upgrader',
+                'name' => 'Upgrader User',
+                'password' => bcrypt('CurrentPass123'),
+                'email_verified_at' => now(),
+            ]);
+
+            // Authenticate as a normal basic user (post-verification).
+            $response = $this->postJson('/api/login', [
+                'email' => 'upgrade@example.com',
+                'password' => 'CurrentPass123',
+            ]);
+            $token = $response->json('token');
+            $this->assertNotFalse($token, 'Login should succeed for a verified basic user');
+
+            $this->withToken($token)
+                ->postJson('/api/user/upgrade', [
+                    'current_password' => 'CurrentPass123',
+                    'auth_proof' => 'new-auth-proof-secret',
+                    'login_id' => 'upgrader-login-id-base64==',
+                    'salt_a' => base64_encode('salt-a-32-bytes-long!!!!!!!!!'),
+                    'salt_r' => base64_encode('salt-r-32-bytes-long!!!!!!!!!'),
+                    'wrapped_dek_a' => json_encode(['wrapped' => 'wrapped-a', 'algorithm' => 'AES-KW']),
+                    'wrapped_dek_r' => json_encode(['wrapped' => 'wrapped-r', 'algorithm' => 'AES-KW']),
+                    'encrypted_profile' => json_encode(['ciphertext' => 'fake', 'iv' => 'fake', 'authTag' => 'fake']),
+                    'encrypted_seed_verification' => 'seed-verification-hash',
+                    'seed_phrase' => 'twenty four words seed phrase for recovery storage',
+                ])
+                ->assertOk()
+                ->assertJsonPath('seed_phrase', 'twenty four words seed phrase for recovery storage');
+
+            $user->refresh();
+
+            // Zero-knowledge: server no longer holds the plaintext identity.
+            $this->assertSame('advanced', $user->encryption_level);
+            $this->assertNull($user->name);
+            $this->assertNull($user->user);
+            $this->assertNull($user->email);
+            $this->assertSame('upgrader-login-id-base64==', $user->login_id);
+            $this->assertSame(1, $user->profile_version);
+
+            // The account password now authenticates the auth_proof, not the
+            // original basic password.
+            $this->assertTrue(Hash::check('new-auth-proof-secret', $user->password));
+            $this->assertFalse(Hash::check('CurrentPass123', $user->password));
+        }
+
+        public function test_upgrade_rejects_wrong_current_password(): void
+        {
+            $user = User::factory()->create([
+                'email' => 'upgrade2@example.com',
+                'password' => bcrypt('CurrentPass123'),
+                'email_verified_at' => now(),
+            ]);
+
+            $response = $this->postJson('/api/login', [
+                'email' => 'upgrade2@example.com',
+                'password' => 'CurrentPass123',
+            ]);
+            $token = $response->json('token');
+
+            $this->withToken($token)
+                ->postJson('/api/user/upgrade', [
+                    'current_password' => 'WrongPass',
+                    'auth_proof' => 'new-auth-proof-secret',
+                    'login_id' => 'upgrader-login-id-2==',
+                    'salt_a' => base64_encode('salt-a-32-bytes-long!!!!!!!!!'),
+                    'salt_r' => base64_encode('salt-r-32-bytes-long!!!!!!!!!'),
+                    'wrapped_dek_a' => json_encode(['wrapped' => 'wrapped-a', 'algorithm' => 'AES-KW']),
+                    'wrapped_dek_r' => json_encode(['wrapped' => 'wrapped-r', 'algorithm' => 'AES-KW']),
+                    'encrypted_profile' => json_encode(['ciphertext' => 'fake', 'iv' => 'fake', 'authTag' => 'fake']),
+                    'encrypted_seed_verification' => 'seed-verification-hash',
+                ])
+                ->assertStatus(422)
+                ->assertJson(['message' => 'Contraseña actual incorrecta']);
+
+            $user->refresh();
+            $this->assertSame('basic', $user->encryption_level);
+            $this->assertSame('upgrade2@example.com', $user->email);
+        }
+    }

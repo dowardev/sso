@@ -586,7 +586,6 @@ class AuthService
         }
 
         // Hash the auth_proof for storage (password column)
-        $authHash = Hash::make($data['auth_proof']);
 
         // Update user with crypto blobs
         $user->encryption_level = 'advanced';

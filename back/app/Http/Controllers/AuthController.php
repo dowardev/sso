@@ -488,7 +488,7 @@ class AuthController extends Controller
                     'passkey_public_key' => $request->passkey_public_key,
                     'passkey_credential_id' => $request->passkey_credential_id,
                 ]);
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 return response()->json([
                     'message' => $e->getMessage(),
                 ], 422);
