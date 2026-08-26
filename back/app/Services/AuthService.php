@@ -107,6 +107,7 @@ class AuthService
 
         return [
             'encryption_level' => $user->encryption_level,
+            'profile_version' => $user->profile_version,
             'salt_a' => $user->salt_a,
             'salt_r' => $user->salt_r,
             'wrapped_dek_a' => $user->wrapped_dek_a,
@@ -527,6 +528,7 @@ class AuthService
         $user->wrapped_dek_r = $data['wrapped_dek_r'];
         $user->encrypted_profile = $data['encrypted_profile'];
         $user->password = $data['auth_hash']; // Argon2id(new_auth_proof)
+        $user->profile_version++;
         $user->save();
 
         // Revoke all sessions and tokens (security requirement)
@@ -596,6 +598,7 @@ class AuthService
         $user->encrypted_profile = $data['encrypted_profile'];
         $user->encrypted_seed_verification = $data['encrypted_seed_verification'];
         $user->password = $data['auth_hash']; // Argon2id(auth_proof)
+        $user->profile_version = 1;
 
         // Nullify plaintext fields
         $user->name = null;

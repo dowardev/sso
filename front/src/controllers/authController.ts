@@ -407,6 +407,12 @@ export function useAuthController() {
     });
 
     // Store DEK in auth store for recoveryComplete
+    // Decrypt and cache the profile now that the DEK is available
+    const profile = await cryptoService.decryptProfile({
+      dek,
+      blob: response.encrypted_profile,
+    });
+    cryptoService.setCachedProfile({ profile, version: response.profile_version });
     authStore.setDek({ dek });
 
     return response;
@@ -457,9 +463,11 @@ export function useAuthController() {
 
     // Step 6: re-wrap DEK with Key_R — the seed phrase did not rotate,
     // but wrapped_dek_r must be regenerated for the new DEK material.
+    // Re-fetch blobs to get the authoritative salt_r (never stored client-side)
+    const currentBlobs = await fetchCryptoBlobs({ loginId: params.login_id });
     const keyR = await cryptoService.deriveKeyR({
       seedPhrase: params.seed_phrase,
-      salt: (authStore.user as User & { salt_r?: string }).salt_r || '',
+      salt: currentBlobs.salt_r,
     });
     const wrappedDekR = await cryptoService.wrapDek({ dek, wrappingKey: keyR });
 

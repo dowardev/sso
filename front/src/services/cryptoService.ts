@@ -117,6 +117,7 @@ const keyState: AdvancedAuthState = {
  * consented profile to OAuth apps at callback time while the DEK is hot.
  */
 let cachedProfile: UserProfile | null = null;
+let cachedProfileVersion: number | null = null;
 
 // ─── High-Level Crypto API ────────────────────────────────────────────────────
 
@@ -253,10 +254,20 @@ const cryptoService: CryptoServiceAPI = {
     keyState.isAdvanced = false;
     keyState.loginId = null;
     cachedProfile = null;
+    cachedProfileVersion = null;
   },
 
   getCachedProfile(): UserProfile | null {
     return cachedProfile;
+  },
+
+  getCachedProfileVersion(): number | null {
+    return cachedProfileVersion;
+  },
+
+  setCachedProfile(params: { profile: UserProfile; version: number }): void {
+    cachedProfile = params.profile;
+    cachedProfileVersion = params.version;
   },
 
   getDek(): CryptoKey | null {

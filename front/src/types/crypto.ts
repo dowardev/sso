@@ -92,6 +92,7 @@ export interface AdvancedRegistrationPayload {
  */
 export interface AdvancedLoginResponse {
   encryption_level: 'advanced';
+  profile_version: number;
   salt_a: string;
   salt_r: string;
   wrapped_dek_a: WrappedKey;
@@ -133,6 +134,7 @@ export interface RecoveryVerifyRequest {
  * Recovery - Step 1: Response with blobs needed for recovery
  */
 export interface RecoveryVerifyResponse {
+  profile_version: number;
   salt_r: string;
   wrapped_dek_r: WrappedKey;
   encrypted_profile: EncryptedBlob;
@@ -237,6 +239,10 @@ export interface CryptoServiceAPI {
 
   /** Decrypted profile cached from the last successful decryptProfile call */
   getCachedProfile(): UserProfile | null;
+  /** Profile version captured alongside the cached profile (staleness check) */
+  getCachedProfileVersion(): number | null;
+  /** Store profile + its server-side version together after a fetch/decrypt */
+  setCachedProfile(params: { profile: UserProfile; version: number }): void;
 }
 
 /**

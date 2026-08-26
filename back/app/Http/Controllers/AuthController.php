@@ -336,6 +336,7 @@ class AuthController extends Controller
 
         // Return crypto blobs needed for recovery (salt_r, wrapped_dek_r)
         return response()->json([
+            'profile_version' => $user->profile_version,
             'salt_r' => $user->salt_r,
             'wrapped_dek_r' => $user->wrapped_dek_r,
             'encrypted_profile' => $user->encrypted_profile,
@@ -667,6 +668,7 @@ class AuthController extends Controller
                 'is_protected' => $role->is_protected,
             ]),
             'encryption_level' => $user->encryption_level,
+            'profile_version' => $user->profile_version,
         ];
 
         // For advanced users, return encrypted blobs instead of plaintext
@@ -711,6 +713,7 @@ class AuthController extends Controller
 
             $oldEncryptedProfile = $user->encrypted_profile;
             $user->encrypted_profile = $validated['encrypted_profile'];
+            $user->profile_version++;
             $user->save();
 
             $this->activityLogService->logFromRequest(
