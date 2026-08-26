@@ -111,6 +111,13 @@ const keyState: AdvancedAuthState = {
   loginId: null,
 };
 
+/**
+ * Decrypted profile cache (tab-scoped, memory only).
+ * Populated on every successful decryptProfile; consumed to deliver the
+ * consented profile to OAuth apps at callback time while the DEK is hot.
+ */
+let cachedProfile: UserProfile | null = null;
+
 // ─── High-Level Crypto API ────────────────────────────────────────────────────
 
 const cryptoService: CryptoServiceAPI = {
@@ -188,7 +195,9 @@ const cryptoService: CryptoServiceAPI = {
     });
 
     const unwrapped = unwrapResponse({ response, expectedType: 'profile-decrypted' });
-    return (unwrapped as Extract<CryptoWorkerResponse, { type: 'profile-decrypted' }>).payload;
+    const profile = (unwrapped as Extract<CryptoWorkerResponse, { type: 'profile-decrypted' }>).payload;
+    cachedProfile = profile;
+    return profile;
   },
 
   async computeAuthProof(params: { keyA: CryptoKey }): Promise<string> {
@@ -243,6 +252,11 @@ const cryptoService: CryptoServiceAPI = {
     keyState.keyA = null;
     keyState.isAdvanced = false;
     keyState.loginId = null;
+    cachedProfile = null;
+  },
+
+  getCachedProfile(): UserProfile | null {
+    return cachedProfile;
   },
 
   getDek(): CryptoKey | null {

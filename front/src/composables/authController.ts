@@ -90,6 +90,33 @@ interface ActivityLogEntry {
   metadata: Record<string, unknown>;
 }
 
+/**
+ * Encode a JSON payload as base64 (unicode-safe) for URL fragment delivery.
+ */
+function jsonToBase64(params: { value: unknown }): string {
+  const json = JSON.stringify(params.value);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  bytes.forEach((b) => {
+    binary += String.fromCharCode(b);
+  });
+  return btoa(binary);
+}
+
+/**
+ * Build the redirect URL for an OAuth app. If the user is advanced and a
+ * freshly decrypted profile is available in memory, it is appended as a
+ * `#profile=` fragment so it never reaches server logs.
+ */
+function buildAppRedirectUrl(params: { redirectUri: string; urlParams: URLSearchParams }): string {
+  let url = `${params.redirectUri}?${params.urlParams.toString()}`;
+  const profile = cryptoService.getCachedProfile();
+  if (profile) {
+    url += `#profile=${jsonToBase64({ value: profile })}`;
+  }
+  return url;
+}
+
 function generateRandomSalt(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
@@ -744,7 +771,10 @@ export function useAuthController() {
       urlParams.set('state', response.state);
     }
 
-    window.location.href = `${params.redirect_uri}?${urlParams.toString()}`;
+    window.location.href = buildAppRedirectUrl({
+      redirectUri: params.redirect_uri,
+      urlParams,
+    });
   }
 
   async function denyOAuthAuthorization(params: {
@@ -791,7 +821,10 @@ export function useAuthController() {
       urlParams.set('state', params.state);
     }
 
-    window.location.href = `${params.redirect_uri}?${urlParams.toString()}`;
+    window.location.href = buildAppRedirectUrl({
+      redirectUri: params.redirect_uri,
+      urlParams,
+    });
   }
 
   async function checkSession(): Promise<boolean> {

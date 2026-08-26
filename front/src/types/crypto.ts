@@ -232,6 +232,11 @@ export interface CryptoServiceAPI {
 
   /** Compute an HMAC proof with a wrapping key (context: "auth" | "verify") */
   computeHmacProof(params: { key: CryptoKey; context: string }): Promise<string>;
+
+  // ─── Profile delivery to OAuth apps (tab-scoped cache) ────────────────────
+
+  /** Decrypted profile cached from the last successful decryptProfile call */
+  getCachedProfile(): UserProfile | null;
 }
 
 /**
