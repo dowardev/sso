@@ -9,7 +9,13 @@
   "license": "MIT",
   "author": "dowardev",
   "repository": "https://gitlab.com/dowardev/sso",
-  "keywords": ["sso", "oauth2", "pkce", "dpop", "authentication"],
+  "keywords": [
+    "sso",
+    "oauth2",
+    "pkce",
+    "dpop",
+    "authentication"
+  ],
   "readme": "README.md",
   "exports": {
     ".": {
@@ -25,7 +31,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "@scure/bip39": "^2.3.0"
   },
   "devDependencies": {
     "typescript": "^5.3.0",
