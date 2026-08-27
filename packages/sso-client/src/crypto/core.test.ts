@@ -62,16 +62,16 @@ describe('zke core crypto', () => {
 
   it('PBKDF2 gives different output for different passwords (salt-equal)', async () => {
     const salt = crypto.getRandomValues(new Uint8Array(32));
-    const a = await pbkdf2Bytes({ secret: 'pass-1', salt });
-    const b = await pbkdf2Bytes({ secret: 'pass-2', salt });
+    const a = await pbkdf2Bytes({ secret: 'pass-1', salt, iterations: 100_000 });
+    const b = await pbkdf2Bytes({ secret: 'pass-2', salt, iterations: 100_000 });
     expect(bytesToBase64(a)).not.toBe(bytesToBase64(b));
   });
 
   it('PBKDF2 output changes with salt (password-equal)', async () => {
     const s1 = crypto.getRandomValues(new Uint8Array(32));
     const s2 = crypto.getRandomValues(new Uint8Array(32));
-    const a = await pbkdf2Bytes({ secret: 'same', salt: s1 });
-    const b = await pbkdf2Bytes({ secret: 'same', salt: s2 });
+    const a = await pbkdf2Bytes({ secret: 'same', salt: s1, iterations: 100_000 });
+    const b = await pbkdf2Bytes({ secret: 'same', salt: s2, iterations: 100_000 });
     expect(bytesToBase64(a)).not.toBe(bytesToBase64(b));
   });
 });

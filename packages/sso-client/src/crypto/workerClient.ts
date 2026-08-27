@@ -45,8 +45,9 @@ function getWorker(): Worker {
   return worker;
 }
 
-function send(req: WorkerRequest): Promise<WorkerResponse> {
+function send(params: { req: WorkerRequest }): Promise<WorkerResponse> {
   return new Promise((resolve, reject) => {
+    const req = params.req;
     const id = ++messageId;
     pending.set(id, { resolve, reject });
     const withId = req as WorkerRequest & { _requestId: number };
@@ -55,56 +56,56 @@ function send(req: WorkerRequest): Promise<WorkerResponse> {
     setTimeout(() => {
       if (pending.has(id)) {
         pending.delete(id);
-        reject(new Error('Operación crypto agotó el tiempo'));
+        reject(new Error('Crypto operation timed out'));
       }
     }, 30_000);
   });
 }
 
-async function call(req: WorkerRequest): Promise<WorkerResponse> {
-  const res = await send(req);
+async function call(params: { req: WorkerRequest }): Promise<WorkerResponse> {
+  const res = await send({ req: params.req });
   if (res.error || res.type === 'error') {
-    throw new Error(res.error ?? 'Error desconocido');
+    throw new Error(res.error ?? 'Unknown error');
   }
   return res;
 }
 
 export interface CryptoWorkerClient {
-  setDek(dekBytes: Uint8Array): Promise<void>;
-  decryptProfile(blob: EncryptedBlob): Promise<UserProfile>;
-  encryptProfile(profile: UserProfile): Promise<EncryptedBlob>;
-  wrapDek(wrappingKeyB64: string): Promise<string>;
-  unwrapDek(wrappedB64: string, unwrappingKeyB64: string): Promise<void>;
+  setDek(params: { dekBytes: Uint8Array }): Promise<void>;
+  decryptProfile(params: { blob: EncryptedBlob }): Promise<UserProfile>;
+  encryptProfile(params: { profile: UserProfile }): Promise<EncryptedBlob>;
+  wrapDek(params: { wrappingKeyB64: string }): Promise<string>;
+  unwrapDek(params: { wrappedB64: string; unwrappingKeyB64: string }): Promise<void>;
   clear(): Promise<void>;
   terminate(): void;
 }
 
 class WorkerClient implements CryptoWorkerClient {
-  async setDek(dekBytes: Uint8Array): Promise<void> {
-    await call({ type: 'set-dek', payload: { dekBytes: toB64(dekBytes) } });
+  async setDek(params: { dekBytes: Uint8Array }): Promise<void> {
+    await call({ req: { type: 'set-dek', payload: { dekBytes: toB64({ bytes: params.dekBytes }) } }});
   }
 
-  async decryptProfile(blob: EncryptedBlob): Promise<UserProfile> {
-    const res = await call({ type: 'decrypt-payload', payload: { blob } });
+  async decryptProfile(params: { blob: EncryptedBlob }): Promise<UserProfile> {
+    const res = await call({ req: { type: 'decrypt-payload', payload: { blob: params.blob } }});
     return (res.payload as { profile: UserProfile }).profile;
   }
 
-  async encryptProfile(profile: UserProfile): Promise<EncryptedBlob> {
-    const res = await call({ type: 'encrypt-payload', payload: { profile } });
+  async encryptProfile(params: { profile: UserProfile }): Promise<EncryptedBlob> {
+    const res = await call({ req: { type: 'encrypt-payload', payload: { profile: params.profile } }});
     return (res.payload as { blob: EncryptedBlob }).blob;
   }
 
-  async wrapDek(wrappingKeyB64: string): Promise<string> {
-    const res = await call({ type: 'wrap-dek', payload: { wrappingKeyB64 } });
+  async wrapDek(params: { wrappingKeyB64: string }): Promise<string> {
+    const res = await call({ req: { type: 'wrap-dek', payload: { wrappingKeyB64: params.wrappingKeyB64 } }});
     return (res.payload as { wrapped: string }).wrapped;
   }
 
-  async unwrapDek(wrappedB64: string, unwrappingKeyB64: string): Promise<void> {
-    await call({ type: 'unwrap-dek', payload: { wrappedB64, unwrappingKeyB64 } });
+  async unwrapDek(params: { wrappedB64: string; unwrappingKeyB64: string }): Promise<void> {
+    await call({ req: { type: 'unwrap-dek', payload: { wrappedB64: params.wrappedB64, unwrappingKeyB64: params.unwrappingKeyB64 } }});
   }
 
   async clear(): Promise<void> {
-    await call({ type: 'clear', payload: {} });
+    await call({ req: { type: 'clear', payload: {} } });
   }
 
   terminate(): void {
@@ -115,9 +116,9 @@ class WorkerClient implements CryptoWorkerClient {
   }
 }
 
-function toB64(bytes: Uint8Array): string {
+function toB64(params: { bytes: Uint8Array }): string {
   let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  for (let i = 0; i < params.bytes.length; i++) binary += String.fromCharCode(params.bytes[i]);
   return btoa(binary);
 }
 

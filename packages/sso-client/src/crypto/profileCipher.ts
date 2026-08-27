@@ -39,11 +39,11 @@ export function clearProfileCache(): void {
 // ─── cipher (via isolated worker) ────────────────────────────────────────────
 
 export async function encryptProfile(params: { profile: UserProfile }): Promise<EncryptedBlob> {
-  return getCryptoWorkerClient().encryptProfile(params.profile);
+  return getCryptoWorkerClient().encryptProfile({ profile: params.profile });
 }
 
 export async function decryptProfile(params: { blob: EncryptedBlob }): Promise<UserProfile> {
-  const profile = await getCryptoWorkerClient().decryptProfile(params.blob);
+  const profile = await getCryptoWorkerClient().decryptProfile({ blob: params.blob });
   cachedProfile = profile;
   return profile;
 }
