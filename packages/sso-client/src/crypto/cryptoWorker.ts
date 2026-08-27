@@ -76,7 +76,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         'raw',
         bytes as unknown as BufferSource,
         { name: AES_GCM_ALGORITHM, length: KEY_LENGTH_BITS },
-        false,
+            true, // extractable so wrapKey can export the resident DEK
         ['encrypt', 'decrypt'],
       );
         res = { type: 'ok', payload: {} };
