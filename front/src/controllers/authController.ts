@@ -331,7 +331,7 @@ export function useAuthController() {
       salt_r,
       wrapped_dek_a: JSON.stringify(wrapped_dek_a),
       wrapped_dek_r: JSON.stringify(wrapped_dek_r),
-      encrypted_profile,
+      encrypted_profile: JSON.stringify(encrypted_profile),
       encrypted_seed_verification,
       encryption_level: 'advanced',
     };
@@ -473,7 +473,7 @@ export function useAuthController() {
         salt_a: newSaltA,
         wrapped_dek_a: JSON.stringify(newWrappedDekA),
         wrapped_dek_r: JSON.stringify(wrappedDekR),
-        encrypted_profile: newEncryptedProfile,
+        encrypted_profile: JSON.stringify(newEncryptedProfile),
       },
     });
 
@@ -610,7 +610,7 @@ export function useAuthController() {
         salt_r: saltR,
         wrapped_dek_a: JSON.stringify(wrappedDekA),
         wrapped_dek_r: JSON.stringify(wrappedDekR),
-        encrypted_profile: encryptedProfile,
+        encrypted_profile: JSON.stringify(encryptedProfile),
         encrypted_seed_verification: encryptedSeedVerification,
       },
     });

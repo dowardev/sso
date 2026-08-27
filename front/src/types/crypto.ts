@@ -82,7 +82,7 @@ export interface AdvancedRegistrationPayload {
   salt_r: string;              // Base64-encoded salt for Key_R derivation
   wrapped_dek_a: string;   // DEK wrapped with Key_A
   wrapped_dek_r: string;   // DEK wrapped with Key_R
-  encrypted_profile: EncryptedBlob; // Profile encrypted with DEK
+  encrypted_profile: string; // Profile encrypted with DEK
   encrypted_seed_verification: string; // Base64 HMAC(Key_R, "verify")
   encryption_level: 'advanced';
 }
@@ -96,7 +96,7 @@ export interface AdvancedLoginResponse {
   salt_a: string;
   salt_r: string;
   wrapped_dek_a: string;
-  encrypted_profile: EncryptedBlob;
+  encrypted_profile: string;
 }
 
 /**
@@ -137,7 +137,7 @@ export interface RecoveryVerifyResponse {
   profile_version: number;
   salt_r: string;
   wrapped_dek_r: string;
-  encrypted_profile: EncryptedBlob;
+  encrypted_profile: string;
 }
 
 /**
@@ -149,7 +149,7 @@ export interface RecoveryCompleteRequest {
   salt_a: string;              // New salt for Key_A
   wrapped_dek_a: string;   // DEK wrapped with new Key_A
   wrapped_dek_r: string;   // DEK wrapped with Key_R (unchanged)
-  encrypted_profile: EncryptedBlob; // Re-encrypted profile
+  encrypted_profile: string; // Re-encrypted profile
 }
 
 /**
@@ -205,7 +205,7 @@ export interface CryptoServiceAPI {
   /** Encrypt user profile with DEK */
   encryptProfile(params: { profile: UserProfile }): Promise<EncryptedBlob>;
   /** Decrypt user profile with DEK */
-  decryptProfile(params: { blob: EncryptedBlob }): Promise<UserProfile>;
+  decryptProfile(params: { blob: string }): Promise<UserProfile>;
   /** Compute auth proof = HMAC(Key_A, "auth") */
   computeAuthProof(params: { keyA: CryptoKey }): Promise<string>;
   /** Generate BIP39 seed phrase (24 words) */

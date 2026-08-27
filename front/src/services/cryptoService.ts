@@ -98,9 +98,11 @@ const cryptoService: CryptoServiceAPI = {
     return getCryptoWorkerClient().encryptProfile({ profile: params.profile as never });
   },
 
-  async decryptProfile(params: { blob: EncryptedBlob }): Promise<UserProfile> {
+  async decryptProfile(params: { blob: string }): Promise<UserProfile> {
+    // Server returns encrypted_profile as a JSON string; parse to the blob.
+    const blob = JSON.parse(params.blob) as EncryptedBlob;
     const profile = (await getCryptoWorkerClient().decryptProfile({
-      blob: params.blob,
+      blob,
     })) as unknown as UserProfile;
     cachedProfile = profile;
     return profile;
