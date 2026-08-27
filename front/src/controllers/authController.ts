@@ -329,8 +329,8 @@ export function useAuthController() {
       auth_hash: '', // Server computes from auth_proof
       salt_a,
       salt_r,
-      wrapped_dek_a,
-      wrapped_dek_r,
+      wrapped_dek_a: JSON.stringify(wrapped_dek_a),
+      wrapped_dek_r: JSON.stringify(wrapped_dek_r),
       encrypted_profile,
       encrypted_seed_verification,
       encryption_level: 'advanced',
@@ -471,8 +471,8 @@ export function useAuthController() {
         login_id: params.login_id,
         auth_proof: newAuthProof,
         salt_a: newSaltA,
-        wrapped_dek_a: newWrappedDekA,
-        wrapped_dek_r: wrappedDekR,
+        wrapped_dek_a: JSON.stringify(newWrappedDekA),
+        wrapped_dek_r: JSON.stringify(wrappedDekR),
         encrypted_profile: newEncryptedProfile,
       },
     });
@@ -528,7 +528,7 @@ export function useAuthController() {
         login_id: loginId,
         auth_proof: newAuthProof,
         salt_a: newSaltA,
-        wrapped_dek_a: newWrappedDekA,
+        wrapped_dek_a: JSON.stringify(newWrappedDekA),
       },
     });
 
@@ -608,8 +608,8 @@ export function useAuthController() {
         login_id: loginId,
         salt_a: saltA,
         salt_r: saltR,
-        wrapped_dek_a: wrappedDekA,
-        wrapped_dek_r: wrappedDekR,
+        wrapped_dek_a: JSON.stringify(wrappedDekA),
+        wrapped_dek_r: JSON.stringify(wrappedDekR),
         encrypted_profile: encryptedProfile,
         encrypted_seed_verification: encryptedSeedVerification,
       },

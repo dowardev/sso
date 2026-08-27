@@ -81,8 +81,10 @@ export async function restoreDekSilently(params: {
   const kPrf = await derivePrfKey({ prfOutput: result.prfOutput, salt: saltBytes });
   const kPrfKey = await importAesKwFromBytes(kPrf);
 
-  const wrapped: WrappedKey = { wrapped: entry.wrappedDek, algorithm: 'AES-KW' };
-  await cryptoService.unwrapDek({ wrapped, unwrappingKey: kPrfKey });
+  await cryptoService.unwrapDek({
+    wrapped: JSON.stringify({ wrapped: entry.wrappedDek, algorithm: 'AES-KW' }),
+    unwrappingKey: kPrfKey,
+  });
 
   // Drop K_PRF bytes from the main heap.
   kPrf.fill(0);

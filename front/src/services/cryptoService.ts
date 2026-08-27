@@ -85,9 +85,11 @@ const cryptoService: CryptoServiceAPI = {
     return { wrapped, algorithm: 'AES-KW' };
   },
 
-  async unwrapDek(params: { wrapped: WrappedKey; unwrappingKey: CryptoKey }): Promise<void> {
+  async unwrapDek(params: { wrapped: string; unwrappingKey: CryptoKey }): Promise<void> {
+    // The server returns wrapped_dek_* as a JSON string; parse to get the blob.
+    const parsed = JSON.parse(params.wrapped) as WrappedKey;
     await getCryptoWorkerClient().unwrapDek({
-      wrappedB64: params.wrapped.wrapped,
+      wrappedB64: parsed.wrapped,
       unwrappingKeyB64: await exportKeyToB64(params.unwrappingKey),
     });
   },

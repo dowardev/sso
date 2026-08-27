@@ -80,8 +80,8 @@ export interface AdvancedRegistrationPayload {
   auth_hash: string;           // Argon2id(auth_proof) where auth_proof = HMAC(Key_A, "auth")
   salt_a: string;              // Base64-encoded salt for Key_A derivation
   salt_r: string;              // Base64-encoded salt for Key_R derivation
-  wrapped_dek_a: WrappedKey;   // DEK wrapped with Key_A
-  wrapped_dek_r: WrappedKey;   // DEK wrapped with Key_R
+  wrapped_dek_a: string;   // DEK wrapped with Key_A
+  wrapped_dek_r: string;   // DEK wrapped with Key_R
   encrypted_profile: EncryptedBlob; // Profile encrypted with DEK
   encrypted_seed_verification: string; // Base64 HMAC(Key_R, "verify")
   encryption_level: 'advanced';
@@ -95,7 +95,7 @@ export interface AdvancedLoginResponse {
   profile_version: number;
   salt_a: string;
   salt_r: string;
-  wrapped_dek_a: WrappedKey;
+  wrapped_dek_a: string;
   encrypted_profile: EncryptedBlob;
 }
 
@@ -136,7 +136,7 @@ export interface RecoveryVerifyRequest {
 export interface RecoveryVerifyResponse {
   profile_version: number;
   salt_r: string;
-  wrapped_dek_r: WrappedKey;
+  wrapped_dek_r: string;
   encrypted_profile: EncryptedBlob;
 }
 
@@ -147,8 +147,8 @@ export interface RecoveryCompleteRequest {
   login_id: string;
   auth_proof: string;          // HMAC(new_Key_A, "auth")
   salt_a: string;              // New salt for Key_A
-  wrapped_dek_a: WrappedKey;   // DEK wrapped with new Key_A
-  wrapped_dek_r: WrappedKey;   // DEK wrapped with Key_R (unchanged)
+  wrapped_dek_a: string;   // DEK wrapped with new Key_A
+  wrapped_dek_r: string;   // DEK wrapped with Key_R (unchanged)
   encrypted_profile: EncryptedBlob; // Re-encrypted profile
 }
 
@@ -159,7 +159,7 @@ export interface ChangePasswordAdvancedRequest {
   login_id: string;
   auth_proof: string;        // HMAC(new_Key_A, "auth")
   salt_a: string;            // New salt for Key_A
-  wrapped_dek_a: WrappedKey; // DEK wrapped with new Key_A
+  wrapped_dek_a: string; // DEK wrapped with new Key_A
 }
 
 /**
@@ -201,7 +201,7 @@ export interface CryptoServiceAPI {
   /** Wrap DEK with Key_A or Key_R */
   wrapDek(params: { wrappingKey: CryptoKey }): Promise<WrappedKey>;
   /** Unwrap DEK with Key_A or Key_R */
-  unwrapDek(params: { wrapped: WrappedKey; unwrappingKey: CryptoKey }): Promise<void>;
+  unwrapDek(params: { wrapped: string; unwrappingKey: CryptoKey }): Promise<void>;
   /** Encrypt user profile with DEK */
   encryptProfile(params: { profile: UserProfile }): Promise<EncryptedBlob>;
   /** Decrypt user profile with DEK */
