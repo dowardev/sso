@@ -6,6 +6,10 @@ import router from './router';
 
 import { IonicVue } from '@ionic/vue';
 
+// ZKE inactivity re-lock: drop the resident DEK when the tab is idle or
+// backgrounded, bounding the XSS window to active use.
+import { setupZkeRelock } from '@/services/relockService';
+
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/vue/css/core.css';
 

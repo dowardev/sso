@@ -125,14 +125,22 @@ const cryptoService: CryptoServiceAPI = {
     cachedProfileVersion = null;
   },
 
-  getDek(): CryptoKey | null {
-    return null; // DEK is resident in the worker; never exposed to main thread.
-  },
 
-  getKeyA(): CryptoKey | null {
-    return keyA;
-  },
+      /**
+       * Drop only the resident DEK + decrypted profile (keep the auth state).
+       * Used by the inactivity re-lock: the session stays logged in, but the
+       * worker no longer holds the DEK (re-auth or a PRF gesture re-unlocks).
+       */
+      relock(): void {
+        void getCryptoWorkerClient().clear();
+        keyA = null;
+        cachedProfile = null;
+        cachedProfileVersion = null;
+      },
 
+      getKeyA(): CryptoKey | null {
+        return keyA;
+      },
   isAdvanced(): boolean {
     return isAdvanced;
   },

@@ -217,8 +217,6 @@ export interface CryptoServiceAPI {
 
   // ─── Additional helper methods ────────────────────────────────────────
 
-  /** Get current DEK from memory */
-  getDek(): CryptoKey | null;
   /** Get current Key_A from memory */
   getKeyA(): CryptoKey | null;
   /** Check if user has advanced encryption */
@@ -228,8 +226,10 @@ export interface CryptoServiceAPI {
   /** Initialize advanced user state after successful login/registration */
   initializeAdvancedState(params: { loginId: string }): void;
   /** Terminate worker (call on app shutdown if needed) */
-  terminate(): void;
+      terminate(): void;
 
+      /** Drop the resident DEK + profile cache only (keep auth state) */
+      relock(): void;
   // ─── HMAC helpers (shared by auth proof and seed verification) ────────────
 
   /** Compute an HMAC proof with a wrapping key (context: "auth" | "verify") */
