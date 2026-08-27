@@ -3,7 +3,6 @@ import { computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/services/api';
 import { cryptoService } from '@/services/cryptoService';
-import { deviceKeyService } from '@/services/deviceKeyService';
 import { dpopService } from '@/services/dpopService';
 import type {
   User,
@@ -241,16 +240,13 @@ export function useAuthController() {
     authStore.setKeyA({ keyA });
 
     // Unwrap DEK using Key_A and persist it for silent restore on this device
-    const dek = await cryptoService.unwrapDek({
+        await cryptoService.unwrapDek({
       wrapped: blobs.wrapped_dek_a,
       unwrappingKey: keyA,
     });
-    await deviceKeyService.persistDek({ dek });
-    authStore.setDek({ dek });
 
     // Decrypt profile
     const profile = await cryptoService.decryptProfile({
-      dek,
       blob: blobs.encrypted_profile,
     });
 
@@ -282,7 +278,7 @@ export function useAuthController() {
     client_id?: string;
   }): Promise<{ user: User; seed_phrase: string }> {
     // Generate DEK
-    const dek = await cryptoService.generateDek();
+        await cryptoService.generateDek();
 
     // Generate salt_a and salt_r
     const salt_a = generateRandomSalt();
@@ -303,8 +299,8 @@ export function useAuthController() {
     });
 
     // Wrap DEK with Key_A and Key_R
-    const wrapped_dek_a = await cryptoService.wrapDek({ dek, wrappingKey: keyA });
-    const wrapped_dek_r = await cryptoService.wrapDek({ dek, wrappingKey: keyR });
+    const wrapped_dek_a = await cryptoService.wrapDek({ wrappingKey: keyA });
+    const wrapped_dek_r = await cryptoService.wrapDek({ wrappingKey: keyR });
 
     // Encrypt profile
     const profile: CryptoUserProfile = {
@@ -312,7 +308,7 @@ export function useAuthController() {
       email: params.email,
       user: params.user,
     };
-    const encrypted_profile = await cryptoService.encryptProfile({ dek, profile });
+    const encrypted_profile = await cryptoService.encryptProfile({ profile });
 
     // Compute seed verification
     // HMAC(Key_R, "verify") — the backend compares this exact context on recovery.
@@ -353,8 +349,6 @@ export function useAuthController() {
     });
 
     // Store crypto state
-    await deviceKeyService.persistDek({ dek });
-    authStore.setDek({ dek });
     authStore.setAdvancedState({ isAdvanced: true, loginId: response.user.login_id });
 
     return { user: response.user, seed_phrase: seedPhrase };
@@ -404,7 +398,7 @@ export function useAuthController() {
     }
 
     // Step 6: Unwrap DEK with Key_R for use in recoveryComplete
-    const dek = await cryptoService.unwrapDek({
+        await cryptoService.unwrapDek({
       wrapped: response.wrapped_dek_r,
       unwrappingKey: keyR,
     });
@@ -412,11 +406,9 @@ export function useAuthController() {
     // Store DEK in auth store for recoveryComplete
     // Decrypt and cache the profile now that the DEK is available
     const profile = await cryptoService.decryptProfile({
-      dek,
       blob: response.encrypted_profile,
     });
     cryptoService.setCachedProfile({ profile, version: response.profile_version });
-    authStore.setDek({ dek });
 
     return response;
   }
@@ -439,11 +431,6 @@ export function useAuthController() {
     });
 
     // DEK is now in auth store (set by recoveryVerify)
-    const dek = authStore.getDek();
-    if (!dek) {
-      throw new Error('DEK no disponible después de recoveryVerify');
-    }
-
     // Step 2: Generate new salt_a
     const newSaltA = generateRandomSalt();
 
@@ -454,7 +441,7 @@ export function useAuthController() {
     });
 
     // Step 4: Wrap DEK with new Key_A
-    const newWrappedDekA = await cryptoService.wrapDek({ dek, wrappingKey: newKeyA });
+    const newWrappedDekA = await cryptoService.wrapDek({ wrappingKey: newKeyA });
 
     // Step 5: Re-encrypt profile with DEK (same plaintext, same DEK).
     // recoveryVerify already decrypted it; use the in-memory cache.
@@ -462,7 +449,7 @@ export function useAuthController() {
     if (!profile) {
       throw new Error('Perfil descifrado no disponible en memoria');
     }
-    const newEncryptedProfile = await cryptoService.encryptProfile({ dek, profile });
+    const newEncryptedProfile = await cryptoService.encryptProfile({ profile });
 
     // Step 6: re-wrap DEK with Key_R — the seed phrase did not rotate,
     // but wrapped_dek_r must be regenerated for the new DEK material.
@@ -472,7 +459,7 @@ export function useAuthController() {
       seedPhrase: params.seed_phrase,
       salt: currentBlobs.salt_r,
     });
-    const wrappedDekR = await cryptoService.wrapDek({ dek, wrappingKey: keyR });
+    const wrappedDekR = await cryptoService.wrapDek({ wrappingKey: keyR });
 
     // Step 7: Compute new auth_proof = HMAC(new_Key_A, "auth")
     const newAuthProof = await cryptoService.computeAuthProof({ keyA: newKeyA });
@@ -516,11 +503,6 @@ export function useAuthController() {
       throw new Error('Las contraseñas no coinciden');
     }
 
-    const dek = authStore.getDek();
-    if (!dek) {
-      throw new Error('DEK no disponible en memoria');
-    }
-
     // NOTE: current-password verification is delegated to the authenticated
     // session; the server rejects an invalid auth_proof rotation.
 
@@ -534,7 +516,7 @@ export function useAuthController() {
     });
 
     // Wrap DEK with new Key_A
-    const newWrappedDekA = await cryptoService.wrapDek({ dek, wrappingKey: newKeyA });
+    const newWrappedDekA = await cryptoService.wrapDek({ wrappingKey: newKeyA });
 
     // Compute new auth_proof
     const newAuthProof = await cryptoService.computeAuthProof({ keyA: newKeyA });
@@ -590,7 +572,7 @@ export function useAuthController() {
       throw new Error('Perfil incompleto para migrar a cifrado avanzado');
     }
 
-    const dek = await cryptoService.generateDek();
+        await cryptoService.generateDek();
     const saltA = generateRandomSalt();
     const saltR = generateRandomSalt();
 
@@ -603,9 +585,9 @@ export function useAuthController() {
     const seedPhrase = await cryptoService.generateSeedPhrase();
     const keyR = await cryptoService.deriveKeyR({ seedPhrase, salt: saltR });
 
-    const wrappedDekA = await cryptoService.wrapDek({ dek, wrappingKey: keyA });
-    const wrappedDekR = await cryptoService.wrapDek({ dek, wrappingKey: keyR });
-    const encryptedProfile = await cryptoService.encryptProfile({ dek, profile });
+    const wrappedDekA = await cryptoService.wrapDek({ wrappingKey: keyA });
+    const wrappedDekR = await cryptoService.wrapDek({ wrappingKey: keyR });
+    const encryptedProfile = await cryptoService.encryptProfile({ profile });
 
     // HMAC(Key_R, "verify") — proves knowledge of the seed without revealing it.
     const encryptedSeedVerification = await cryptoService.computeHmacProof({
@@ -633,8 +615,6 @@ export function useAuthController() {
       },
     });
 
-    await deviceKeyService.persistDek({ dek });
-    authStore.setDek({ dek });
     authStore.setAdvancedState({ isAdvanced: true, loginId });
 
     return { user: response.user, seedPhrase };
@@ -679,15 +659,9 @@ export function useAuthController() {
       return false;
     }
 
-    const dek = await deviceKeyService.restoreDek();
-    if (!dek) {
-      return false;
-    }
-
     try {
       const blobs = await fetchCryptoBlobs({ loginId });
       const profile = await cryptoService.decryptProfile({
-        dek,
         blob: blobs.encrypted_profile,
       });
       cryptoService.setCachedProfile({ profile, version: blobs.profile_version });
@@ -699,7 +673,7 @@ export function useAuthController() {
 
   // ─── Logout ────────────────────────────────────────────────────────────────
   async function logout(): Promise<void> {
-    await deviceKeyService.clear();
+        cryptoService.clearKeys();
     return authStore.logout();
   }
 

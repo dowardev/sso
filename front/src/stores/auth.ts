@@ -121,7 +121,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const blob = JSON.parse(params.encryptedProfile);
-      return await cryptoService.decryptProfile({ dek, blob });
+      return await cryptoService.decryptProfile({ blob });
     } catch (error) {
       console.error('Failed to decrypt profile:', error);
       return null;

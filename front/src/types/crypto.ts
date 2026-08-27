@@ -197,15 +197,15 @@ export interface CryptoServiceAPI {
   /** Derive Key_A from password + salt */
   deriveKeyA(params: { password: string; salt: string; iterations?: number }): Promise<CryptoKey>;
   /** Generate random DEK */
-  generateDek(): Promise<CryptoKey>;
+  generateDek(): Promise<void>;
   /** Wrap DEK with Key_A or Key_R */
-  wrapDek(params: { dek: CryptoKey; wrappingKey: CryptoKey }): Promise<WrappedKey>;
+  wrapDek(params: { wrappingKey: CryptoKey }): Promise<WrappedKey>;
   /** Unwrap DEK with Key_A or Key_R */
-  unwrapDek(params: { wrapped: WrappedKey; unwrappingKey: CryptoKey }): Promise<CryptoKey>;
+  unwrapDek(params: { wrapped: WrappedKey; unwrappingKey: CryptoKey }): Promise<void>;
   /** Encrypt user profile with DEK */
-  encryptProfile(params: { dek: CryptoKey; profile: UserProfile }): Promise<EncryptedBlob>;
+  encryptProfile(params: { profile: UserProfile }): Promise<EncryptedBlob>;
   /** Decrypt user profile with DEK */
-  decryptProfile(params: { dek: CryptoKey; blob: EncryptedBlob }): Promise<UserProfile>;
+  decryptProfile(params: { blob: EncryptedBlob }): Promise<UserProfile>;
   /** Compute auth proof = HMAC(Key_A, "auth") */
   computeAuthProof(params: { keyA: CryptoKey }): Promise<string>;
   /** Generate BIP39 seed phrase (24 words) */

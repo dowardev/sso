@@ -10,6 +10,33 @@ export type {
 } from "./router/createAuthGuard";
 export * from "./types";
 
+export {
+  getCryptoWorkerClient,
+  resetCryptoWorkerClient,
+} from "./crypto/workerClient";
+export type { CryptoWorkerClient } from "./crypto/workerClient";
+export {
+  PBKDF2_ITERATIONS,
+  KEY_LENGTH_BITS,
+  PRF_DEK_INFO,
+  bytesToBase64,
+  base64ToBytes,
+  bytesToBase64Url,
+  base64UrlToBytes,
+  concatBytes,
+  pbkdf2Bytes,
+  hkdfBytes,
+  importAesKwKey,
+  wrapKeyWith,
+  unwrapKeyWith,
+  aesGcmEncrypt,
+  aesGcmDecrypt,
+  generateDekKey,
+  hmacSign,
+  randomBip39Mnemonic,
+  generateIv,
+} from "./crypto/core";
+
 // ─── Zero-Knowledge Encryption (v2) ─────────────────────────────────────────
 export { ZkeClient } from "./crypto/ZkeClient";
 export type { ZkeClientOptions, ZkeHttp, DecryptResult } from "./crypto/ZkeClient";

@@ -1,260 +1,158 @@
 // SPDX-License-Identifier: MIT
 
 /**
- * Crypto Service — High-level API for Zero-Knowledge Encryption
+ * Crypto Service — v2 adapter over `@dowardev/sso-client`.
  *
- * Manages Web Worker lifecycle and provides a clean Promise-based API
- * over the worker's message-passing interface.
+ * The DEK now lives ONLY inside the isolated worker (never in the main-thread
+ * heap), which is the whole point of the v2 XSS-exfiltration defense. The
+ * intermediate keys Key_A / Key_R live in the main thread purely to compute
+ * HMAC proofs (they are not the profile key).
  *
- * Keys (DEK, Key_A) are kept in memory only (tab-scoped) and
- * cleared on logout, tab close, or explicit clearKeys().
+ * Methods that used to return/take a `dek` CryptoKey now operate on the
+ * resident worker DEK instead.
  */
 
+import {
+  getCryptoWorkerClient,
+  pbkdf2Bytes,
+  hmacSign,
+  bytesToBase64,
+  base64ToBytes,
+  randomBip39Mnemonic,
+} from '@dowardev/sso-client';
 import type {
-  CryptoWorkerMessage,
-  CryptoWorkerResponse,
   EncryptedBlob,
   WrappedKey,
   UserProfile,
   CryptoServiceAPI,
-  AdvancedAuthState,
 } from '@/types/crypto';
 
-// ─── Worker Management ────────────────────────────────────────────────────────
+const KEY_LENGTH_BITS = 256;
+const DEFAULT_ITERATIONS = 1_000_000;
 
-let worker: Worker | null = null;
-let messageId = 0;
-const pendingRequests = new Map<
-  number,
-  { resolve: (value: CryptoWorkerResponse) => void; reject: (reason: Error) => void }
->();
+// ─── In-memory session state (NOT the DEK — only intermediates + flags) ──────
 
-function getWorker(): Worker {
-  if (!worker) {
-    // Vite will handle worker import and code-splitting
-    worker = new Worker(new URL('@/workers/cryptoWorker.ts', import.meta.url), { type: 'module' });
-
-    worker.onmessage = (event: MessageEvent<CryptoWorkerResponse>) => {
-      const response = event.data;
-      const id = (response as { _requestId?: number })._requestId;
-      if (id && pendingRequests.has(id)) {
-        const { resolve } = pendingRequests.get(id)!;
-        pendingRequests.delete(id);
-        resolve(response);
-      }
-    };
-
-    worker.onerror = (error) => {
-      console.error('[CryptoService] Worker error:', error);
-      for (const [, { reject }] of pendingRequests) {
-        reject(new Error(`Worker error: ${error.message}`));
-      }
-      pendingRequests.clear();
-    };
-  }
-  return worker;
-}
-
-function terminateWorker(): void {
-  if (worker) {
-    worker.terminate();
-    worker = null;
-    for (const [, { reject }] of pendingRequests) {
-      reject(new Error('Worker terminated'));
-    }
-    pendingRequests.clear();
-  }
-}
-
-function sendMessage(params: { message: CryptoWorkerMessage }): Promise<CryptoWorkerResponse> {
-  return new Promise((resolve, reject) => {
-    const id = ++messageId;
-    const workerInstance = getWorker();
-
-    pendingRequests.set(id, { resolve, reject });
-
-    const outgoing = params.message as CryptoWorkerMessage & { _requestId: number };
-    outgoing._requestId = id;
-
-    workerInstance.postMessage(outgoing);
-
-    // Timeout safety (30s covers PBKDF2 with 1M iterations)
-    setTimeout(() => {
-      if (pendingRequests.has(id)) {
-        pendingRequests.delete(id);
-        reject(new Error('Crypto operation timeout'));
-      }
-    }, 30_000);
-  });
-}
-
-function unwrapResponse(params: {
-  response: CryptoWorkerResponse;
-  expectedType: CryptoWorkerResponse['type'];
-}): CryptoWorkerResponse {
-  const { response, expectedType } = params;
-  if (response.type === 'error') {
-    throw new Error(response.payload.message);
-  }
-  if (response.type !== expectedType) {
-    throw new Error(`Unexpected response type: expected ${expectedType}, got ${response.type}`);
-  }
-  return response;
-}
-
-// ─── In-Memory Key State (Tab-Scoped) ────────────────────────────────────────
-
-const keyState: AdvancedAuthState = {
-  dek: null,
-  keyA: null,
-  isAdvanced: false,
-  loginId: null,
-};
-
-/**
- * Decrypted profile cache (tab-scoped, memory only).
- * Populated on every successful decryptProfile; consumed to deliver the
- * consented profile to OAuth apps at callback time while the DEK is hot.
- */
+let keyA: CryptoKey | null = null;
+let isAdvanced = false;
+let loginId: string | null = null;
 let cachedProfile: UserProfile | null = null;
 let cachedProfileVersion: number | null = null;
 
-// ─── High-Level Crypto API ────────────────────────────────────────────────────
+async function deriveIntermediateKey(params: {
+  secret: string;
+  salt: string;
+  iterations?: number;
+}): Promise<CryptoKey> {
+  const raw = await pbkdf2Bytes({
+    secret: params.secret,
+    salt: base64ToBytes(params.salt),
+    iterations: params.iterations ?? DEFAULT_ITERATIONS,
+  });
+  // extractable so it can be re-imported as an HMAC key for proofs.
+  return crypto.subtle.importKey(
+    'raw',
+    raw as unknown as BufferSource,
+    { name: 'AES-KW', length: KEY_LENGTH_BITS },
+    true,
+    ['wrapKey', 'unwrapKey'],
+  ) as Promise<CryptoKey>;
+}
+
+async function exportKeyToB64(key: CryptoKey): Promise<string> {
+  const raw = await crypto.subtle.exportKey('raw', key);
+  return bytesToBase64(new Uint8Array(raw as ArrayBuffer));
+}
 
 const cryptoService: CryptoServiceAPI = {
   async deriveKeyA(params: { password: string; salt: string; iterations?: number }): Promise<CryptoKey> {
-    const response = await sendMessage({
-      message: {
-        type: 'derive-key-a',
-        payload: {
-          password: params.password,
-          salt: params.salt,
-          iterations: params.iterations ?? 1_000_000,
-        },
-      },
-    });
-
-    const unwrapped = unwrapResponse({ response, expectedType: 'key-derived' });
-    const keyA = (unwrapped as Extract<CryptoWorkerResponse, { type: 'key-derived' }>).payload.key;
-    keyState.keyA = keyA;
-    return keyA;
+    const key = await deriveIntermediateKey({ secret: params.password, salt: params.salt, iterations: params.iterations });
+    keyA = key;
+    return key;
   },
 
-  async generateDek(): Promise<CryptoKey> {
-    const response = await sendMessage({ message: { type: 'generate-dek' } });
-
-    const unwrapped = unwrapResponse({ response, expectedType: 'dek-generated' });
-    const dek = (unwrapped as Extract<CryptoWorkerResponse, { type: 'dek-generated' }>).payload.dek;
-    keyState.dek = dek;
-    return dek;
+  async generateDek(): Promise<void> {
+    // Generate raw DEK bytes (transiently), install them in the worker, then
+    // drop them from the main heap.
+    const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: KEY_LENGTH_BITS }, true, ['encrypt', 'decrypt']);
+    const raw = await crypto.subtle.exportKey('raw', key);
+    await getCryptoWorkerClient().setDek({ dekBytes: new Uint8Array(raw as ArrayBuffer) });
   },
 
-  async wrapDek(params: { dek: CryptoKey; wrappingKey: CryptoKey }): Promise<WrappedKey> {
-    const response = await sendMessage({
-      message: {
-        type: 'wrap-dek',
-        payload: { dek: params.dek, wrappingKey: params.wrappingKey },
-      },
+  async wrapDek(params: { wrappingKey: CryptoKey }): Promise<WrappedKey> {
+    const wrapped = await getCryptoWorkerClient().wrapDek({
+      wrappingKeyB64: await exportKeyToB64(params.wrappingKey),
     });
-
-    const unwrapped = unwrapResponse({ response, expectedType: 'dek-wrapped' });
-    return (unwrapped as Extract<CryptoWorkerResponse, { type: 'dek-wrapped' }>).payload;
+    return { wrapped, algorithm: 'AES-KW' };
   },
 
-  async unwrapDek(params: { wrapped: WrappedKey; unwrappingKey: CryptoKey }): Promise<CryptoKey> {
-    const response = await sendMessage({
-      message: {
-        type: 'unwrap-dek',
-        payload: { wrapped: params.wrapped, unwrappingKey: params.unwrappingKey },
-      },
+  async unwrapDek(params: { wrapped: WrappedKey; unwrappingKey: CryptoKey }): Promise<void> {
+    await getCryptoWorkerClient().unwrapDek({
+      wrappedB64: params.wrapped.wrapped,
+      unwrappingKeyB64: await exportKeyToB64(params.unwrappingKey),
     });
-
-    const unwrapped = unwrapResponse({ response, expectedType: 'dek-unwrapped' });
-    const dek = (unwrapped as Extract<CryptoWorkerResponse, { type: 'dek-unwrapped' }>).payload.dek;
-    keyState.dek = dek;
-    return dek;
   },
 
-  async encryptProfile(params: { dek: CryptoKey; profile: UserProfile }): Promise<EncryptedBlob> {
-    const response = await sendMessage({
-      message: {
-        type: 'encrypt-profile',
-        payload: { dek: params.dek, profile: params.profile },
-      },
-    });
-
-    const unwrapped = unwrapResponse({ response, expectedType: 'profile-encrypted' });
-    return (unwrapped as Extract<CryptoWorkerResponse, { type: 'profile-encrypted' }>).payload;
+  async encryptProfile(params: { profile: UserProfile }): Promise<EncryptedBlob> {
+    return getCryptoWorkerClient().encryptProfile({ profile: params.profile as never });
   },
 
-  async decryptProfile(params: { dek: CryptoKey; blob: EncryptedBlob }): Promise<UserProfile> {
-    const response = await sendMessage({
-      message: {
-        type: 'decrypt-profile',
-        payload: { dek: params.dek, blob: params.blob },
-      },
-    });
-
-    const unwrapped = unwrapResponse({ response, expectedType: 'profile-decrypted' });
-    const profile = (unwrapped as Extract<CryptoWorkerResponse, { type: 'profile-decrypted' }>).payload;
+  async decryptProfile(params: { blob: EncryptedBlob }): Promise<UserProfile> {
+    const profile = (await getCryptoWorkerClient().decryptProfile({
+      blob: params.blob,
+    })) as unknown as UserProfile;
     cachedProfile = profile;
     return profile;
   },
 
   async computeAuthProof(params: { keyA: CryptoKey }): Promise<string> {
-    const response = await sendMessage({
-      message: {
-        type: 'compute-auth-proof',
-        payload: { keyA: params.keyA, context: 'auth' },
-      },
-    });
-
-    const unwrapped = unwrapResponse({ response, expectedType: 'auth-proof-computed' });
-    return (unwrapped as Extract<CryptoWorkerResponse, { type: 'auth-proof-computed' }>).payload.proof;
+    return computeHmacProofInner({ key: params.keyA, context: 'auth' });
   },
 
   async generateSeedPhrase(): Promise<string> {
-    const response = await sendMessage({ message: { type: 'generate-seed-phrase' } });
-
-    const unwrapped = unwrapResponse({ response, expectedType: 'seed-phrase-generated' });
-    return (unwrapped as Extract<CryptoWorkerResponse, { type: 'seed-phrase-generated' }>).payload.phrase;
+    return randomBip39Mnemonic();
   },
 
   async deriveKeyR(params: { seedPhrase: string; salt: string; iterations?: number }): Promise<CryptoKey> {
-    const response = await sendMessage({
-      message: {
-        type: 'derive-key-r',
-        payload: {
-          seedPhrase: params.seedPhrase,
-          salt: params.salt,
-          iterations: params.iterations ?? 1_000_000,
-        },
-      },
-    });
-
-    const unwrapped = unwrapResponse({ response, expectedType: 'key-derived' });
-    return (unwrapped as Extract<CryptoWorkerResponse, { type: 'key-derived' }>).payload.key;
-  },
-
-  async computeHmacProof(params: { key: CryptoKey; context: string }): Promise<string> {
-    const response = await sendMessage({
-      message: {
-        type: 'compute-auth-proof',
-        payload: { keyA: params.key, context: params.context },
-      },
-    });
-
-    const unwrapped = unwrapResponse({ response, expectedType: 'auth-proof-computed' });
-    return (unwrapped as Extract<CryptoWorkerResponse, { type: 'auth-proof-computed' }>).payload.proof;
+    return deriveIntermediateKey({ secret: params.seedPhrase, salt: params.salt, iterations: params.iterations });
   },
 
   clearKeys(): void {
-    keyState.dek = null;
-    keyState.keyA = null;
-    keyState.isAdvanced = false;
-    keyState.loginId = null;
+    void getCryptoWorkerClient().clear();
+    keyA = null;
+    isAdvanced = false;
+    loginId = null;
     cachedProfile = null;
     cachedProfileVersion = null;
+  },
+
+  getDek(): CryptoKey | null {
+    return null; // DEK is resident in the worker; never exposed to main thread.
+  },
+
+  getKeyA(): CryptoKey | null {
+    return keyA;
+  },
+
+  isAdvanced(): boolean {
+    return isAdvanced;
+  },
+
+  getLoginId(): string | null {
+    return loginId;
+  },
+
+  initializeAdvancedState(params: { loginId: string }): void {
+    isAdvanced = true;
+    loginId = params.loginId;
+  },
+
+  terminate(): void {
+    getCryptoWorkerClient().terminate();
+    clearCache();
+  },
+
+  async computeHmacProof(params: { key: CryptoKey; context: string }): Promise<string> {
+    return computeHmacProofInner({ key: params.key, context: params.context });
   },
 
   getCachedProfile(): UserProfile | null {
@@ -269,32 +167,21 @@ const cryptoService: CryptoServiceAPI = {
     cachedProfile = params.profile;
     cachedProfileVersion = params.version;
   },
-
-  getDek(): CryptoKey | null {
-    return keyState.dek;
-  },
-
-  getKeyA(): CryptoKey | null {
-    return keyState.keyA;
-  },
-
-  isAdvanced(): boolean {
-    return keyState.isAdvanced;
-  },
-
-  getLoginId(): string | null {
-    return keyState.loginId;
-  },
-
-  initializeAdvancedState(params: { loginId: string }): void {
-    keyState.isAdvanced = true;
-    keyState.loginId = params.loginId;
-  },
-
-  terminate(): void {
-    terminateWorker();
-  },
 };
 
+async function computeHmacProofInner(params: { key: CryptoKey; context: string }): Promise<string> {
+  const raw = await crypto.subtle.exportKey('raw', params.key);
+  const sig = await hmacSign({ keyBytes: new Uint8Array(raw as ArrayBuffer), data: params.context });
+  return bytesToBase64(sig);
+}
+
+function clearCache(): void {
+  cachedProfile = null;
+  cachedProfileVersion = null;
+  keyA = null;
+  isAdvanced = false;
+  loginId = null;
+}
+
 export default cryptoService;
-export { cryptoService, getWorker, terminateWorker };
+export { cryptoService };
