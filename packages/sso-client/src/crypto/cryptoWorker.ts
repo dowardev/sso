@@ -145,5 +145,5 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     res = { type: 'error', payload: {}, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 
-  self.postMessage(res);
+  self.postMessage({ ...res, _requestId: (msg as { _requestId?: number })._requestId });
 };
