@@ -4,8 +4,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Role;
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,29 +13,18 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed the application's database.
+     *
+     * NOTE: the first admin is intentionally NOT seeded — it is created by the
+     * frontend setup wizard at `/setup` on first access (the wizard is blocked
+     * only once any user exists, via EnsureSetupNotCompleted). Keeping the
+     * users table empty here lets `migrate:fresh --seed` start from zero and
+     * the operator create the admin through the wizard.
      */
     public function run(): void
     {
         $this->call([
             RoleSeeder::class,
-            AdminUserSeeder::class,
             SettingSeeder::class,
         ]);
-
-        // User::factory(10)->create();
-
-        $testUser = User::firstOrCreate(
-            ['email' => 'test@example.com'],
-            [
-                'name' => 'Test User',
-                'user' => 'testuser',
-                'password' => bcrypt('password'),
-            ]
-        );
-
-        $viewerRole = Role::where('slug', 'viewer')->first();
-        if ($viewerRole && ! $testUser->hasRole('viewer')) {
-            $testUser->roles()->attach($viewerRole->id, ['sso_client_id' => null]);
-        }
     }
 }
