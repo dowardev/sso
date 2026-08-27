@@ -4,6 +4,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -23,7 +24,7 @@ return new class extends Migration
             // Key_A derivation salt (PBKDF2 ≥1M iterations)
             $table->string('salt_a')->nullable()->after('encryption_level');
 
-            // Key_R derivation salt (for recovery, future phase)
+            // Key_R derivation salt (for recovery)
             $table->string('salt_r')->nullable()->after('salt_a');
 
             // DEK wrapped by Key_A (AES-KW)
@@ -38,14 +39,12 @@ return new class extends Migration
             // HMAC(Key_R, "verify") for seed phrase verification
             $table->string('encrypted_seed_verification')->nullable()->after('encrypted_profile');
 
-            // Passkey / WebAuthn columns (future phase)
+            // Passkey / WebAuthn columns
             $table->string('passkey_public_key')->nullable()->after('encrypted_seed_verification');
             $table->string('passkey_credential_id')->nullable()->after('passkey_public_key');
 
             // Make name, user, email, password nullable for advanced users
             // (advanced users store only encrypted profile blobs)
-            // user already has unique index from 2026_01_16_120000_add_user_to_users_table
-            // email already has unique index from 0001_01_01_000000_create_users_table
             $table->string('name')->nullable()->change();
             $table->string('user')->nullable()->change();
             $table->string('email')->nullable()->change();
@@ -58,6 +57,14 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Advanced users have name/user/email/password NULL (their profile is
+        // encrypted); normalize them to an empty string so restoring the NOT
+        // NULL constraint cannot fail on rollback.
+        DB::table('users')->whereNull('name')->update(['name' => '']);
+        DB::table('users')->whereNull('user')->update(['user' => '']);
+        DB::table('users')->whereNull('email')->update(['email' => '']);
+        DB::table('users')->whereNull('password')->update(['password' => '']);
+
         Schema::table('users', function (Blueprint $table) {
             // Restore required constraints before dropping columns
             $table->string('name')->nullable(false)->change();
