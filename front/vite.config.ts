@@ -16,6 +16,9 @@ export default defineConfig({
   },
   server: {
     port: 8101,
+    fs: {
+      allow: [path.resolve(__dirname, '..')],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8001',
