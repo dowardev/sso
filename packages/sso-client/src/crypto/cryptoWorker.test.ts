@@ -79,6 +79,21 @@ describe('crypto worker protocol (DEK residency)', () => {
     expect(sent[sent.length-1]?.type).toBe('error');
   });
 
+  it('wraps the resident DEK after set-dek (extractable for AES-KW)', async () => {
+    const handle = await loadWorker();
+    const dek = await generateDek();
+    await handle({ type: 'set-dek', payload: { dekBytes: b64({ bytes: dek }) } });
+    sent.length = 0;
+
+    // set-dek installs the DEK; waist-dek must not throw NotSupportedError
+    const wrapping = crypto.getRandomValues(new Uint8Array(32));
+    await handle({ type: 'wrap-dek', payload: { wrappingKeyB64: b64({ bytes: wrapping }) } });
+
+    const res = sent[sent.length - 1];
+    expect(res.type).toBe('dek-wrapped');
+    expect(res.payload.wrapped).toBeTruthy();
+  });
+
   it('clear wipes the resident DEK', async () => {
     const handle = await loadWorker();
     const dek = await generateDek();
