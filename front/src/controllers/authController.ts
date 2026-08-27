@@ -232,26 +232,30 @@ export function useAuthController() {
     // Step 1: Get crypto blobs from server
     const blobs = await fetchCryptoBlobs({ loginId: params.login_id });
 
-    // Derive Key_A from password + salt_a
-    const keyA = await cryptoService.deriveKeyA({
-      password: params.password,
-      salt: blobs.salt_a,
-    });
-    authStore.setKeyA({ keyA });
+        let keyA: CryptoKey;
+        let profile: CryptoUserProfile;
+        let authProof: string;
+        try {
+          keyA = await cryptoService.deriveKeyA({
+            password: params.password,
+            salt: blobs.salt_a,
+          });
+          authStore.setKeyA({ keyA });
 
-    // Unwrap DEK using Key_A and persist it for silent restore on this device
-        await cryptoService.unwrapDek({
-      wrapped: blobs.wrapped_dek_a,
-      unwrappingKey: keyA,
-    });
+          await cryptoService.unwrapDek({
+            wrapped: blobs.wrapped_dek_a,
+            unwrappingKey: keyA,
+          });
 
-    // Decrypt profile
-    const profile = await cryptoService.decryptProfile({
-      blob: blobs.encrypted_profile,
-    });
+          profile = await cryptoService.decryptProfile({
+            blob: blobs.encrypted_profile,
+          });
 
-    // Compute auth proof
-    const authProof = await cryptoService.computeAuthProof({ keyA });
+          authProof = await cryptoService.computeAuthProof({ keyA });
+        } catch (err) {
+          console.error('[AdvancedLogin] crypto failed', err);
+          throw new Error('Contraseña incorrecta o clave de descifrado no disponible');
+        }
 
     // Step 2: Verify with server
     const result = await loginAdvancedSecondStep({

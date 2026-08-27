@@ -253,7 +253,7 @@
 
   const getInitials = (params: { name: string }): string => {
     const { name } = params;
-    return name
+    return (name ?? '')
       .split(' ')
       .map((n) => n[0])
       .join('')
