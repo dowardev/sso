@@ -290,12 +290,22 @@ const handleLogin = async (): Promise<void> => {
 
   const identifier = credentials.value.identifier.trim();
 
-  // Determine if this is an advanced login (login_id) or basic login (user/email)
-  const isAdvanced = identifier.length > 20 && !identifier.includes('@') && !identifier.includes(' ');
+  // Email-like identifiers always use basic login (an email cannot be a
+  // ZKE login_id). A username may belong to an advanced user (whose plaintext
+  // email/user are null and password is Argon2id(auth_proof)), so we compute
+  // the deterministic login_id = btoa(HMAC(username)) and probe the advanced
+  // path first — falling back to basic when the user is not advanced.
+  if (identifier.includes('@')) {
+    await handleBasicLogin(identifier);
+    return;
+  }
 
-  if (isAdvanced) {
-    await handleAdvancedLogin(identifier);
-  } else {
+  try {
+    const loginId = await authController.computeLoginId({ username: identifier });
+    await authController.fetchCryptoBlobs({ loginId });
+    await handleAdvancedLogin(loginId);
+  } catch {
+    // /crypto/blobs failed (404 / user not advanced) -> fall back to basic.
     await handleBasicLogin(identifier);
   }
 };
