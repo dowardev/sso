@@ -9,19 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- **PKCE (RFC 7636) enforcement**: the server no longer stores `code_verifier` in the `oauth_auth_codes` table nor accepts it as a fallback during token exchange, closing the security hole where an intercepted authorization code could be redeemed without the real verifier. `code_verifier` is now required at the token endpoint (`required_if:grant_type,authorization_code`) and verified against the stored `code_challenge` with `hash_equals()` for timing-safe comparison
-  - **`back/app/Services/OAuth2Service.php`**: removed stored-verifier fallback, enforced verifier requirement, timing-safe challenge comparison
-  - **`back/app/Http/Requests/TokenRequest.php`**, **`back/app/Http/Requests/OAuth/TokenRequest.php`**: `code_verifier` now required for `authorization_code` grants
-  - **`back/app/Http/Controllers/OAuth2Controller.php`**, **`back/app/Http/Requests/AuthorizeRequest.php`**, **`back/app/Http/Requests/OAuth/AuthorizeRequest.php`**: removed `code_verifier` acceptance at the authorize endpoint (only `code_challenge`/`code_challenge_method` belong there)
-  - **`back/app/Models/OAuthAuthCode.php`**: removed `code_verifier` from fillable
-  - **`back/database/migrations/2026_08_21_000000_drop_code_verifier_from_oauth_auth_codes_table.php`**: drops the `code_verifier` column
-  - **`front/src/controllers/authController.ts`**: removed `code_verifier` transmission to the authorize/approve endpoints
+### Added
 
 ### Changed
 
-- **`front/src/controllers/authController.ts`** moved to **`front/src/composables/authController.ts`**: the module exposes reactive state via `computed`, so it now lives in `composables/` per the Controller vs Composable convention; imports updated across 13 Vue components/views
+### Fixed
 
 ## [0.33.0] - 2026-08-21
 
@@ -65,12 +57,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`back/app/Models/SsoClient.php`**: added `email_logo_url` to fillable
 - **`back/routes/console.php`**: scheduled `tokens:cleanup` daily command
 - **`back/.env.development.example`**, **`back/.env.testing.example`**: added `MAIL_MAILER=log` for local email verification testing
+- **`front/src/controllers/authController.ts`** moved to **`front/src/composables/authController.ts`**: the module exposes reactive state via `computed`, so it now lives in `composables/` per the Controller vs Composable convention; imports updated across 13 Vue components/views
 
 ### Fixed
 
 - **`1c951c4`**: post-verify redirect now routes to the corresponding login (admin vs public) instead of always targeting the public login
 - **`730e10b`**: backfill test user isolation for MySQL DDL in migration tests
 - **LBDS-203**: `resetPassword` and the recovery UI enforced `min:8` while registration and profile update require `min:10` + complexity (uppercase, lowercase, number, symbol) — a password-policy downgrade on reset. Both now enforce the platform policy
+- **PKCE (RFC 7636) enforcement**: the server no longer stores `code_verifier` in the `oauth_auth_codes` table nor accepts it as a fallback during token exchange, closing the security hole where an intercepted authorization code could be redeemed without the real verifier. `code_verifier` is now required at the token endpoint (`required_if:grant_type,authorization_code`) and verified against the stored `code_challenge` with `hash_equals()` for timing-safe comparison
+  - **`back/app/Services/OAuth2Service.php`**: removed stored-verifier fallback, enforced verifier requirement, timing-safe challenge comparison
+  - **`back/app/Http/Requests/TokenRequest.php`**, **`back/app/Http/Requests/OAuth/TokenRequest.php`**: `code_verifier` now required for `authorization_code` grants
+  - **`back/app/Http/Controllers/OAuth2Controller.php`**, **`back/app/Http/Requests/AuthorizeRequest.php`**, **`back/app/Http/Requests/OAuth/AuthorizeRequest.php`**: removed `code_verifier` acceptance at the authorize endpoint (only `code_challenge`/`code_challenge_method` belong there)
+  - **`back/app/Models/OAuthAuthCode.php`**: removed `code_verifier` from fillable
+  - **`back/database/migrations/2026_08_21_000000_drop_code_verifier_from_oauth_auth_codes_table.php`**: drops the `code_verifier` column
+  - **`front/src/controllers/authController.ts`**: removed `code_verifier` transmission to the authorize/approve endpoints
 
 ## [0.32.0] - 2026-08-18
 
