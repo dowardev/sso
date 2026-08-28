@@ -224,49 +224,46 @@ export function useAuthController() {
    * Full advanced login flow: derive Key_A → unwrap DEK → decrypt profile → compute auth_proof → verify
    */
   async function loginAdvanced(params: {
-    login_id: string;
-    password: string;
-    client_id?: string;
-    rememberMe?: boolean;
-  }): Promise<{ token: string; user: User; profile: CryptoUserProfile }> {
-    // Step 1: Get crypto blobs from server
-    const blobs = await fetchCryptoBlobs({ loginId: params.login_id });
+        login_id: string;
+        password: string;
+        client_id?: string;
+        rememberMe?: boolean;
+      }): Promise<{ token: string; user: User; profile: CryptoUserProfile }> {
+        // Step 1: Get crypto blobs from server
+        const blobs = await fetchCryptoBlobs({ loginId: params.login_id });
 
-        let keyA: CryptoKey;
-        let profile: CryptoUserProfile;
-        let authProof: string;
-        try {
-          keyA = await cryptoService.deriveKeyA({
-            password: params.password,
-            salt: blobs.salt_a,
-          });
-          authStore.setKeyA({ keyA });
+        // Derive Key_A from the attempted password and compute auth_proof. The
+        // server verifies auth_proof on EVERY attempt (right or wrong password),
+        // so the brute-force lockout (ThrottleLoginAttempts) is enforced
+        // server-side. A wrong password yields an auth_proof that fails
+        // verification -> 401, which increments the failed-attempt counter.
+        const keyA = await cryptoService.deriveKeyA({
+          password: params.password,
+          salt: blobs.salt_a,
+        });
+        const authProof = await cryptoService.computeAuthProof({ keyA });
 
-          await cryptoService.unwrapDek({
-            wrapped: blobs.wrapped_dek_a,
-            unwrappingKey: keyA,
-          });
+        // Step 2: Verify with server. Throws on 401 (wrong password) - that 401 is
+        // what drives the login lockout. Only on success do we decrypt locally.
+        const result = await loginAdvancedSecondStep({
+          login_id: params.login_id,
+          auth_proof: authProof,
+          client_id: params.client_id,
+          rememberMe: params.rememberMe,
+        });
 
-          profile = await cryptoService.decryptProfile({
-            blob: blobs.encrypted_profile,
-          });
+        // Step 3: Server confirmed the password - decrypt the profile locally.
+        authStore.setKeyA({ keyA });
+        await cryptoService.unwrapDek({
+          wrapped: blobs.wrapped_dek_a,
+          unwrappingKey: keyA,
+        });
+        const profile = await cryptoService.decryptProfile({
+          blob: blobs.encrypted_profile,
+        });
 
-          authProof = await cryptoService.computeAuthProof({ keyA });
-        } catch (err) {
-          console.error('[AdvancedLogin] crypto failed', err);
-          throw new Error('Contraseña incorrecta o clave de descifrado no disponible');
-        }
-
-    // Step 2: Verify with server
-    const result = await loginAdvancedSecondStep({
-      login_id: params.login_id,
-      auth_proof: authProof,
-      client_id: params.client_id,
-      rememberMe: params.rememberMe,
-    });
-
-    return { ...result, profile };
-  }
+        return { ...result, profile };
+      }
 
   // ─── Advanced Registration ─────────────────────────────────────────────────
 

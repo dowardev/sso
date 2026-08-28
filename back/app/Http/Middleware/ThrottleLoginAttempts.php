@@ -14,7 +14,7 @@ class ThrottleLoginAttempts
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $identifier = $request->input('email') ?? $request->input('user') ?? '';
+        $identifier = $request->input('email') ?? $request->input('user') ?? $request->input('login_id') ?? '';
         $ip = $request->ip();
 
         $this->lazyCleanup();
