@@ -424,7 +424,7 @@ export function useAuthController() {
     login_id: string;
     seed_phrase: string;
     new_password: string;
-  }): Promise<{ token: string; user: User; profile: CryptoUserProfile }> {
+  }): Promise<void> {
     // Step 1: Verify seed phrase and get recovery blobs + DEK
     await recoveryVerify({
       login_id: params.login_id,
@@ -478,11 +478,9 @@ export function useAuthController() {
       },
     });
 
-    // Step 9: Login with new password using advanced flow
-    return loginAdvanced({
-      login_id: params.login_id,
-      password: params.new_password,
-    });
+    // Recovery complete. Do NOT auto-login: the user must re-authenticate
+    // at the login screen with their new password (consistent with the
+    // basic email-reset flow, which also sends them to /login).
   }
 
   /**
@@ -930,6 +928,29 @@ export function useAuthController() {
     return response.data ?? [];
   }
 
+  // ─── Password recovery (basic / email flow) ──────────────────────────────
+  async function forgotPassword(params: { identifier: string }): Promise<void> {
+    await api.post({
+      endpoint: '/password/forgot',
+      data: { identifier: params.identifier },
+    });
+  }
+
+  async function resetPassword(params: {
+    token: string;
+    password: string;
+    password_confirmation: string;
+  }): Promise<void> {
+    await api.post({
+      endpoint: '/password/reset',
+      data: {
+        token: params.token,
+        password: params.password,
+        password_confirmation: params.password_confirmation,
+      },
+    });
+  }
+
   return {
     token,
     user,
@@ -950,6 +971,9 @@ export function useAuthController() {
     getUserProfile,
     updateUserProfile,
     updateUserPassword,
+    // Password recovery (basic / email flow)
+    forgotPassword,
+    resetPassword,
     getUserSessions,
     revokeUserSession,
     revokeAllUserSessions,
