@@ -131,6 +131,9 @@
             </ul>
             <p class="warning-text">
               ⚠️ Esta acción es irreversible y cerrará todas tus sesiones.
+                </p>
+            <p class="warning-text">
+              ⚠️ Al activarlo iniciás sesión solo con tu <strong>nombre de usuario</strong>, no con tu correo: el correo queda cifrado en tu dispositivo y el servidor ya no lo guarda.
             </p>
           </div>
 

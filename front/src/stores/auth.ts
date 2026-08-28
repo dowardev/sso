@@ -3,7 +3,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { api } from '@/services/api';
 import { cryptoService } from '@/services/cryptoService';
-import type { User, AdvancedAuthState } from '@/types';
+import type { User, AdvancedAuthState, CryptoUserProfile } from '@/types';
 import { dpopService } from '@/services/dpopService';
 
 const TOKEN_KEY = 'token';
@@ -34,6 +34,10 @@ export const useAuthStore = defineStore('auth', () => {
     isAdvanced: false,
     loginId: null,
   });
+
+  // Decrypted client-side profile (ZKE). Only available for the current user,
+  // since the server never stores PII for advanced users.
+  const profile = ref<CryptoUserProfile | null>(null);
 
   function isTokenExpired(params: { token: string }): boolean {
     try {
@@ -69,6 +73,10 @@ export const useAuthStore = defineStore('auth', () => {
       isAdvanced: false,
       loginId: null,
     };
+  }
+
+  function setProfile(params: { profile: CryptoUserProfile }): void {
+    profile.value = params.profile;
   }
 
   function addAuthorizedClient(params: { clientId: string }): void {
@@ -337,9 +345,11 @@ export const useAuthStore = defineStore('auth', () => {
     removeAuthorizedClient,
     isClientAuthorized,
     // Crypto actions
+    profile,
     setDek,
     setKeyA,
     setAdvancedState,
+    setProfile,
     clearCryptoState,
     decryptProfile,
   };

@@ -134,8 +134,10 @@ const { showSuccess } = useToast();
 
 // 2. Controllers
 import { useAuthController } from '@/controllers/authController';
+import { useAuthStore } from '@/stores/auth';
 
 const authController = useAuthController();
+const authStore = useAuthStore();
 
 // 3. Components
 import AuthCard from '@/components/AuthCard.vue';
@@ -347,7 +349,10 @@ const handleBasicLogin = async (identifier: string): Promise<void> => {
       });
       return;
     }
-    error.value = handleApiError(err);
+    const baseMessage = handleApiError(err);
+    error.value = identifier.includes('@')
+      ? `${baseMessage} Si tu cuenta tiene cifrado avanzado, iniciá sesión con tu nombre de usuario, no con tu correo.`
+      : baseMessage;
   } finally {
     loading.value = false;
   }
@@ -360,12 +365,18 @@ const handleAdvancedLogin = async (loginId: string): Promise<void> => {
   error.value = '';
 
   try {
-    await authController.loginAdvanced({
+    const loginResult = await authController.loginAdvanced({
       login_id: loginId,
       password: credentials.value.password,
       client_id: oauthParams.value.client_id || undefined,
       rememberMe: rememberMe.value,
     });
+
+    // Persist the decrypted client-side profile so the admin UI can show the
+    // current user's real name/email (the server stores them as null for ZKE).
+    if (loginResult.profile) {
+      authStore.setProfile({ profile: loginResult.profile });
+    }
 
     cryptoLoadingMessage.value = 'Verificando...';
 
