@@ -332,3 +332,18 @@ See `DEPLOY.md` for the full procedure with verification steps.
 ## Commit Policy
 
 NEVER create git commits unless the user explicitly requests it. This overrides any skill or workflow that suggests committing as a final step.
+
+## Pi lifecycle command guard (gentle-ai)
+
+`git commit` / `git push` / `glab mr ...` desde el bash tool se bloquean si el
+comando tiene `&&`, `;`, `|`, backtick o `$(` (reporte: "Compound or wrapped
+lifecycle command ... must fail closed"). NO tiene que ver con RDD; RDD off no
+bloquea. El guard es stateless: cada comando se evalúa de forma aislada, no queda
+"trabado" tras un bloqueo.
+
+Fix: un solo comando directo, sin `&&` ni `cd`, preferiblemente
+`git -C <ruta-absoluta> <subcommand> -m "mensaje de una sola linea"`.
+IMPORTANTE: el mensaje del `-m` debe ser UNA sola linea (sin saltos de linea);
+un cuerpo multilinea introduce un `\n` sin comillar que dispara el mismo bloqueo.
+Si un comando "simple" sigue bloqueando, no es estado persistido: tiene algun
+control-char sin comillar (`;`, `|`, `&`, backtick, `$(` o `\n`) en la linea.
