@@ -11,10 +11,14 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+          '@dowardev/sso-client': path.resolve(__dirname, '../packages/sso-client/src/index.ts'),
     },
   },
   server: {
     port: 8101,
+    fs: {
+      allow: [path.resolve(__dirname, '..')],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8001',

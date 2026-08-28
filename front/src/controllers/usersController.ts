@@ -70,9 +70,9 @@ export function useUsersController() {
     usersStore.reset();
   }
 
-  function getInitials(params: { name: string }): string {
+  function getInitials(params: { name: string | null }): string {
     const { name } = params;
-    return name
+    return (name ?? '')
       .split(' ')
       .map((n) => n[0])
       .join('')

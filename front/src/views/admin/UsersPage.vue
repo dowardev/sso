@@ -50,14 +50,17 @@
                   </div>
                 </ion-avatar>
                 <ion-label>
-                  <h2 class="user-name">{{ user.name }}</h2>
-                  <p class="user-username">@{{ user.user }}</p>
-                  <p class="user-email">{{ user.email }}</p>
+                  <h2 class="user-name">{{ displayUserName({ user }) }}</h2>
+                  <p class="user-username">{{ displayUserUser({ user }) }}</p>
+                  <p class="user-email">{{ displayUserEmail({ user }) }}</p>
                 </ion-label>
                 <div slot="end" class="user-badges">
                   <ion-badge v-if="user.is_admin" color="warning"
                     >Admin</ion-badge
                   >
+                  <ion-badge v-if="isAdvancedUser({ user })" color="tertiary">
+                    Cifrado
+                  </ion-badge>
                   <ion-badge color="primary"
                     >{{ user.sessions_count || 0 }} sesiones</ion-badge
                   >
@@ -149,7 +152,9 @@ import { personRemove, removeCircle, addCircle, trash } from 'ionicons/icons'
 
 // 2. Controllers / Composables
 import { useUsersController } from '@/controllers/usersController'
+import { useAuthStore } from '@/stores/auth'
 const usersController = useUsersController()
+const authStore = useAuthStore()
 
 import { useToast } from '@/composables/useToast'
 const { showSuccess, showError } = useToast()
@@ -176,6 +181,27 @@ const users = computed(() => usersController.users.value)
 const loading = computed(() => usersController.loading.value)
 const hasMore = computed(() => usersController.hasMore.value)
 const ssoClientId = computed(() => route.query.sso_client_id as string | undefined)
+function displayUserName(params: { user: User }): string {
+  const { user } = params;
+  if (user.name) return user.name;
+  if (authStore.user?.id === user.id && authStore.profile?.name) return authStore.profile.name;
+  return 'Usuario cifrado';
+}
+function displayUserUser(params: { user: User }): string {
+  const { user } = params;
+  if (user.user) return '@' + user.user;
+  if (authStore.user?.id === user.id && authStore.profile?.user) return '@' + authStore.profile.user;
+  return 'Cifrado';
+}
+function displayUserEmail(params: { user: User }): string {
+  const { user } = params;
+  if (user.email) return user.email;
+  if (authStore.user?.id === user.id && authStore.profile?.email) return authStore.profile.email;
+  return '—';
+}
+function isAdvancedUser(params: { user: User }): boolean {
+  return params.user.encryption_level === 'advanced';
+}
 
 // 9. OnMounted
 onIonViewWillEnter(() => {
@@ -231,7 +257,7 @@ const loadMore = async (params: { event: unknown }): Promise<void> => {
 
 const getInitials = (params: { name: string }): string => {
   const { name } = params
-  return name
+  return (name ?? '')
     .split(' ')
     .map((n) => n[0])
     .join('')

@@ -2,7 +2,8 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { api } from '@/services/api';
-import type { User } from '@/types';
+import { cryptoService } from '@/services/cryptoService';
+import type { User, AdvancedAuthState, CryptoUserProfile } from '@/types';
 import { dpopService } from '@/services/dpopService';
 
 const TOKEN_KEY = 'token';
@@ -25,16 +26,31 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
   const authorizedClients = ref<string[]>(loadAuthorizedClients());
 
-  function isTokenExpired(token: string): boolean {
+  // ─── Crypto State (In-Memory Only - Tab Scoped) ────────────────────────────
+
+  const cryptoState = ref<AdvancedAuthState>({
+    dek: null,
+    keyA: null,
+    isAdvanced: false,
+    loginId: null,
+  });
+
+  // Decrypted client-side profile (ZKE). Only available for the current user,
+  // since the server never stores PII for advanced users.
+  const profile = ref<CryptoUserProfile | null>(null);
+
+  function isTokenExpired(params: { token: string }): boolean {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = JSON.parse(atob(params.token.split('.')[1]));
       return payload.exp * 1000 < Date.now();
     } catch {
       return true;
     }
   }
 
-  const isAuthenticated = computed(() => !!token.value && !isTokenExpired(token.value));
+  const isAuthenticated = computed(() => !!token.value && !isTokenExpired({ token: token.value }));
+
+  const isAdvancedUser = computed(() => cryptoState.value.isAdvanced);
 
   function clearAuthData() {
     localStorage.removeItem(TOKEN_KEY);
@@ -46,25 +62,114 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null;
     user.value = null;
     authorizedClients.value = [];
+    clearCryptoState();
   }
 
-  function addAuthorizedClient(clientId: string): void {
+  function clearCryptoState(): void {
+    cryptoService.clearKeys();
+    cryptoState.value = {
+      dek: null,
+      keyA: null,
+      isAdvanced: false,
+      loginId: null,
+    };
+  }
+
+  function setProfile(params: { profile: CryptoUserProfile }): void {
+    profile.value = params.profile;
+  }
+
+  function addAuthorizedClient(params: { clientId: string }): void {
     const clients = loadAuthorizedClients();
-    if (!clients.includes(clientId)) {
-      clients.push(clientId);
+    if (!clients.includes(params.clientId)) {
+      clients.push(params.clientId);
       localStorage.setItem(AUTHORIZED_CLIENTS_KEY, JSON.stringify(clients));
       authorizedClients.value = clients;
     }
   }
 
-  function removeAuthorizedClient(clientId: string): void {
-    const clients = loadAuthorizedClients().filter((id) => id !== clientId);
+  function removeAuthorizedClient(params: { clientId: string }): void {
+    const clients = loadAuthorizedClients().filter((id) => id !== params.clientId);
     localStorage.setItem(AUTHORIZED_CLIENTS_KEY, JSON.stringify(clients));
     authorizedClients.value = clients;
   }
 
-  function isClientAuthorized(clientId: string): boolean {
-    return authorizedClients.value.includes(clientId);
+  function isClientAuthorized(params: { clientId: string }): boolean {
+    return authorizedClients.value.includes(params.clientId);
+  }
+
+  // ─── Crypto Helpers ────────────────────────────────────────────────────────
+
+  function setDek(params: { dek: CryptoKey }): void {
+    cryptoState.value.dek = params.dek;
+  }
+
+  function getDek(): CryptoKey | null {
+    return cryptoState.value.dek;
+  }
+
+  function setKeyA(params: { keyA: CryptoKey }): void {
+    cryptoState.value.keyA = params.keyA;
+  }
+
+  function getKeyA(): CryptoKey | null {
+    return cryptoState.value.keyA;
+  }
+
+  function setAdvancedState(params: { isAdvanced: boolean; loginId?: string | null }): void {
+    cryptoState.value.isAdvanced = params.isAdvanced;
+    cryptoState.value.loginId = params.loginId ?? null;
+  }
+
+  async function decryptProfile(params: {
+    encryptedProfile: string;
+  }): Promise<{ name: string; email: string; user: string } | null> {
+    const dek = getDek();
+    if (!dek) return null;
+
+    try {
+      const blob = JSON.parse(params.encryptedProfile);
+      return await cryptoService.decryptProfile({ blob });
+    } catch (error) {
+      console.error('Failed to decrypt profile:', error);
+      return null;
+    }
+  }
+
+  // ─── Auth Operations ───────────────────────────────────────────────────────
+
+  /**
+   * Persist an authenticated session (shared by basic, advanced, and
+   * passkey login paths so localStorage handling lives in one place).
+   */
+  function applyLoginSession(params: {
+    token: string;
+    user: User;
+    dpopPublicKey?: JsonWebKey | null;
+    rememberMe?: boolean;
+  }) {
+    const { token: newToken, user: newUser, dpopPublicKey, rememberMe } = params;
+
+    localStorage.setItem(TOKEN_KEY, newToken);
+    localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+    localStorage.setItem('sso_token', newToken);
+
+    if (dpopPublicKey) {
+      localStorage.setItem(DPOP_PUBLIC_KEY, JSON.stringify(dpopPublicKey));
+    }
+
+    token.value = newToken;
+    user.value = newUser;
+
+    if (newUser.encryption_level === 'advanced') {
+      setAdvancedState({ isAdvanced: true, loginId: newUser.login_id });
+    } else {
+      clearCryptoState();
+    }
+
+    if (rememberMe) {
+      localStorage.setItem(REMEMBER_KEY, 'true');
+    }
   }
 
   async function login(params: {
@@ -73,6 +178,8 @@ export const useAuthStore = defineStore('auth', () => {
     client_id?: string;
     rememberMe?: boolean;
   }) {
+    const { client_id, rememberMe } = params;
+
     await dpopService.initialize();
 
     const dpopPublicKey = dpopService.getPublicKeyJwk();
@@ -82,15 +189,15 @@ export const useAuthStore = defineStore('auth', () => {
       password: params.password,
     };
 
-    if (params.client_id) {
-      loginData.client_id = params.client_id;
+    if (client_id) {
+      loginData.client_id = client_id;
     }
 
     if (dpopPublicKey) {
       loginData.dpop_public_key = JSON.stringify(dpopPublicKey);
     }
 
-    if (params.rememberMe) {
+    if (rememberMe) {
       loginData.remember_me = true;
     }
 
@@ -99,20 +206,12 @@ export const useAuthStore = defineStore('auth', () => {
       data: loginData,
     });
 
-    localStorage.setItem(TOKEN_KEY, response.token);
-    localStorage.setItem(USER_KEY, JSON.stringify(response.user));
-    localStorage.setItem('sso_token', response.token);
-
-    if (dpopPublicKey) {
-      localStorage.setItem(DPOP_PUBLIC_KEY, JSON.stringify(dpopPublicKey));
-    }
-
-    token.value = response.token;
-    user.value = response.user;
-
-    if (params.rememberMe) {
-      localStorage.setItem(REMEMBER_KEY, 'true');
-    }
+    applyLoginSession({
+      token: response.token,
+      user: response.user,
+      dpopPublicKey,
+      rememberMe,
+    });
 
     return response;
   }
@@ -132,6 +231,14 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await api.get<User>({ endpoint: '/me' });
       user.value = response;
+
+      // Update crypto state based on user's encryption level
+      if (response.encryption_level === 'advanced') {
+        setAdvancedState({ isAdvanced: true, loginId: response.login_id });
+      } else {
+        clearCryptoState();
+      }
+
       return response;
     } catch (error) {
       await logout();
@@ -181,7 +288,7 @@ export const useAuthStore = defineStore('auth', () => {
     const userStr = localStorage.getItem(USER_KEY);
 
     if (storedToken) {
-      if (isTokenExpired(storedToken)) {
+      if (isTokenExpired({ token: storedToken })) {
         const refreshed = await refreshToken();
         if (refreshed) {
           const newToken = localStorage.getItem(TOKEN_KEY);
@@ -194,6 +301,11 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = storedToken;
       if (userStr) {
         user.value = JSON.parse(userStr);
+        // Restore crypto state
+        const restoredUser = user.value;
+        if (restoredUser && restoredUser.encryption_level === 'advanced') {
+          setAdvancedState({ isAdvanced: true, loginId: restoredUser.login_id });
+        }
       }
     }
 
@@ -213,8 +325,17 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     user,
     isAuthenticated,
+    isAdvancedUser,
     authorizedClients,
+    // Crypto state getters
+    cryptoState: computed(() => cryptoState.value),
+    getDek,
+    getKeyA,
+    isAdvanced: () => cryptoState.value.isAdvanced,
+    getLoginId: () => cryptoState.value.loginId,
+    // Actions
     login,
+    applyLoginSession,
     logout,
     getUser,
     getToken,
@@ -223,5 +344,13 @@ export const useAuthStore = defineStore('auth', () => {
     addAuthorizedClient,
     removeAuthorizedClient,
     isClientAuthorized,
+    // Crypto actions
+    profile,
+    setDek,
+    setKeyA,
+    setAdvancedState,
+    setProfile,
+    clearCryptoState,
+    decryptProfile,
   };
 });

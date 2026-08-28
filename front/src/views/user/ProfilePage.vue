@@ -196,7 +196,7 @@
   const { showSuccess, showError } = useToast();
 
   // 2. Controllers
-  import { useAuthController } from '@/composables/authController';
+  import { useAuthController } from '@/controllers/authController';
 
   const authController = useAuthController();
 
@@ -207,7 +207,18 @@
   import ActivityLog from '@/components/user/ActivityLog.vue';
 
   // 4. Interface and types imports
-  import type { User, UserSession } from '@/types';
+  import type { User, UserSession, EncryptionLevel } from '@/types';
+
+  interface UserProfileResponse extends Omit<User, 'name' | 'user' | 'email' | 'login_id'> {
+    name: string | null;
+    user: string | null;
+    email: string | null;
+    login_id: string | null;
+    encryption_level: EncryptionLevel;
+    salt_a?: string | null;
+    wrapped_dek_a?: string | null;
+    encrypted_profile?: string | null;
+  }
 
   interface UserAuthorization {
     id: number;
@@ -245,7 +256,7 @@
   }>();
 
   // 6. Vars and const
-  const user = ref<User | null>(null);
+  const user = ref<UserProfileResponse | null>(null);
   const authorizations = ref<UserAuthorization[]>([]);
   const sessions = ref<UserSession[]>([]);
   const activities = ref<ActivityLogEntry[]>([]);
@@ -305,7 +316,7 @@
     return 'Mi Cuenta';
   });
 
-  const safeUser = computed(() => user.value as User | null);
+  const safeUser = computed(() => user.value as UserProfileResponse | null);
 
   // 9. OnMounted
   onMounted(async () => {
@@ -319,7 +330,7 @@
   // 10. Functions
   const getInitials = (params: { name: string }): string => {
     const { name } = params;
-    return name
+    return (name ?? '')
       .split(' ')
       .map((n) => n[0])
       .join('')
@@ -332,7 +343,7 @@
     try {
       const profile = await authController.getUserProfile();
       if (!isUnmounted) {
-        user.value = profile;
+        user.value = profile as UserProfileResponse;
       }
     } catch {
       if (!isUnmounted) {
@@ -348,7 +359,7 @@
   const refreshProfile = async (): Promise<void> => {
     try {
       const profile = await authController.getUserProfile();
-      user.value = profile;
+      user.value = profile as UserProfileResponse;
       showSuccess({ message: 'Perfil actualizado correctamente' });
     } catch {
       showError({ message: 'Error al actualizar perfil' });
@@ -405,7 +416,7 @@
 
   const handleRevokeSession = async (sessionId: number): Promise<void> => {
     try {
-      await authController.revokeUserSession(sessionId);
+      await authController.revokeUserSession({ sessionId });
       showSuccess({ message: 'Sesión revocada correctamente' });
       await loadSessions();
     } catch (err) {

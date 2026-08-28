@@ -32,12 +32,13 @@
                 <div class="user-header">
                   <ion-avatar class="large-avatar">
                     <div class="avatar-placeholder">
-                      {{ getInitials({ name: user.name }) }}
+                      {{ getInitials({ name: displayName }) }}
                     </div>
                   </ion-avatar>
-                  <h2 class="user-name">{{ user.name }}</h2>
-                  <p class="user-username">@{{ user.user }}</p>
+                  <h2 class="user-name">{{ displayName }}</h2>
+                  <p class="user-username">{{ displayUser }}</p>
                   <ion-badge v-if="user.is_admin" color="warning">Administrador</ion-badge>
+                      <ion-badge v-if="isAdvancedUser" color="tertiary">Cifrado (ZKE)</ion-badge>
                 </div>
               </div>
             </ion-col>
@@ -47,7 +48,7 @@
                 <h3 class="section-title">Información</h3>
                 <div class="info-item">
                   <ion-icon :icon="mailOutline" class="info-icon" aria-hidden="true"></ion-icon>
-                  <span class="value">{{ user.email }}</span>
+                  <span class="value">{{ displayEmail }}</span>
                 </div>
                 <div class="info-item">
                   <ion-icon :icon="calendarOutline" class="info-icon" aria-hidden="true"></ion-icon>
@@ -339,13 +340,15 @@
   import { useSessionsController } from '@/controllers/sessionsController';
   import { useClientsController } from '@/controllers/clientsController';
   import { useRolesController } from '@/controllers/rolesController';
-  import { useAuthController } from '@/composables/authController';
+  import { useAuthController } from '@/controllers/authController';
+import { useAuthStore } from '@/stores/auth';
 
   const usersController = useUsersController();
   const sessionsController = useSessionsController();
   const clientsController = useClientsController();
   const rolesController = useRolesController();
   const authController = useAuthController();
+const authStore = useAuthStore();
 
   // 3. Components
   import UserAuthorizationsList from '@/components/UserAuthorizationsList.vue';
@@ -381,6 +384,27 @@
   const userRoles = computed(() => usersController.userRoles.value);
   const roleAssignments = computed(() => usersController.roleAssignments.value);
   const isAdmin = computed(() => authController.user.value?.is_admin || false);
+
+  // ZKE: advanced users have null PII on the server. Show the decrypted profile
+  // for the current user (self) and clear placeholders for everyone else.
+  const decryptedProfile = computed(() => authStore.profile);
+  const isSelf = computed(() => !!user.value && authStore.user?.id === user.value.id);
+  const isAdvancedUser = computed(() => user.value?.encryption_level === 'advanced');
+  const displayName = computed(() => {
+    if (user.value?.name) return user.value.name;
+    if (isSelf.value && decryptedProfile.value?.name) return decryptedProfile.value.name;
+    return 'Usuario cifrado';
+  });
+  const displayUser = computed(() => {
+    if (user.value?.user) return '@' + user.value.user;
+    if (isSelf.value && decryptedProfile.value?.user) return '@' + decryptedProfile.value.user;
+    return 'Cifrado';
+  });
+  const displayEmail = computed(() => {
+    if (user.value?.email) return user.value.email;
+    if (isSelf.value && decryptedProfile.value?.email) return decryptedProfile.value.email;
+    return 'No disponible (cifrado)';
+  });
 
   const userRules = computed(() => ({
     name: { required: v.required('Nombre'), maxLength: v.maxLength('Nombre', 255) },
@@ -426,7 +450,7 @@
 
   const getInitials = (params: { name: string }): string => {
     const { name } = params;
-    return name
+    return (name ?? '')
       .split(' ')
       .map((n) => n[0])
       .join('')

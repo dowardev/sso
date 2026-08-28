@@ -182,7 +182,7 @@
   } from 'ionicons/icons';
 
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useAuthController } from '@/composables/authController';
+import { useAuthController } from '@/controllers/authController';
 import { useThemeStore } from '@/stores/theme';
 
   const router = useRouter();
@@ -242,7 +242,7 @@ import { useThemeStore } from '@/stores/theme';
 
   const getInitials = (params: { name: string }): string => {
     const { name } = params;
-    return name
+    return (name ?? '')
       .split(' ')
       .map((n) => n[0])
       .join('')

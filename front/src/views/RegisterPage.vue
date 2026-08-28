@@ -8,121 +8,130 @@
     </ion-header>
     <ion-content :fullscreen="true">
       <AuthCard title="Crear Cuenta" subtitle="Regístrate para acceder">
-        <form @submit.prevent="handleRegister({})">
-            <ion-item class="input-item" lines="none">
-              <ion-input
-                v-model="form.name"
-                label="Nombre"
-                label-placement="floating"
-                type="text"
-                placeholder="Ingresa tu nombre"
-                autocomplete="name"
-                aria-describedby="register-name-error"
-                @ion-blur="v$.name.$touch()"
-              />
-            </ion-item>
-            <div v-if="v$.name.$error" id="register-name-error" class="field-error">{{ v$.name.$errors[0].$message }}</div>
+        <form @submit.prevent="handleRegister">
+          <!-- Name -->
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              v-model="form.name"
+              label="Nombre"
+              label-placement="floating"
+              type="text"
+              placeholder="Ingresa tu nombre"
+              autocomplete="name"
+              aria-describedby="register-name-error"
+              @ion-blur="v$.name.$touch()"
+            />
+          </ion-item>
+          <div v-if="v$.name.$error" id="register-name-error" class="field-error">{{ v$.name.$errors[0].$message }}</div>
 
-            <ion-item class="input-item" lines="none">
-              <ion-input
-                v-model="form.user"
-                label="Usuario"
-                label-placement="floating"
-                type="text"
-                placeholder="Ingresa tu usuario"
-                autocomplete="username"
-                aria-describedby="register-user-error"
-                @ion-blur="v$.user.$touch()"
-              />
-            </ion-item>
-            <div v-if="v$.user.$error" id="register-user-error" class="field-error">{{ v$.user.$errors[0].$message }}</div>
+          <!-- Username -->
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              v-model="form.user"
+              label="Usuario"
+              label-placement="floating"
+              type="text"
+              placeholder="Ingresa tu usuario"
+              autocomplete="username"
+              aria-describedby="register-user-error"
+              @ion-blur="v$.user.$touch()"
+            />
+          </ion-item>
+          <div v-if="v$.user.$error" id="register-user-error" class="field-error">{{ v$.user.$errors[0].$message }}</div>
 
-            <ion-item class="input-item" lines="none">
-              <ion-input
-                v-model="form.email"
-                label="Email"
-                label-placement="floating"
-                type="email"
-                placeholder="Ingresa tu email"
-                autocomplete="email"
-                aria-describedby="register-email-error"
-                @ion-blur="v$.email.$touch()"
-              />
-            </ion-item>
-            <div v-if="v$.email.$error" id="register-email-error" class="field-error">{{ v$.email.$errors[0].$message }}</div>
+          <!-- Email -->
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              v-model="form.email"
+              label="Email"
+              label-placement="floating"
+              type="email"
+              placeholder="Ingresa tu email"
+              autocomplete="email"
+              aria-describedby="register-email-error"
+              @ion-blur="v$.email.$touch()"
+            />
+          </ion-item>
+          <div v-if="v$.email.$error" id="register-email-error" class="field-error">{{ v$.email.$errors[0].$message }}</div>
 
-            <ion-item class="input-item" lines="none">
-              <ion-input
-                v-model="form.password"
-                label="Contraseña"
-                label-placement="floating"
-                type="password"
-                placeholder="Ingresa tu contraseña"
-                autocomplete="new-password"
-                aria-describedby="register-password-error"
-                @ion-blur="v$.password.$touch()"
-              >
-                <ion-input-password-toggle slot="end" />
-              </ion-input>
-            </ion-item>
+          <!-- Password -->
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              v-model="form.password"
+              label="Contraseña"
+              label-placement="floating"
+              type="password"
+              placeholder="Ingresa tu contraseña"
+              autocomplete="new-password"
+              aria-describedby="register-password-error"
+              @ion-blur="v$.password.$touch()"
+            >
+              <ion-input-password-toggle slot="end" />
+            </ion-input>
+          </ion-item>
 
-            <div v-if="form.password.length > 0" class="strength-bar-container">
-              <div
-                class="strength-bar"
-                :style="{ width: passwordStrength.percent + '%' }"
-                :class="'strength-' + passwordStrength.level"
-                role="progressbar"
-                :aria-valuenow="passwordStrength.percent"
-                aria-valuemin="0"
-                aria-valuemax="100"
-                :aria-label="'Fortaleza de la contraseña: ' + passwordStrength.label"
-              ></div>
-              <span class="strength-label" aria-live="polite">{{ passwordStrength.label }}</span>
-            </div>
-            <div v-if="v$.password.$error" id="register-password-error" class="field-error">{{ v$.password.$errors[0].$message }}</div>
+          <div v-if="form.password.length > 0" class="strength-bar-container">
+            <div
+              class="strength-bar"
+              :style="{ width: passwordStrength.percent + '%' }"
+              :class="'strength-' + passwordStrength.level"
+              role="progressbar"
+              :aria-valuenow="passwordStrength.percent"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              :aria-label="'Fortaleza de la contraseña: ' + passwordStrength.label"
+            ></div>
+            <span class="strength-label" aria-live="polite">{{ passwordStrength.label }}</span>
+          </div>
 
-            <ion-item class="input-item" lines="none">
-              <ion-input
-                v-model="form.password_confirmation"
-                label="Confirmar contraseña"
-                label-placement="floating"
-                type="password"
-                placeholder="Confirma tu contraseña"
-                autocomplete="new-password"
-                aria-describedby="register-password-confirm-error"
-                @ion-blur="v$.password_confirmation.$touch()"
-              />
-            </ion-item>
-            <div v-if="v$.password_confirmation.$error" id="register-password-confirm-error" class="field-error">{{ v$.password_confirmation.$errors[0].$message }}</div>
+          <div v-if="v$.password.$error" id="register-password-error" class="field-error">{{ v$.password.$errors[0].$message }}</div>
 
-            <div v-if="error" class="error-message" role="alert" aria-live="assertive">
-              <ion-icon :icon="alertCircle" size="small"></ion-icon>
-              {{ error }}
-            </div>
+          <!-- Password Confirmation -->
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              v-model="form.password_confirmation"
+              label="Confirmar contraseña"
+              label-placement="floating"
+              type="password"
+              placeholder="Confirma tu contraseña"
+              autocomplete="new-password"
+              aria-describedby="register-password-confirm-error"
+              @ion-blur="v$.password_confirmation.$touch()"
+            />
+          </ion-item>
+          <div v-if="v$.password_confirmation.$error" id="register-password-confirm-error" class="field-error">{{ v$.password_confirmation.$errors[0].$message }}</div>
 
-            <div class="ion-padding-top">
-              <ion-button
-                type="submit"
-                expand="block"
-                class="gradient-btn"
-                :disabled="loading"
-              >
-                <ion-spinner v-if="loading" name="lines"></ion-spinner>
-                <span v-else>Registrar</span>
-              </ion-button>
-            </div>
-          </form>
+          <!-- Error message -->
+          <div v-if="error" class="error-message" role="alert" aria-live="assertive">
+            <ion-icon :icon="alertCircle" size="small"></ion-icon>
+            {{ error }}
+          </div>
 
-          <div class="auth-card-footer">
-            <ion-button fill="clear" expand="block" class="subtle" @click="goToLogin({})">
-              Ya tengo cuenta
-            </ion-button>
-            <ion-button fill="clear" expand="block" class="subtle" @click="goBack({})">
-              <ion-icon slot="start" :icon="arrowBack" aria-hidden="true"></ion-icon>
-              Volver
+          <!-- Submit button -->
+          <div class="ion-padding-top">
+            <ion-button
+              type="submit"
+              expand="block"
+              class="gradient-btn"
+              :disabled="loading"
+            >
+              <ion-spinner v-if="loading" name="lines"></ion-spinner>
+              <span v-if="loading">Registrando...</span>
+              <span v-else>Registrar</span>
             </ion-button>
           </div>
-    </AuthCard>
+        </form>
+
+        <div class="auth-card-footer">
+          <ion-button fill="clear" expand="block" class="subtle" @click="goToLogin">
+            Ya tengo cuenta
+          </ion-button>
+          <ion-button fill="clear" expand="block" class="subtle" @click="goBack">
+            <ion-icon slot="start" :icon="arrowBack" aria-hidden="true"></ion-icon>
+            Volver
+          </ion-button>
+        </div>
+      </AuthCard>
     </ion-content>
   </ion-page>
 </template>
@@ -150,7 +159,7 @@ import { useVuelidate } from '@vuelidate/core'
 import { required, email, minLength, sameAs } from '@vuelidate/validators'
 
 // 2. Controllers / Composables
-import { useAuthController } from '@/composables/authController'
+import { useAuthController } from '@/controllers/authController'
 import { useValidation, withMsg } from '@/composables/useValidation'
 const authController = useAuthController()
 const { handleApiError } = useValidation()
@@ -184,7 +193,9 @@ const loading = ref(false)
 const error = ref('')
 
 const rules = computed(() => ({
-  name: { required: withMsg('El nombre es requerido', required) },
+  name: {
+    required: withMsg('El nombre es requerido', required),
+  },
   user: {
     required: withMsg('El usuario es requerido', required),
     minLength: withMsg('El usuario debe tener al menos 3 caracteres', minLength(3)),
@@ -265,8 +276,8 @@ onMounted(() => {
   }
 })
 
-// 10. Functions (named parameters pattern)
-const handleRegister = async (_params: object = {}): Promise<void> => {
+// 10. Functions
+const handleRegister = async (): Promise<void> => {
   const isValid = await v$.value.$validate()
   if (!isValid) return
 
@@ -286,15 +297,14 @@ const handleRegister = async (_params: object = {}): Promise<void> => {
       password: form.value.password,
       password_confirmation: form.value.password_confirmation,
       client_id: oauthParams.value.client_id || undefined,
+      encryption_level: 'basic',
     })
     await loader.dismiss()
 
-    // Persist the OAuth context so the flow can resume after verification.
     if (oauthParams.value.client_id) {
       saveOauthPending(oauthParams.value)
     }
 
-    // Remember the registration area so post-verify redirects to AdminLogin.
     saveEmailVerifyOrigin('admin')
 
     showSuccess({ message: 'Revisa tu email para completar el registro.' })
@@ -313,7 +323,7 @@ const handleRegister = async (_params: object = {}): Promise<void> => {
   }
 }
 
-const goToLogin = (_params: object = {}): void => {
+const goToLogin = (): void => {
   const query: Record<string, string> = {}
   if (isOAuthFlow.value) {
     query.client_id = oauthParams.value.client_id
@@ -330,7 +340,7 @@ const goToLogin = (_params: object = {}): void => {
   router.push({ name: 'AdminLogin', query })
 }
 
-const goBack = (_params: object = {}): void => {
+const goBack = (): void => {
   if (window.history.length > 1) {
     router.back()
   } else {

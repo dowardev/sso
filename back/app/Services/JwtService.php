@@ -47,10 +47,29 @@ class JwtService
         return $this->issuer;
     }
 
-    public function generateToken(User $user, ?string $dpopPublicKey = null, bool $rememberMe = false): array
+    /**
+     * Generate JWT token for a user.
+     *
+     * For advanced encryption level users, omits name/email from user claim
+     * and adds encryption_level claim.
+     */
+    public function generateToken(User $user, ?string $dpopPublicKey = null, bool $rememberMe = false, ?string $encryptionLevel = null): array
     {
         $now = time();
         $expiresAt = $now + $this->tokenExpiration;
+
+        $isAdvanced = $encryptionLevel === 'advanced' || $user->encryption_level === 'advanced';
+
+        $userClaim = [
+            'id' => $user->id,
+            'user' => $user->user,
+        ];
+
+        // Include name/email only for basic users
+        if (! $isAdvanced) {
+            $userClaim['name'] = $user->name;
+            $userClaim['email'] = $user->email;
+        }
 
         $builder = $this->jwtConfig->builder()
             ->issuedBy($this->issuer)
@@ -58,12 +77,12 @@ class JwtService
             ->issuedAt(new \DateTimeImmutable('@'.$now))
             ->expiresAt(new \DateTimeImmutable('@'.$expiresAt))
             ->relatedTo((string) $user->id)
-            ->withClaim('user', [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'user' => $user->user,
-            ]);
+            ->withClaim('user', $userClaim);
+
+        // Add encryption_level claim for advanced users
+        if ($isAdvanced) {
+            $builder->withClaim('encryption_level', 'advanced');
+        }
 
         if ($rememberMe) {
             $builder->withClaim('remember_me', true);

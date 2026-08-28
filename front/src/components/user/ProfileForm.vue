@@ -12,7 +12,16 @@
           {{ profileError }}
         </div>
 
-        <ion-item class="form-item" lines="none">
+        <!-- Advanced encryption notice -->
+        <div v-if="initialUser && initialUser.encryption_level === 'advanced'" class="advanced-notice">
+          <ion-icon :icon="lockClosed" color="primary" size="small"></ion-icon>
+          <div>
+            <strong>Perfil cifrado con conocimiento cero</strong>
+            <p>Tu nombre, usuario y email están cifrados en este dispositivo. Para modificarlos, usa la aplicación cliente que descifra localmente.</p>
+          </div>
+        </div>
+
+        <ion-item v-if="!isAdvancedUser" class="form-item" lines="none">
           <ion-label position="stacked">Nombre Completo *</ion-label>
           <ion-input
             v-model="form.name"
@@ -26,7 +35,7 @@
           {{ v$.name.$errors[0].$message }}
         </div>
 
-        <ion-item class="form-item" lines="none">
+        <ion-item v-if="!isAdvancedUser" class="form-item" lines="none">
           <ion-label position="stacked">Nombre de Usuario *</ion-label>
           <ion-input
             v-model="form.user"
@@ -40,7 +49,7 @@
           {{ v$.user.$errors[0].$message }}
         </div>
 
-        <ion-item class="form-item" lines="none">
+        <ion-item v-if="!isAdvancedUser" class="form-item" lines="none">
           <ion-label position="stacked">Correo Electrónico *</ion-label>
           <ion-input
             v-model="form.email"
@@ -55,7 +64,35 @@
           {{ v$.email.$errors[0].$message }}
         </div>
 
-        <div class="ion-padding-top">
+        <!-- Advanced user: show encrypted profile info -->
+        <div v-if="isAdvancedUser" class="encrypted-info">
+          <ion-item class="form-item" lines="none">
+            <ion-label position="stacked">Login ID</ion-label>
+            <ion-input
+              :value="initialUser?.login_id || ''"
+              readonly
+              autocomplete="off"
+            />
+          </ion-item>
+          <ion-item class="form-item" lines="none">
+            <ion-label position="stacked">Salt A (Key_A derivation)</ion-label>
+            <ion-input
+              :value="initialUser?.salt_a || ''"
+              readonly
+              autocomplete="off"
+            />
+          </ion-item>
+          <ion-item class="form-item" lines="none">
+            <ion-label position="stacked">Wrapped DEK A</ion-label>
+            <ion-input
+              :value="initialUser?.wrapped_dek_a || ''"
+              readonly
+              autocomplete="off"
+            />
+          </ion-item>
+        </div>
+
+        <div v-if="!isAdvancedUser" class="ion-padding-top">
           <ion-button
             type="submit"
             expand="block"
@@ -69,6 +106,110 @@
       </form>
       </ion-card-content>
     </ion-card>
+
+    <!-- Upgrade to Advanced Encryption (basic users only) -->
+    <ion-card v-if="!isAdvancedUser" class="form-section">
+      <ion-card-content>
+        <h3 class="section-title">Cifrado Avanzado</h3>
+        <p class="upgrade-description">
+          Protege tu cuenta con cifrado de conocimiento cero: tu contraseña nunca sale de este
+          dispositivo y tu perfil se cifra localmente. Se te mostrará una frase semilla de
+          recuperación (24 palabras) que deberás guardar en un lugar seguro.
+        </p>
+
+        <form @submit.prevent="handleUpgrade">
+          <div v-if="upgradeError" class="error-message">
+            <ion-icon :icon="alertCircle" size="small"></ion-icon>
+            {{ upgradeError }}
+          </div>
+
+          <div class="upgrade-requirements">
+            <p><strong>Requisitos:</strong></p>
+            <ul>
+              <li>Tu contraseña actual (mínimo 12 caracteres recomendado)</li>
+              <li>Guardar la frase semilla que se generará</li>
+            </ul>
+            <p class="warning-text">
+              ⚠️ Esta acción es irreversible y cerrará todas tus sesiones.
+                </p>
+            <p class="warning-text">
+              ⚠️ Al activarlo iniciás sesión solo con tu <strong>nombre de usuario</strong>, no con tu correo: el correo queda cifrado en tu dispositivo y el servidor ya no lo guarda.
+            </p>
+          </div>
+
+          <ion-item class="form-item" lines="none">
+            <ion-label position="stacked">Contraseña Actual *</ion-label>
+            <ion-input
+              v-model="upgradeForm.current_password"
+              type="password"
+              placeholder="Confirma tu contraseña para continuar"
+              autocomplete="current-password"
+            >
+              <ion-input-password-toggle slot="end" />
+            </ion-input>
+          </ion-item>
+
+          <div class="ion-padding-top">
+            <ion-button
+              type="submit"
+              expand="block"
+              color="primary"
+              :disabled="upgrading || upgradeForm.current_password.length === 0"
+            >
+              <ion-spinner v-if="upgrading" slot="start" name="lines"></ion-spinner>
+              <span v-if="upgrading">Generando claves...</span>
+              <span v-else>Actualizar a Cifrado Avanzado</span>
+            </ion-button>
+          </div>
+        </form>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Seed Phrase Modal -->
+    <ion-modal
+      :is-open="showSeedModal"
+      :breakpoints="[0, 1]"
+      @did-dismiss="showSeedModal = false"
+    >
+      <ion-header class="ion-no-border" mode="ios">
+        <ion-toolbar>
+          <ion-title>Tu Frase Semilla</ion-title>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="ion-padding">
+        <div class="seed-content">
+          <div class="seed-warning">
+            <ion-icon :icon="warning" color="warning" size="large"></ion-icon>
+            <div>
+              <h3>¡IMPORTANTE! Guarda esta frase en un lugar seguro</h3>
+              <p>Esta es la <strong>única forma</strong> de recuperar tu cuenta si olvidas tu contraseña. Nadie puede recuperarla por ti.</p>
+              <ul>
+                <li>Escríbela en papel y guárdala segura</li>
+                <li>No la guardes en capturas ni archivos digitales</li>
+                <li>No la compartas con nadie</li>
+              </ul>
+            </div>
+          </div>
+
+          <div v-if="seedPhrase" class="seed-phrase">
+            <div v-for="(word, index) in seedPhrase.split(' ')" :key="index" class="seed-word">
+              <span class="seed-index">{{ index + 1 }}.</span>
+              <span class="seed-text">{{ word }}</span>
+            </div>
+          </div>
+
+          <div class="seed-actions">
+            <ion-button fill="outline" expand="block" @click="copySeedPhrase">
+              <ion-icon slot="start" :icon="copy"></ion-icon>
+              Copiar al portapapeles
+            </ion-button>
+            <ion-button expand="block" color="success" @click="confirmSeedSaved">
+              Ya la guardé, continuar
+            </ion-button>
+          </div>
+        </div>
+      </ion-content>
+    </ion-modal>
 
     <!-- Cambio de Contraseña -->
     <ion-card class="form-section">
@@ -229,198 +370,270 @@
 </template>
 
 <script setup lang="ts">
-  // 1. Imports (ionic/vue/ionicons)
-  import { ref, computed, onMounted } from 'vue';
-  import {
-    IonCard,
-    IonCardContent,
-    IonItem,
-    IonInput,
-    IonButton,
-    IonSpinner,
-    IonInputPasswordToggle,
-    IonIcon,
-    IonModal,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonButtons,
-    IonLabel,
-    IonContent,
-  } from '@ionic/vue';
-  import { alertCircle, trashOutline, closeOutline } from 'ionicons/icons';
-  import { useVuelidate } from '@vuelidate/core';
-  import { required, minLength, sameAs } from '@vuelidate/validators';
-  import { withMsg, useValidation } from '@/composables/useValidation';
-  import { useToast } from '@/composables/useToast';
-  import type { User } from '@/types';
+// 1. Imports (ionic/vue/ionicons)
+import { ref, computed, onMounted } from 'vue';
+import {
+  IonCard,
+  IonCardContent,
+  IonItem,
+  IonInput,
+  IonButton,
+  IonSpinner,
+  IonInputPasswordToggle,
+  IonIcon,
+  IonModal,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonLabel,
+  IonContent,
+} from '@ionic/vue';
+import { alertCircle, trashOutline, closeOutline, lockClosed, warning, copy } from 'ionicons/icons';
+import { useVuelidate } from '@vuelidate/core';
+import { required, minLength, sameAs } from '@vuelidate/validators';
+import { withMsg, useValidation } from '@/composables/useValidation';
+import { useToast } from '@/composables/useToast';
+import type { User, EncryptionLevel } from '@/types';
 
-  const { handleApiError } = useValidation();
-  const { showSuccess } = useToast();
+const { handleApiError } = useValidation();
+const { showSuccess, showError } = useToast();
 
-  // 2. Controllers
-  import { useAuthController } from '@/composables/authController';
+// 2. Controllers
+import { useAuthController } from '@/controllers/authController';
 
-  const authController = useAuthController();
+const authController = useAuthController();
 
-  // 3. Components
-  // (none)
+// 3. Components
+// (none)
 
-  // 4. Interface and types imports
-  // (using User from @/types)
+// 4. Interface and types imports
+interface UserProfileFormProps extends Omit<User, 'name' | 'user' | 'email' | 'login_id'> {
+  name: string | null;
+  user: string | null;
+  email: string | null;
+  login_id: string | null;
+  encryption_level: EncryptionLevel;
+  salt_a?: string | null;
+  wrapped_dek_a?: string | null;
+  encrypted_profile?: string | null;
+}
 
-  // 5. Main (props, emits, etc.)
-  const emit = defineEmits<{
-    saved: [];
-  }>();
+// 5. Main (props, emits, etc.)
+const emit = defineEmits<{
+  saved: [];
+}>();
 
-  const props = defineProps<{
-    initialUser: User | null;
-  }>();
+const props = defineProps<{
+  initialUser: UserProfileFormProps | null;
+}>();
 
-  // 6. Vars and const
-  const form = ref({
-    name: '',
-    user: '',
-    email: '',
-  });
+// 6. Vars and const
+const form = ref({
+  name: '',
+  user: '',
+  email: '',
+});
 
-  const passwordForm = ref({
-    current_password: '',
-    new_password: '',
-    new_password_confirmation: '',
-  });
+const passwordForm = ref({
+  current_password: '',
+  new_password: '',
+  new_password_confirmation: '',
+});
 
-  const savingProfile = ref(false);
-  const changingPassword = ref(false);
-  const profileError = ref('');
-  const passwordError = ref('');
+const savingProfile = ref(false);
+const changingPassword = ref(false);
+const profileError = ref('');
+const passwordError = ref('');
 
-  const showDeleteModal = ref(false);
-  const deleteForm = ref({ confirmation: '', password: '' });
-  const deletingAccount = ref(false);
-  const deleteError = ref('');
+const showDeleteModal = ref(false);
+const deleteForm = ref({ confirmation: '', password: '' });
+const deletingAccount = ref(false);
+const deleteError = ref('');
+// Upgrade to advanced encryption state (Phase 4)
+const upgrading = ref(false);
+const upgradeError = ref('');
+const showSeedModal = ref(false);
+const seedPhrase = ref('');
+const upgradeForm = ref({ current_password: '' });
 
-  // 7. Watch
-  // (reactive via onMounted only, no watcher needed since initialUser is set once)
+// 7. Watch
+// (reactive via onMounted only, no watcher needed since initialUser is set once)
 
-  // 8. Computed
-  const rules = computed(() => ({
-    name: { required: withMsg('El nombre es requerido', required) },
-    user: {
-      required: withMsg('El nombre de usuario es requerido', required),
-      minLength: withMsg('El nombre de usuario debe tener al menos 3 caracteres', minLength(3)),
-    },
-    email: {
-      required: withMsg('El correo electrónico es requerido', required),
-      email: withMsg('El correo electrónico no es válido', required),
-    },
-  }));
+// 8. Computed
+const isAdvancedUser = computed(() => props.initialUser?.encryption_level === 'advanced');
 
-  const passwordRules = computed(() => ({
-    current_password: { required: withMsg('La contraseña actual es requerida', required) },
-    new_password: {
-      required: withMsg('La nueva contraseña es requerida', required),
-      minLength: withMsg('La contraseña debe tener al menos 6 caracteres', minLength(6)),
-    },
-    new_password_confirmation: {
-      required: withMsg('La confirmación de contraseña es requerida', required),
-      sameAs: sameAs('new_password'),
-    },
-  }));
+const rules = computed(() => ({
+  name: { required: withMsg('El nombre es requerido', required) },
+  user: {
+    required: withMsg('El nombre de usuario es requerido', required),
+    minLength: withMsg('El nombre de usuario debe tener al menos 3 caracteres', minLength(3)),
+  },
+  email: {
+    required: withMsg('El correo electrónico es requerido', required),
+    email: withMsg('El correo electrónico no es válido', required),
+  },
+}));
 
-  const v$ = useVuelidate(rules, form);
-  const v$Password = useVuelidate(passwordRules, passwordForm);
+const passwordRules = computed(() => ({
+  current_password: { required: withMsg('La contraseña actual es requerida', required) },
+  new_password: {
+    required: withMsg('La nueva contraseña es requerida', required),
+    minLength: withMsg('La contraseña debe tener al menos 6 caracteres', minLength(6)),
+  },
+  new_password_confirmation: {
+    required: withMsg('La confirmación de contraseña es requerida', required),
+    sameAs: sameAs('new_password'),
+  },
+}));
 
-  // 9. OnMounted
-  onMounted(() => {
-    updateFormFromProps();
-  });
+const v$ = useVuelidate(rules, form);
+const v$Password = useVuelidate(passwordRules, passwordForm);
 
-  // 10. Functions
-  const updateFormFromProps = (): void => {
-    if (props.initialUser) {
-      form.value = {
-        name: props.initialUser.name,
-        user: props.initialUser.user,
-        email: props.initialUser.email,
+// 9. OnMounted
+onMounted(() => {
+  updateFormFromProps();
+});
+
+// 10. Functions
+const updateFormFromProps = (): void => {
+  if (props.initialUser) {
+    form.value = {
+      name: props.initialUser.name || '',
+      user: props.initialUser.user || '',
+      email: props.initialUser.email || '',
+    };
+  }
+};
+
+const saveProfile = async (): Promise<void> => {
+  // For advanced users, profile is updated via encrypted blobs in the client
+  if (isAdvancedUser.value) {
+    profileError.value = 'El perfil cifrado se actualiza desde el cliente local';
+    return;
+  }
+
+  const isValid = await v$.value.$validate();
+  if (!isValid) return;
+
+  savingProfile.value = true;
+  profileError.value = '';
+
+  try {
+    await authController.updateUserProfile({
+      name: form.value.name,
+      user: form.value.user,
+      email: form.value.email,
+    });
+    emit('saved');
+  } catch (err) {
+    profileError.value = handleApiError(err);
+  } finally {
+    savingProfile.value = false;
+  }
+};
+
+const changePassword = async (): Promise<void> => {
+  const isValid = await v$Password.value.$validate();
+  if (!isValid) return;
+
+  changingPassword.value = true;
+  passwordError.value = '';
+
+  try {
+    await authController.updateUserPassword({
+      current_password: passwordForm.value.current_password,
+      new_password: passwordForm.value.new_password,
+      new_password_confirmation: passwordForm.value.new_password_confirmation,
+    });
+
+    passwordForm.value = {
+      current_password: '',
+      new_password: '',
+      new_password_confirmation: '',
+    };
+    showSuccess({ message: 'Contraseña actualizada correctamente' });
+  } catch (err) {
+    passwordError.value = handleApiError(err);
+  } finally {
+    changingPassword.value = false;
+  }
+};
+
+const handleDeleteAccount = async (): Promise<void> => {
+  if (deleteForm.value.confirmation !== 'ELIMINAR') return;
+
+  deletingAccount.value = true;
+  deleteError.value = '';
+
+  try {
+    await authController.deleteAccount({
+      password: deleteForm.value.password,
+      confirmation: deleteForm.value.confirmation,
+    });
+
+    showDeleteModal.value = false;
+    showSuccess({ message: 'Cuenta eliminada correctamente' });
+
+    setTimeout(() => {
+      authController.logout();
+    }, 1500);
+  } catch (err) {
+    deleteError.value = handleApiError(err);
+  } finally {
+    deletingAccount.value = false;
+  }
+};
+
+      /**
+       * Upgrade basic user to advanced zero-knowledge encryption.
+       * Generates all crypto material client-side and shows seed phrase.
+       */
+      const handleUpgrade = async (): Promise<void> => {
+        if (!upgradeForm.value.current_password) {
+          upgradeError.value = 'Debes ingresar tu contraseña actual';
+          return;
+        }
+
+        upgrading.value = true;
+        upgradeError.value = '';
+
+        try {
+          const result = await authController.upgradeToAdvanced({
+            currentPassword: upgradeForm.value.current_password,
+          });
+
+          // Show seed phrase modal (one-time display)
+          seedPhrase.value = result.seedPhrase;
+          showSeedModal.value = true;
+
+          // Clear form
+          upgradeForm.value.current_password = '';
+
+          // Notify parent to refresh profile (user is now advanced)
+          emit('saved');
+        } catch (err) {
+          upgradeError.value = handleApiError(err);
+        } finally {
+          upgrading.value = false;
+        }
       };
-    }
-  };
 
-  const saveProfile = async (): Promise<void> => {
-    const isValid = await v$.value.$validate();
-    if (!isValid) return;
-
-    savingProfile.value = true;
-    profileError.value = '';
-
-    try {
-      await authController.updateUserProfile({
-        name: form.value.name,
-        user: form.value.user,
-        email: form.value.email,
-      });
-      emit('saved');
-    } catch (err) {
-      profileError.value = handleApiError(err);
-    } finally {
-      savingProfile.value = false;
-    }
-  };
-
-  const changePassword = async (): Promise<void> => {
-    const isValid = await v$Password.value.$validate();
-    if (!isValid) return;
-
-    changingPassword.value = true;
-    passwordError.value = '';
-
-    try {
-      await authController.updateUserPassword({
-        current_password: passwordForm.value.current_password,
-        new_password: passwordForm.value.new_password,
-        new_password_confirmation: passwordForm.value.new_password_confirmation,
-      });
-
-      passwordForm.value = {
-        current_password: '',
-        new_password: '',
-        new_password_confirmation: '',
+      const copySeedPhrase = async (): Promise<void> => {
+        try {
+          await navigator.clipboard.writeText(seedPhrase.value);
+          showSuccess({ message: 'Frase semilla copiada al portapapeles' });
+        } catch {
+          showError({ message: 'No se pudo copiar. Selecciona y copia manualmente.' });
+        }
       };
-      showSuccess({ message: 'Contraseña actualizada correctamente' });
-    } catch (err) {
-      passwordError.value = handleApiError(err);
-    } finally {
-      changingPassword.value = false;
-    }
-  };
 
-  const handleDeleteAccount = async (): Promise<void> => {
-    if (deleteForm.value.confirmation !== 'ELIMINAR') return;
-
-    deletingAccount.value = true;
-    deleteError.value = '';
-
-    try {
-      await authController.deleteAccount({
-        password: deleteForm.value.password,
-        confirmation: deleteForm.value.confirmation,
-      });
-
-      showDeleteModal.value = false;
-      showSuccess({ message: 'Cuenta eliminada correctamente' });
-
-      setTimeout(() => {
-        authController.logout();
-      }, 1500);
-    } catch (err) {
-      deleteError.value = handleApiError(err);
-    } finally {
-      deletingAccount.value = false;
-    }
-  };
-</script>
+      const confirmSeedSaved = (): void => {
+        showSeedModal.value = false;
+        seedPhrase.value = '';
+        showSuccess({ message: 'Cuenta actualizada a cifrado avanzado' });
+      };
+  </script>
 
 <style scoped>
 .profile-form-container {
@@ -511,6 +724,40 @@
   font-size: 14px;
   color: var(--text-primary);
   line-height: 1.5;
+}
+
+.advanced-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.advanced-notice strong {
+  color: var(--ion-color-primary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.advanced-notice p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.encrypted-info {
+  margin-bottom: 16px;
+}
+
+.encrypted-info ion-item {
+  --background: var(--ion-color-light);
+}
+
+.encrypted-info ion-input {
+  --color: var(--text-tertiary);
 }
 
 @media (max-width: 374px) {

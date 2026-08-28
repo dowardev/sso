@@ -1,20 +1,65 @@
 // SPDX-License-Identifier: MIT
+import type {
+  EncryptionLevel,
+  AdvancedAuthState,
+  EncryptedBlob,
+  WrappedKey,
+  UserProfile as CryptoUserProfile,
+  AdvancedLoginResponse,
+  AdvancedRegistrationPayload,
+  RecoveryVerifyRequest,
+  RecoveryVerifyResponse,
+  RecoveryCompleteRequest,
+  ChangePasswordAdvancedRequest,
+  PasskeyRegistrationOptions,
+  PasskeyRegistrationFinishRequest,
+  PasskeyRegistrationFinishResponse,
+  PasskeyAuthenticationOptions,
+  PasskeyAuthenticationFinishRequest,
+  PasskeyAuthenticationFinishResponse,
+  PasskeyDeleteResponse,
+} from './crypto';
+
+export type {
+  EncryptionLevel,
+  AdvancedAuthState,
+  EncryptedBlob,
+  WrappedKey,
+  CryptoUserProfile,
+  AdvancedLoginResponse,
+  AdvancedRegistrationPayload,
+  RecoveryVerifyRequest,
+  RecoveryVerifyResponse,
+  RecoveryCompleteRequest,
+  ChangePasswordAdvancedRequest,
+  PasskeyRegistrationOptions,
+  PasskeyRegistrationFinishRequest,
+  PasskeyRegistrationFinishResponse,
+  PasskeyAuthenticationOptions,
+  PasskeyAuthenticationFinishRequest,
+  PasskeyAuthenticationFinishResponse,
+  PasskeyDeleteResponse,
+};
+
 export interface User {
+  id: number;
+  name: string;
+  user: string;
+  email: string;
+  is_admin: boolean;
+  is_advanced: boolean;
+  encryption_level: EncryptionLevel;
+  login_id: string | null;
+  created_at: string;
+  sessions_count?: number;
+  tokens_count?: number;
+  roles?: Array<{
     id: number;
     name: string;
-    user: string;
-    email: string;
-    is_admin: boolean;
-    created_at: string;
-    sessions_count?: number;
-    tokens_count?: number;
-    roles?: Array<{
-        id: number;
-        name: string;
-        slug: string;
-        description: string | null;
-        is_protected: boolean;
-    }>;
+    slug: string;
+    description: string | null;
+    is_protected: boolean;
+  }>;
 }
 
 export interface UserDetail extends User {
