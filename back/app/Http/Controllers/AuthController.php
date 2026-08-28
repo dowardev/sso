@@ -13,6 +13,7 @@ use App\Models\UserActivityLog;
 use App\Services\ActivityLogService;
 use App\Services\AuthService;
 use App\Services\EmailVerificationService;
+use App\Services\PasswordResetService;
 use App\Services\PasskeyService;
 use App\Services\SessionService;
 use Illuminate\Http\JsonResponse;
@@ -41,14 +42,17 @@ class AuthController extends Controller
 
     private EmailVerificationService $emailVerificationService;
 
+    private PasswordResetService $passwordResetService;
+
     private PasskeyService $passkeyService;
 
-    public function __construct(AuthService $authService, SessionService $sessionService, ActivityLogService $activityLogService, EmailVerificationService $emailVerificationService, PasskeyService $passkeyService)
+    public function __construct(AuthService $authService, SessionService $sessionService, ActivityLogService $activityLogService, EmailVerificationService $emailVerificationService, PasswordResetService $passwordResetService, PasskeyService $passkeyService)
     {
         $this->authService = $authService;
         $this->sessionService = $sessionService;
         $this->activityLogService = $activityLogService;
         $this->emailVerificationService = $emailVerificationService;
+        $this->passwordResetService = $passwordResetService;
         $this->passkeyService = $passkeyService;
     }
 
@@ -810,6 +814,48 @@ class AuthController extends Controller
     /**
      * Start passkey registration: returns PublicKeyCredentialCreationOptions
      */
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'identifier' => 'required|string',
+        ]);
+
+        $this->passwordResetService->sendResetLink($request->input('identifier'));
+
+        return response()->json([
+            'message' => 'Si la cuenta existe, te enviamos instrucciones.',
+        ]);
+    }
+
+    /**
+     * Reset a password using a token from the email link.
+     *
+     * Returns 422 (never 404/401) for an invalid or expired token so the
+     * response does not distinguish between "wrong token" and "no such user".
+     */
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'token' => 'required|string',
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $this->passwordResetService->reset(
+            $request->input('token'),
+            $request->input('password'),
+        );
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Token inválido o expirado.',
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Contraseña actualizada.',
+        ]);
+    }
+
     public function passkeyRegisterStart(Request $request): JsonResponse
     {
         $request->validate([
