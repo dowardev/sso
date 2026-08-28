@@ -25,11 +25,9 @@ Route::post('/login/advanced/verify', [AuthController::class, 'loginAdvancedVeri
 Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->middleware('refresh.token');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
 Route::post('/register/advanced', [AuthController::class, 'registerAdvanced'])->middleware('throttle:3,1');
-Route::post('/recovery/verify', [AuthController::class, 'recoveryVerify'])->middleware('throttle:10,1');
-Route::post('/recovery/complete', [AuthController::class, 'recoveryComplete'])->middleware('throttle:10,1');
+Route::post('/recovery/verify', [AuthController::class, 'recoveryVerify'])->middleware('throttle:3,1');
+Route::post('/recovery/complete', [AuthController::class, 'recoveryComplete'])->middleware('throttle:3,1');
 Route::post('/password/change-advanced', [AuthController::class, 'changePasswordAdvanced'])->middleware('throttle:3,1');
-Route::post('/password/forgot', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
-Route::post('/password/reset', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 Route::post('/user/upgrade', [AuthController::class, 'upgradeToAdvanced'])->middleware(['jwt.auth', 'throttle:3,1']);
 Route::post('/passkey/register/start', [AuthController::class, 'passkeyRegisterStart'])->middleware('throttle:3,1');
 Route::post('/passkey/register/finish', [AuthController::class, 'passkeyRegisterFinish'])->middleware('throttle:3,1');

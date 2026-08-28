@@ -44,16 +44,6 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/VerifyEmailPage.vue'),
   },
   {
-    path: '/recovery',
-    name: 'recovery',
-    component: () => import('../views/RecoveryPage.vue'),
-  },
-  {
-    path: '/reset-password/:token',
-    name: 'reset-password',
-    component: () => import('../views/RecoveryPage.vue'),
-  },
-  {
     path: '/auth/logout',
     name: 'AuthLogout',
     component: () => import('../views/LogoutPage.vue'),
