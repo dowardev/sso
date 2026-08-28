@@ -43,6 +43,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Email verify origin tracking**: `front/src/services/emailVerifyOrigin.ts` persists the registration origin (admin/public) so post-verify redirect targets the correct login
 - **Email branding**: `front/src/composables/useEmailBranding.ts` composable for configurable email logo (separate from auth branding), with upload/remove in `DesignPage.vue`
 - **Test coverage**: 40 backend tests (EmailVerificationService, EmailVerificationController, CleanupVerificationTokens, LoginEmailVerificationGate, RegisterEmailVerification, SetupAdminEmailVerified, EmailLogo, EmailVerificationMigration) + 20 frontend tests (useEmailBranding, emailVerifyOrigin, oauthPending)
+- **Password recovery system (LBDS-203)**: entry point + UI flow for both basic (email-backed) and advanced (ZKE) users
+  - **`back/app/Services/PasswordResetService.php`**: `sendResetLink()` (anti-enumeration, generic 200), `reset()` (token hash, single-use, TTL, revocation), `purgeExpired()`
+  - **`back/app/Models/PasswordResetToken.php`**: token model with `pending()` scope (used/revoked/expired), `isValid()`, `markAsUsed()`, `revoke()`
+  - **`back/app/Mail/ResetPassword.php`**, **`back/resources/views/emails/reset-password.blade.php`**: reset email with deep link to `/reset-password/{token}`
+  - **`back/app/Http/Controllers/AuthController.php`**: `forgotPassword` (`POST /password/forgot`, generic 200, throttle 5,1) and `resetPassword` (`POST /password/reset`, token-based, throttle 5,1)
+  - **`back/database/migrations/2026_08_28_000000_create_password_reset_tokens_table.php`**: `user_id`/`token_hash` table (drops the Laravel starter default first)
+  - **`front/src/views/RecoveryPage.vue`**: smart detection (email → basic email flow; username → probe `/crypto/blobs` → ZKE seed-phrase or basic), handles `/reset-password/:token` deep link
+  - **`front/src/router/index.ts`**: `/recovery` and `/reset-password/:token` public routes
+  - **`back/tests/Feature/PasswordResetTest.php`**: feature tests for anti-enumeration, weak-password rejection, single-use and expired-token handling
 
 ### Changed
 
@@ -61,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`1c951c4`**: post-verify redirect now routes to the corresponding login (admin vs public) instead of always targeting the public login
 - **`730e10b`**: backfill test user isolation for MySQL DDL in migration tests
+- **LBDS-203**: `resetPassword` and the recovery UI enforced `min:8` while registration and profile update require `min:10` + complexity (uppercase, lowercase, number, symbol) — a password-policy downgrade on reset. Both now enforce the platform policy
 
 ## [0.32.0] - 2026-08-18
 

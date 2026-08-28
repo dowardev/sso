@@ -72,6 +72,19 @@
         </ion-button>
       </div>
 
+      <!-- Forgot password link -->
+      <div class="ion-padding-top forgot-password">
+        <ion-button
+          fill="clear"
+          expand="block"
+          class="subtle"
+          :disabled="loading || cryptoLoading"
+          @click="goToRecovery"
+        >
+          ¿Olvidaste tu contraseña?
+        </ion-button>
+      </div>
+
       <!-- Advanced encryption info -->
       <div v-if="isAdvancedLogin" class="advanced-info">
         <ion-icon :icon="lockClosed" size="small"></ion-icon>
@@ -439,6 +452,10 @@ const goBack = (): void => {
   } else {
     router.replace('/');
   }
+};
+
+const goToRecovery = (): void => {
+  router.push({ name: 'recovery' });
 };
 </script>
 

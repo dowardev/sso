@@ -5,19 +5,21 @@
 namespace App\Console\Commands;
 
 use App\Services\EmailVerificationService;
+use App\Services\PasswordResetService;
 use Illuminate\Console\Command;
 
 class CleanupVerificationTokens extends Command
 {
     protected $signature = 'verification-tokens:cleanup';
 
-    protected $description = 'Delete expired email verification tokens';
+    protected $description = 'Delete expired email verification and password reset tokens';
 
-    public function handle(EmailVerificationService $service): int
+    public function handle(EmailVerificationService $service, PasswordResetService $passwordResetService): int
     {
-        $deleted = $service->purgeExpired();
+        $verificationDeleted = $service->purgeExpired();
+        $resetDeleted = $passwordResetService->purgeExpired();
 
-        $this->info("Purged {$deleted} expired verification token(s).");
+        $this->info("Purged {$verificationDeleted} expired verification token(s) and {$resetDeleted} expired password reset token(s).");
 
         return self::SUCCESS;
     }
