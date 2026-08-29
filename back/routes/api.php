@@ -67,6 +67,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::get('/user/activity-log', [AuthController::class, 'getUserActivityLog']);
     Route::delete('/user/account', [AuthController::class, 'deleteAccount']);
     Route::get('/user-auth', [AuthController::class, 'me']);
+        Route::get('/user/profile-token', [AuthController::class, 'profileToken']);
 
     Route::middleware('admin')->prefix('admin')->group(function () {
         Route::get('/users', [UserController::class, 'index']);

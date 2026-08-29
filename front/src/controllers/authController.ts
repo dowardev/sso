@@ -107,11 +107,17 @@ function jsonToBase64(params: { value: unknown }): string {
  * freshly decrypted profile is available in memory, it is appended as a
  * `#profile=` fragment so it never reaches server logs.
  */
-function buildAppRedirectUrl(params: { redirectUri: string; urlParams: URLSearchParams }): string {
+async function buildAppRedirectUrl(params: { redirectUri: string; urlParams: URLSearchParams }): Promise<string> {
   let url = `${params.redirectUri}?${params.urlParams.toString()}`;
   const profile = cryptoService.getCachedProfile();
   if (profile) {
-    url += `#profile=${jsonToBase64({ value: profile })}`;
+    try {
+      const { token } = await api.get<{ token: string }>({ endpoint: '/user/profile-token' });
+      url += `#profile=${jsonToBase64({ value: { profile, token } })}`;
+    } catch {
+      // Token unavailable: omit the fragment so advanced identity stays null
+      // (safe default) instead of shipping an unsigned / forgeable profile.
+    }
   }
   return url;
 }
@@ -790,7 +796,7 @@ export function useAuthController() {
       urlParams.set('state', response.state);
     }
 
-    window.location.href = buildAppRedirectUrl({
+    window.location.href = await buildAppRedirectUrl({
       redirectUri: params.redirect_uri,
       urlParams,
     });
@@ -840,7 +846,7 @@ export function useAuthController() {
       urlParams.set('state', params.state);
     }
 
-    window.location.href = buildAppRedirectUrl({
+    window.location.href = await buildAppRedirectUrl({
       redirectUri: params.redirect_uri,
       urlParams,
     });

@@ -638,6 +638,16 @@ class AuthController extends Controller
         return response()->json($jwks);
     }
 
+    public function profileToken(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['error' => 'unauthenticated'], 401);
+        }
+
+        return response()->json($this->authService->issueProfileToken($user));
+    }
+
     public function checkSession(Request $request): JsonResponse
     {
         $result = $this->authService->checkSessionFromRequest($request);
