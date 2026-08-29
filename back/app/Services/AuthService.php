@@ -384,6 +384,15 @@ class AuthService
     /**
      * Get JWKS for JWT verification.
      */
+    /**
+     * Issue a short-lived SSO-signed profile token for advanced (ZKE) users.
+     * See JwtService::issueProfileToken.
+     */
+    public function issueProfileToken(User $user): array
+    {
+        return $this->jwtService->issueProfileToken($user);
+    }
+
     public function getJwks(): array
     {
         return Cache::remember('jwks', 86400, function () {

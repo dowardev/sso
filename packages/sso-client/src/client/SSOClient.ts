@@ -17,6 +17,13 @@ import {
   LoginParams,
   User,
 } from "../types";
+import { verifyProfileFragment } from "../crypto/profileSignature";
+import {
+  persistProfileAtRest,
+  loadProfileAtRest,
+  clearProfileAtRest,
+} from "../crypto/profileVault";
+import type { UserProfile } from "../types/crypto";
 
 interface SSOClientConfig {
   ssoUrl: string;
@@ -36,6 +43,7 @@ export class SSOClient {
   private tokenRefreshManager: TokenRefreshManager;
   private authStateListeners: Array<(state: AuthState) => void> = [];
   private currentUser: User | null = null;
+  private activeProfile: UserProfile | null = null;
   private _isAuthenticated: boolean = false;
   private readonly AUTO_REFRESH_INTERVAL = 3000000;
 
@@ -106,8 +114,11 @@ export class SSOClient {
     const token = await this.tokenStorage.getToken();
     if (token) {
       this.configService.setAccessToken(token);
+      if (!this.activeProfile) {
+        this.activeProfile = await loadProfileAtRest();
+      }
       try {
-        const user = await this.authService.getUser();
+        const user = await this.getUser();
         if (user) {
           this.currentUser = user;
           this._isAuthenticated = true;
@@ -176,6 +187,11 @@ export class SSOClient {
     const urlObj = new URL(url);
     const params = urlObj.searchParams;
 
+    const frag =
+      urlObj.hash.startsWith("#profile=")
+        ? urlObj.hash.slice("#profile=".length)
+        : null;
+
     const code = params.get("code");
     const state = params.get("state");
 
@@ -216,13 +232,26 @@ export class SSOClient {
       await this.tokenStorage.removePkceVerifier(state);
     }
 
+    if (frag) {
+      try {
+        this.activeProfile = await verifyProfileFragment({
+          fragment: frag,
+          ssoUrl: this.baseUrl,
+          expectedUserId: String(response.user.id),
+        });
+        await persistProfileAtRest(this.activeProfile);
+      } catch {
+        this.activeProfile = null;
+      }
+    }
+
     await this.handleAuthResponse({
       token: response.token,
       refreshToken: response.refresh_token ?? response.refreshToken,
-      user: response.user,
+      user: this.mergeProfile(response.user),
     });
 
-    return { user: response.user };
+    return { user: this.mergeProfile(response.user) };
   }
 
   async register(params: RegisterParams): Promise<void> {
@@ -241,6 +270,8 @@ export class SSOClient {
     await this.tokenStorage.clear();
     this.configService.setAccessToken("");
     this.currentUser = null;
+    this.activeProfile = null;
+    await clearProfileAtRest();
     this._isAuthenticated = false;
     this.emitAuthState({
       isAuthenticated: false,
@@ -277,12 +308,12 @@ export class SSOClient {
   }
 
   async getUser(): Promise<User | null> {
-    if (this.currentUser) return this.currentUser;
+    if (this.currentUser) return this.mergeProfile(this.currentUser);
     const user = await this.authService.getUser();
     if (user) {
-      this.currentUser = user;
+      this.currentUser = this.mergeProfile(user);
     }
-    return user;
+    return this.currentUser;
   }
 
   async checkSession(): Promise<{ authenticated: boolean; user?: User }> {
@@ -341,11 +372,11 @@ export class SSOClient {
       await this.tokenStorage.setRefreshToken(response.refreshToken);
     }
     if (response.user) {
-      this.currentUser = response.user;
+      this.currentUser = this.mergeProfile(response.user);
     } else {
       try {
         const user = await this.authService.getUser();
-        if (user) this.currentUser = user;
+        if (user) this.currentUser = this.mergeProfile(user);
       } catch {
         // ignore
       }
@@ -369,6 +400,17 @@ export class SSOClient {
       isAuthenticated: false,
       user: null,
     });
+  }
+
+  private mergeProfile(user: User): User {
+    if (!user || !this.activeProfile) return user;
+    const p = this.activeProfile;
+    return {
+      ...user,
+      name: p.name ?? user.name,
+      user: p.user ?? user.user,
+      email: p.email ?? user.email,
+    };
   }
 
   private emitAuthState(state: AuthState): void {
