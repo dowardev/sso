@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Uniform advanced-user (ZKE) identity for OAuth apps (LBDS-205)**:
+  - `back` — `GET /api/user/profile-token` (jwt.auth) issues a short-lived (300s) RS256 JWS attesting `(sub, profile_version)` for the authenticated user (`JwtService::issueProfileToken`, `AuthService::issueProfileToken`, `AuthController::profileToken`). The backend never sees the plaintext ZKE profile.
+  - `front` — `authController.buildAppRedirectUrl` now fetches `/user/profile-token` after the advanced unlock and appends the signed `{profile, token}` envelope as `#profile=`; omits the fragment when the token is unavailable (advanced identity stays `null`, safe default).
+
 ### Changed
 
 ### Fixed

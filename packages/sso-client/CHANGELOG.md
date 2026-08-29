@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `crypto/profileFreshness.ts` — `syncProfileSilently` silent cross-session profile refresh driven by the server `profile_version` counter.
   - `crypto/ZkeClient.ts` — high-level injectable orchestration (`unlockWithPassword`, `fetchProfileFromServer`, `refreshProfileSilently`, `enrollPrf`, `restoreDekWithPrf`, `buildAppRedirectUrl`, `clear`).
 
+- **Uniform advanced-user identity with zero ZKE code in the app (LBDS-205)**:
+  - `crypto/profileSignature.ts` — `verifyProfileFragment({fragment, ssoUrl, expectedUserId})` verifies the backend JWS against the SSO JWKS and checks `sub == expected user` + `exp`; rejects forged/unsigned/expired/mismatched tokens.
+  - `crypto/profileVault.ts` — AES-GCM non-extractable at-rest vault for the verified profile (IndexedDB).
+  - `client/SSOClient.ts` — captures, verifies and merges the profile fragment in `handleCallback` (bound to the authenticated user id), persists at rest, and clears on logout; `getUser()` now returns a uniform identity for advanced users.
+  - `client/SSOClient.test.ts` — 4 tests (signed-merge + reload recovery, forged-reject, subject-mismatch-reject, vault-clear).
+  - devDependency: `fake-indexeddb` for vault tests.
+
 ### Notes
 
 - Requires the SSO backend to emit the WebAuthn `prf` extension on credential registration (multi-credential support).

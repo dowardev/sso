@@ -1,6 +1,6 @@
 {
   "name": "@dowardev/sso-client",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "Client library for SSO authentication with DPoP support",
   "main": "dist/index.js",
   "module": "dist/index.umd.cjs",
