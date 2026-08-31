@@ -94,7 +94,7 @@ class PasskeyMultiCredentialTest extends TestCase
         $token = $this->loginToken($user);
 
         $this->withToken($token)
-            ->deleteJson('/api/passkey', ['credential_id' => $this->b64('AAAA')])
+            ->deleteJson('/api/passkey', ['credential_id' => $this->b64('AAAA'), 'password' => 'Password123'])
             ->assertOk();
 
         $this->assertSame([$this->b64('BBBB')], $service->getCredentialIds($user->fresh()));
@@ -109,7 +109,7 @@ class PasskeyMultiCredentialTest extends TestCase
         $token = $this->loginToken($user);
 
         $this->withToken($token)
-            ->deleteJson('/api/passkey', ['credential_id' => 'ZZZZ'])
+            ->deleteJson('/api/passkey', ['credential_id' => 'ZZZZ', 'password' => 'Password123'])
             ->assertStatus(404);
 
         $this->assertSame([$this->b64('AAAA')], $service->getCredentialIds($user->fresh()));

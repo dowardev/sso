@@ -227,6 +227,25 @@ export function useAuthController() {
   }
 
   /**
+   * Re-authentication proof for sensitive actions (e.g. deleting a passkey).
+   * Basic users return the plaintext password; advanced (ZKE) users derive
+   * auth_proof from the master password (server stores Argon2id(auth_proof)).
+   */
+  async function prepareReAuth(params: {
+    password: string;
+  }): Promise<{ password: string } | { auth_proof: string }> {
+    if (!authStore.isAdvanced()) {
+      return { password: params.password };
+    }
+    const loginId = authStore.getLoginId();
+    if (!loginId) throw new Error('Sesión avanzada no disponible');
+    const blobs = await fetchCryptoBlobs({ loginId });
+    const keyA = await cryptoService.deriveKeyA({ password: params.password, salt: blobs.salt_a });
+    const authProof = await cryptoService.computeAuthProof({ keyA });
+    return { auth_proof: authProof };
+  }
+
+  /**
    * Full advanced login flow: derive Key_A → unwrap DEK → decrypt profile → compute auth_proof → verify
    */
   async function loginAdvanced(params: {
@@ -284,6 +303,10 @@ export function useAuthController() {
     password_confirmation: string;
     client_id?: string;
   }): Promise<{ user: User; seed_phrase: string }> {
+    if (params.password.length < 12) {
+      throw new Error('La contraseña debe tener al menos 12 caracteres');
+    }
+
     // Generate DEK
         await cryptoService.generateDek();
 
@@ -347,6 +370,7 @@ export function useAuthController() {
     const payloadWithProof = {
       ...registrationData,
       auth_proof,
+      password_length: params.password.length,
     };
 
     // Send registration
@@ -431,6 +455,10 @@ export function useAuthController() {
     seed_phrase: string;
     new_password: string;
   }): Promise<void> {
+    if (params.new_password.length < 12) {
+      throw new Error('La contraseña debe tener al menos 12 caracteres');
+    }
+
     // Step 1: Verify seed phrase and get recovery blobs + DEK
     await recoveryVerify({
       login_id: params.login_id,
@@ -477,6 +505,7 @@ export function useAuthController() {
       data: {
         login_id: params.login_id,
         auth_proof: newAuthProof,
+        password_length: params.new_password.length,
         salt_a: newSaltA,
         wrapped_dek_a: JSON.stringify(newWrappedDekA),
         wrapped_dek_r: JSON.stringify(wrappedDekR),
@@ -557,6 +586,10 @@ export function useAuthController() {
   }): Promise<{ user: User; seedPhrase: string }> {
     const { currentPassword } = params;
 
+    if (currentPassword.length < 12) {
+      throw new Error('La contraseña debe tener al menos 12 caracteres');
+    }
+
     const currentUser = authStore.user;
     if (!currentUser) {
       throw new Error('No hay usuario autenticado');
@@ -610,6 +643,7 @@ export function useAuthController() {
       data: {
         current_password: currentPassword,
         auth_proof: authProof,
+        password_length: currentPassword.length,
         login_id: loginId,
         salt_a: saltA,
         salt_r: saltR,
@@ -988,6 +1022,7 @@ export function useAuthController() {
     // Advanced encryption methods
     loginAdvanced,
     fetchCryptoBlobs,
+    prepareReAuth,
     loginAdvancedSecondStep,
     registerAdvanced,
     computeLoginId,

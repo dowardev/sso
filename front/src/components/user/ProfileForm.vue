@@ -288,6 +288,42 @@
       </ion-card-content>
     </ion-card>
 
+    <!-- Llave de Seguridad / Passkey -->
+    <ion-card class="form-section">
+      <ion-card-content>
+        <h3 class="section-title">Llave de Seguridad / Passkey</h3>
+        <p class="upgrade-description">
+          Usá Touch ID, Windows Hello o una llave de seguridad como segundo factor al iniciar sesión.
+        </p>
+        <ion-button expand="block" :disabled="passkeyBusy" @click="handleRegisterPasskey">
+          <ion-spinner v-if="passkeyBusy" slot="start" name="lines"></ion-spinner>
+          <span v-else>Registrar Passkey</span>
+        </ion-button>
+        <ion-item class="form-item" lines="none">
+          <ion-label position="stacked">Contraseña actual</ion-label>
+          <ion-input
+            v-model="passkeyRemovePassword"
+            type="password"
+            placeholder="Requerida para quitar un passkey"
+            autocomplete="current-password"
+          />
+        </ion-item>
+        <div v-if="passkeys.length > 0" class="passkey-list">
+          <ion-item v-for="pk in passkeys" :key="pk.credential_id" lines="full">
+            <ion-label>
+              {{ pk.device_name || 'Passkey' }}
+              <p>{{ pk.created_at ? new Date(pk.created_at).toLocaleString() : '' }}</p>
+            </ion-label>
+            <ion-button fill="outline" color="danger" slot="end" @click="handleDeletePasskey({ credential_id: pk.credential_id })">
+              Quitar
+            </ion-button>
+          </ion-item>
+        </div>
+        <p v-else class="passkey-empty">No tenés passkeys registrados.</p>
+        <div v-if="passkeyMessage" class="error-message">{{ passkeyMessage }}</div>
+      </ion-card-content>
+    </ion-card>
+
     <!-- Eliminar Cuenta -->
     <ion-card class="form-section danger-zone">
       <ion-card-content>
@@ -401,6 +437,7 @@ const { showSuccess, showError } = useToast();
 
 // 2. Controllers
 import { useAuthController } from '@/controllers/authController';
+import { passkeyService, type PasskeyListItem } from '@/services/passkeyService';
 
 const authController = useAuthController();
 
@@ -479,7 +516,7 @@ const passwordRules = computed(() => ({
   current_password: { required: withMsg('La contraseña actual es requerida', required) },
   new_password: {
     required: withMsg('La nueva contraseña es requerida', required),
-    minLength: withMsg('La contraseña debe tener al menos 6 caracteres', minLength(6)),
+    minLength: withMsg('La contraseña debe tener al menos 12 caracteres', minLength(12)),
   },
   new_password_confirmation: {
     required: withMsg('La confirmación de contraseña es requerida', required),
@@ -493,6 +530,7 @@ const v$Password = useVuelidate(passwordRules, passwordForm);
 // 9. OnMounted
 onMounted(() => {
   updateFormFromProps();
+  loadPasskeys();
 });
 
 // 10. Functions
@@ -503,6 +541,59 @@ const updateFormFromProps = (): void => {
       user: props.initialUser.user || '',
       email: props.initialUser.email || '',
     };
+  }
+};
+
+const passkeys = ref<PasskeyListItem[]>([]);
+const passkeyBusy = ref(false);
+const passkeyMessage = ref('');
+
+const loadPasskeys = async (): Promise<void> => {
+  try {
+    const res = await passkeyService.listPasskeys();
+    passkeys.value = res.credentials ?? [];
+  } catch {
+    passkeys.value = [];
+  }
+};
+
+const handleRegisterPasskey = async (): Promise<void> => {
+  passkeyBusy.value = true;
+  passkeyMessage.value = '';
+  try {
+    const userId = authController.user.value?.id;
+    if (!userId) throw new Error('Sesión no disponible');
+    await passkeyService.register({ userId });
+    await loadPasskeys();
+    showSuccess({ message: 'Passkey registrada correctamente.' });
+  } catch (err) {
+    passkeyMessage.value = (err as Error).message || 'No se pudo registrar el passkey';
+  } finally {
+    passkeyBusy.value = false;
+  }
+};
+
+const passkeyRemovePassword = ref('');
+const removingCredential = ref<string | null>(null);
+
+const handleDeletePasskey = async (params: { credential_id: string }): Promise<void> => {
+  const password = passkeyRemovePassword.value.trim();
+  if (!password) {
+    passkeyMessage.value = 'Ingresá tu contraseña para quitar el passkey.';
+    return;
+  }
+  removingCredential.value = params.credential_id;
+  passkeyMessage.value = '';
+  try {
+    const reAuth = await authController.prepareReAuth({ password });
+    await passkeyService.deletePasskey({ credential_id: params.credential_id, ...reAuth });
+    passkeys.value = passkeys.value.filter((pk) => pk.credential_id !== params.credential_id);
+    passkeyRemovePassword.value = '';
+    showSuccess({ message: 'Passkey eliminada.' });
+  } catch (err) {
+    passkeyMessage.value = (err as Error).message || 'No se pudo eliminar el passkey';
+  } finally {
+    removingCredential.value = null;
   }
 };
 

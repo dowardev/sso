@@ -41,6 +41,14 @@ interface PublicKeyCredentialRequestOptionsJSON {
   userVerification?: string;
 }
 
+export interface PasskeyListItem {
+  id: number;
+  credential_id: string;
+  device_name?: string | null;
+  transports?: string[] | null;
+  created_at?: string;
+}
+
 interface AuthenticationFinishResponse {
   token: string;
   token_type: string;
@@ -235,8 +243,16 @@ export const passkeyService = {
 
   // ─── Management ──────────────────────────────────────────────────────────────
 
-  async deletePasskey(): Promise<{ message: string }> {
-    return api.delete<{ message: string }>({ endpoint: '/passkey' });
+  async listPasskeys(): Promise<{ credentials: PasskeyListItem[] }> {
+    return api.get<{ credentials: PasskeyListItem[] }>({ endpoint: '/passkey' });
+  },
+
+  async deletePasskey(params: {
+    credential_id: string;
+    password?: string;
+    auth_proof?: string;
+  }): Promise<{ message: string }> {
+    return api.delete<{ message: string }>({ endpoint: '/passkey', data: params });
   },
 
   // ─── High-level flows ────────────────────────────────────────────────────────

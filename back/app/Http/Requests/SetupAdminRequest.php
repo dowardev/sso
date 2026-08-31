@@ -20,7 +20,7 @@ class SetupAdminRequest extends FormRequest
             'name' => 'required|string|max:255',
             'user' => 'required|string|max:255|unique:users,user',
             'email' => 'required|string|email|max:255|unique:users,email',
-            'password' => ['required', 'string', 'min:10', 'confirmed'],
+            'password' => ['required', 'string', 'min:12', 'confirmed'],
         ];
     }
 
@@ -34,7 +34,7 @@ class SetupAdminRequest extends FormRequest
             'email.email' => 'Ingrese un correo electrónico válido.',
             'email.unique' => 'El correo electrónico ya está registrado.',
             'password.required' => 'La contraseña es obligatoria.',
-            'password.min' => 'La contraseña debe tener al menos 10 caracteres.',
+            'password.min' => 'La contraseña debe tener al menos 12 caracteres.',
             'password.confirmed' => 'Las contraseñas no coinciden.',
         ];
     }

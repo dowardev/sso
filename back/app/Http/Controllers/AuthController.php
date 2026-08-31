@@ -263,6 +263,7 @@ class AuthController extends Controller
             'wrapped_dek_r' => 'required|string',
             'encrypted_profile' => 'required|string',
             'encrypted_seed_verification' => 'required|string',
+            'password_length' => 'required|integer|min:12',
             'encryption_level' => 'required|in:advanced',
             'passkey_public_key' => 'nullable|string',
             'passkey_credential_id' => 'nullable|string',
@@ -1002,11 +1003,16 @@ class AuthController extends Controller
             PublicKeyCredentialRequestOptions::class
         );
 
-        // Find matching credential record by credential ID from request
+        // Find matching credential record by credential ID from request.
+        // The browser sends id as base64url; decode to bytes and compare
+        // against the stored credential id (raw bytes).
         $credentialId = $request->input('id');
+        $decodedRequestId = $credentialId !== null
+            ? base64_decode(strtr($credentialId, '-_', '+/'), true)
+            : false;
         $matchedRecord = null;
         foreach ($records as $record) {
-            if (base64_encode($record->publicKeyCredentialId) === $credentialId) {
+            if ($decodedRequestId !== false && hash_equals($record->publicKeyCredentialId, $decodedRequestId)) {
                 $matchedRecord = $record;
                 break;
             }
@@ -1088,6 +1094,24 @@ class AuthController extends Controller
     /**
      * Delete user's passkey
      */
+    /**
+     * List the authenticated user's registered passkeys.
+     */
+    public function passkeyIndex(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        $credentials = $user->passkeyCredentials()
+            ->select(['id', 'credential_id', 'device_name', 'transports', 'created_at'])
+            ->orderBy('created_at')
+            ->get();
+
+        return response()->json(['credentials' => $credentials]);
+    }
+
     public function passkeyDelete(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -1097,11 +1121,26 @@ class AuthController extends Controller
 
         $request->validate([
             'credential_id' => 'required|string',
+            // Re-authentication: deleting a security credential requires
+            // proof of the current password (plaintext for basic users,
+            // auth_proof derived from the master password for advanced).
+            'password' => 'required_without:auth_proof|string',
+            'auth_proof' => 'required_without:password|string',
         ]);
 
         $owned = $this->passkeyService->getCredentialIds($user);
         if (! in_array($request->credential_id, $owned, true)) {
             return response()->json(['message' => 'Credencial no encontrada'], 404);
+        }
+
+        // Re-authentication gate. Basic users prove the plaintext password;
+        // advanced (ZKE) users prove the auth_proof derived from the master
+        // password (the server only stores Argon2id(auth_proof)).
+        $reAuthSecret = $user->encryption_level === 'advanced'
+            ? (string) $request->input('auth_proof')
+            : (string) $request->input('password');
+        if (! Hash::check($reAuthSecret, $user->password)) {
+            return response()->json(['message' => 'Contraseña actual incorrecta'], 422);
         }
 
         $this->passkeyService->removeCredential($user, $request->credential_id);

@@ -15,9 +15,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `back` — `GET /api/user/profile-token` (jwt.auth) issues a short-lived (300s) RS256 JWS attesting `(sub, profile_version)` for the authenticated user (`JwtService::issueProfileToken`, `AuthService::issueProfileToken`, `AuthController::profileToken`). The backend never sees the plaintext ZKE profile.
   - `front` — `authController.buildAppRedirectUrl` now fetches `/user/profile-token` after the advanced unlock and appends the signed `{profile, token}` envelope as `#profile=`; omits the fragment when the token is unavailable (advanced identity stays `null`, safe default).
 
+- **Passkey 2FA on SSO login**:
+  - `back` — passkey ceremony endpoints (`/passkey/*`) enabled via session middleware, configurable allowed origins, and base64url credential matching; `GET /passkey` lists the authenticated user's passkeys; `DELETE /passkey` requires re-authentication (password for basic, auth_proof for advanced).
+  - `front` — passkey as a second factor on login (basic + advanced); enrollment and per-device management in the profile panel; re-auth (password/auth_proof) required to remove a passkey.
+- **Password minimum length 12**: enforced server-side for basic/admin flows and attested (`password_length`) on ZKE endpoints; frontend gates updated.
+
 ### Changed
 
+- **Rate limiting is production-only**: `ThrottleRequests` passes through outside production so local/testing is not interrupted by "Too Many Attempts".
+
 ### Fixed
+
+- **Passkey ceremony**: session middleware on passkey routes ("Session store not set on request"); allowed-origins config for the frontend origin ("Invalid origin"); base64url credential-id matching ("credencial no encontrada").
+- **Passkey deletion**: sends the specific `credential_id` (+ re-auth secret) instead of failing.
+
+### Removed
+
+- Spanish docs mirror (`docs/AUTENTICACION.md`).
+- Internal `docs/superpowers/*` planning docs are no longer tracked.
+
 
 ## [0.33.0] - 2026-08-21
 

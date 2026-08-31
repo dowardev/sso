@@ -31,7 +31,7 @@ class UpdateUserRequest extends FormRequest
             'password' => [
                 'sometimes',
                 'string',
-                'min:8',
+                'min:12',
                 'confirmed',
                 'regex:/^(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).+$/',
             ],
@@ -42,7 +42,7 @@ class UpdateUserRequest extends FormRequest
     {
         return [
             'user.regex' => 'The user may only contain letters, numbers, underscores, and hyphens.',
-            'password.regex' => 'The password must be at least 8 characters and include at least one uppercase letter, one number, and one special character.',
+            'password.regex' => 'The password must be at least 12 characters and include at least one uppercase letter, one number, and one special character.',
         ];
     }
 }

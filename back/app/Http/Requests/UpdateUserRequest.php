@@ -21,7 +21,7 @@ class UpdateUserRequest extends FormRequest
             'name' => 'sometimes|string|max:255',
             'user' => 'sometimes|string|max:255|unique:users,user,'.$userId,
             'email' => 'sometimes|string|email|max:255|unique:users,email,'.$userId,
-            'password' => 'sometimes|string|min:6|confirmed',
+            'password' => 'sometimes|string|min:12|confirmed',
         ];
     }
 }

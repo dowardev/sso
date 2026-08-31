@@ -24,8 +24,8 @@ class SetupAdminRequestTest extends TestCase
             'name' => 'Admin User',
             'user' => 'admin_user',
             'email' => 'admin@example.com',
-            'password' => 'StrongP@ss1',
-            'password_confirmation' => 'StrongP@ss1',
+            'password' => 'StrongAdminP@ss1',
+            'password_confirmation' => 'StrongAdminP@ss1',
         ], $overrides);
     }
 
@@ -58,8 +58,8 @@ class SetupAdminRequestTest extends TestCase
     public function test_password_requires_uppercase(): void
     {
         $response = $this->postJson('/api/setup/admin', $this->validPayload([
-            'password' => 'abcde123!x',
-            'password_confirmation' => 'abcde123!x',
+            'password' => 'abcdef123!xy',
+            'password_confirmation' => 'abcdef123!xy',
         ]));
 
         $response->assertStatus(422);
@@ -70,8 +70,8 @@ class SetupAdminRequestTest extends TestCase
     public function test_password_requires_lowercase(): void
     {
         $response = $this->postJson('/api/setup/admin', $this->validPayload([
-            'password' => 'ABCDE123!X',
-            'password_confirmation' => 'ABCDE123!X',
+            'password' => 'ABCDEF123!XY',
+            'password_confirmation' => 'ABCDEF123!XY',
         ]));
 
         $response->assertStatus(422);
@@ -82,8 +82,8 @@ class SetupAdminRequestTest extends TestCase
     public function test_password_requires_number(): void
     {
         $response = $this->postJson('/api/setup/admin', $this->validPayload([
-            'password' => 'Abcdefgh!x',
-            'password_confirmation' => 'Abcdefgh!x',
+            'password' => 'Abcdefghij!x',
+            'password_confirmation' => 'Abcdefghij!x',
         ]));
 
         $response->assertStatus(422);
@@ -94,8 +94,8 @@ class SetupAdminRequestTest extends TestCase
     public function test_password_requires_symbol(): void
     {
         $response = $this->postJson('/api/setup/admin', $this->validPayload([
-            'password' => 'Abcdefgh1x',
-            'password_confirmation' => 'Abcdefgh1x',
+            'password' => 'Abcdefghij1x',
+            'password_confirmation' => 'Abcdefghij1x',
         ]));
 
         $response->assertStatus(422);

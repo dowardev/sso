@@ -148,6 +148,7 @@ const { showSuccess } = useToast();
 // 2. Controllers
 import { useAuthController } from '@/controllers/authController';
 import { useAuthStore } from '@/stores/auth';
+import { passkeyService } from '@/services/passkeyService';
 
 const authController = useAuthController();
 const authStore = useAuthStore();
@@ -325,16 +326,36 @@ const handleLogin = async (): Promise<void> => {
   }
 };
 
+const completePasskey2FA = async (params: {
+  user_id?: number;
+  login_id?: string;
+}): Promise<void> => {
+  try {
+    // start + finish. finish verifies the assertion server-side.
+    await passkeyService.authenticate(params);
+  } catch (err) {
+    const apiError = err as Error & { status?: number; message?: string };
+    // 400 "Usuario no tiene passkeys registrados" -> no passkey -> skip.
+    if (apiError.status === 400 && /passkey|no tiene/i.test(apiError.message || '')) {
+      return;
+    }
+    // Passkey is enrolled but the ceremony failed -> abort login.
+    throw err;
+  }
+};
+
 const handleBasicLogin = async (identifier: string): Promise<void> => {
   loading.value = true;
   error.value = '';
   try {
-    await authController.login({
+    const loginResult = await authController.login({
       user: identifier,
       password: credentials.value.password,
       client_id: oauthParams.value.client_id || undefined,
       rememberMe: rememberMe.value,
     });
+    // Passkey 2FA (confirmation factor) when the user has a passkey enrolled.
+    await completePasskey2FA({ user_id: loginResult.user.id });
     if (isOAuthFlow.value) {
       const oauthResult = await authController.oauthAuthorize({
         client_id: oauthParams.value.client_id,
@@ -390,6 +411,9 @@ const handleAdvancedLogin = async (loginId: string): Promise<void> => {
     if (loginResult.profile) {
       authStore.setProfile({ profile: loginResult.profile });
     }
+
+    // Passkey 2FA (confirmation factor) when the user has a passkey enrolled.
+    await completePasskey2FA({ login_id: loginId });
 
     cryptoLoadingMessage.value = 'Verificando...';
 
