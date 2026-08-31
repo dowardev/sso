@@ -6,7 +6,6 @@ Complete reference for the SSO authentication system: authentication flows,
 the zero-knowledge encryption scheme, key hierarchy, data model, and security
 properties.
 
-- **Linear ticket:** LBDS-185
 - 🇪🇸 Spanish version: [AUTENTICACION.md](./AUTENTICACION.md)
 - **Crypto core:** Web Crypto API inside a dedicated Web Worker (frontend)
 - **Backend role:** stores opaque blobs; never derives, decrypts, or sees keys
@@ -27,6 +26,7 @@ properties.
    - 5.5 [Recovery via Seed Phrase](#55-recovery-via-seed-phrase)
    - 5.6 [Password Change](#56-password-change)
    - 5.7 [Basic → Advanced Upgrade](#57-basic--advanced-upgrade)
+   - 5.8 [OAuth Identity for Advanced Users](#58-oauth-identity-for-advanced-users)
 6. [JWT Claims](#6-jwt-claims)
 7. [Session Invalidation Policy](#7-session-invalidation-policy)
 8. [Security Properties](#8-security-properties)
@@ -247,7 +247,41 @@ Notes:
   `front/src/services/passkeyService.ts` (base64url ↔ ArrayBuffer conversion,
   typed request/response encoding).
 - `Permissions-Policy` includes `publickey-credentials-create=(self)` and
-  `publickey-credentials-get=(self)` so browsers allow the prompts.
+  `publickey-credentials-get=(self)`.
+
+#### Enrollment & usage model
+
+Passkeys are **opt-in and self-service** (managed by the authenticated user,
+never admin-imposed). There is no admin route; `DELETE /passkey` is `jwt.auth`
+and operates on the caller's own credential.
+
+- **Basic users — passkey as an additional factor (2FA):** login is
+  `username + password`, and the passkey challenge is requested *after* the
+  password is verified (GitLab-style). The server already knows which user
+  authenticated, so it can scope `authenticate/start` to that account.
+- **Advanced (ZKE) users — passkey as primary factor:** the passkey identifies
+  and authenticates the user via its `userHandle` (no username/password typed
+  for auth). The **master password is still required client-side** to derive
+  `Key_A` and decrypt the vault — unless PRF is used to derive the key
+  material directly from the authenticator. Without PRF, advanced login is
+  effectively `passkey + master password`.
+
+#### Session-based authentication ceremony
+
+The passkey authentication endpoints rely on a server-side session:
+`/passkey/authenticate/start` stores the challenge in `$request->session()`
+and `/passkey/authenticate/finish` reads it back. If the session is missing
+between the two calls the finish returns `400 Sesión de autenticación
+expirada`. The browser session cookie must therefore persist across the
+`start` → `finish` pair (same-origin requests include it automatically).
+
+**2FA token handling:** `/passkey/authenticate/finish` issues its own JWT.
+For 2FA (password + passkey / master password + passkey) the frontend keeps
+the session token issued by the primary login and uses the passkey as a
+confirmation factor (the `finish` assertion is still verified server-side).
+This preserves the ZKE advanced session’s DPoP binding. A user without a
+passkey enrolled (the start step returns 400 "no tiene passkeys") skips the
+step, so password-only login continues.
 
 ### 5.5 Recovery via Seed Phrase
 
@@ -324,6 +358,44 @@ it") before continuing. Same rule as registration: **the seed phrase is not in
 the request body.**
 
 ---
+
+### 5.8 OAuth Identity for Advanced Users
+
+Downstream OAuth apps (e.g. consumer applications) consume `@dowardev/sso-client` as pure
+OAuth clients. They delegate login to the SSO frontend; the SDK must deliver a
+**uniform `User` identity** (name/user/email populated) for both basic and
+advanced users, with **zero ZKE code in the app**.
+
+Problem: advanced users store `name/user/email = NULL` on the server. The
+decrypted profile exists only client-side after the advanced unlock and is
+delivered to the OAuth app as a URL `#profile=` fragment on the authorize
+redirect. Without integrity, that fragment can be forged to impersonate identity.
+
+Flow (after a successful advanced unlock on the SSO frontend):
+
+1. **Backend** — `GET /api/user/profile-token` (jwt.auth) issues a short-lived
+   (300s) **RS256 JWS** attesting `(sub = user id, profile_version)`. The backend
+   never sees the plaintext profile; it only attests the subject it already
+   authenticated. See `JwtService::issueProfileToken`,
+   `AuthService::issueProfileToken`, `AuthController::profileToken`.
+2. **SSO frontend** — `authController.buildAppRedirectUrl` fetches the token, then
+   appends the signed envelope `{ profile, token }` as `#profile=` (standard
+   base64). If the token is unavailable, the fragment is omitted and the advanced
+   identity stays `null` (safe default).
+3. **SDK** — `SSOClient.handleCallback` extracts the fragment, exchanges the
+   OAuth code, then calls `verifyProfileFragment({ fragment, ssoUrl,
+   expectedUserId: String(response.user.id) })`. It verifies the JWS against the
+   SSO JWKS, checks `sub == expected user` and `exp`, and merges the profile into
+   `getUser()`. The verified profile is persisted at rest in an AES-GCM
+   non-extractable vault (IndexedDB) for offline reload and cleared on logout.
+
+Security:
+- Forged / unsigned / expired / subject-mismatched tokens are rejected; identity
+  stays `null`.
+- The backend attests only the subject it authenticated — it never handles the
+  plaintext ZKE profile.
+- The at-rest vault protects against off-origin IndexedDB dumps; it is not a
+  defense against runtime XSS (XSS can still call decrypt with the in-memory key).
 
 ## 6. JWT Claims
 
@@ -405,15 +477,13 @@ Threat-model caveats (accepted for Phase 1):
 
 Documented gaps to address in later phases:
 
-1. **One passkey per user.** Schema stores a single credential pair; multiple
-   devices need a proper credentials table.
-2. **Sign-counter not enforced.** Stored counter is always 0; cloned-authenticator
+1. **Sign-counter not enforced.** Stored counter is always 0; cloned-authenticator
    detection is inactive.
-3. **`login_id` pepper is static.** Rotating usernames requires a migration
+2. **`login_id` pepper is static.** Rotating usernames requires a migration
    flow that does not exist yet.
-4. **No admin visibility for advanced users.** Admin panels show nulls for
+3. **No admin visibility for advanced users.** Admin panels show nulls for
    name/email by design; an admin UX for this case is pending.
-5. **Recovery does not rotate Key_R.** If a seed phrase leaks alongside a
+4. **Recovery does not rotate Key_R.** If a seed phrase leaks alongside a
    still-valid password, there is no rotation procedure yet.
 
 ---

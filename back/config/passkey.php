@@ -33,4 +33,20 @@ return [
 
     'timeout' => env('PASSKEY_TIMEOUT', 60),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Allowed Origins
+    |--------------------------------------------------------------------------
+    |
+    | Origins from which WebAuthn ceremonies are allowed (the browser origin
+    | of the SPA that drives navigator.credentials). Comma-separated. Must
+    | include the frontend origin. Defaults to the API url plus the local dev
+    | SPA port (http://localhost:8101).
+    |
+    */
+
+    'allowed_origins' => env('PASSKEY_ALLOWED_ORIGINS')
+        ? array_values(array_filter(array_map('trim', explode(',', env('PASSKEY_ALLOWED_ORIGINS')))))
+        : array_values(array_unique([config('app.url', 'http://localhost:8001'), 'http://localhost:8101'])),
+
 ];

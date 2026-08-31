@@ -31,10 +31,11 @@ Route::post('/password/change-advanced', [AuthController::class, 'changePassword
 Route::post('/password/forgot', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
 Route::post('/password/reset', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 Route::post('/user/upgrade', [AuthController::class, 'upgradeToAdvanced'])->middleware(['jwt.auth', 'throttle:3,1']);
-Route::post('/passkey/register/start', [AuthController::class, 'passkeyRegisterStart'])->middleware('throttle:3,1');
-Route::post('/passkey/register/finish', [AuthController::class, 'passkeyRegisterFinish'])->middleware('throttle:3,1');
-Route::post('/passkey/authenticate/start', [AuthController::class, 'passkeyAuthenticateStart'])->middleware('throttle:5,1');
-Route::post('/passkey/authenticate/finish', [AuthController::class, 'passkeyAuthenticateFinish'])->middleware('throttle:5,1');
+Route::post('/passkey/register/start', [AuthController::class, 'passkeyRegisterStart'])->middleware(['throttle:3,1', \Illuminate\Session\Middleware\StartSession::class]);
+Route::post('/passkey/register/finish', [AuthController::class, 'passkeyRegisterFinish'])->middleware(['throttle:3,1', \Illuminate\Session\Middleware\StartSession::class]);
+Route::post('/passkey/authenticate/start', [AuthController::class, 'passkeyAuthenticateStart'])->middleware(['throttle:5,1', \Illuminate\Session\Middleware\StartSession::class]);
+Route::post('/passkey/authenticate/finish', [AuthController::class, 'passkeyAuthenticateFinish'])->middleware(['throttle:5,1', \Illuminate\Session\Middleware\StartSession::class]);
+Route::get('/passkey', [AuthController::class, 'passkeyIndex'])->middleware('jwt.auth');
 Route::delete('/passkey', [AuthController::class, 'passkeyDelete'])->middleware('jwt.auth');
 Route::get('/email/verify/{token}', [EmailVerificationController::class, 'verify'])->middleware('throttle:10,1');
 Route::post('/resend-confirmation-email', [EmailVerificationController::class, 'resend'])->middleware('throttle:3,1');

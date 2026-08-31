@@ -26,8 +26,8 @@ class RegisterEmailVerificationTest extends TestCase
             'name' => 'New User',
             'user' => 'new_user',
             'email' => 'new@example.com',
-            'password' => 'StrongP@ss1',
-            'password_confirmation' => 'StrongP@ss1',
+            'password' => 'StrongP@ssword1',
+            'password_confirmation' => 'StrongP@ssword1',
             'client_id' => $this->makeClient()->client_id,
         ], $overrides);
     }

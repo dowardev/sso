@@ -127,6 +127,7 @@ class AdvancedEncryptionTest extends TestCase
             'wrapped_dek_a' => json_encode(['wrapped' => 'new-wrapped-a', 'algorithm' => 'AES-KW']),
             'wrapped_dek_r' => json_encode(['wrapped' => 'new-wrapped-r', 'algorithm' => 'AES-KW']),
             'encrypted_profile' => json_encode(['ciphertext' => 'new-fake', 'iv' => 'fake', 'authTag' => 'fake']),
+            'password_length' => 12,
         ])
             ->assertOk()
             ->assertJsonStructure(['message', 'user']);
@@ -186,6 +187,7 @@ class AdvancedEncryptionTest extends TestCase
                     'wrapped_dek_r' => json_encode(['wrapped' => 'wrapped-r', 'algorithm' => 'AES-KW']),
                     'encrypted_profile' => json_encode(['ciphertext' => 'fake', 'iv' => 'fake', 'authTag' => 'fake']),
                     'encrypted_seed_verification' => 'seed-verification-hash',
+                    'password_length' => 12,
                     'seed_phrase' => 'twenty four words seed phrase for recovery storage',
                 ])
                 ->assertOk()
@@ -232,6 +234,7 @@ class AdvancedEncryptionTest extends TestCase
                     'wrapped_dek_r' => json_encode(['wrapped' => 'wrapped-r', 'algorithm' => 'AES-KW']),
                     'encrypted_profile' => json_encode(['ciphertext' => 'fake', 'iv' => 'fake', 'authTag' => 'fake']),
                     'encrypted_seed_verification' => 'seed-verification-hash',
+                'password_length' => 12,
                 ])
                 ->assertStatus(422)
                 ->assertJson(['message' => 'Contraseña actual incorrecta']);

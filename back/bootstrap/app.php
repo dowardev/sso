@@ -31,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'setup.not_completed' => EnsureSetupNotCompleted::class,
             'refresh.token' => RefreshToken::class,
             'throttle.login' => ThrottleLoginAttempts::class,
+            'throttle' => \App\Http\Middleware\ThrottleRequests::class,
         ]);
 
         $middleware->append(SecurityHeaders::class);

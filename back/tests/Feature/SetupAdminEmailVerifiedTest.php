@@ -25,8 +25,8 @@ class SetupAdminEmailVerifiedTest extends TestCase
             'name' => 'Admin User',
             'user' => 'admin_user',
             'email' => 'admin@example.com',
-            'password' => 'StrongP@ss1',
-            'password_confirmation' => 'StrongP@ss1',
+            'password' => 'StrongAdminP@ss1',
+            'password_confirmation' => 'StrongAdminP@ss1',
         ])->assertStatus(201);
 
         $admin = User::where('email', 'admin@example.com')->first();

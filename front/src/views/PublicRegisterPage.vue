@@ -195,7 +195,7 @@ const rules = computed(() => ({
   },
   password: {
     required: withMsg('La contraseña es requerida', required),
-    minLength: withMsg('La contraseña debe tener al menos 8 caracteres', minLength(8)),
+    minLength: withMsg('La contraseña debe tener al menos 12 caracteres', minLength(12)),
   },
   password_confirmation: {
     required: withMsg('Debe confirmar la contraseña', required),

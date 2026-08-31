@@ -212,7 +212,7 @@ const rules = computed(() => {
   if (step.value === 'basic-reset' || step.value === 'zke') {
     base.password = {
       required: withMsg('La contraseña es requerida', required),
-      minLength: withMsg('Mínimo 10 caracteres', minLength(10)),
+      minLength: withMsg('Mínimo 12 caracteres', minLength(12)),
       upper: withMsg('Debe incluir al menos una mayúscula', helpers.regex(/[A-Z]/)),
       lower: withMsg('Debe incluir al menos una minúscula', helpers.regex(/[a-z]/)),
       number: withMsg('Debe incluir al menos un número', helpers.regex(/[0-9]/)),

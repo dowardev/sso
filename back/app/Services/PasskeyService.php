@@ -43,9 +43,10 @@ class PasskeyService
     {
         $this->factory = new CeremonyStepManagerFactory();
 
-        // Configure allowed origins
+        // Configure allowed origins (the browser origins driving WebAuthn)
         $appUrl = config('app.url', 'http://localhost:8101');
-        $this->factory->setAllowedOrigins([$appUrl], true);
+        $allowedOrigins = config('passkey.allowed_origins', ['http://localhost:8101']);
+        $this->factory->setAllowedOrigins($allowedOrigins, true);
 
         // Configure relying party ID
         $rpId = config('passkey.rp_id', parse_url($appUrl, PHP_URL_HOST) ?? 'localhost');

@@ -19,7 +19,7 @@ class RegisterRequest extends FormRequest
             'name' => 'required|string|max:255',
             'user' => 'required|string|max:255|unique:users',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'string', 'min:10', 'confirmed', 'regex:/[A-Z]/', 'regex:/[a-z]/', 'regex:/[0-9]/', 'regex:/[@$!%*?&]/'],
+            'password' => ['required', 'string', 'min:12', 'confirmed', 'regex:/[A-Z]/', 'regex:/[a-z]/', 'regex:/[0-9]/', 'regex:/[@$!%*?&]/'],
             'client_id' => 'required|string|exists:sso_clients,client_id',
             'dpop_public_key' => 'nullable|json',
         ];

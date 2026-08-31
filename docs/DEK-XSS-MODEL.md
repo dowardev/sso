@@ -44,6 +44,8 @@ key lifetimes, and aggressive XSS prevention — not by making XSS impossible.
   support **multi-credential** storage (`passkey_credentials`).
 - Client apps use `@dowardev/sso-client` → `ZkeClient` (`enrollPrf`,
   `restoreDekWithPrf`, `refreshProfileSilently`). The profile reaches OAuth
-  apps via the `#profile=` fragment (never in server logs or the query).
+  apps as a **JWS-signed** `#profile=` envelope (`{profile, token}`) verified by
+  the SDK against the SSO JWKS (see §5.8 of the auth docs) — never in server
+  logs or the query. Forged/unsigned/expired envelopes are rejected.
 - When PRF is unsupported, the client requests the password to re-derive the
   DEK — no silent refresh.
