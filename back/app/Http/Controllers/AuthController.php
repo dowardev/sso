@@ -4,6 +4,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\AuthMethodsRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\UpdatePasswordRequest;
@@ -152,6 +153,21 @@ class AuthController extends Controller
         );
 
         return $response;
+    }
+
+    /**
+     * Report which auth methods an identifier's account supports.
+     *
+     * Public endpoint for identifier-first login: the identifier is a
+     * username only (basic accounts match `user` directly; advanced accounts
+     * match the deterministic HMAC login_id). Always returns 200
+     * (account-existence disclosure is a documented trade-off).
+     */
+    public function authMethods(AuthMethodsRequest $request): JsonResponse
+    {
+        return response()->json(
+            $this->authService->resolveAuthMethods($request->validated('identifier'))
+        );
     }
 
     /**

@@ -21,6 +21,7 @@ Route::get('/settings/public', [SettingController::class, 'publicIndex']);
 
 Route::post('/login', [AuthController::class, 'login'])->middleware(['throttle.login', 'throttle:5,1']);
 Route::post('/crypto/blobs', [AuthController::class, 'cryptoBlobs'])->middleware(['throttle:5,1']);
+Route::post('/auth/methods', [AuthController::class, 'authMethods'])->middleware(['throttle:5,1']);
 Route::post('/login/advanced/verify', [AuthController::class, 'loginAdvancedVerify'])->middleware(['throttle.login', 'throttle:5,1']);
 Route::post('/refresh-token', [AuthController::class, 'refreshToken'])->middleware('refresh.token');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');

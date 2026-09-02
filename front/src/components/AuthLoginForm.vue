@@ -1,162 +1,174 @@
 <!-- SPDX-License-Identifier: MIT -->
 <template>
   <AuthCard title="Iniciar Sesión" subtitle="Accede a tu cuenta de SSO Server">
-    <form @submit.prevent="loginMode === 'passkey' ? handlePasskeyLogin() : handleLogin()">
-        <!-- Login mode toggle -->
-        <ion-segment v-model="loginMode" class="login-mode-segment" aria-label="Método de inicio de sesión">
-          <ion-segment-button value="password">Contraseña</ion-segment-button>
-          <ion-segment-button value="passkey">Passkey</ion-segment-button>
-        </ion-segment>
+    <!-- Step 1: identifier -->
+    <form v-if="step === 'identifier'" @submit.prevent="handleContinue()">
+      <ion-item class="input-item" lines="none">
+        <ion-input
+          v-model="credentials.identifier"
+          label-placement="floating"
+          label="Usuario"
+          type="text"
+          placeholder="Ingresa tu usuario"
+          autocomplete="username"
+          aria-describedby="login-identifier-error"
+          @ion-blur="v$.identifier.$touch()"
+        />
+      </ion-item>
+      <div v-if="v$.identifier.$error" id="login-identifier-error" class="field-error">
+        {{ v$.identifier.$errors[0].$message }}
+      </div>
 
-        <!-- Password-mode fields -->
-        <template v-if="loginMode === 'password'">
-          <!-- Login ID / User / Email field -->
-          <ion-item class="input-item" lines="none">
-            <ion-input
-              v-model="credentials.identifier"
-              label-placement="floating"
-              :label="isAdvancedLogin ? 'Login ID' : 'Usuario / Email'"
-              type="text"
-              :placeholder="isAdvancedLogin ? 'Ingresa tu Login ID' : 'Ingresa tu usuario o email'"
-              autocomplete="username"
-              aria-describedby="login-identifier-error"
-              @ion-blur="v$.identifier.$touch()"
-            />
-          </ion-item>
-          <div v-if="v$.identifier.$error" id="login-identifier-error" class="field-error">
-            {{ v$.identifier.$errors[0].$message }}
-          </div>
+      <div v-if="error" class="error-message" role="alert" aria-live="assertive">
+        <ion-icon :icon="alertCircle" size="small"></ion-icon>
+        {{ error }}
+      </div>
 
-          <!-- Password field -->
-          <ion-item class="input-item" lines="none">
-            <ion-input
-              v-model="credentials.password"
-              label="Contraseña"
-              label-placement="floating"
-              type="password"
-              placeholder="Ingresa tu contraseña"
-              autocomplete="current-password"
-              aria-describedby="login-password-error"
-              @ion-blur="v$.password.$touch()"
-            >
-              <ion-input-password-toggle slot="end" />
-            </ion-input>
-          </ion-item>
-          <div v-if="v$.password.$error" id="login-password-error" class="field-error">
-            {{ v$.password.$errors[0].$message }}
-          </div>
+      <div class="ion-padding-top">
+        <ion-button
+          type="submit"
+          expand="block"
+          class="gradient-btn"
+          :disabled="loading"
+        >
+          <ion-spinner v-if="loading" name="lines"></ion-spinner>
+          <span v-else>Continuar</span>
+        </ion-button>
+      </div>
+    </form>
 
-          <!-- Remember me toggle -->
-          <ion-item class="input-item remember-item" lines="none">
-            <ion-toggle
-              slot="start"
-              :checked="rememberMe"
-              color="primary"
-              aria-describedby="remember-toggle-desc"
-              @ion-change="rememberMe = !rememberMe"
-            />
-            <ion-label class="remember-label">Mantener sesión abierta</ion-label>
-          </ion-item>
-          <span id="remember-toggle-desc" class="ion-hide">Al activar esta opción, la sesión permanecerá abierta incluso después de cerrar el navegador</span>
-        </template>
+    <!-- Step 2: methods supported by the resolved account -->
+    <form v-else @submit.prevent="handlePasswordLogin()">
+      <!-- Password method (always available for a found account) -->
+      <ion-item class="input-item" lines="none">
+        <ion-input
+          v-model="credentials.password"
+          label="Contraseña"
+          label-placement="floating"
+          type="password"
+          placeholder="Ingresa tu contraseña"
+          autocomplete="current-password"
+          aria-describedby="login-password-error"
+          @ion-blur="v$.password.$touch()"
+        >
+          <ion-input-password-toggle slot="end" />
+        </ion-input>
+      </ion-item>
+      <div v-if="v$.password.$error" id="login-password-error" class="field-error">
+        {{ v$.password.$errors[0].$message }}
+      </div>
 
-        <!-- Passkey-mode fields -->
-        <template v-else>
-          <div class="advanced-info">
-            <ion-icon :icon="keyOutline" size="small"></ion-icon>
-            <span>Ingresá con tu passkey</span>
-          </div>
+      <!-- Remember me toggle -->
+      <ion-item class="input-item remember-item" lines="none">
+        <ion-toggle
+          slot="start"
+          :checked="rememberMe"
+          color="primary"
+          aria-describedby="remember-toggle-desc"
+          @ion-change="rememberMe = !rememberMe"
+        />
+        <ion-label class="remember-label">Mantener sesión abierta</ion-label>
+      </ion-item>
+      <span id="remember-toggle-desc" class="ion-hide">Al activar esta opción, la sesión permanecerá abierta incluso después de cerrar el navegador</span>
 
-          <div class="ion-padding-top">
-            <ion-button
-              type="submit"
-              expand="block"
-              class="gradient-btn"
-              :disabled="loading || cryptoLoading || masterPasswordVisible"
-            >
-              <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
-              <span v-if="cryptoLoading">Verificando passkey...</span>
-              <span v-else-if="loading">Autenticando...</span>
-              <span v-else>Ingresar con passkey</span>
-            </ion-button>
-          </div>
+      <div v-if="error" class="error-message" role="alert" aria-live="assertive">
+        <ion-icon :icon="alertCircle" size="small"></ion-icon>
+        {{ error }}
+      </div>
 
-          <!-- Master-password fallback (advanced users, no PRF enrollment) -->
-          <template v-if="masterPasswordVisible">
-            <ion-item class="input-item" lines="none">
-              <ion-input
-                v-model="masterPassword"
-                label="Contraseña maestra"
-                label-placement="floating"
-                type="password"
-                placeholder="Contraseña para desbloquear tu perfil"
-                autocomplete="current-password"
-                aria-describedby="master-password-error"
-                @ion-blur="masterPasswordTouched = true"
-              >
-                <ion-input-password-toggle slot="end" />
-              </ion-input>
-            </ion-item>
-            <div v-if="masterPasswordTouched && !masterPassword.trim()" id="master-password-error" class="field-error">
-              La contraseña maestra es requerida
-            </div>
-            <div class="ion-padding-top">
-              <ion-button
-                type="button"
-                expand="block"
-                class="gradient-btn"
-                :disabled="passkeyUnlocking"
-                @click="handleMasterPasswordUnlock"
-              >
-                <ion-spinner v-if="passkeyUnlocking" name="lines"></ion-spinner>
-                <span v-else>Desbloquear</span>
-              </ion-button>
-            </div>
-          </template>
-        </template>
+      <div class="ion-padding-top">
+        <ion-button
+          type="submit"
+          expand="block"
+          class="gradient-btn"
+          :disabled="loading || cryptoLoading"
+        >
+          <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
+          <span v-if="cryptoLoading && !loading">{{ cryptoLoadingMessage }}</span>
+          <span v-else-if="loading">Ingresando...</span>
+          <span v-else>Iniciar con contraseña</span>
+        </ion-button>
+      </div>
 
-        <!-- Error message -->
-        <div v-if="error" class="error-message" role="alert" aria-live="assertive">
-          <ion-icon :icon="alertCircle" size="small"></ion-icon>
-          {{ error }}
+      <!-- Passkey method (only when the account has passkeys enrolled) -->
+      <div v-if="authMethods.has_passkeys" class="ion-padding-top">
+        <ion-button
+          type="button"
+          expand="block"
+          fill="outline"
+          :disabled="loading || cryptoLoading || masterPasswordVisible"
+          @click="handlePasskeyLogin()"
+        >
+          <ion-icon slot="start" :icon="keyOutline" aria-hidden="true"></ion-icon>
+          Iniciar con passkey
+        </ion-button>
+      </div>
+
+      <!-- Master-password fallback (advanced users, no PRF enrollment) -->
+      <template v-if="masterPasswordVisible">
+        <ion-item class="input-item" lines="none">
+          <ion-input
+            v-model="masterPassword"
+            label="Contraseña maestra"
+            label-placement="floating"
+            type="password"
+            placeholder="Contraseña para desbloquear tu perfil"
+            autocomplete="current-password"
+            aria-describedby="master-password-error"
+            @ion-blur="masterPasswordTouched = true"
+          >
+            <ion-input-password-toggle slot="end" />
+          </ion-input>
+        </ion-item>
+        <div v-if="masterPasswordTouched && !masterPassword.trim()" id="master-password-error" class="field-error">
+          La contraseña maestra es requerida
         </div>
+        <div class="ion-padding-top">
+          <ion-button
+            type="button"
+            expand="block"
+            class="gradient-btn"
+            :disabled="passkeyUnlocking"
+            @click="handleMasterPasswordUnlock()"
+          >
+            <ion-spinner v-if="passkeyUnlocking" name="lines"></ion-spinner>
+            <span v-else>Desbloquear</span>
+          </ion-button>
+        </div>
+      </template>
 
-        <!-- Password-mode submit button, forgot-password and advanced info -->
-        <template v-if="loginMode === 'password'">
-          <div class="ion-padding-top">
-            <ion-button
-              type="submit"
-              expand="block"
-              class="gradient-btn"
-              :disabled="loading || cryptoLoading"
-            >
-              <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
-              <span v-if="cryptoLoading && !loading">{{ cryptoLoadingMessage }}</span>
-              <span v-else-if="loading">Ingresando...</span>
-              <span v-else>Ingresar</span>
-            </ion-button>
-          </div>
+      <!-- Forgot password link -->
+      <div class="ion-padding-top forgot-password">
+        <ion-button
+          fill="clear"
+          expand="block"
+          class="subtle"
+          :disabled="loading || cryptoLoading"
+          @click="goToRecovery"
+        >
+          ¿Olvidaste tu contraseña?
+        </ion-button>
+      </div>
 
-          <!-- Forgot password link -->
-          <div class="ion-padding-top forgot-password">
-            <ion-button
-              fill="clear"
-              expand="block"
-              class="subtle"
-              :disabled="loading || cryptoLoading"
-              @click="goToRecovery"
-            >
-              ¿Olvidaste tu contraseña?
-            </ion-button>
-          </div>
+      <!-- Advanced encryption info -->
+      <div v-if="authMethods.encryption_level === 'advanced'" class="advanced-info">
+        <ion-icon :icon="lockClosed" size="small"></ion-icon>
+        <span>Modo cifrado avanzado: tu contraseña nunca sale de este dispositivo</span>
+      </div>
 
-          <!-- Advanced encryption info -->
-          <div v-if="isAdvancedLogin" class="advanced-info">
-            <ion-icon :icon="lockClosed" size="small"></ion-icon>
-            <span>Modo cifrado avanzado: tu contraseña nunca sale de este dispositivo</span>
-          </div>
-        </template>
-      </form>
+      <!-- Back to identifier step -->
+      <div class="ion-padding-top">
+        <ion-button
+          fill="clear"
+          expand="block"
+          class="subtle"
+          :disabled="loading || cryptoLoading"
+          @click="backToIdentifier()"
+        >
+          Usar otro usuario
+        </ion-button>
+      </div>
+    </form>
 
     <div class="auth-card-footer">
       <ion-button
@@ -197,8 +209,6 @@ import {
   IonInputPasswordToggle,
   IonToggle,
   IonLabel,
-  IonSegment,
-  IonSegmentButton,
 } from '@ionic/vue';
 import {
   arrowBack,
@@ -257,27 +267,30 @@ const oauthParams = ref({
 
 const isOAuthFlow = ref(false);
 const rememberMe = ref(false);
-const loginMode = ref<'password' | 'passkey'>('password');
+
+// Identifier-first flow state
+const step = ref<'identifier' | 'methods'>('identifier');
+const authMethods = ref<{
+  encryption_level: 'basic' | 'advanced' | null;
+  has_passkeys: boolean;
+}>({ encryption_level: null, has_passkeys: false });
+// Deterministic login_id of the typed identifier, computed once the account
+// resolves as advanced (used by the advanced password flow and the
+// user-scoped passkey ceremony).
+const resolvedLoginId = ref('');
+
 const masterPassword = ref('');
 const masterPasswordVisible = ref(false);
 const masterPasswordTouched = ref(false);
 const passkeyUnlocking = ref(false);
 const activeLoginId = ref('');
 
-// Detect if user is trying advanced login (by entering a login_id format)
-const isAdvancedLogin = computed(() => {
-  // Advanced login uses login_id which is a base64 HMAC - typically longer and different format
-  // For UX, we'll check if the identifier looks like a login_id (base64, no @ symbol)
-  const id = credentials.value.identifier.trim();
-  return id.length > 20 && !id.includes('@') && !id.includes(' ');
-});
-
 // 7. Watch
 // (none)
 
 // 8. Computed
 const rules = computed(() => ({
-  identifier: { required: withMsg('El identificador es requerido', required) },
+  identifier: { required: withMsg('El usuario es requerido', required) },
   password: { required: withMsg('La contraseña es requerida', required) },
 }));
 
@@ -375,30 +388,67 @@ const handleOAuthResponse = async (params: {
   return true;
 };
 
-const handleLogin = async (): Promise<void> => {
-  const isValid = await v$.value.$validate();
-  if (!isValid) return;
+// Step 1: resolve the identifier and discover the supported auth methods.
+const handleContinue = async (): Promise<void> => {
+  if (loading.value) return;
+  v$.value.identifier.$touch();
+  if (v$.value.identifier.$error) return;
 
-  const identifier = credentials.value.identifier.trim();
+  loading.value = true;
+  error.value = '';
+  try {
+    const methods = await authController.fetchAuthMethods({
+      identifier: credentials.value.identifier.trim(),
+    });
 
-  // Email-like identifiers always use basic login (an email cannot be a
-  // ZKE login_id). A username may belong to an advanced user (whose plaintext
-  // email/user are null and password is Argon2id(auth_proof)), so we compute
-  // the deterministic login_id = btoa(HMAC(username)) and probe the advanced
-  // path first — falling back to basic when the user is not advanced.
-  if (identifier.includes('@')) {
-    await handleBasicLogin(identifier);
+    if (!methods.account_found) {
+      error.value = 'No encontramos una cuenta con ese usuario.';
+      return;
+    }
+
+    authMethods.value = {
+      encryption_level: methods.encryption_level,
+      has_passkeys: methods.has_passkeys,
+    };
+    // Server-resolved login_id (advanced accounts only): the identifier is
+    // username-only, so this is always the HMAC-derived login_id the server
+    // matched — the password and passkey flows use it directly without
+    // recomputing anything client-side.
+    resolvedLoginId.value = methods.login_id ?? '';
+
+    step.value = 'methods';
+  } catch (err) {
+    error.value = handleApiError(err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const backToIdentifier = (): void => {
+  step.value = 'identifier';
+  error.value = '';
+  credentials.value.password = '';
+  authMethods.value = { encryption_level: null, has_passkeys: false };
+  resolvedLoginId.value = '';
+  masterPassword.value = '';
+  masterPasswordVisible.value = false;
+  masterPasswordTouched.value = false;
+  activeLoginId.value = '';
+  v$.value.$reset();
+};
+
+// Step 2 (password method): route to the basic or advanced flow according to
+// the encryption_level reported by the backend.
+const handlePasswordLogin = async (): Promise<void> => {
+  if (loading.value || cryptoLoading.value) return;
+  v$.value.password.$touch();
+  if (v$.value.password.$error) return;
+
+  if (authMethods.value.encryption_level === 'advanced') {
+    await handleAdvancedLogin({ loginId: resolvedLoginId.value });
     return;
   }
-
-  try {
-    const loginId = await authController.computeLoginId({ username: identifier });
-    await authController.fetchCryptoBlobs({ loginId });
-    await handleAdvancedLogin(loginId);
-  } catch {
-    // /crypto/blobs failed (404 / user not advanced) -> fall back to basic.
-    await handleBasicLogin(identifier);
-  }
+  await handleBasicLogin({ identifier: credentials.value.identifier.trim() });
 };
 
 const finishPasskeyLogin = async (): Promise<void> => {
@@ -445,43 +495,51 @@ const handleMasterPasswordUnlock = async (): Promise<void> => {
   }
 };
 
-    const handlePasskeyLogin = async (): Promise<void> => {
-      // Username-less (discoverable) ceremony: the browser presents the user's
-      // resident passkeys. No identifier needed — the server resolves the user
-      // from the assertion userHandle.
-      loading.value = true;
-      error.value = '';
-      try {
-        const result = await authController.passkeyLogin({
-          rememberMe: rememberMe.value,
-        });
+// Step 2 (passkey method): user-scoped ceremony. The server restricts
+// allowCredentials to the resolved account (username for basic, login_id for
+// advanced), so no resident-key discovery is needed.
+const handlePasskeyLogin = async (): Promise<void> => {
+  loading.value = true;
+  error.value = '';
+  try {
+    const result = await authController.passkeyLogin({
+      rememberMe: rememberMe.value,
+      username:
+        authMethods.value.encryption_level === 'advanced'
+          ? undefined
+          : credentials.value.identifier.trim(),
+      login_id:
+        authMethods.value.encryption_level === 'advanced'
+          ? resolvedLoginId.value
+          : undefined,
+    });
 
-        if (result.profile) {
-          authStore.setProfile({ profile: result.profile });
-        }
+    if (result.profile) {
+      authStore.setProfile({ profile: result.profile });
+    }
 
-        await finishPasskeyLogin();
-      } catch (err) {
-        const apiError = err as Error & { code?: string; email?: string; loginId?: string };
-        if (apiError.code === 'MASTER_PASSWORD_REQUIRED') {
-          // Session applied; the user now unlocks the advanced profile locally.
-          activeLoginId.value = apiError.loginId || '';
-          masterPasswordVisible.value = true;
-          loading.value = false;
-          return;
-        }
-        if (apiError.code === 'EMAIL_NOT_VERIFIED') {
-          router.replace({
-            name: 'VerifyEmailPending',
-            query: { email: apiError.email || '' },
-          });
-          return;
-        }
-        error.value = handleApiError(err);
-      } finally {
-        loading.value = false;
-      }
-    };
+    await finishPasskeyLogin();
+  } catch (err) {
+    const apiError = err as Error & { code?: string; email?: string; loginId?: string };
+    if (apiError.code === 'MASTER_PASSWORD_REQUIRED') {
+      // Session applied; the user now unlocks the advanced profile locally.
+      activeLoginId.value = apiError.loginId || '';
+      masterPasswordVisible.value = true;
+      loading.value = false;
+      return;
+    }
+    if (apiError.code === 'EMAIL_NOT_VERIFIED') {
+      router.replace({
+        name: 'VerifyEmailPending',
+        query: { email: apiError.email || '' },
+      });
+      return;
+    }
+    error.value = handleApiError(err);
+  } finally {
+    loading.value = false;
+  }
+};
 
 const completePasskey2FA = async (params: {
   user_id?: number;
@@ -501,7 +559,8 @@ const completePasskey2FA = async (params: {
   }
 };
 
-const handleBasicLogin = async (identifier: string): Promise<void> => {
+const handleBasicLogin = async (params: { identifier: string }): Promise<void> => {
+  const { identifier } = params;
   loading.value = true;
   error.value = '';
   try {
@@ -540,16 +599,14 @@ const handleBasicLogin = async (identifier: string): Promise<void> => {
       });
       return;
     }
-    const baseMessage = handleApiError(err);
-    error.value = identifier.includes('@')
-      ? `${baseMessage} Si tu cuenta tiene cifrado avanzado, iniciá sesión con tu nombre de usuario, no con tu correo.`
-      : baseMessage;
+    error.value = handleApiError(err);
   } finally {
     loading.value = false;
   }
 };
 
-const handleAdvancedLogin = async (loginId: string): Promise<void> => {
+const handleAdvancedLogin = async (params: { loginId: string }): Promise<void> => {
+  const { loginId } = params;
   loading.value = false;
   cryptoLoading.value = true;
   cryptoLoadingMessage.value = 'Derivando claves...';

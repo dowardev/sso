@@ -89,6 +89,49 @@ class AuthService
     }
 
     /**
+     * Resolve an identifier to the account's available auth methods.
+     *
+     * Resolution is username-only (normalized for all users): a direct
+     * `user` match for basic accounts, otherwise the deterministic
+     * login_id derived with HMAC-SHA-256 (key 'login_id_salt_v1') — email
+     * and raw login_id are not valid identifiers here.
+     *
+     * The client computation lives in front/src/controllers/authController.ts
+     * (computeLoginId: base64 of the raw HMAC digest).
+     *
+     * Always returns a response (HTTP 200), even when no account matches.
+     * For advanced accounts the resolved login_id is returned so the client
+     * can run the password/passkey flows without recomputing it.
+     *
+     * @return array{account_found: bool, encryption_level: string|null, has_passkeys: bool, login_id: string|null}
+     */
+    public function resolveAuthMethods(string $identifier): array
+    {
+        $user = User::where('user', $identifier)->first();
+
+        if (! $user) {
+            $derivedLoginId = base64_encode(hash_hmac('sha256', $identifier, 'login_id_salt_v1', true));
+            $user = User::where('login_id', $derivedLoginId)->first();
+        }
+
+        if (! $user) {
+            return [
+                'account_found' => false,
+                'encryption_level' => null,
+                'has_passkeys' => false,
+                'login_id' => null,
+            ];
+        }
+
+        return [
+            'account_found' => true,
+            'encryption_level' => $user->encryption_level,
+            'has_passkeys' => $user->passkeyCredentials()->exists(),
+            'login_id' => $user->encryption_level === 'advanced' ? $user->login_id : null,
+        ];
+    }
+
+    /**
      * Return the client-side crypto material for an advanced user.
      *
      * Used by login, recovery, and profile refresh flows: the caller
