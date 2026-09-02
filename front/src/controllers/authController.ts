@@ -4,6 +4,8 @@ import { useAuthStore } from '@/stores/auth';
 import { api } from '@/services/api';
 import { cryptoService } from '@/services/cryptoService';
 import { dpopService } from '@/services/dpopService';
+import { passkeyService } from '@/services/passkeyService';
+import { hasPrfEntries, restoreDekSilently } from '@/services/prfService';
 import type {
   User,
   CryptoUserProfile,
@@ -289,6 +291,121 @@ export function useAuthController() {
 
         return { ...result, profile };
       }
+
+  // ─── Passkey-only login (LBDS-208) ─────────────────────────────────────────
+
+  /**
+   * Passkey-only login (username-less / discoverable): authenticate with a
+   * resident passkey and apply the issued JWT as the session. The browser
+   * presents the user's credentials (no identifier needed); the server resolves
+   * the user from the assertion's userHandle. Advanced (ZKE) users additionally
+   * restore their encrypted profile — silent PRF restore (one extra gesture) or
+   * a master-password fallback signalled via MASTER_PASSWORD_REQUIRED (the
+   * error carries the resolved loginId).
+   */
+  async function passkeyLogin(params: {
+    rememberMe?: boolean;
+  }): Promise<{ token: string; user: User; profile?: CryptoUserProfile | null }> {
+    await dpopService.initialize();
+    const dpopPublicKey = dpopService.getPublicKeyJwk();
+
+    const result = await passkeyService.authenticate({
+      rememberMe: params.rememberMe,
+      dpopPublicKey: dpopPublicKey ? JSON.stringify(dpopPublicKey) : undefined,
+    });
+
+    authStore.applyLoginSession({
+      token: result.token,
+      user: result.user,
+      dpopPublicKey,
+      rememberMe: params.rememberMe,
+    });
+
+    if (result.user.encryption_level === 'advanced') {
+      // The server exposes login_id for advanced users on the passkey finish
+      // response (the client cannot know it without typing).
+      const loginId = result.user.login_id;
+      if (!loginId) {
+        const missing = new Error(
+          'No se pudo obtener el Login ID para el flujo avanzado'
+        ) as Error & { code?: string; loginId?: string };
+        missing.code = 'MASTER_PASSWORD_REQUIRED';
+        throw missing;
+      }
+
+      const blobs = await fetchCryptoBlobs({ loginId });
+
+      // Silent PRF restore: one extra gesture, no password. The worker unwraps
+      // the resident DEK with K_PRF and decrypts the profile locally. Any
+      // failure (no matching credential, salt mismatch on multi-credential
+      // devices) degrades to the master-password fallback below.
+      // Scope the PRF entry lookup to the credential that just authenticated
+      // so a browser holding PRF entries for several accounts never unwraps
+      // the DEK with the wrong account's K_PRF.
+      const prfCredentialId = result.credential_id;
+      if ((await hasPrfEntries({ credentialId: prfCredentialId }).catch(() => false))) {
+        try {
+          const restored = await restoreDekSilently({
+            buildRequest: (req) => req,
+            credentialId: prfCredentialId,
+          });
+          if (restored) {
+            const profile = await cryptoService.decryptProfile({
+              blob: blobs.encrypted_profile,
+            });
+            authStore.setProfile({ profile });
+            return { token: result.token, user: result.user, profile };
+          }
+        } catch {
+          // PRF restore failed -> fall through to master-password fallback.
+        }
+      }
+
+      // No PRF entries or restore failed -> master-password fallback.
+      const err = new Error(
+        'Contraseña maestra requerida para desbloquear el perfil'
+      ) as Error & { code?: string; loginId?: string };
+      err.code = 'MASTER_PASSWORD_REQUIRED';
+      err.loginId = loginId;
+      throw err;
+    }
+
+    return { token: result.token, user: result.user };
+  }
+
+  /**
+   * Master-password fallback for passkey advanced login: derive Key_A locally
+   * and unwrap the resident DEK. A failed unwrap means the wrong master
+   * password (no new server verify — decryption is fully local).
+   */
+  async function passkeyUnlockProfile(params: {
+    loginId: string;
+    password: string;
+  }): Promise<void> {
+    const blobs = await fetchCryptoBlobs({ loginId: params.loginId });
+    const keyA = await cryptoService.deriveKeyA({
+      password: params.password,
+      salt: blobs.salt_a,
+    });
+
+    authStore.setKeyA({ keyA });
+
+    try {
+      await cryptoService.unwrapDek({
+        wrapped: blobs.wrapped_dek_a,
+        unwrappingKey: keyA,
+      });
+    } catch {
+      const err = new Error('Contraseña maestra incorrecta') as Error & { code?: string };
+      err.code = 'WRONG_MASTER_PASSWORD';
+      throw err;
+    }
+
+    const profile = await cryptoService.decryptProfile({
+      blob: blobs.encrypted_profile,
+    });
+    authStore.setProfile({ profile });
+  }
 
   // ─── Advanced Registration ─────────────────────────────────────────────────
 
@@ -1021,6 +1138,8 @@ export function useAuthController() {
     deleteAccount,
     // Advanced encryption methods
     loginAdvanced,
+    passkeyLogin,
+    passkeyUnlockProfile,
     fetchCryptoBlobs,
     prepareReAuth,
     loginAdvancedSecondStep,

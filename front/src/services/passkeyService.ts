@@ -30,6 +30,7 @@ interface PublicKeyCredentialCreationOptionsJSON {
     userVerification?: string;
     residentKey?: string;
   };
+  extensions?: { prf?: { enable?: boolean } };
   attestation?: string;
 }
 
@@ -54,6 +55,9 @@ interface AuthenticationFinishResponse {
   token_type: string;
   expires_in: number;
   user: User;
+  // base64url id of the credential that just authenticated (used to scope
+  // the silent PRF restore to the correct account on multi-account devices).
+  credential_id?: string;
 }
 
 // ─── Helper Functions ──────────────────────────────────────────────────────────
@@ -103,6 +107,7 @@ function decodeCreationOptions(params: {
       })),
       authenticatorSelection: optionsJSON.authenticatorSelection,
       attestation: optionsJSON.attestation,
+      extensions: optionsJSON.extensions,
     } as PublicKeyCredentialCreationOptions,
   };
 }
@@ -217,15 +222,24 @@ export const passkeyService = {
   async authenticationStart(params: {
     user_id?: number;
     login_id?: string;
+    username?: string;
   }): Promise<PublicKeyCredentialRequestOptionsJSON> {
+    // Only send the fields actually provided; omitting all three triggers
+    // the discoverable (resident-key) ceremony server-side.
+    const data: Record<string, unknown> = {};
+    if (params.user_id !== undefined) data.user_id = params.user_id;
+    if (params.login_id !== undefined) data.login_id = params.login_id;
+    if (params.username !== undefined) data.username = params.username;
     return api.post<PublicKeyCredentialRequestOptionsJSON>({
       endpoint: '/passkey/authenticate/start',
-      data: params,
+      data,
     });
   },
 
   async authenticationFinish(params: {
     optionsJSON: PublicKeyCredentialRequestOptionsJSON;
+    rememberMe?: boolean;
+    dpopPublicKey?: string;
   }): Promise<AuthenticationFinishResponse> {
     const credential = (await navigator.credentials.get(
       decodeRequestOptions({ optionsJSON: params.optionsJSON }),
@@ -235,9 +249,17 @@ export const passkeyService = {
       throw new Error('Autenticación cancelada o fallida');
     }
 
+    const data = encodeAuthenticationResponse({ credential }) as Record<string, unknown>;
+    if (params.rememberMe) {
+      data['remember_me'] = true;
+    }
+    if (params.dpopPublicKey) {
+      data['dpop_public_key'] = params.dpopPublicKey;
+    }
+
     return api.post<AuthenticationFinishResponse>({
       endpoint: '/passkey/authenticate/finish',
-      data: encodeAuthenticationResponse({ credential }),
+      data,
     });
   },
 
@@ -265,9 +287,20 @@ export const passkeyService = {
   async authenticate(params: {
     user_id?: number;
     login_id?: string;
+    username?: string;
+    rememberMe?: boolean;
+    dpopPublicKey?: string;
   }): Promise<AuthenticationFinishResponse> {
-    const optionsJSON = await this.authenticationStart(params);
-    return this.authenticationFinish({ optionsJSON });
+    const optionsJSON = await this.authenticationStart({
+      user_id: params.user_id,
+      login_id: params.login_id,
+      username: params.username,
+    });
+    return this.authenticationFinish({
+      optionsJSON,
+      rememberMe: params.rememberMe,
+      dpopPublicKey: params.dpopPublicKey,
+    });
   },
 };
 

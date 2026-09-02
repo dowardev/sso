@@ -83,11 +83,13 @@ class PasskeyService
      */
     public function generateRegistrationOptions(User $user, array $excludeCredentials = []): PublicKeyCredentialCreationOptions
     {
+        // web-auth v5 create(string $name, string $id, string $displayName).
+        // The entity ID is the WebAuthn userHandle; for ZKE users name/email are
+        // null by design, so fall back to a neutral local-only label.
         $userEntity = PublicKeyCredentialUserEntity::create(
+            $user->user ?? $user->email ?? ('user-' . $user->id),
             (string) $user->id,
-            $user->user ?? $user->email,
-            $user->name ?? $user->user ?? $user->email,
-            null,
+            $user->name ?? $user->user ?? $user->email ?? ('Usuario ' . $user->id),
             null
         );
 
@@ -111,7 +113,7 @@ class PasskeyService
             AuthenticatorSelectionCriteria::create(
                 AuthenticatorSelectionCriteria::AUTHENTICATOR_ATTACHMENT_PLATFORM,
                 AuthenticatorSelectionCriteria::USER_VERIFICATION_REQUIREMENT_REQUIRED,
-                AuthenticatorSelectionCriteria::RESIDENT_KEY_REQUIREMENT_NO_PREFERENCE
+                AuthenticatorSelectionCriteria::RESIDENT_KEY_REQUIREMENT_REQUIRED
             ),
             null, // attestation
             $excludeDescriptors,
@@ -136,7 +138,10 @@ class PasskeyService
 
         return PublicKeyCredentialRequestOptions::create(
             $this->generateChallenge(),
-            null, // rpId (use default)
+            $this->rpEntity->id, // rpId: must equal the rp id used at registration,
+                                 // otherwise the assertion's rpIdHash check fails
+                                 // (registration uses rp->id; the Host header would
+                                 // differ by scheme/port).
             $allowDescriptors,
             AuthenticatorSelectionCriteria::USER_VERIFICATION_REQUIREMENT_PREFERRED,
             null, // timeout
@@ -220,7 +225,7 @@ class PasskeyService
                 new EmptyTrustPath(),
                 Uuid::fromString('00000000-0000-0000-0000-000000000000'),
                 base64_decode($credential->public_key),
-                '', // userHandle
+                $credential->user_handle ?? '',
                 0 // counter
             );
         } catch (Exception $e) {
@@ -263,6 +268,10 @@ class PasskeyService
             'user_id' => $user->id,
             'credential_id' => base64_encode($record->publicKeyCredentialId),
             'public_key' => base64_encode($record->credentialPublicKey),
+            // Normalize to the user entity id string (what finish expects); a
+            // stray authenticator userHandle would otherwise be persisted and
+            // fail the assertion check at login.
+            'user_handle' => (string) $user->id,
             'transports' => $meta['transports'] ?? null,
             'device_name' => $meta['device_name'] ?? null,
         ]);

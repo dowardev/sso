@@ -16,6 +16,7 @@ class PasskeyCredential extends Model
         'user_id',
         'credential_id',
         'public_key',
+        'user_handle',
         'transports',
         'device_name',
     ];
