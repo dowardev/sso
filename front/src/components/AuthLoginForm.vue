@@ -1,96 +1,162 @@
 <!-- SPDX-License-Identifier: MIT -->
 <template>
   <AuthCard title="Iniciar Sesión" subtitle="Accede a tu cuenta de SSO Server">
-    <form @submit.prevent="handleLogin">
-      <!-- Login ID / User / Email field -->
-      <ion-item class="input-item" lines="none">
-        <ion-input
-          v-model="credentials.identifier"
-          label-placement="floating"
-          :label="isAdvancedLogin ? 'Login ID' : 'Usuario / Email'"
-          type="text"
-          :placeholder="isAdvancedLogin ? 'Ingresa tu Login ID' : 'Ingresa tu usuario o email'"
-          autocomplete="username"
-          aria-describedby="login-identifier-error"
-          @ion-blur="v$.identifier.$touch()"
-        />
-      </ion-item>
-      <div v-if="v$.identifier.$error" id="login-identifier-error" class="field-error">
-        {{ v$.identifier.$errors[0].$message }}
-      </div>
+    <form @submit.prevent="loginMode === 'passkey' ? handlePasskeyLogin() : handleLogin()">
+        <!-- Login mode toggle -->
+        <ion-segment v-model="loginMode" class="login-mode-segment" aria-label="Método de inicio de sesión">
+          <ion-segment-button value="password">Contraseña</ion-segment-button>
+          <ion-segment-button value="passkey">Passkey</ion-segment-button>
+        </ion-segment>
 
-      <!-- Password field -->
-      <ion-item class="input-item" lines="none">
-        <ion-input
-          v-model="credentials.password"
-          label="Contraseña"
-          label-placement="floating"
-          type="password"
-          placeholder="Ingresa tu contraseña"
-          autocomplete="current-password"
-          aria-describedby="login-password-error"
-          @ion-blur="v$.password.$touch()"
-        >
-          <ion-input-password-toggle slot="end" />
-        </ion-input>
-      </ion-item>
-      <div v-if="v$.password.$error" id="login-password-error" class="field-error">
-        {{ v$.password.$errors[0].$message }}
-      </div>
+        <!-- Password-mode fields -->
+        <template v-if="loginMode === 'password'">
+          <!-- Login ID / User / Email field -->
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              v-model="credentials.identifier"
+              label-placement="floating"
+              :label="isAdvancedLogin ? 'Login ID' : 'Usuario / Email'"
+              type="text"
+              :placeholder="isAdvancedLogin ? 'Ingresa tu Login ID' : 'Ingresa tu usuario o email'"
+              autocomplete="username"
+              aria-describedby="login-identifier-error"
+              @ion-blur="v$.identifier.$touch()"
+            />
+          </ion-item>
+          <div v-if="v$.identifier.$error" id="login-identifier-error" class="field-error">
+            {{ v$.identifier.$errors[0].$message }}
+          </div>
 
-      <!-- Remember me toggle -->
-      <ion-item class="input-item remember-item" lines="none">
-        <ion-toggle
-          slot="start"
-          :checked="rememberMe"
-          color="primary"
-          aria-describedby="remember-toggle-desc"
-          @ion-change="rememberMe = !rememberMe"
-        />
-        <ion-label class="remember-label">Mantener sesión abierta</ion-label>
-      </ion-item>
-      <span id="remember-toggle-desc" class="ion-hide">Al activar esta opción, la sesión permanecerá abierta incluso después de cerrar el navegador</span>
+          <!-- Password field -->
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              v-model="credentials.password"
+              label="Contraseña"
+              label-placement="floating"
+              type="password"
+              placeholder="Ingresa tu contraseña"
+              autocomplete="current-password"
+              aria-describedby="login-password-error"
+              @ion-blur="v$.password.$touch()"
+            >
+              <ion-input-password-toggle slot="end" />
+            </ion-input>
+          </ion-item>
+          <div v-if="v$.password.$error" id="login-password-error" class="field-error">
+            {{ v$.password.$errors[0].$message }}
+          </div>
 
-      <!-- Error message -->
-      <div v-if="error" class="error-message" role="alert" aria-live="assertive">
-        <ion-icon :icon="alertCircle" size="small"></ion-icon>
-        {{ error }}
-      </div>
+          <!-- Remember me toggle -->
+          <ion-item class="input-item remember-item" lines="none">
+            <ion-toggle
+              slot="start"
+              :checked="rememberMe"
+              color="primary"
+              aria-describedby="remember-toggle-desc"
+              @ion-change="rememberMe = !rememberMe"
+            />
+            <ion-label class="remember-label">Mantener sesión abierta</ion-label>
+          </ion-item>
+          <span id="remember-toggle-desc" class="ion-hide">Al activar esta opción, la sesión permanecerá abierta incluso después de cerrar el navegador</span>
+        </template>
 
-      <!-- Submit button with loading states -->
-      <div class="ion-padding-top">
-        <ion-button
-          type="submit"
-          expand="block"
-          class="gradient-btn"
-          :disabled="loading || cryptoLoading"
-        >
-          <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
-          <span v-if="cryptoLoading && !loading">{{ cryptoLoadingMessage }}</span>
-          <span v-else-if="loading">Ingresando...</span>
-          <span v-else>Ingresar</span>
-        </ion-button>
-      </div>
+        <!-- Passkey-mode fields -->
+        <template v-else>
+          <div class="advanced-info">
+            <ion-icon :icon="keyOutline" size="small"></ion-icon>
+            <span>Ingresá con tu passkey</span>
+          </div>
 
-      <!-- Forgot password link -->
-      <div class="ion-padding-top forgot-password">
-        <ion-button
-          fill="clear"
-          expand="block"
-          class="subtle"
-          :disabled="loading || cryptoLoading"
-          @click="goToRecovery"
-        >
-          ¿Olvidaste tu contraseña?
-        </ion-button>
-      </div>
+          <div class="ion-padding-top">
+            <ion-button
+              type="submit"
+              expand="block"
+              class="gradient-btn"
+              :disabled="loading || cryptoLoading || masterPasswordVisible"
+            >
+              <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
+              <span v-if="cryptoLoading">Verificando passkey...</span>
+              <span v-else-if="loading">Autenticando...</span>
+              <span v-else>Ingresar con passkey</span>
+            </ion-button>
+          </div>
 
-      <!-- Advanced encryption info -->
-      <div v-if="isAdvancedLogin" class="advanced-info">
-        <ion-icon :icon="lockClosed" size="small"></ion-icon>
-        <span>Modo cifrado avanzado: tu contraseña nunca sale de este dispositivo</span>
-      </div>
-    </form>
+          <!-- Master-password fallback (advanced users, no PRF enrollment) -->
+          <template v-if="masterPasswordVisible">
+            <ion-item class="input-item" lines="none">
+              <ion-input
+                v-model="masterPassword"
+                label="Contraseña maestra"
+                label-placement="floating"
+                type="password"
+                placeholder="Contraseña para desbloquear tu perfil"
+                autocomplete="current-password"
+                aria-describedby="master-password-error"
+                @ion-blur="masterPasswordTouched = true"
+              >
+                <ion-input-password-toggle slot="end" />
+              </ion-input>
+            </ion-item>
+            <div v-if="masterPasswordTouched && !masterPassword.trim()" id="master-password-error" class="field-error">
+              La contraseña maestra es requerida
+            </div>
+            <div class="ion-padding-top">
+              <ion-button
+                type="button"
+                expand="block"
+                class="gradient-btn"
+                :disabled="passkeyUnlocking"
+                @click="handleMasterPasswordUnlock"
+              >
+                <ion-spinner v-if="passkeyUnlocking" name="lines"></ion-spinner>
+                <span v-else>Desbloquear</span>
+              </ion-button>
+            </div>
+          </template>
+        </template>
+
+        <!-- Error message -->
+        <div v-if="error" class="error-message" role="alert" aria-live="assertive">
+          <ion-icon :icon="alertCircle" size="small"></ion-icon>
+          {{ error }}
+        </div>
+
+        <!-- Password-mode submit button, forgot-password and advanced info -->
+        <template v-if="loginMode === 'password'">
+          <div class="ion-padding-top">
+            <ion-button
+              type="submit"
+              expand="block"
+              class="gradient-btn"
+              :disabled="loading || cryptoLoading"
+            >
+              <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
+              <span v-if="cryptoLoading && !loading">{{ cryptoLoadingMessage }}</span>
+              <span v-else-if="loading">Ingresando...</span>
+              <span v-else>Ingresar</span>
+            </ion-button>
+          </div>
+
+          <!-- Forgot password link -->
+          <div class="ion-padding-top forgot-password">
+            <ion-button
+              fill="clear"
+              expand="block"
+              class="subtle"
+              :disabled="loading || cryptoLoading"
+              @click="goToRecovery"
+            >
+              ¿Olvidaste tu contraseña?
+            </ion-button>
+          </div>
+
+          <!-- Advanced encryption info -->
+          <div v-if="isAdvancedLogin" class="advanced-info">
+            <ion-icon :icon="lockClosed" size="small"></ion-icon>
+            <span>Modo cifrado avanzado: tu contraseña nunca sale de este dispositivo</span>
+          </div>
+        </template>
+      </form>
 
     <div class="auth-card-footer">
       <ion-button
@@ -131,11 +197,14 @@ import {
   IonInputPasswordToggle,
   IonToggle,
   IonLabel,
+  IonSegment,
+  IonSegmentButton,
 } from '@ionic/vue';
 import {
   arrowBack,
   alertCircle,
   lockClosed,
+  keyOutline,
 } from 'ionicons/icons';
 import useVuelidate from '@vuelidate/core';
 import { required } from '@vuelidate/validators';
@@ -188,6 +257,12 @@ const oauthParams = ref({
 
 const isOAuthFlow = ref(false);
 const rememberMe = ref(false);
+const loginMode = ref<'password' | 'passkey'>('password');
+const masterPassword = ref('');
+const masterPasswordVisible = ref(false);
+const masterPasswordTouched = ref(false);
+const passkeyUnlocking = ref(false);
+const activeLoginId = ref('');
 
 // Detect if user is trying advanced login (by entering a login_id format)
 const isAdvancedLogin = computed(() => {
@@ -325,6 +400,88 @@ const handleLogin = async (): Promise<void> => {
     await handleBasicLogin(identifier);
   }
 };
+
+const finishPasskeyLogin = async (): Promise<void> => {
+  if (isOAuthFlow.value) {
+    const oauthResult = await authController.oauthAuthorize({
+      client_id: oauthParams.value.client_id,
+      redirect_uri: oauthParams.value.redirect_uri,
+      state: oauthParams.value.state,
+      response_type: oauthParams.value.response_type || 'code',
+      code_challenge: oauthParams.value.code_challenge || undefined,
+      code_challenge_method: oauthParams.value.code_challenge_method || undefined,
+      code_verifier: oauthParams.value.code_verifier || undefined,
+    });
+
+    if (!(await handleOAuthResponse({ response: oauthResult }))) {
+      return;
+    }
+  } else {
+    await router.replace(props.isPublic ? '/' : '/admin/dashboard');
+  }
+};
+
+const handleMasterPasswordUnlock = async (): Promise<void> => {
+  const password = masterPassword.value.trim();
+  if (!password) {
+    masterPasswordTouched.value = true;
+    return;
+  }
+  const loginId = activeLoginId.value;
+  if (!loginId) {
+    error.value = 'No se pudo determinar tu Login ID.';
+    return;
+  }
+
+  passkeyUnlocking.value = true;
+  error.value = '';
+  try {
+    await authController.passkeyUnlockProfile({ loginId, password });
+    await finishPasskeyLogin();
+  } catch (err) {
+    error.value = handleApiError(err);
+  } finally {
+    passkeyUnlocking.value = false;
+  }
+};
+
+    const handlePasskeyLogin = async (): Promise<void> => {
+      // Username-less (discoverable) ceremony: the browser presents the user's
+      // resident passkeys. No identifier needed — the server resolves the user
+      // from the assertion userHandle.
+      loading.value = true;
+      error.value = '';
+      try {
+        const result = await authController.passkeyLogin({
+          rememberMe: rememberMe.value,
+        });
+
+        if (result.profile) {
+          authStore.setProfile({ profile: result.profile });
+        }
+
+        await finishPasskeyLogin();
+      } catch (err) {
+        const apiError = err as Error & { code?: string; email?: string; loginId?: string };
+        if (apiError.code === 'MASTER_PASSWORD_REQUIRED') {
+          // Session applied; the user now unlocks the advanced profile locally.
+          activeLoginId.value = apiError.loginId || '';
+          masterPasswordVisible.value = true;
+          loading.value = false;
+          return;
+        }
+        if (apiError.code === 'EMAIL_NOT_VERIFIED') {
+          router.replace({
+            name: 'VerifyEmailPending',
+            query: { email: apiError.email || '' },
+          });
+          return;
+        }
+        error.value = handleApiError(err);
+      } finally {
+        loading.value = false;
+      }
+    };
 
 const completePasskey2FA = async (params: {
   user_id?: number;

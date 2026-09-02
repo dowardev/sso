@@ -115,6 +115,122 @@ class PasskeyMultiCredentialTest extends TestCase
         $this->assertSame([$this->b64('AAAA')], $service->getCredentialIds($user->fresh()));
     }
 
+    public function test_authenticate_start_resolves_basic_user_by_email(): void
+    {
+        $user = $this->makeUser();
+        $service = app(\App\Services\PasskeyService::class);
+        $service->storeCredential($user, $this->fakeRecord('AAAA'));
+
+        $response = $this->postJson('/api/passkey/authenticate/start', [
+            'username' => $user->email,
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonStructure(['challenge', 'allowCredentials']);
+    }
+
+    public function test_authenticate_start_returns_404_for_unknown_username(): void
+    {
+        $this->makeUser();
+
+        $response = $this->postJson('/api/passkey/authenticate/start', [
+            'username' => 'nonexistent@example.com',
+        ]);
+
+        $response->assertStatus(404);
+    }
+
+    public function test_authenticate_start_discoverable_without_identity(): void
+    {
+        $user = $this->makeUser();
+        $service = app(\App\Services\PasskeyService::class);
+        $service->storeCredential($user, $this->fakeRecord('AAAA'));
+
+        // No user_id / login_id / username -> resident-key (discoverable) ceremony.
+        $response = $this->postJson('/api/passkey/authenticate/start', []);
+
+        $response->assertOk();
+        $response->assertJsonStructure(['challenge']);
+        // Empty allowCredentials -> the browser shows the user's resident keys.
+        $this->assertSame([], $response->json('allowCredentials'));
+    }
+
+    public function test_discoverable_finish_resolves_user_by_user_handle(): void
+    {
+        $user = $this->makeUser();
+
+        $this->postJson('/api/passkey/authenticate/start', []);
+
+        // userHandle = base64url of the user entity id ((string) $user->id).
+        $userHandle = strtr(base64_encode((string) $user->id), '+/', '-_');
+
+        $response = $this->postJson('/api/passkey/authenticate/finish', [
+            'id' => 'unused',
+            'response' => ['userHandle' => $userHandle],
+        ]);
+
+        // The user resolves from the userHandle; without credential records the
+        // ceremony must reject with 400 "no tiene passkeys" (not 404/expired).
+        $response->assertStatus(400);
+        $response->assertJson(['message' => 'Usuario no tiene passkeys registrados']);
+    }
+
+    public function test_discoverable_finish_rejects_unknown_user_handle(): void
+    {
+        $this->makeUser();
+
+        $this->postJson('/api/passkey/authenticate/start', []);
+
+        $userHandle = strtr(base64_encode('99999'), '+/', '-_');
+
+        $response = $this->postJson('/api/passkey/authenticate/finish', [
+            'id' => 'unused',
+            'response' => ['userHandle' => $userHandle],
+        ]);
+
+        $response->assertStatus(404);
+    }
+
+    public function test_register_start_supports_advanced_user_with_null_identity(): void
+    {
+        // Advanced (ZKE) users have null name/user/email — the user entity for
+        // registration must still be built or the ceremony crashes at create().
+        $user = User::factory()->create([
+            'name' => null,
+            'user' => null,
+            'email' => null,
+            'encryption_level' => 'advanced',
+            'login_id' => 'adv-login-id==',
+            'email_verified_at' => now(),
+        ]);
+
+        $service = app(\App\Services\PasskeyService::class);
+        $options = $service->generateRegistrationOptions($user);
+        $data = $service->serializeOptions($options);
+
+        // The entity id is the raw user id (the WebAuthn userHandle the finish
+        // step uses to resolve the user in the discoverable ceremony), and the
+        // name/displayName fall back to neutral values (no PII leak).
+        $this->assertSame(rtrim(strtr(base64_encode((string) $user->id), '+/', '-_'), '='), $data['user']['id']);
+        $this->assertSame('user-' . $user->id, $data['user']['name']);
+        $this->assertSame('Usuario ' . $user->id, $data['user']['displayName']);
+    }
+
+    /**
+     * The discoverable finish resolves the user from the userHandle. This test
+     * locks the contract: the exact userHandle surface is the user id.
+     */
+    public function test_registered_entity_id_matches_user_id_for_user_handle(): void
+    {
+        $user = $this->makeUser();
+        $service = app(\App\Services\PasskeyService::class);
+
+        $options = $service->generateRegistrationOptions($user);
+        $data = $service->serializeOptions($options);
+
+        $this->assertSame(rtrim(strtr(base64_encode((string) $user->id), '+/', '-_'), '='), $data['user']['id']);
+    }
+
     // ─── helpers ─────────────────────────────────────────────────────────────
 
     private function fakeRecord(string $credIdHex): \Webauthn\CredentialRecord

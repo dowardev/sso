@@ -438,6 +438,7 @@ const { showSuccess, showError } = useToast();
 // 2. Controllers
 import { useAuthController } from '@/controllers/authController';
 import { passkeyService, type PasskeyListItem } from '@/services/passkeyService';
+import { enrollPrfForCredential, removePrfEntry } from '@/services/prfService';
 
 const authController = useAuthController();
 
@@ -563,7 +564,16 @@ const handleRegisterPasskey = async (): Promise<void> => {
   try {
     const userId = authController.user.value?.id;
     if (!userId) throw new Error('Sesión no disponible');
-    await passkeyService.register({ userId });
+    const res = await passkeyService.register({ userId });
+    // For advanced (ZKE) users, enroll the worker-resident DEK wrapped with
+    // K_PRF (passwordless restore). Best-effort: never fail the toast.
+    if (isAdvancedUser.value) {
+      try {
+        await enrollPrfForCredential({ credentialId: res.credential_id });
+      } catch {
+        // PRF unsupported/failed -> user keeps the master-password fallback.
+      }
+    }
     await loadPasskeys();
     showSuccess({ message: 'Passkey registrada correctamente.' });
   } catch (err) {
@@ -587,6 +597,7 @@ const handleDeletePasskey = async (params: { credential_id: string }): Promise<v
   try {
     const reAuth = await authController.prepareReAuth({ password });
     await passkeyService.deletePasskey({ credential_id: params.credential_id, ...reAuth });
+    await removePrfEntry({ credentialId: params.credential_id });
     passkeys.value = passkeys.value.filter((pk) => pk.credential_id !== params.credential_id);
     passkeyRemovePassword.value = '';
     showSuccess({ message: 'Passkey eliminada.' });

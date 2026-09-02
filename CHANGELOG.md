@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Spanish docs mirror (`docs/AUTENTICACION.md`).
 - Internal `docs/superpowers/*` planning docs are no longer tracked.
 
+### Changed
+
+- **Passkey-only (passwordless) login — LBDS-208**:
+  - `front` — login screen now offers a `Contraseña | Passkey` mode. Passkey login is username-less/discoverable (resident keys): the browser presents the user's passkeys and the server resolves the account from the assertion `userHandle`; the passkey JWT becomes the session. Advanced (ZKE) users restore their encrypted profile via silent PRF restore when the passkey has PRF enrolled, otherwise fall back to the master password to unlock (clearly labelled). Passkey registration now wires PRF enrollment for advanced users, and removing a passkey also clears its PRF entry.
+  - `back` — passkey registration requires resident keys; passkey auth supports a discoverable (no-identifier) ceremony; `userHandle` is persisted on `passkey_credentials` so resident assertions verify; `rpId` is sent explicitly on authentication options so the `rpIdHash` check matches registration; `login`, advanced-login and passkey-login responses expose `encryption_level`/`login_id` to their own session so the frontend restores advanced state after refresh.
+  - **Breaking (no migration backfill)**: passkeys registered before LBDS-208 stored a different `userHandle` and are NOT resident — they will fail the new assertions. Since there are no production users, delete and re-register them. Known-limits are tracked in LBDS-215 (re-enroll PRF after seed-phrase recovery) and PRF restore is scoped to the credential that authenticated (fixing multi-account browsers).
+
 
 ## [0.33.0] - 2026-08-21
 

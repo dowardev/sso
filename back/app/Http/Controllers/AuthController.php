@@ -117,6 +117,7 @@ class AuthController extends Controller
         $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
 
         $expirationMinutes = config('jwt.token_expiration', 3600) / 60;
+        $user->makeVisible(['login_id', 'encryption_level']);
         $responseData = [
             'user' => $user,
             'token' => $tokenData['token'],
@@ -212,6 +213,11 @@ class AuthController extends Controller
         $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
 
         $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
+
+        // The frontend needs encryption_level + login_id in its own session
+        // response to restore the advanced crypto state on page refresh
+        // (isAdvanced() drives prepareReAuth: auth_proof vs plaintext).
+        $user->makeVisible(['login_id', 'encryption_level']);
 
         $responseData = [
             'user' => $user,
@@ -946,6 +952,7 @@ class AuthController extends Controller
         $request->validate([
             'user_id' => 'nullable|integer|exists:users,id',
             'login_id' => 'nullable|string',
+            'username' => 'nullable|string',
         ]);
 
         $user = null;
@@ -953,25 +960,40 @@ class AuthController extends Controller
             $user = User::find($request->user_id);
         } elseif ($request->has('login_id')) {
             $user = User::where('login_id', $request->login_id)->where('encryption_level', 'advanced')->first();
+        } elseif ($request->has('username')) {
+            $user = User::where('user', $request->username)
+                ->orWhere('email', $request->username)
+                ->first();
         }
 
-        if (! $user) {
+        // Username-less (discoverable) ceremony: when no identification is
+        // provided the browser shows the user's resident keys. The user is
+        // resolved in finish from the assertion's userHandle.
+        $discoverable = ! $request->has('user_id') && ! $request->has('login_id') && ! $request->has('username');
+
+        if (! $user && ! $discoverable) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
 
-        // Get stored credential records
-        $records = $this->passkeyService->getUserCredentialRecords($user);
-        if (empty($records)) {
-            return response()->json(['message' => 'Usuario no tiene passkeys registrados'], 400);
+        if (! $discoverable) {
+            // Get stored credential records
+            $records = $this->passkeyService->getUserCredentialRecords($user);
+            if (empty($records)) {
+                return response()->json(['message' => 'Usuario no tiene passkeys registrados'], 400);
+            }
         }
 
         $options = $this->passkeyService->generateAuthenticationOptions(
-            array_map(fn ($r) => base64_encode($r->publicKeyCredentialId), $records)
+            $discoverable ? [] : array_map(fn ($r) => base64_encode($r->publicKeyCredentialId), $records)
         );
         $optionsJson = $this->passkeyService->serializeOptions($options);
 
         $request->session()->put('passkey_auth_options', $optionsJson);
-        $request->session()->put('passkey_auth_user_id', $user->id);
+        if ($discoverable) {
+            $request->session()->put('passkey_auth_scope', 'discoverable');
+        } else {
+            $request->session()->put('passkey_auth_user_id', $user->id);
+        }
 
         return response()->json($optionsJson);
     }
@@ -982,13 +1004,27 @@ class AuthController extends Controller
     public function passkeyAuthenticateFinish(Request $request): JsonResponse
     {
         $optionsData = $request->session()->pull('passkey_auth_options');
+        $scope = $request->session()->pull('passkey_auth_scope', 'identified');
         $userId = $request->session()->pull('passkey_auth_user_id');
 
-        if (! $optionsData || ! $userId) {
+        if (! $optionsData || ($scope !== 'discoverable' && ! $userId)) {
             return response()->json(['message' => 'Sesión de autenticación expirada'], 400);
         }
 
-        $user = User::find($userId);
+        if ($scope === 'discoverable') {
+            // Resolve the user from the assertion's userHandle — the user
+            // entity id string set at registration ((string) $user->id).
+            $userHandle = $request->input('response.userHandle');
+            $decodedHandle = $userHandle !== null
+                ? base64_decode(strtr($userHandle, '-_', '+/'), true)
+                : false;
+            $user = $decodedHandle !== false && $decodedHandle !== ''
+                ? User::find((int) trim($decodedHandle))
+                : null;
+        } else {
+            $user = $userId ? User::find($userId) : null;
+        }
+
         if (! $user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
@@ -1023,7 +1059,9 @@ class AuthController extends Controller
         }
 
         try {
-            $userHandle = $user->user ?? (string) $user->id;
+            // The userHandle registered on the authenticator is always the user
+            // entity id string — required for discoverable resolution to match.
+            $userHandle = (string) $user->id;
             $verifiedRecord = $this->passkeyService->verifyAuthenticationResponse(
                 $options,
                 $request->all(),
@@ -1050,11 +1088,19 @@ class AuthController extends Controller
 
                 $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
 
+                // Username-less login has no client-known login_id; expose the
+                // identifiers the frontend needs to drive the advanced flow.
+                $user->makeVisible(['login_id', 'encryption_level']);
+
                 $responseData = [
                     'user' => $user,
                     'token' => $tokenData['token'],
                     'token_type' => $tokenData['token_type'],
                     'expires_in' => $tokenData['expires_in'],
+                    // base64url id of the credential that just authenticated —
+                    // lets the client scope the silent PRF restore to it
+                    // (a browser may hold PRF entries for several accounts).
+                    'credential_id' => $credentialId,
                 ];
 
                 $this->activityLogService->logFromRequest(

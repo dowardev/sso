@@ -306,6 +306,16 @@ export const useAuthStore = defineStore('auth', () => {
         if (restoredUser && restoredUser.encryption_level === 'advanced') {
           setAdvancedState({ isAdvanced: true, loginId: restoredUser.login_id });
         }
+        // Sessions stored before login endpoints exposed encryption_level lack the
+        // marker, so the advanced re-auth path (passkey delete, etc.) would send
+        // the plaintext password and fail. Refresh via /me to self-heal.
+        if (restoredUser && restoredUser.encryption_level == null) {
+          try {
+            await getUser();
+          } catch {
+            // Keep going with the stale user instead of breaking restore.
+          }
+        }
       }
     }
 
