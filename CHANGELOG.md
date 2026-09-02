@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Identifier-first login (LBDS-216)**:
+  - `back` — new public `POST /api/auth/methods` (`throttle:5,1`) resolves a username-only identifier and reports the account's supported methods: `{ account_found, encryption_level, has_passkeys, login_id }`. Advanced (ZKE) accounts are matched via the deterministic HMAC login_id (`login_id_salt_v1`); email and raw login_id are not valid identifiers and return `account_found: false`. `login_id` is returned for advanced accounts so the client never recomputes the HMAC.
+  - `front` — the login screen is now a two-step identifier-first flow: the second step renders only the methods the account supports ("Iniciar con contraseña" always; "Iniciar con passkey" only when enrolled). Passkey login is now a user-scoped ceremony (username/login_id) instead of a discoverable resident-key prompt.
+
+### Removed
+
+- **Login mode toggle**: the `ion-segment` "Contraseña | Passkey" switch and its passkey legend are gone (LBDS-216). Logging in with an email address or a raw Login ID is no longer possible; the identifier is the username only.
+
+### Added
+
 - **Uniform advanced-user (ZKE) identity for OAuth apps (LBDS-205)**:
   - `back` — `GET /api/user/profile-token` (jwt.auth) issues a short-lived (300s) RS256 JWS attesting `(sub, profile_version)` for the authenticated user (`JwtService::issueProfileToken`, `AuthService::issueProfileToken`, `AuthController::profileToken`). The backend never sees the plaintext ZKE profile.
   - `front` — `authController.buildAppRedirectUrl` now fetches `/user/profile-token` after the advanced unlock and appends the signed `{profile, token}` envelope as `#profile=`; omits the fragment when the token is unavailable (advanced identity stays `null`, safe default).

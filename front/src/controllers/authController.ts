@@ -155,6 +155,28 @@ export function useAuthController() {
 
   // ─── Basic Login ───────────────────────────────────────────────────────────
 
+  /**
+   * Resolve which authentication methods an identifier supports. Always
+   * returns 200 (account enumeration-safe): account_found signals whether
+   * the identifier maps to a known account, encryption_level tells whether
+   * the password flow is basic or advanced, has_passkeys gates the
+   * user-scoped passkey ceremony, and login_id (advanced accounts only) is
+   * the server-resolved identifier for the password/passkey flows.
+   */
+  async function fetchAuthMethods(params: {
+    identifier: string;
+  }): Promise<{
+    account_found: boolean;
+    encryption_level: 'basic' | 'advanced' | null;
+    has_passkeys: boolean;
+    login_id: string | null;
+  }> {
+    return api.post({
+      endpoint: '/auth/methods',
+      data: { identifier: params.identifier },
+    });
+  }
+
   async function login(params: {
     user: string;
     password: string;
@@ -305,11 +327,18 @@ export function useAuthController() {
    */
   async function passkeyLogin(params: {
     rememberMe?: boolean;
+    username?: string;
+    login_id?: string;
   }): Promise<{ token: string; user: User; profile?: CryptoUserProfile | null }> {
     await dpopService.initialize();
     const dpopPublicKey = dpopService.getPublicKeyJwk();
 
+    // When username/login_id are provided the ceremony is user-scoped (the
+    // server restricts allowCredentials to that account); omitting them
+    // keeps the discoverable (resident-key) behaviour.
     const result = await passkeyService.authenticate({
+      username: params.username,
+      login_id: params.login_id,
       rememberMe: params.rememberMe,
       dpopPublicKey: dpopPublicKey ? JSON.stringify(dpopPublicKey) : undefined,
     });
@@ -1113,6 +1142,7 @@ export function useAuthController() {
     user,
     isAuthenticated,
     login,
+    fetchAuthMethods,
     logout,
     getUser,
     init,
