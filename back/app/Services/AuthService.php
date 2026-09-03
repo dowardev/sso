@@ -9,6 +9,7 @@ use App\Models\UserRefreshToken;
 use App\Models\UserSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -302,7 +303,24 @@ class AuthService
         $hash = hash('sha256', $plainRefreshToken);
         $existing = UserRefreshToken::where('token_hash', $hash)->first();
 
-        if (! $existing || ! $existing->isValid()) {
+        if (! $existing) {
+            return null;
+        }
+
+        if (! $existing->isValid()) {
+            // A presented-but-revoked token means an old token is being
+            // replayed after rotation: the real token-theft signal.
+            if ($existing->revoked_at !== null
+                && $existing->revoked_at->lt(now()->subSeconds(30))
+            ) {
+                // Revoked long enough ago that this cannot be a rotation
+                // race between tabs/parallel requests: treat as theft and
+                // revoke every active session of the user (all devices).
+                UserRefreshToken::where('user_id', $existing->user_id)
+                    ->whereNull('revoked_at')
+                    ->update(['revoked_at' => now()]);
+            }
+
             return null;
         }
 
@@ -314,23 +332,13 @@ class AuthService
             return null;
         }
 
-        // Detect reuse: if this token was already rotated
-        if ($existing->rotated_from_id !== null || $existing->revoked_at !== null) {
-            // Token theft — revoke entire chain
-            UserRefreshToken::where('user_id', $existing->user_id)
-                ->whereNull('revoked_at')
-                ->update(['revoked_at' => now()]);
-
-            return null;
-        }
-
+        // Note: rotated_from_id is rotation history (set on every rotated
+        // token), NOT a theft signal. Theft is detected above, when a revoked
+        // token is presented again outside the race grace window.
         $user = User::with('roles')->find($existing->user_id);
         if (! $user) {
             return null;
         }
-
-        // Revoke old token
-        $existing->revoke();
 
         // Generate new access + refresh pair
         $dpopPublicKey = null;
@@ -344,20 +352,25 @@ class AuthService
 
         $accessTokenData = $this->jwtService->generateToken($user, $dpopPublicKey, false);
 
-        // Create new refresh token (rotated)
+        // Revoke old token and create its replacement atomically, so a crash
+        // in between never strands the user with a dead refresh token.
         $newPlain = Str::random(64);
         $newHash = hash('sha256', $newPlain);
         $newExpiresAt = now()->addSeconds((int) config('jwt.refresh_expiration', 86400));
 
-        UserRefreshToken::create([
-            'user_id' => $user->id,
-            'token_hash' => $newHash,
-            'user_agent' => $request->userAgent(),
-            'ip_address' => $request->ip(),
-            'expires_at' => $newExpiresAt,
-            'rotated_from_id' => $existing->id,
-            'remember_me' => $existing->remember_me,
-        ]);
+        DB::transaction(function () use ($existing, $request, $newHash, $newExpiresAt) {
+            $existing->revoke();
+
+            UserRefreshToken::create([
+                'user_id' => $existing->user_id,
+                'token_hash' => $newHash,
+                'user_agent' => $request->userAgent(),
+                'ip_address' => $request->ip(),
+                'expires_at' => $newExpiresAt,
+                'rotated_from_id' => $existing->id,
+                'remember_me' => $existing->remember_me,
+            ]);
+        });
 
         return [
             'token' => $accessTokenData['token'],

@@ -548,9 +548,13 @@ class AuthController extends Controller
         $result = $this->authService->refreshAccessToken($plainRefreshToken, $request);
 
         if (! $result) {
+            // No Cookie::forget here: on a cross-tab rotation race the losing
+            // request must not clobber the fresh cookie the winner just set.
+            // On real theft the server already revoked the chain server-side,
+            // so the stale cookie is inert; on expiry it is useless anyway.
             return response()->json([
                 'message' => 'Refresh token inválido, expirado o revocado',
-            ], 401)->withCookie(Cookie::forget('refresh_token', '/', null, true, true));
+            ], 401);
         }
 
         $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
