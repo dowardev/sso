@@ -16,7 +16,6 @@ import {
   prfStore,
 } from '@dowardev/sso-client';
 import cryptoService from './cryptoService';
-import type { WrappedKey } from '@/types/crypto';
 
 function b64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);

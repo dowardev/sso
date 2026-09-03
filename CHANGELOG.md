@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Remember-me sessions dropped (LBDS-222)**:
+  - `back` — refresh-token reuse detection mistook every rotated token for theft (any token with `rotated_from_id` set), so the second auto-refresh (~2h after login) revoked the whole chain and forced logout. Theft detection now fires only when a revoked token is replayed, with a 30s grace window for cross-tab rotation races; revoke+rotate now run in a DB transaction.
+  - `back` — a failed refresh no longer sends `Cookie::forget('refresh_token')`, so the losing side of a tab race can no longer wipe the fresh cookie the winning tab just set.
+  - `back` — regression coverage: `RefreshTokenRotationTest` (consecutive rotations, theft replay, race grace window without chain revocation, cookie not cleared on raced 401, persistent vs session cookies for remember-me on/off and their rotation).
+
+### Removed
+
+- **Dead relock wiring**: `front`'s `relockService.ts` and its never-invoked `setupZkeRelock` import in `main.ts` (plus an unused `WrappedKey` import in `prfService.ts`). The ZKE idle re-lock mitigation was never active; reintroduce it as a designed feature if wanted.
+
 ### Added
 
 - **Identifier-first login (LBDS-216)**:
