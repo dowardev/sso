@@ -1,16 +1,23 @@
 <!-- SPDX-License-Identifier: MIT -->
 <template>
-  <AuthCard title="Iniciar Sesión" subtitle="Accede a tu cuenta de SSO Server">
+  <AuthCard title="Bienvenido de nuevo" subtitle="Inicia sesión para acceder a tu cuenta">
     <!-- Step 1: identifier -->
-    <form v-if="step === 'identifier'" @submit.prevent="handleContinue()">
+    <form v-if="step === 'identifier'" aria-label="Paso 1 de 2: identificación" @submit.prevent="handleContinue()">
+        <p class="sr-only" role="status">Paso 1 de 2: ingresa tu usuario</p>
       <ion-item class="input-item" lines="none">
         <ion-input
+          ref="identifierInput"
           v-model="credentials.identifier"
           label-placement="floating"
           label="Usuario"
           type="text"
           placeholder="Ingresa tu usuario"
           autocomplete="username"
+          enterkeyhint="next"
+          autocapitalize="none"
+          autocorrect="off"
+          :spellcheck="false"
+          :aria-invalid="v$.identifier.$error ? true : undefined"
           aria-describedby="login-identifier-error"
           @ion-blur="v$.identifier.$touch()"
         />
@@ -19,7 +26,7 @@
         {{ v$.identifier.$errors[0].$message }}
       </div>
 
-      <div v-if="error" class="error-message" role="alert" aria-live="assertive">
+      <div v-if="error" ref="loginError" tabindex="-1" class="error-message" role="alert" aria-live="assertive">
         <ion-icon :icon="alertCircle" size="small"></ion-icon>
         {{ error }}
       </div>
@@ -38,45 +45,50 @@
     </form>
 
     <!-- Step 2: methods supported by the resolved account -->
-    <form v-else @submit.prevent="handlePasswordLogin()">
+    <form v-else aria-label="Paso 2 de 2: autenticación" @submit.prevent="handleStep2Submit()">
+        <p v-if="!masterPasswordVisible" class="sr-only" role="status">Paso 2 de 2: ingresa tu contraseña</p>
+        <p v-else class="sr-only" role="status">Desbloquea tu perfil con tu contraseña maestra</p>
       <!-- Password method (always available for a found account) -->
-      <ion-item class="input-item" lines="none">
+      <ion-item v-if="!masterPasswordVisible" class="input-item" lines="none">
         <ion-input
+          ref="passwordInput"
           v-model="credentials.password"
           label="Contraseña"
           label-placement="floating"
           type="password"
           placeholder="Ingresa tu contraseña"
           autocomplete="current-password"
+          enterkeyhint="go"
+          :aria-invalid="v$.password.$error ? true : undefined"
           aria-describedby="login-password-error"
           @ion-blur="v$.password.$touch()"
         >
           <ion-input-password-toggle slot="end" />
         </ion-input>
       </ion-item>
-      <div v-if="v$.password.$error" id="login-password-error" class="field-error">
+      <div v-if="v$.password.$error && !masterPasswordVisible" id="login-password-error" class="field-error">
         {{ v$.password.$errors[0].$message }}
       </div>
 
       <!-- Remember me toggle -->
-      <ion-item class="input-item remember-item" lines="none">
+      <ion-item v-if="!masterPasswordVisible" class="input-item remember-item remember-compact" lines="none">
         <ion-toggle
           slot="start"
           :checked="rememberMe"
           color="primary"
           aria-describedby="remember-toggle-desc"
-          @ion-change="rememberMe = !rememberMe"
+          @ion-change="rememberMe = $event.detail.checked"
         />
         <ion-label class="remember-label">Mantener sesión abierta</ion-label>
       </ion-item>
-      <span id="remember-toggle-desc" class="ion-hide">Al activar esta opción, la sesión permanecerá abierta incluso después de cerrar el navegador</span>
+      <span v-if="!masterPasswordVisible" id="remember-toggle-desc" class="sr-only">Al activar esta opción, la sesión permanecerá abierta incluso después de cerrar el navegador</span>
 
-      <div v-if="error" class="error-message" role="alert" aria-live="assertive">
+      <div v-if="error" ref="loginError" tabindex="-1" class="error-message" role="alert" aria-live="assertive">
         <ion-icon :icon="alertCircle" size="small"></ion-icon>
         {{ error }}
       </div>
 
-      <div class="ion-padding-top">
+      <div v-if="!masterPasswordVisible" class="ion-padding-top">
         <ion-button
           type="submit"
           expand="block"
@@ -86,17 +98,20 @@
           <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
           <span v-if="cryptoLoading && !loading">{{ cryptoLoadingMessage }}</span>
           <span v-else-if="loading">Ingresando...</span>
-          <span v-else>Iniciar con contraseña</span>
+          <span v-else>Ingresar</span>
         </ion-button>
       </div>
+      <span role="status" aria-live="polite" class="sr-only">{{ loading || cryptoLoading ? 'Procesando tu ingreso…' : '' }}</span>
 
       <!-- Passkey method (only when the account has passkeys enrolled) -->
-      <div v-if="authMethods.has_passkeys" class="ion-padding-top">
+      <div v-if="authMethods.has_passkeys && !masterPasswordVisible" class="auth-secondary-action">
         <ion-button
           type="button"
           expand="block"
-          fill="outline"
-          :disabled="loading || cryptoLoading || masterPasswordVisible"
+          fill="clear"
+          class="subtle passkey-secondary"
+          size="small"
+          :disabled="loading || cryptoLoading"
           @click="handlePasskeyLogin()"
         >
           <ion-icon slot="start" :icon="keyOutline" aria-hidden="true"></ion-icon>
@@ -108,12 +123,15 @@
       <template v-if="masterPasswordVisible">
         <ion-item class="input-item" lines="none">
           <ion-input
+            ref="masterPasswordInput"
             v-model="masterPassword"
             label="Contraseña maestra"
             label-placement="floating"
             type="password"
             placeholder="Contraseña para desbloquear tu perfil"
             autocomplete="current-password"
+            enterkeyhint="go"
+            :aria-invalid="(masterPasswordTouched && !masterPassword.trim()) ? true : undefined"
             aria-describedby="master-password-error"
             @ion-blur="masterPasswordTouched = true"
           >
@@ -135,32 +153,42 @@
             <span v-else>Desbloquear</span>
           </ion-button>
         </div>
+        <div class="secondary-links">
+          <ion-button
+            fill="clear"
+            size="small"
+            class="subtle"
+            :disabled="passkeyUnlocking"
+            @click="cancelUnlock()"
+          >
+            Volver
+          </ion-button>
+          <ion-button
+            fill="clear"
+            size="small"
+            class="subtle"
+            :disabled="passkeyUnlocking"
+            @click="backToIdentifier()"
+          >
+            Usar otro usuario
+          </ion-button>
+        </div>
       </template>
 
-      <!-- Forgot password link -->
-      <div class="ion-padding-top forgot-password">
+      <!-- Secondary actions (single subtle row) -->
+      <div v-if="!masterPasswordVisible" class="secondary-links">
         <ion-button
           fill="clear"
-          expand="block"
+          size="small"
           class="subtle"
           :disabled="loading || cryptoLoading"
-          @click="goToRecovery"
+          @click="goToRecovery()"
         >
           ¿Olvidaste tu contraseña?
         </ion-button>
-      </div>
-
-      <!-- Advanced encryption info -->
-      <div v-if="authMethods.encryption_level === 'advanced'" class="advanced-info">
-        <ion-icon :icon="lockClosed" size="small"></ion-icon>
-        <span>Modo cifrado avanzado: tu contraseña nunca sale de este dispositivo</span>
-      </div>
-
-      <!-- Back to identifier step -->
-      <div class="ion-padding-top">
         <ion-button
           fill="clear"
-          expand="block"
+          size="small"
           class="subtle"
           :disabled="loading || cryptoLoading"
           @click="backToIdentifier()"
@@ -183,6 +211,7 @@
       </ion-button>
 
       <ion-button
+        v-if="step === 'identifier'"
         fill="clear"
         expand="block"
         :disabled="loading || cryptoLoading"
@@ -198,7 +227,7 @@
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import {
   IonItem,
@@ -213,7 +242,6 @@ import {
 import {
   arrowBack,
   alertCircle,
-  lockClosed,
   keyOutline,
 } from 'ionicons/icons';
 import useVuelidate from '@vuelidate/core';
@@ -254,6 +282,10 @@ const loading = ref(false);
 const cryptoLoading = ref(false);
 const cryptoLoadingMessage = ref('');
 const error = ref('');
+const identifierInput = ref<{ setFocus?: () => Promise<void> } | null>(null);
+const passwordInput = ref<{ setFocus?: () => Promise<void> } | null>(null);
+const masterPasswordInput = ref<{ setFocus?: () => Promise<void> } | null>(null);
+const loginError = ref<HTMLDivElement | null>(null);
 
 const oauthParams = ref({
   client_id: '',
@@ -392,7 +424,11 @@ const handleOAuthResponse = async (params: {
 const handleContinue = async (): Promise<void> => {
   if (loading.value) return;
   v$.value.identifier.$touch();
-  if (v$.value.identifier.$error) return;
+  if (v$.value.identifier.$error) {
+    await nextTick();
+    await identifierInput.value?.setFocus?.();
+    return;
+  }
 
   loading.value = true;
   error.value = '';
@@ -403,6 +439,8 @@ const handleContinue = async (): Promise<void> => {
 
     if (!methods.account_found) {
       error.value = 'No encontramos una cuenta con ese usuario.';
+      await nextTick();
+      loginError.value?.focus();
       return;
     }
 
@@ -417,14 +455,18 @@ const handleContinue = async (): Promise<void> => {
     resolvedLoginId.value = methods.login_id ?? '';
 
     step.value = 'methods';
+    await nextTick();
+    await passwordInput.value?.setFocus?.();
   } catch (err) {
     error.value = handleApiError(err);
+    await nextTick();
+    loginError.value?.focus();
   } finally {
     loading.value = false;
   }
 };
 
-const backToIdentifier = (): void => {
+const backToIdentifier = async (): Promise<void> => {
   step.value = 'identifier';
   error.value = '';
   credentials.value.password = '';
@@ -435,6 +477,29 @@ const backToIdentifier = (): void => {
   masterPasswordTouched.value = false;
   activeLoginId.value = '';
   v$.value.$reset();
+  await nextTick();
+  await identifierInput.value?.setFocus?.();
+};
+
+// Step 2 submit router: unlock mode has no visible password CTA, so Enter
+// inside the master-password input must unlock instead of password-login.
+const handleStep2Submit = async (): Promise<void> => {
+  if (masterPasswordVisible.value) {
+    await handleMasterPasswordUnlock();
+    return;
+  }
+  await handlePasswordLogin();
+};
+
+// Leave unlock mode keeping the resolved account (step 2 stays mounted).
+const cancelUnlock = async (): Promise<void> => {
+  masterPasswordVisible.value = false;
+  masterPassword.value = '';
+  masterPasswordTouched.value = false;
+  activeLoginId.value = '';
+  error.value = '';
+  await nextTick();
+  await passwordInput.value?.setFocus?.();
 };
 
 // Step 2 (password method): route to the basic or advanced flow according to
@@ -442,7 +507,11 @@ const backToIdentifier = (): void => {
 const handlePasswordLogin = async (): Promise<void> => {
   if (loading.value || cryptoLoading.value) return;
   v$.value.password.$touch();
-  if (v$.value.password.$error) return;
+  if (v$.value.password.$error) {
+    await nextTick();
+    await passwordInput.value?.setFocus?.();
+    return;
+  }
 
   if (authMethods.value.encryption_level === 'advanced') {
     await handleAdvancedLogin({ loginId: resolvedLoginId.value });
@@ -475,11 +544,15 @@ const handleMasterPasswordUnlock = async (): Promise<void> => {
   const password = masterPassword.value.trim();
   if (!password) {
     masterPasswordTouched.value = true;
+    await nextTick();
+    await masterPasswordInput.value?.setFocus?.();
     return;
   }
   const loginId = activeLoginId.value;
   if (!loginId) {
     error.value = 'No se pudo determinar tu Login ID.';
+    await nextTick();
+    loginError.value?.focus();
     return;
   }
 
@@ -490,6 +563,8 @@ const handleMasterPasswordUnlock = async (): Promise<void> => {
     await finishPasskeyLogin();
   } catch (err) {
     error.value = handleApiError(err);
+    await nextTick();
+    loginError.value?.focus();
   } finally {
     passkeyUnlocking.value = false;
   }
@@ -526,6 +601,8 @@ const handlePasskeyLogin = async (): Promise<void> => {
       activeLoginId.value = apiError.loginId || '';
       masterPasswordVisible.value = true;
       loading.value = false;
+      await nextTick();
+      await masterPasswordInput.value?.setFocus?.();
       return;
     }
     if (apiError.code === 'EMAIL_NOT_VERIFIED') {
@@ -536,6 +613,8 @@ const handlePasskeyLogin = async (): Promise<void> => {
       return;
     }
     error.value = handleApiError(err);
+    await nextTick();
+    loginError.value?.focus();
   } finally {
     loading.value = false;
   }
@@ -600,6 +679,8 @@ const handleBasicLogin = async (params: { identifier: string }): Promise<void> =
       return;
     }
     error.value = handleApiError(err);
+    await nextTick();
+    loginError.value?.focus();
   } finally {
     loading.value = false;
   }
@@ -659,6 +740,8 @@ const handleAdvancedLogin = async (params: { loginId: string }): Promise<void> =
       return;
     }
     error.value = handleApiError(err);
+    await nextTick();
+    loginError.value?.focus();
   } finally {
     cryptoLoading.value = false;
     cryptoLoadingMessage.value = '';
@@ -727,15 +810,29 @@ const goToRecovery = (): void => {
   color: var(--text-tertiary);
 }
 
-.advanced-info {
+.auth-secondary-action {
   display: flex;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.passkey-secondary {
+  font-size: 13px;
+  height: 36px;
+}
+
+.secondary-links {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  color: var(--ion-color-primary);
-  font-size: 12px;
-  padding: 8px 0;
-  border-top: 1px solid var(--ion-color-light);
-  margin-top: 8px;
+  justify-content: center;
+  gap: 0 4px;
+  margin-top: 10px;
+}
+
+.remember-compact {
+  margin-top: 2px;
+  min-height: 40px;
 }
 
 @media (max-width: 374px) {
