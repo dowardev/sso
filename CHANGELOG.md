@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Login simplified to one primary action (LBDS-227)**:
+  - `front` — step 2 shows a single primary CTA ("Ingresar"); passkey is a small secondary button; forgot-password / another-user collapsed into one subtle link row; the advanced-encryption banner is gone; master-password unlock is an isolated sub-step with its own cancel link; footer "Volver" only shows on step 1.
+  - `front` — accessibility: `aria-invalid` only when invalid, `enterkeyhint`, mobile keyboard hints (`autocapitalize none`, `autocorrect off`, no spellcheck) on the username field, focus management (first invalid field, error region, step transitions), screen-reader step announcements plus a `sr-only` loading live region (replacing `display:none`-based `ion-hide`), toggle follows `$event.detail.checked`.
+  - `front` — new global `.sr-only` helper in `theme/variables.css`; removed the duplicate `.field-error` (canonical definition stays in `styles/validation.css`).
+
 ### Fixed
 
 - **Remember-me sessions dropped (LBDS-222)**:

@@ -375,13 +375,20 @@ ion-item.input-item ion-label {
 
 /* end globals */
 
-/* field-error */
-.field-error {
-  color: var(--ion-color-danger);
-  font-size: 12px;
-  padding: 0 0 8px 0;
+/* screen-reader-only: visually hidden WITHOUT display:none,
+       so live regions and describedby targets stay announced */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
-/* end field-error */
+/* end screen-reader-only */
 
 /* border-color items */
 .border-primary {
