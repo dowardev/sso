@@ -83,7 +83,7 @@ onMounted(() => {
   filter: blur(80px);
   opacity: 0.5;
   pointer-events: none;
-  will-change: transform;
+  /* LBDS-202: removed will-change (no animations left to promote) */
 }
 
 .blob-1 {
@@ -92,7 +92,7 @@ onMounted(() => {
   background: var(--ion-color-primary);
   top: -10%;
   left: -5%;
-  animation: blob-float-1 18s ease-in-out infinite;
+  /* LBDS-202: animation removed — static blob paints once */
 }
 
 .blob-2 {
@@ -101,7 +101,7 @@ onMounted(() => {
   background: var(--ion-color-secondary);
   bottom: -10%;
   right: -5%;
-  animation: blob-float-2 22s ease-in-out infinite;
+  /* LBDS-202: animation removed — static blob paints once */
 }
 
 .blob-3 {
@@ -110,26 +110,10 @@ onMounted(() => {
   background: var(--ion-color-tertiary);
   top: 50%;
   left: 60%;
-  animation: blob-float-3 20s ease-in-out infinite;
+  /* LBDS-202: animation removed — static blob paints once */
 }
 
-@keyframes blob-float-1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(60px, 40px) scale(1.08); }
-  66% { transform: translate(-30px, 70px) scale(0.95); }
-}
-
-@keyframes blob-float-2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(-50px, -60px) scale(1.1); }
-  66% { transform: translate(40px, -30px) scale(0.92); }
-}
-
-@keyframes blob-float-3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.05); }
-  66% { transform: translate(-60px, 20px) scale(0.97); }
-}
+/* LBDS-202: blob float keyframes removed - blobs are static now. */
 
 .auth-card-content {
   position: relative;
@@ -204,10 +188,7 @@ onMounted(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .blob {
-    animation: none;
-  }
-
+  /* LBDS-202: .blob rule removed - blobs have no animation to disable. */
   .auth-card-content {
     animation: none;
   }

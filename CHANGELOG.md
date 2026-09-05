@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `back` — a failed refresh no longer sends `Cookie::forget('refresh_token')`, so the losing side of a tab race can no longer wipe the fresh cookie the winning tab just set.
   - `back` — regression coverage: `RefreshTokenRotationTest` (consecutive rotations, theft replay, race grace window without chain revocation, cookie not cleared on raced 401, persistent vs session cookies for remember-me on/off and their rotation).
 
+    - **Login performance improved (LBDS-202)**: the login screen no longer slows down the browser/PC while idle — the animated background is now static with the same look and zero idle cost.
+
 ### Removed
 
 - **Dead relock wiring**: `front`'s `relockService.ts` and its never-invoked `setupZkeRelock` import in `main.ts` (plus an unused `WrappedKey` import in `prfService.ts`). The ZKE idle re-lock mitigation was never active; reintroduce it as a designed feature if wanted.
