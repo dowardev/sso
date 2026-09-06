@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Login form hardening (pre-merge review of LBDS-229)**:
+  - `front` — `AuthLoginForm.vue`: auto-OAuth on mount now resets `loading` in a `finally` (no more stuck disabled buttons when the account is already authorized); step 1 shows one uniform message for every lookup failure (enumeration-safe); master-password unlock no longer trims the password (only the empty check trims); advanced login sets `loading` consistently; the post-login OAuth/dashboard redirect is now a single `runPostLoginRedirect` helper instead of three copies; unverified-email redirect no longer leaks the opaque `login_id` as email.
+
+- **Password login no longer triggers passkey prompt (LBDS-229)**:
+  - `front` — `AuthLoginForm.vue` no longer invokes the passkey ceremony after an explicit password login (basic + advanced); passkey only runs via "Iniciar con passkey" (`handlePasskeyLogin`). Removed the now-dead `completePasskey2FA` helper, its unused `passkeyService` import, and an orphaned `loginResult`.
+
 - **Remember-me sessions dropped (LBDS-222)**:
   - `back` — refresh-token reuse detection mistook every rotated token for theft (any token with `rotated_from_id` set), so the second auto-refresh (~2h after login) revoked the whole chain and forced logout. Theft detection now fires only when a revoked token is replayed, with a 30s grace window for cross-tab rotation races; revoke+rotate now run in a DB transaction.
   - `back` — a failed refresh no longer sends `Cookie::forget('refresh_token')`, so the losing side of a tab race can no longer wipe the fresh cookie the winning tab just set.
