@@ -96,7 +96,7 @@
           :disabled="loading || cryptoLoading"
         >
           <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
-          <span v-if="cryptoLoading && !loading">{{ cryptoLoadingMessage }}</span>
+          <span v-if="cryptoLoading">{{ cryptoLoadingMessage }}</span>
           <span v-else-if="loading">Ingresando...</span>
           <span v-else>Ingresar</span>
         </ion-button>
@@ -255,7 +255,6 @@ const { showSuccess } = useToast();
 // 2. Controllers
 import { useAuthController } from '@/controllers/authController';
 import { useAuthStore } from '@/stores/auth';
-import { passkeyService } from '@/services/passkeyService';
 
 const authController = useAuthController();
 const authStore = useAuthStore();
@@ -372,7 +371,7 @@ onMounted(async () => {
         if (!(await handleOAuthResponse({ response: oauthResult }))) {
           return;
         }
-      } catch {
+      } finally {
         loading.value = false;
       }
     }
@@ -458,7 +457,10 @@ const handleContinue = async (): Promise<void> => {
     await nextTick();
     await passwordInput.value?.setFocus?.();
   } catch (err) {
-    error.value = handleApiError(err);
+    // Step 1 stays enumeration-safe: every lookup failure shows the same
+    // message instead of leaking the server error detail.
+    console.error('[AuthLoginForm] fetchAuthMethods failed', err);
+    error.value = 'No encontramos una cuenta con ese usuario.';
     await nextTick();
     loginError.value?.focus();
   } finally {
@@ -520,7 +522,9 @@ const handlePasswordLogin = async (): Promise<void> => {
   await handleBasicLogin({ identifier: credentials.value.identifier.trim() });
 };
 
-const finishPasskeyLogin = async (): Promise<void> => {
+// Post-login redirect shared by the password and passkey flows: OAuth apps
+// go through oauthAuthorize, direct logins land on the dashboard.
+const runPostLoginRedirect = async (): Promise<void> => {
   if (isOAuthFlow.value) {
     const oauthResult = await authController.oauthAuthorize({
       client_id: oauthParams.value.client_id,
@@ -528,21 +532,26 @@ const finishPasskeyLogin = async (): Promise<void> => {
       state: oauthParams.value.state,
       response_type: oauthParams.value.response_type || 'code',
       code_challenge: oauthParams.value.code_challenge || undefined,
-      code_challenge_method: oauthParams.value.code_challenge_method || undefined,
+      code_challenge_method:
+        oauthParams.value.code_challenge_method || undefined,
       code_verifier: oauthParams.value.code_verifier || undefined,
     });
 
     if (!(await handleOAuthResponse({ response: oauthResult }))) {
       return;
     }
-  } else {
-    await router.replace(props.isPublic ? '/' : '/admin/dashboard');
+    return;
   }
+  await router.replace(props.isPublic ? '/' : '/admin/dashboard');
+};
+
+const finishPasskeyLogin = async (): Promise<void> => {
+  await runPostLoginRedirect();
 };
 
 const handleMasterPasswordUnlock = async (): Promise<void> => {
-  const password = masterPassword.value.trim();
-  if (!password) {
+  const password = masterPassword.value;
+  if (!password.trim()) {
     masterPasswordTouched.value = true;
     await nextTick();
     await masterPasswordInput.value?.setFocus?.();
@@ -620,55 +629,20 @@ const handlePasskeyLogin = async (): Promise<void> => {
   }
 };
 
-const completePasskey2FA = async (params: {
-  user_id?: number;
-  login_id?: string;
-}): Promise<void> => {
-  try {
-    // start + finish. finish verifies the assertion server-side.
-    await passkeyService.authenticate(params);
-  } catch (err) {
-    const apiError = err as Error & { status?: number; message?: string };
-    // 400 "Usuario no tiene passkeys registrados" -> no passkey -> skip.
-    if (apiError.status === 400 && /passkey|no tiene/i.test(apiError.message || '')) {
-      return;
-    }
-    // Passkey is enrolled but the ceremony failed -> abort login.
-    throw err;
-  }
-};
-
 const handleBasicLogin = async (params: { identifier: string }): Promise<void> => {
   const { identifier } = params;
   loading.value = true;
   error.value = '';
   try {
-    const loginResult = await authController.login({
+    await authController.login({
       user: identifier,
       password: credentials.value.password,
       client_id: oauthParams.value.client_id || undefined,
       rememberMe: rememberMe.value,
     });
-    // Passkey 2FA (confirmation factor) when the user has a passkey enrolled.
-    await completePasskey2FA({ user_id: loginResult.user.id });
-    if (isOAuthFlow.value) {
-      const oauthResult = await authController.oauthAuthorize({
-        client_id: oauthParams.value.client_id,
-        redirect_uri: oauthParams.value.redirect_uri,
-        state: oauthParams.value.state,
-        response_type: oauthParams.value.response_type || 'code',
-        code_challenge: oauthParams.value.code_challenge || undefined,
-        code_challenge_method:
-          oauthParams.value.code_challenge_method || undefined,
-        code_verifier: oauthParams.value.code_verifier || undefined,
-      });
-
-      if (!(await handleOAuthResponse({ response: oauthResult }))) {
-        return;
-      }
-    } else {
-      await router.replace(props.isPublic ? '/' : '/admin/dashboard');
-    }
+    // Explicit password choice: no passkey ceremony here. Passkey is only
+    // invoked via handlePasskeyLogin when the user chooses that method.
+    await runPostLoginRedirect();
   } catch (err) {
     const apiError = err as Error & { code?: string; email?: string };
     if (apiError.code === 'EMAIL_NOT_VERIFIED') {
@@ -688,7 +662,7 @@ const handleBasicLogin = async (params: { identifier: string }): Promise<void> =
 
 const handleAdvancedLogin = async (params: { loginId: string }): Promise<void> => {
   const { loginId } = params;
-  loading.value = false;
+  loading.value = true;
   cryptoLoading.value = true;
   cryptoLoadingMessage.value = 'Derivando claves...';
   error.value = '';
@@ -707,35 +681,17 @@ const handleAdvancedLogin = async (params: { loginId: string }): Promise<void> =
       authStore.setProfile({ profile: loginResult.profile });
     }
 
-    // Passkey 2FA (confirmation factor) when the user has a passkey enrolled.
-    await completePasskey2FA({ login_id: loginId });
-
+    // Explicit password choice: no passkey ceremony here. Passkey is only
+    // invoked via handlePasskeyLogin when the user chooses that method.
     cryptoLoadingMessage.value = 'Verificando...';
 
-    if (isOAuthFlow.value) {
-      const oauthResult = await authController.oauthAuthorize({
-        client_id: oauthParams.value.client_id,
-        redirect_uri: oauthParams.value.redirect_uri,
-        state: oauthParams.value.state,
-        response_type: oauthParams.value.response_type || 'code',
-        code_challenge: oauthParams.value.code_challenge || undefined,
-        code_challenge_method:
-          oauthParams.value.code_challenge_method || undefined,
-        code_verifier: oauthParams.value.code_verifier || undefined,
-      });
-
-      if (!(await handleOAuthResponse({ response: oauthResult }))) {
-        return;
-      }
-    } else {
-      await router.replace(props.isPublic ? '/' : '/admin/dashboard');
-    }
+    await runPostLoginRedirect();
   } catch (err) {
     const apiError = err as Error & { code?: string; email?: string };
     if (apiError.code === 'EMAIL_NOT_VERIFIED') {
       router.replace({
         name: 'VerifyEmailPending',
-        query: { email: apiError.email || loginId },
+        query: { email: apiError.email || '' },
       });
       return;
     }
@@ -743,6 +699,7 @@ const handleAdvancedLogin = async (params: { loginId: string }): Promise<void> =
     await nextTick();
     loginError.value?.focus();
   } finally {
+    loading.value = false;
     cryptoLoading.value = false;
     cryptoLoadingMessage.value = '';
   }
