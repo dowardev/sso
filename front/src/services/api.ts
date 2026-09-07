@@ -130,13 +130,23 @@ async function fetchApi<T>(params: {
       const error = await response
         .json()
         .catch(() => ({ message: 'Error de conexión' }));
+          console.error('[API Error]', { endpoint, status: response.status, payload: error });
       const apiError = new Error(error.message || 'Error en la solicitud') as Error & {
         code?: string;
         status?: number;
         email?: string;
+            errors?: Record<string, string[]>;
       };
       if (error.code) apiError.code = error.code;
       if (error.email) apiError.email = error.email;
+          if (error.errors && typeof error.errors === 'object' && !Array.isArray(error.errors)) {
+            const shaped: Record<string, string[]> = {}
+            for (const [key, value] of Object.entries(error.errors)) {
+              if (Array.isArray(value)) shaped[key] = value.map((item) => String(item))
+              else if (typeof value === 'string') shaped[key] = [value]
+            }
+            if (Object.keys(shaped).length > 0) apiError.errors = shaped
+          }
       apiError.status = response.status;
       throw apiError;
     }

@@ -4,6 +4,7 @@ import type { ValidationRule } from '@vuelidate/core'
 import type { ComputedRef } from 'vue'
 
 import { useToast } from '@/composables/useToast'
+import { fieldLabelsEn, getFieldFriendlyMessage, getFriendlyMessage } from '@/utils/userFriendlyErrors'
 
 const fieldLabels: Record<string, string> = {
   name: 'Nombre',
@@ -29,55 +30,57 @@ export function withMsg(message: string, rule: ValidationRule): ValidationRule {
   return helpers.withMessage(message, rule)
 }
 
+function getValidationErrors(params: { err: unknown }): Record<string, string[]> | null {
+  const { err } = params
+  if (typeof err !== 'object' || err === null) return null
+  const errors = (err as { errors?: unknown }).errors
+  if (!errors || typeof errors !== 'object') return null
+  const record: Record<string, string[]> = {}
+  for (const [field, value] of Object.entries(errors as Record<string, unknown>)) {
+    if (Array.isArray(value)) {
+      const items = value.map((item) => String(item)).filter((item) => item.trim().length > 0)
+      if (items.length > 0) record[field] = items
+    } else if (typeof value === 'string') {
+      record[field] = [value]
+    }
+  }
+  return Object.keys(record).length > 0 ? record : null
+}
+
 export function useValidation() {
   const { showError } = useToast()
 
   function handleApiError(err: unknown): string {
+    // Raw backend detail always goes to the console; the toast only shows
+    // friendly catalog copy so raw text never leaks into the UI.
+    console.error('[API Error]', err)
     const messages: string[] = []
 
-    if (typeof err === 'object' && err && 'errors' in err) {
-      const errors = (err as Record<string, unknown>).errors as Record<string, string[]>
+    const validationErrors = getValidationErrors({ err })
+    if (validationErrors) {
+      console.error('[API Validation Errors]', validationErrors)
 
-      console.error('[API Validation Errors]', errors)
-
-      for (const [field, fieldErrors] of Object.entries(errors)) {
+      for (const [field, fieldErrors] of Object.entries(validationErrors)) {
         for (const msg of fieldErrors) {
-          messages.push(translateServerError(field, msg))
+          messages.push(getFieldFriendlyMessage({ field, message: msg, fieldLabels, fieldLabelsEn }))
         }
       }
     } else if (err instanceof Error) {
-      messages.push(err.message)
+      messages.push(getFriendlyMessage({ message: err.message }))
+    } else if (typeof err === 'string' && err) {
+      messages.push(getFriendlyMessage({ message: err }))
     } else {
-      messages.push('Ocurrió un error inesperado')
+      messages.push(getFriendlyMessage({ message: '' }))
     }
 
-    const joined = messages.join('. ')
+    const cleaned = messages.map((item) => item.trim().replace(/[.\s]+$/, '')).filter((item) => item.length > 0)
+    const joined = cleaned.join('. ') + (cleaned.length > 0 ? '.' : '')
     showError({ message: joined })
     return joined
   }
 
   function translateServerError(field: string, message: string): string {
-    const label = fieldLabels[field] || field
-
-    if (message.includes('field is required')) return `El campo ${label} es requerido.`
-    if (message.includes('must be at least 8 characters') && message.match(/uppercase|special|number/))
-      return 'La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.'
-    if (message.includes('must be at least')) {
-      const match = message.match(/must be at least (\d+)/)
-      return `El campo ${label} debe tener al menos ${match?.[1] ?? ''} caracteres.`
-    }
-    if (message.includes('must be a valid email')) return `El campo ${label} debe ser un email válido.`
-    if (message.includes('confirmation does not match')) return `La confirmación de ${label} no coincide.`
-    if (message.includes('has already been taken')) return `El campo ${label} ya está en uso.`
-    if (message.includes('may only contain')) return `El campo ${label} contiene caracteres no válidos.`
-    if (message.includes('not registered in SSO')) return 'La aplicación no está registrada en el SSO.'
-    if (message.includes('is not a valid URL')) return `El campo ${label} debe ser una URL válida.`
-    if (message.includes('Incomplete JWK')) return 'La clave pública DPoP está incompleta.'
-    if (message.includes('Unsupported JWK')) return 'El tipo de clave DPoP no es soportado.'
-    if (message.includes('Invalid credentials')) return 'Credenciales inválidas.'
-    if (message.includes('Client is disabled')) return 'El cliente SSO está desactivado.'
-
-    return `Error en ${label}: ${message}`
+    return getFieldFriendlyMessage({ field, message, fieldLabels, fieldLabelsEn })
   }
 
   return { handleApiError, translateServerError, withMsg, fieldLabels }

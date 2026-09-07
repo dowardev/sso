@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     - **Login performance improved (LBDS-202)**: the login screen no longer slows down the browser/PC while idle — the animated background is now static with the same look and zero idle cost.
 
+    - **Friendly error messages (LBDS-232)**: forms and toasts no longer surface raw technical backend text; users see short ES/EN messages while developers keep the full detail in the console. Backend responses unchanged.
+
 ### Removed
 
 - **Dead relock wiring**: `front`'s `relockService.ts` and its never-invoked `setupZkeRelock` import in `main.ts` (plus an unused `WrappedKey` import in `prfService.ts`). The ZKE idle re-lock mitigation was never active; reintroduce it as a designed feature if wanted.

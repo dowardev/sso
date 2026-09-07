@@ -314,7 +314,7 @@
               {{ pk.device_name || 'Passkey' }}
               <p>{{ pk.created_at ? new Date(pk.created_at).toLocaleString() : '' }}</p>
             </ion-label>
-            <ion-button fill="outline" color="danger" slot="end" @click="handleDeletePasskey({ credential_id: pk.credential_id })">
+            <ion-button slot="end" fill="outline" color="danger" @click="handleDeletePasskey({ credential_id: pk.credential_id })">
               Quitar
             </ion-button>
           </ion-item>
