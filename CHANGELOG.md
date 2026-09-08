@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.2] - 2026-09-08
+
+### Fixed
+
+- **Login throttle portable a SQLite**: `ThrottleLoginAttempts` usaba SQL crudo solo-MySQL (`ON DUPLICATE KEY UPDATE`, `IF()`, `NOW()`, `DATE_ADD`) y reventaba con 500 en el stage `backend_test` del CI (SQLite `:memory:`) en vez del 401 esperado. Reescrito con query builder agnóstico, misma semántica (bloqueo de 15 minutos desde el 4to intento fallido).
+- **`VerifyEmailTest` sin tabla `settings`**: los Unit tests construían el Mailable — que consulta `settings` en el constructor — sin migraciones. Agregado `RefreshDatabase` siguiendo el patrón de los Feature tests.
+
 ## [0.34.1] - 2026-09-08
 
 ### Fixed
