@@ -36,18 +36,7 @@ class ThrottleLoginAttempts
         $response = $next($request);
 
         if ($response->getStatusCode() === 401 && $identifier) {
-            DB::statement('
-                INSERT INTO login_attempts (identifier, ip, attempts, locked_until, created_at, updated_at)
-                VALUES (?, ?, 1, NULL, NOW(), NOW())
-                ON DUPLICATE KEY UPDATE
-                    attempts = IF(locked_until IS NOT NULL AND locked_until > NOW(), attempts, attempts + 1),
-                    locked_until = IF(
-                        locked_until IS NOT NULL AND locked_until > NOW(),
-                        locked_until,
-                        IF(attempts + 1 >= 4, DATE_ADD(NOW(), INTERVAL 15 MINUTE), NULL)
-                    ),
-                    updated_at = NOW()
-            ', [$identifier, $ip]);
+            $this->recordFailedAttempt($identifier, $ip);
         }
 
         if ($response->getStatusCode() === 200 && $identifier) {
@@ -58,6 +47,57 @@ class ThrottleLoginAttempts
         }
 
         return $response;
+    }
+
+    /**
+     * Portable upsert of a failed login attempt (works on MySQL and SQLite).
+     *
+     * Rules (same as the previous MySQL-only statement):
+     * - no row yet: insert with attempts = 1, no lock;
+     * - row exists and currently locked: keep counters, only touch updated_at;
+     * - row exists and not locked: attempts + 1, lock for 15 minutes from the 4th attempt on.
+     */
+    private function recordFailedAttempt(string $identifier, ?string $ip): void
+    {
+        $now = now();
+
+        $attempt = DB::table('login_attempts')
+            ->where('identifier', $identifier)
+            ->where('ip', $ip)
+            ->first();
+
+        if ($attempt === null) {
+            DB::table('login_attempts')->insert([
+                'identifier' => $identifier,
+                'ip' => $ip,
+                'attempts' => 1,
+                'locked_until' => null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            return;
+        }
+
+        if ($attempt->locked_until && $now->lessThan($attempt->locked_until)) {
+            DB::table('login_attempts')
+                ->where('identifier', $identifier)
+                ->where('ip', $ip)
+                ->update(['updated_at' => $now]);
+
+            return;
+        }
+
+        $attempts = ((int) $attempt->attempts) + 1;
+
+        DB::table('login_attempts')
+            ->where('identifier', $identifier)
+            ->where('ip', $ip)
+            ->update([
+                'attempts' => $attempts,
+                'locked_until' => $attempts >= 4 ? $now->copy()->addMinutes(15) : null,
+                'updated_at' => $now,
+            ]);
     }
 
     private function lazyCleanup(): void

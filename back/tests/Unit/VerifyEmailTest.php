@@ -6,12 +6,15 @@ namespace Tests\Unit;
 
 use App\Mail\VerifyEmail;
 use App\Models\Setting;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class VerifyEmailTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_mailable_exposes_verification_url_and_renders(): void
     {
         config(['app.frontend_url' => 'https://app.example.com']);
