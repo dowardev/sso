@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+import type { OpenUrlHandler } from "../client/SSOClient";
 export interface AuthGuardOptions {
   publicRoutes?: string[];
   loginRedirect?: boolean;
@@ -16,7 +17,7 @@ export interface NavigationGuardNext {
 
 export interface SSOClientLike {
   readonly isAuthenticated: boolean;
-  loginWithRedirect(options?: { redirectUri?: string; screenHint?: "login" | "register" }): Promise<void>;
+  loginWithRedirect(options?: { redirectUri?: string; screenHint?: "login" | "register"; openUrl?: OpenUrlHandler }): Promise<void>;
 }
 
 export function createAuthGuard(

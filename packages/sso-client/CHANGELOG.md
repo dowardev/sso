@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Native deep-link login support (LBDS-235)**:
+  - `client/SSOClient.ts` — `loginWithRedirect` accepts `openUrl` (open the authorize URL externally, e.g. Capacitor Browser); `handleCallback(url, { redirectUri })` accepts an explicit exchange redirect URI; the authorize-time redirect URI is persisted per-`state` and reused at exchange (explicit option > stored > web default); clear errors for malformed callbacks and missing PKCE state; PKCE keys are cleaned up when `openUrl` rejects.
+  - `storage/TokenStorage.ts` — per-state `get/set/removePkceRedirectUri`.
+  - `utils/randomUuid.ts` (new) — `randomUUID()` with a `getRandomValues` fallback for insecure contexts.
+  - `router/createAuthGuard.ts` — shared exported `OpenUrlHandler` type.
+
 - **Zero-Knowledge Encryption (v2)** foundation for the advanced-encryption SSO mode:
   - `crypto/core.ts` — pure WebCrypto primitives (PBKDF2, HKDF-SHA256, AES-GCM, AES-KW, HMAC, BIP39) with named-parameter API.
   - `crypto/cryptoWorker.ts` + `crypto/workerClient.ts` — an isolated Web Worker where the DEK lives only inside it (never in the main-thread heap), defending against key exfiltration by XSS.
