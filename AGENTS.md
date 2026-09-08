@@ -353,3 +353,27 @@ IMPORTANTE: el mensaje del `-m` debe ser UNA sola linea (sin saltos de linea);
 un cuerpo multilinea introduce un `\n` sin comillar que dispara el mismo bloqueo.
 Si un comando "simple" sigue bloqueando, no es estado persistido: tiene algun
 control-char sin comillar (`;`, `|`, `&`, backtick, `$(` o `\n`) en la linea.
+
+## Formato HTML / Vue / Ionic (legibilidad para review)
+
+- Dejá UNA línea en blanco entre cada par de elementos hermanos, en TODOS los niveles de anidación (no solo primer nivel).
+- No agregues línea en blanco justo después de la apertura ni justo antes del cierre, solo ENTRE hermanos.
+
+Ejemplo correcto:
+
+```vue
+<ion-item>
+  <ion-label>Título</ion-label>
+
+  <ion-button>Guardar</ion-button>
+</ion-item>
+```
+
+Ejemplo incorrecto (sin saltos):
+
+```vue
+<ion-item>
+  <ion-label>Título</ion-label>
+  <ion-button>Guardar</ion-button>
+</ion-item>
+```
