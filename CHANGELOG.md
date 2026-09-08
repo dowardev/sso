@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.1] - 2026-09-08
+
+### Fixed
+
+- **Backend lint gate (pint)**: auto-fix de 31 archivos de `back/` con deuda de estilo preexistente (`single_blank_line_at_eof`, `unary_operator_spaces`, `ordered_imports`, imports sin uso, indentación). El pipeline de `v0.34.0` falló en `backend_lint` y bloqueó el deploy; sin cambios funcionales.
+
 ## [0.34.0] - 2026-09-08
 
 ### Changed
