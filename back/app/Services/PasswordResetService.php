@@ -16,8 +16,7 @@ class PasswordResetService
 {
     public function __construct(
         private readonly ActivityLogService $activityLogService,
-    ) {
-    }
+    ) {}
 
     /**
      * Send a password reset link to a basic (email-backed) user.

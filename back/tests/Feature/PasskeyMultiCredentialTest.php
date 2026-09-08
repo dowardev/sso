@@ -6,9 +6,13 @@ namespace Tests\Feature;
 
 use App\Models\PasskeyCredential;
 use App\Models\User;
+use App\Services\PasskeyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
+use Symfony\Component\Uid\Uuid;
 use Tests\TestCase;
+use Webauthn\CredentialRecord;
+use Webauthn\PublicKeyCredentialCreationOptions;
+use Webauthn\TrustPath\EmptyTrustPath;
 
 class PasskeyMultiCredentialTest extends TestCase
 {
@@ -26,7 +30,7 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_register_start_emits_prf_extension(): void
     {
         $user = $this->makeUser();
-        $service = app(\App\Services\PasskeyService::class);
+        $service = app(PasskeyService::class);
 
         $options = $service->generateRegistrationOptions($user);
         $data = $service->serializeOptions($options);
@@ -41,12 +45,12 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_options_round_trip_preserves_challenge(): void
     {
         $user = $this->makeUser();
-        $service = app(\App\Services\PasskeyService::class);
+        $service = app(PasskeyService::class);
 
         $options = $service->generateRegistrationOptions($user);
         $serialized = $service->serializeOptions($options);
 
-        $rehydrated = $service->deserializeOptions($serialized, \Webauthn\PublicKeyCredentialCreationOptions::class);
+        $rehydrated = $service->deserializeOptions($serialized, PublicKeyCredentialCreationOptions::class);
 
         // The challenge survives serialization -> storage -> rehydration,
         // so the stored challenge is exactly what the client signs.
@@ -60,7 +64,7 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_service_stores_multiple_credentials_without_overwriting(): void
     {
         $user = $this->makeUser();
-        $service = app(\App\Services\PasskeyService::class);
+        $service = app(PasskeyService::class);
 
         $service->storeCredential($user, $this->fakeRecord('AAAA'), ['device_name' => 'Phone']);
         $service->storeCredential($user, $this->fakeRecord('BBBB'), ['device_name' => 'Key']);
@@ -73,7 +77,7 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_service_removes_only_the_requested_credential(): void
     {
         $user = $this->makeUser();
-        $service = app(\App\Services\PasskeyService::class);
+        $service = app(PasskeyService::class);
 
         $service->storeCredential($user, $this->fakeRecord('AAAA'));
         $service->storeCredential($user, $this->fakeRecord('BBBB'));
@@ -87,7 +91,7 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_delete_endpoint_removes_a_single_credential_by_id(): void
     {
         $user = $this->makeUser();
-        $service = app(\App\Services\PasskeyService::class);
+        $service = app(PasskeyService::class);
         $service->storeCredential($user, $this->fakeRecord('AAAA'));
         $service->storeCredential($user, $this->fakeRecord('BBBB'));
 
@@ -103,7 +107,7 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_delete_endpoint_rejects_unowned_credential(): void
     {
         $user = $this->makeUser();
-        $service = app(\App\Services\PasskeyService::class);
+        $service = app(PasskeyService::class);
         $service->storeCredential($user, $this->fakeRecord('AAAA'));
 
         $token = $this->loginToken($user);
@@ -118,7 +122,7 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_authenticate_start_resolves_basic_user_by_email(): void
     {
         $user = $this->makeUser();
-        $service = app(\App\Services\PasskeyService::class);
+        $service = app(PasskeyService::class);
         $service->storeCredential($user, $this->fakeRecord('AAAA'));
 
         $response = $this->postJson('/api/passkey/authenticate/start', [
@@ -143,7 +147,7 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_authenticate_start_discoverable_without_identity(): void
     {
         $user = $this->makeUser();
-        $service = app(\App\Services\PasskeyService::class);
+        $service = app(PasskeyService::class);
         $service->storeCredential($user, $this->fakeRecord('AAAA'));
 
         // No user_id / login_id / username -> resident-key (discoverable) ceremony.
@@ -204,7 +208,7 @@ class PasskeyMultiCredentialTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $service = app(\App\Services\PasskeyService::class);
+        $service = app(PasskeyService::class);
         $options = $service->generateRegistrationOptions($user);
         $data = $service->serializeOptions($options);
 
@@ -212,8 +216,8 @@ class PasskeyMultiCredentialTest extends TestCase
         // step uses to resolve the user in the discoverable ceremony), and the
         // name/displayName fall back to neutral values (no PII leak).
         $this->assertSame(rtrim(strtr(base64_encode((string) $user->id), '+/', '-_'), '='), $data['user']['id']);
-        $this->assertSame('user-' . $user->id, $data['user']['name']);
-        $this->assertSame('Usuario ' . $user->id, $data['user']['displayName']);
+        $this->assertSame('user-'.$user->id, $data['user']['name']);
+        $this->assertSame('Usuario '.$user->id, $data['user']['displayName']);
     }
 
     /**
@@ -223,7 +227,7 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_registered_entity_id_matches_user_id_for_user_handle(): void
     {
         $user = $this->makeUser();
-        $service = app(\App\Services\PasskeyService::class);
+        $service = app(PasskeyService::class);
 
         $options = $service->generateRegistrationOptions($user);
         $data = $service->serializeOptions($options);
@@ -233,18 +237,18 @@ class PasskeyMultiCredentialTest extends TestCase
 
     // ─── helpers ─────────────────────────────────────────────────────────────
 
-    private function fakeRecord(string $credIdHex): \Webauthn\CredentialRecord
+    private function fakeRecord(string $credIdHex): CredentialRecord
     {
         $publicKey = hash('sha256', $credIdHex);
         $publicKey = pack('H*', $publicKey);
 
-        return \Webauthn\CredentialRecord::create(
-            hex2bin('aabb' . $credIdHex), // public key credential id
+        return CredentialRecord::create(
+            hex2bin('aabb'.$credIdHex), // public key credential id
             'public-key',
             [], // transports
             'none',
-            new \Webauthn\TrustPath\EmptyTrustPath(),
-            \Symfony\Component\Uid\Uuid::fromString('00000000-0000-0000-0000-000000000000'),
+            new EmptyTrustPath,
+            Uuid::fromString('00000000-0000-0000-0000-000000000000'),
             $publicKey, // credentialPublicKey
             '', // userHandle
             0 // counter
@@ -263,6 +267,6 @@ class PasskeyMultiCredentialTest extends TestCase
 
     private function b64(string $hex): string
     {
-        return base64_encode(hex2bin('aabb' . $hex));
+        return base64_encode(hex2bin('aabb'.$hex));
     }
 }

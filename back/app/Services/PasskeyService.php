@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\PasskeyCredential;
 use App\Models\User;
+use Exception;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Uid\Uuid;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
@@ -27,21 +28,26 @@ use Webauthn\PublicKeyCredentialRequestOptions;
 use Webauthn\PublicKeyCredentialRpEntity;
 use Webauthn\PublicKeyCredentialUserEntity;
 use Webauthn\TrustPath\EmptyTrustPath;
-use Exception;
 
 class PasskeyService
 {
     private CeremonyStepManagerFactory $factory;
+
     private CeremonyStepManager $creationCeremony;
+
     private CeremonyStepManager $requestCeremony;
+
     private AuthenticatorAttestationResponseValidator $attestationValidator;
+
     private AuthenticatorAssertionResponseValidator $assertionValidator;
+
     private PublicKeyCredentialRpEntity $rpEntity;
+
     private SerializerInterface $serializer;
 
     public function __construct()
     {
-        $this->factory = new CeremonyStepManagerFactory();
+        $this->factory = new CeremonyStepManagerFactory;
 
         // Configure allowed origins (the browser origins driving WebAuthn)
         $appUrl = config('app.url', 'http://localhost:8101');
@@ -87,9 +93,9 @@ class PasskeyService
         // The entity ID is the WebAuthn userHandle; for ZKE users name/email are
         // null by design, so fall back to a neutral local-only label.
         $userEntity = PublicKeyCredentialUserEntity::create(
-            $user->user ?? $user->email ?? ('user-' . $user->id),
+            $user->user ?? $user->email ?? ('user-'.$user->id),
             (string) $user->id,
-            $user->name ?? $user->user ?? $user->email ?? ('Usuario ' . $user->id),
+            $user->name ?? $user->user ?? $user->email ?? ('Usuario '.$user->id),
             null
         );
 
@@ -139,9 +145,9 @@ class PasskeyService
         return PublicKeyCredentialRequestOptions::create(
             $this->generateChallenge(),
             $this->rpEntity->id, // rpId: must equal the rp id used at registration,
-                                 // otherwise the assertion's rpIdHash check fails
-                                 // (registration uses rp->id; the Host header would
-                                 // differ by scheme/port).
+            // otherwise the assertion's rpIdHash check fails
+            // (registration uses rp->id; the Host header would
+            // differ by scheme/port).
             $allowDescriptors,
             AuthenticatorSelectionCriteria::USER_VERIFICATION_REQUIREMENT_PREFERRED,
             null, // timeout
@@ -222,7 +228,7 @@ class PasskeyService
                 'public-key',
                 $credential->transports ?? [],
                 'none',
-                new EmptyTrustPath(),
+                new EmptyTrustPath,
                 Uuid::fromString('00000000-0000-0000-0000-000000000000'),
                 base64_decode($credential->public_key),
                 $credential->user_handle ?? '',

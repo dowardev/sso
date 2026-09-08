@@ -1,12 +1,17 @@
 <?php
+
 // Quick E2E-style test: advanced user deletes passkey with auth_proof re-auth.
 
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\PasskeyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\Uid\Uuid;
 use Tests\TestCase;
+use Webauthn\CredentialRecord;
+use Webauthn\TrustPath\EmptyTrustPath;
 
 class PasskeyDeleteAdvancedTest extends TestCase
 {
@@ -37,14 +42,14 @@ class PasskeyDeleteAdvancedTest extends TestCase
             'encrypted_seed_verification' => 'v',
         ]);
 
-        $service = app(\App\Services\PasskeyService::class);
-        $record = \Webauthn\CredentialRecord::create(
+        $service = app(PasskeyService::class);
+        $record = CredentialRecord::create(
             random_bytes(16),
             'public-key',
             [],
             'none',
-            new \Webauthn\TrustPath\EmptyTrustPath(),
-            \Symfony\Component\Uid\Uuid::fromString('00000000-0000-0000-0000-000000000000'),
+            new EmptyTrustPath,
+            Uuid::fromString('00000000-0000-0000-0000-000000000000'),
             random_bytes(32),
             (string) $user->id,
             0

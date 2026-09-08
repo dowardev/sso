@@ -136,33 +136,33 @@ class JwtService
         ];
     }
 
-        /**
-         * Issue a short-lived RS256 JWS attesting the authenticated user's current
-         * advanced profile state. The SSO frontend appends it (alongside the
-         * decrypted profile) as a `#profile=` fragment so OAuth apps can verify the
-         * profile really originated from SSO and was not forged. The backend never
-         * sees the plaintext profile (ZKE), so this only attests (sub, profile_version).
-         */
-        public function issueProfileToken(User $user): array
-        {
-            $now = time();
-            $expiresAt = $now + 300;
+    /**
+     * Issue a short-lived RS256 JWS attesting the authenticated user's current
+     * advanced profile state. The SSO frontend appends it (alongside the
+     * decrypted profile) as a `#profile=` fragment so OAuth apps can verify the
+     * profile really originated from SSO and was not forged. The backend never
+     * sees the plaintext profile (ZKE), so this only attests (sub, profile_version).
+     */
+    public function issueProfileToken(User $user): array
+    {
+        $now = time();
+        $expiresAt = $now + 300;
 
-            $builder = $this->jwtConfig->builder()
-                ->issuedBy($this->issuer)
-                ->identifiedBy(bin2hex(random_bytes(16)))
-                ->issuedAt(new \DateTimeImmutable('@' . $now))
-                ->expiresAt(new \DateTimeImmutable('@' . $expiresAt))
-                ->relatedTo((string) $user->id)
-                ->withClaim('profile_version', (int) $user->profile_version);
+        $builder = $this->jwtConfig->builder()
+            ->issuedBy($this->issuer)
+            ->identifiedBy(bin2hex(random_bytes(16)))
+            ->issuedAt(new \DateTimeImmutable('@'.$now))
+            ->expiresAt(new \DateTimeImmutable('@'.$expiresAt))
+            ->relatedTo((string) $user->id)
+            ->withClaim('profile_version', (int) $user->profile_version);
 
-            $token = $builder->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
+        $token = $builder->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
 
-            return [
-                'token' => $token->toString(),
-                'expires_in' => 300,
-            ];
-        }
+        return [
+            'token' => $token->toString(),
+            'expires_in' => 300,
+        ];
+    }
 
     public function generateJWKThumbprint(array $jwk): string
     {

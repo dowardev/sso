@@ -4,6 +4,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CspReportController;
+use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\OAuth2Controller;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SettingController;
@@ -11,7 +12,7 @@ use App\Http\Controllers\SetupController;
 use App\Http\Controllers\SsoClientController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserSessionController;
-use App\Http\Controllers\EmailVerificationController;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/csp-report', [CspReportController::class, 'store']);
@@ -32,10 +33,10 @@ Route::post('/password/change-advanced', [AuthController::class, 'changePassword
 Route::post('/password/forgot', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
 Route::post('/password/reset', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 Route::post('/user/upgrade', [AuthController::class, 'upgradeToAdvanced'])->middleware(['jwt.auth', 'throttle:3,1']);
-Route::post('/passkey/register/start', [AuthController::class, 'passkeyRegisterStart'])->middleware(['throttle:3,1', \Illuminate\Session\Middleware\StartSession::class]);
-Route::post('/passkey/register/finish', [AuthController::class, 'passkeyRegisterFinish'])->middleware(['throttle:3,1', \Illuminate\Session\Middleware\StartSession::class]);
-Route::post('/passkey/authenticate/start', [AuthController::class, 'passkeyAuthenticateStart'])->middleware(['throttle:5,1', \Illuminate\Session\Middleware\StartSession::class]);
-Route::post('/passkey/authenticate/finish', [AuthController::class, 'passkeyAuthenticateFinish'])->middleware(['throttle:5,1', \Illuminate\Session\Middleware\StartSession::class]);
+Route::post('/passkey/register/start', [AuthController::class, 'passkeyRegisterStart'])->middleware(['throttle:3,1', StartSession::class]);
+Route::post('/passkey/register/finish', [AuthController::class, 'passkeyRegisterFinish'])->middleware(['throttle:3,1', StartSession::class]);
+Route::post('/passkey/authenticate/start', [AuthController::class, 'passkeyAuthenticateStart'])->middleware(['throttle:5,1', StartSession::class]);
+Route::post('/passkey/authenticate/finish', [AuthController::class, 'passkeyAuthenticateFinish'])->middleware(['throttle:5,1', StartSession::class]);
 Route::get('/passkey', [AuthController::class, 'passkeyIndex'])->middleware('jwt.auth');
 Route::delete('/passkey', [AuthController::class, 'passkeyDelete'])->middleware('jwt.auth');
 Route::get('/email/verify/{token}', [EmailVerificationController::class, 'verify'])->middleware('throttle:10,1');
@@ -69,7 +70,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::get('/user/activity-log', [AuthController::class, 'getUserActivityLog']);
     Route::delete('/user/account', [AuthController::class, 'deleteAccount']);
     Route::get('/user-auth', [AuthController::class, 'me']);
-        Route::get('/user/profile-token', [AuthController::class, 'profileToken']);
+    Route::get('/user/profile-token', [AuthController::class, 'profileToken']);
 
     Route::middleware('admin')->prefix('admin')->group(function () {
         Route::get('/users', [UserController::class, 'index']);

@@ -15,8 +15,7 @@ class EmailVerificationService
 {
     public function __construct(
         private readonly ActivityLogService $activityLogService,
-    ) {
-    }
+    ) {}
 
     public function createForUser(User $user): string
     {

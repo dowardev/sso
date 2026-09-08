@@ -14,24 +14,16 @@ use App\Models\UserActivityLog;
 use App\Services\ActivityLogService;
 use App\Services\AuthService;
 use App\Services\EmailVerificationService;
-use App\Services\PasswordResetService;
 use App\Services\PasskeyService;
+use App\Services\PasswordResetService;
 use App\Services\SessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use Webauthn\AuthenticatorAssertionResponse;
-use Webauthn\AuthenticatorAttestationResponse;
-use Webauthn\AuthenticatorSelectionCriteria;
-use Webauthn\CredentialRecord;
 use Webauthn\PublicKeyCredentialCreationOptions;
-use Webauthn\PublicKeyCredentialDescriptor;
-use Webauthn\PublicKeyCredentialParameters;
 use Webauthn\PublicKeyCredentialRequestOptions;
-use Webauthn\PublicKeyCredentialRpEntity;
-use Webauthn\PublicKeyCredentialUserEntity;
 
 class AuthController extends Controller
 {
@@ -466,74 +458,73 @@ class AuthController extends Controller
         ]);
     }
 
-
-        /**
-         * Upgrade basic user to advanced encryption (zero-knowledge).
-         *
-         * Client provides current password, generates all crypto material,
-         * encrypts current profile, and sends blobs to server.
-         * Server stores blobs, sets encryption_level='advanced', nullifies name/user/email.
-         */
-        public function upgradeToAdvanced(Request $request): JsonResponse
-        {
-            $user = $request->user();
-            if (! $user) {
-                return response()->json(['message' => 'No autenticado'], 401);
-            }
-
-            $request->validate([
-                'current_password' => 'required|string',
-                'auth_proof' => 'required|string',
-                'login_id' => 'required|string',
-                'salt_a' => 'required|string',
-                'salt_r' => 'required|string',
-                'wrapped_dek_a' => 'required|string',
-                'wrapped_dek_r' => 'required|string',
-                'encrypted_profile' => 'required|string',
-                'encrypted_seed_verification' => 'required|string',
-                'passkey_public_key' => 'nullable|string',
-                'passkey_credential_id' => 'nullable|string',
-            ]);
-
-            $authHash = Hash::make($request->auth_proof);
-
-            try {
-                $result = $this->authService->upgradeToAdvanced($user, [
-                    'current_password' => $request->current_password,
-                    'auth_hash' => $authHash,
-                    'login_id' => $request->login_id,
-                    'salt_a' => $request->salt_a,
-                    'salt_r' => $request->salt_r,
-                    'wrapped_dek_a' => $request->wrapped_dek_a,
-                    'wrapped_dek_r' => $request->wrapped_dek_r,
-                    'encrypted_profile' => $request->encrypted_profile,
-                    'encrypted_seed_verification' => $request->encrypted_seed_verification,
-                    'passkey_public_key' => $request->passkey_public_key,
-                    'passkey_credential_id' => $request->passkey_credential_id,
-                ]);
-            } catch (\Exception $e) {
-                return response()->json([
-                    'message' => $e->getMessage(),
-                ], 422);
-            }
-
-            $user = $result['user'];
-            $user->load('roles');
-
-            $this->activityLogService->logFromRequest(
-                $user,
-                UserActivityLog::ACTION_PASSWORD_CHANGE,
-                'Actualización a cifrado avanzado',
-                ['encryption_level' => 'advanced'],
-                $request,
-            );
-
-            return response()->json([
-                'message' => 'Cuenta actualizada a cifrado avanzado. Inicia sesión con tu nueva contraseña.',
-                'user' => $user,
-                'seed_phrase' => $request->input('seed_phrase'), // Client should show this to user
-            ]);
+    /**
+     * Upgrade basic user to advanced encryption (zero-knowledge).
+     *
+     * Client provides current password, generates all crypto material,
+     * encrypts current profile, and sends blobs to server.
+     * Server stores blobs, sets encryption_level='advanced', nullifies name/user/email.
+     */
+    public function upgradeToAdvanced(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'No autenticado'], 401);
         }
+
+        $request->validate([
+            'current_password' => 'required|string',
+            'auth_proof' => 'required|string',
+            'login_id' => 'required|string',
+            'salt_a' => 'required|string',
+            'salt_r' => 'required|string',
+            'wrapped_dek_a' => 'required|string',
+            'wrapped_dek_r' => 'required|string',
+            'encrypted_profile' => 'required|string',
+            'encrypted_seed_verification' => 'required|string',
+            'passkey_public_key' => 'nullable|string',
+            'passkey_credential_id' => 'nullable|string',
+        ]);
+
+        $authHash = Hash::make($request->auth_proof);
+
+        try {
+            $result = $this->authService->upgradeToAdvanced($user, [
+                'current_password' => $request->current_password,
+                'auth_hash' => $authHash,
+                'login_id' => $request->login_id,
+                'salt_a' => $request->salt_a,
+                'salt_r' => $request->salt_r,
+                'wrapped_dek_a' => $request->wrapped_dek_a,
+                'wrapped_dek_r' => $request->wrapped_dek_r,
+                'encrypted_profile' => $request->encrypted_profile,
+                'encrypted_seed_verification' => $request->encrypted_seed_verification,
+                'passkey_public_key' => $request->passkey_public_key,
+                'passkey_credential_id' => $request->passkey_credential_id,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        $user = $result['user'];
+        $user->load('roles');
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_PASSWORD_CHANGE,
+            'Actualización a cifrado avanzado',
+            ['encryption_level' => 'advanced'],
+            $request,
+        );
+
+        return response()->json([
+            'message' => 'Cuenta actualizada a cifrado avanzado. Inicia sesión con tu nueva contraseña.',
+            'user' => $user,
+            'seed_phrase' => $request->input('seed_phrase'), // Client should show this to user
+        ]);
+    }
 
     public function refreshToken(Request $request): JsonResponse
     {
@@ -959,7 +950,7 @@ class AuthController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Error al registrar passkey: ' . $e->getMessage(),
+                'message' => 'Error al registrar passkey: '.$e->getMessage(),
             ], 400);
         }
     }
@@ -1090,72 +1081,72 @@ class AuthController extends Controller
                 $userHandle
             );
 
-                // Check email verification for advanced users
-                if ($user->encryption_level === 'advanced' && $user->email_verified_at === null) {
-                    return response()->json([
-                        'code' => 'EMAIL_NOT_VERIFIED',
-                        'message' => 'Verifica tu email antes de iniciar sesión.',
-                        'email' => $user->email,
-                    ], 403);
-                }
-
-                $user->load('roles');
-
-                $dpopPublicKey = $request->input('dpop_public_key');
-                $rememberMe = $request->boolean('remember_me');
-
-                $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
-
-                $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
-
-                // Username-less login has no client-known login_id; expose the
-                // identifiers the frontend needs to drive the advanced flow.
-                $user->makeVisible(['login_id', 'encryption_level']);
-
-                $responseData = [
-                    'user' => $user,
-                    'token' => $tokenData['token'],
-                    'token_type' => $tokenData['token_type'],
-                    'expires_in' => $tokenData['expires_in'],
-                    // base64url id of the credential that just authenticated —
-                    // lets the client scope the silent PRF restore to it
-                    // (a browser may hold PRF entries for several accounts).
-                    'credential_id' => $credentialId,
-                ];
-
-                $this->activityLogService->logFromRequest(
-                    $user,
-                    UserActivityLog::ACTION_LOGIN,
-                    'Inicio de sesión (passkey)',
-                    ['login_method' => 'passkey'],
-                    $request,
-                );
-
-                $response = response()->json($responseData);
-
-                if (isset($tokenData['refresh_token'])) {
-                    $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
-                    $minutes = $rememberMe ? $refreshExpirationDays * 1440 : 0;
-                    $response->withCookie(cookie(
-                        'refresh_token',
-                        $tokenData['refresh_token'],
-                        $minutes,
-                        '/',
-                        null,
-                        config('session.secure', false),
-                        true,
-                        false,
-                        'Lax'
-                    ));
-                }
-
-                return $response;
-            } catch (\Exception $e) {
+            // Check email verification for advanced users
+            if ($user->encryption_level === 'advanced' && $user->email_verified_at === null) {
                 return response()->json([
-                    'message' => 'Error en autenticación passkey: ' . $e->getMessage(),
-                ], 400);
+                    'code' => 'EMAIL_NOT_VERIFIED',
+                    'message' => 'Verifica tu email antes de iniciar sesión.',
+                    'email' => $user->email,
+                ], 403);
             }
+
+            $user->load('roles');
+
+            $dpopPublicKey = $request->input('dpop_public_key');
+            $rememberMe = $request->boolean('remember_me');
+
+            $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
+
+            $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
+
+            // Username-less login has no client-known login_id; expose the
+            // identifiers the frontend needs to drive the advanced flow.
+            $user->makeVisible(['login_id', 'encryption_level']);
+
+            $responseData = [
+                'user' => $user,
+                'token' => $tokenData['token'],
+                'token_type' => $tokenData['token_type'],
+                'expires_in' => $tokenData['expires_in'],
+                // base64url id of the credential that just authenticated —
+                // lets the client scope the silent PRF restore to it
+                // (a browser may hold PRF entries for several accounts).
+                'credential_id' => $credentialId,
+            ];
+
+            $this->activityLogService->logFromRequest(
+                $user,
+                UserActivityLog::ACTION_LOGIN,
+                'Inicio de sesión (passkey)',
+                ['login_method' => 'passkey'],
+                $request,
+            );
+
+            $response = response()->json($responseData);
+
+            if (isset($tokenData['refresh_token'])) {
+                $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
+                $minutes = $rememberMe ? $refreshExpirationDays * 1440 : 0;
+                $response->withCookie(cookie(
+                    'refresh_token',
+                    $tokenData['refresh_token'],
+                    $minutes,
+                    '/',
+                    null,
+                    config('session.secure', false),
+                    true,
+                    false,
+                    'Lax'
+                ));
+            }
+
+            return $response;
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error en autenticación passkey: '.$e->getMessage(),
+            ], 400);
         }
+    }
 
     /**
      * Delete user's passkey

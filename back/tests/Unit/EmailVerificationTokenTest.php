@@ -19,7 +19,7 @@ class EmailVerificationTokenTest extends TestCase
 
         return EmailVerificationToken::create(array_merge([
             'user_id' => $user->id,
-            'token_hash' => hash('sha256', 'plain-token-' . uniqid()),
+            'token_hash' => hash('sha256', 'plain-token-'.uniqid()),
             'expires_at' => now()->addMinutes(30),
         ], $overrides));
     }

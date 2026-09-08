@@ -72,10 +72,10 @@ class User extends Authenticatable
         return $this->hasMany(UserActivityLog::class);
     }
 
-        public function passkeyCredentials(): HasMany
-        {
-            return $this->hasMany(PasskeyCredential::class);
-        }
+    public function passkeyCredentials(): HasMany
+    {
+        return $this->hasMany(PasskeyCredential::class);
+    }
 
     public function activeTokens()
     {
