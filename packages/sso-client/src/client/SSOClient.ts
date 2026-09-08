@@ -10,6 +10,13 @@ import {
   generateCodeVerifier,
   generateCodeChallenge,
 } from "../utils/pkce";
+import { randomUuid } from "../utils/randomUuid";
+
+function defaultCallbackUri(): string {
+  return `${window.location.origin}/auth/callback`;
+}
+
+export type OpenUrlHandler = (params: { url: string }) => void | Promise<void>;
 import {
   AuthState,
   AuthResponse,
@@ -160,14 +167,21 @@ export class SSOClient {
   async loginWithRedirect(options?: {
     redirectUri?: string;
     screenHint?: "login" | "register";
+    openUrl?: OpenUrlHandler;
   }): Promise<void> {
     const redirectUri =
-      options?.redirectUri || `${window.location.origin}/auth/callback`;
+      options?.redirectUri || defaultCallbackUri();
+    if (options?.openUrl && !options.redirectUri) {
+      console.warn(
+        '[sso-client] openUrl without an explicit redirectUri falls back to the web callback URI, which cannot return to a native app.',
+      );
+    }
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
-    const state = crypto.randomUUID();
+    const state = randomUuid();
 
     await this.tokenStorage.setPkceVerifier(state, codeVerifier);
+    await this.tokenStorage.setPkceRedirectUri(state, redirectUri);
 
     const url = new URL(
       options?.screenHint === "register" ? "/auth/register" : "/auth/login",
@@ -180,11 +194,26 @@ export class SSOClient {
     url.searchParams.set("code_challenge", codeChallenge);
     url.searchParams.set("code_challenge_method", "S256");
 
+    if (options?.openUrl) {
+      try {
+        await options.openUrl({ url: url.toString() });
+      } catch (error) {
+        await this.tokenStorage.removePkceVerifier(state);
+        await this.tokenStorage.removePkceRedirectUri(state);
+        throw error;
+      }
+      return;
+    }
     window.location.href = url.toString();
   }
 
-  async handleCallback(url: string): Promise<{ user: User }> {
-    const urlObj = new URL(url);
+  async handleCallback(url: string, options?: { redirectUri?: string }): Promise<{ user: User }> {
+    let urlObj: URL;
+    try {
+      urlObj = new URL(url);
+    } catch {
+      throw new Error('Malformed callback URL. Please restart the login.');
+    }
     const params = urlObj.searchParams;
 
     const frag =
@@ -202,12 +231,18 @@ export class SSOClient {
     const codeVerifier = state
       ? await this.tokenStorage.getPkceVerifier(state)
       : null;
+    if (state && !codeVerifier) {
+      throw new Error('Missing PKCE verifier for this login attempt. Please restart the login.');
+    }
+    const storedRedirectUri = state
+      ? await this.tokenStorage.getPkceRedirectUri(state)
+      : null;
 
     const data: Record<string, unknown> = {
       grant_type: 'authorization_code',
       code,
       client_id: this.clientId,
-      redirect_uri: `${window.location.origin}/auth/callback`,
+      redirect_uri: options?.redirectUri || storedRedirectUri || defaultCallbackUri(),
     };
 
     if (codeVerifier) {
@@ -230,6 +265,7 @@ export class SSOClient {
 
     if (state) {
       await this.tokenStorage.removePkceVerifier(state);
+      await this.tokenStorage.removePkceRedirectUri(state);
     }
 
     if (frag) {
@@ -278,7 +314,7 @@ export class SSOClient {
       user: null,
     });
 
-    const redirectUri = options?.redirectUri || `${window.location.origin}/auth/callback`;
+    const redirectUri = options?.redirectUri || defaultCallbackUri();
     const url = new URL("/auth/logout", this.ssoFrontendUrl);
     url.searchParams.set("client_id", this.clientId);
     url.searchParams.set("redirect_uri", redirectUri);

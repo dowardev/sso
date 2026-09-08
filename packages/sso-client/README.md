@@ -26,17 +26,19 @@ import { SSOClient } from "@dowardev/sso-client";
 const ssoClient = new SSOClient({
   // The client must be registered beforehand on the central SSO server;
   // otherwise authentication will fail.
-  serverUrl: "https://sso.example.com",
+  ssoUrl: "https://sso.example.com/api/",
+  ssoFrontendUrl: "https://sso.example.com",
+  apiBaseUrl: "https://api.example.com/api/",
   clientId: "my-app",
-  redirectUri: window.location.origin + "/callback",
-  scopes: ["openid", "profile"],
 });
 
-// Start login (PKCE + DPoP)
-await ssoClient.login();
+// Start login (PKCE + DPoP, redirect flow)
+await ssoClient.loginWithRedirect({
+  redirectUri: window.location.origin + "/auth/callback",
+});
 
-// Get authenticated user
-const user = await ssoClient.getUser();
+// Handle the OAuth callback, then get the authenticated user
+const { user } = await ssoClient.handleCallback(window.location.href);
 
 // Navigation guard (Vue Router)
 import { createAuthGuard } from "@dowardev/sso-client";
@@ -46,6 +48,21 @@ const router = createRouter({
   ],
 });
 router.beforeEach(createAuthGuard({ ssoClient }));
+```
+
+## Native apps (Capacitor deep link)
+
+```ts
+// Open the authorize URL in the system browser and come back via deep link.
+// The redirectUri must be whitelisted for this client on the SSO server.
+await ssoClient.loginWithRedirect({
+  redirectUri: "com.example.app://auth/callback",
+  openUrl: ({ url }) => Browser.open({ url }),
+});
+
+// On `appUrlOpen`, complete the flow (the stored redirectUri is reused
+// automatically; pass it explicitly to override):
+await ssoClient.handleCallback(event.url);
 ```
 
 ## API

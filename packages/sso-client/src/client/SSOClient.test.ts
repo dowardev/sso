@@ -161,6 +161,14 @@ beforeEach(() => {
 });
 
 describe("SSOClient advanced (ZKE) profile handling", () => {
+  beforeEach(() => {
+    // The real token endpoint rejects verifier-less exchanges (invalid_grant),
+    // so seed the PKCE verifier the same way loginWithRedirect would.
+    sessionStorage.setItem(
+      "@dowardev/sso-client:pkce:xyz",
+      "test-verifier-for-xyz-state",
+    );
+  });
   it("merges a valid signed #profile= envelope and recovers it from the vault on reload", async () => {
     const profile: UserProfile = {
       name: "Ada Lovelace",
@@ -239,5 +247,126 @@ describe("SSOClient advanced (ZKE) profile handling", () => {
     await client.logout();
 
     expect(await loadProfileAtRest()).toBeNull();
+  });
+});
+
+describe("SSOClient native redirect URI persistence", () => {
+  const NATIVE_URI = "com.example.app://auth/callback";
+
+  function postedTokenData(): Record<string, unknown> {
+    const calls = requestMock.mock.calls.filter((c: any) =>
+      String(c?.[0]?.url ?? "").includes("oauth/token"),
+    );
+    const last = calls[calls.length - 1];
+    if (!last) {
+      throw new Error("oauth/token was not requested");
+    }
+    return (last[0] as { data: Record<string, unknown> }).data;
+  }
+
+  it("reuses the stored redirect URI when handleCallback gets no explicit option", async () => {
+    const client = makeClient();
+    let opened = "";
+    await client.loginWithRedirect({
+      redirectUri: NATIVE_URI,
+      openUrl: async (params: { url: string }) => {
+        opened = params.url;
+      },
+    });
+    const state = new URL(opened).searchParams.get("state");
+    expect(state).toBeTruthy();
+
+    await client.handleCallback(`${NATIVE_URI}?code=abc&state=${state}`);
+
+    expect(postedTokenData().redirect_uri).toBe(NATIVE_URI);
+  });
+
+  it("prefers the explicit redirectUri option over the stored one", async () => {
+    const client = makeClient();
+    let opened = "";
+    await client.loginWithRedirect({
+      redirectUri: NATIVE_URI,
+      openUrl: async (params: { url: string }) => {
+        opened = params.url;
+      },
+    });
+    const state = new URL(opened).searchParams.get("state");
+
+    const override = "com.example.app://auth/other";
+    await client.handleCallback(`${override}?code=abc&state=${state}`, {
+      redirectUri: override,
+    });
+
+    expect(postedTokenData().redirect_uri).toBe(override);
+  });
+});
+
+describe("randomUuid fallback", () => {
+  it("generates a v4 UUID via getRandomValues when randomUUID is missing", async () => {
+    const { randomUuid } = await import("../utils/randomUuid");
+    const cryptoRef = globalThis.crypto as unknown as Record<string, unknown>;
+    const real = cryptoRef["randomUUID"];
+    try {
+      cryptoRef["randomUUID"] = undefined;
+      expect(randomUuid()).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
+    } finally {
+      cryptoRef["randomUUID"] = real;
+    }
+  });
+
+  it("throws a clear error when WebCrypto is unavailable", async () => {
+    const { randomUuid } = await import("../utils/randomUuid");
+    const realCrypto = globalThis.crypto;
+    try {
+      vi.stubGlobal("crypto", undefined);
+      expect(() => randomUuid()).toThrow("WebCrypto is not available");
+    } finally {
+      vi.stubGlobal("crypto", realCrypto);
+    }
+  });
+});
+
+describe("native callback failure modes", () => {
+  it("throws a restart-login error when the state has no stored verifier", async () => {
+    const client = makeClient();
+    await expect(
+      client.handleCallback("com.example.app://auth/callback?code=abc&state=unknown-state"),
+    ).rejects.toThrow("Missing PKCE verifier");
+  });
+
+  it("throws a clear error for a malformed callback URL", async () => {
+    const client = makeClient();
+    await expect(client.handleCallback(":::not a url")).rejects.toThrow(
+      "Malformed callback URL",
+    );
+  });
+
+  it("cleans up the stored PKCE keys when openUrl rejects", async () => {
+    const client = makeClient();
+    sessionStorage.clear();
+    await expect(
+      client.loginWithRedirect({
+        redirectUri: "com.example.app://auth/callback",
+        openUrl: async () => {
+          throw new Error("user cancelled");
+        },
+      }),
+    ).rejects.toThrow("user cancelled");
+    expect(sessionStorage.length).toBe(0);
+  });
+
+  it("warns when openUrl is used without an explicit redirectUri", async () => {
+    const client = makeClient();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await client.loginWithRedirect({
+        openUrl: async () => {},
+      });
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

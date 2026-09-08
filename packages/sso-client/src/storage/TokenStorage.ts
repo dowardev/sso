@@ -33,6 +33,18 @@ export class TokenStorage {
     sessionStorage.removeItem(`${this.PKCE_PREFIX}${state}`);
   }
 
+  async getPkceRedirectUri(state: string): Promise<string | null> {
+    return sessionStorage.getItem(`${this.PKCE_PREFIX}${state}:redirect-uri`);
+  }
+
+  async setPkceRedirectUri(state: string, redirectUri: string): Promise<void> {
+    sessionStorage.setItem(`${this.PKCE_PREFIX}${state}:redirect-uri`, redirectUri);
+  }
+
+  async removePkceRedirectUri(state: string): Promise<void> {
+    sessionStorage.removeItem(`${this.PKCE_PREFIX}${state}:redirect-uri`);
+  }
+
   async getRememberMe(): Promise<boolean> {
     return localStorage.getItem(this.REMEMBER_KEY) === "true";
   }

@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MIT
+import { randomUuid } from "../utils/randomUuid";
+
 export class DpopService {
   private privateKey: CryptoKey | null = null;
   private publicKeyJwk: JsonWebKey | null = null;
@@ -65,7 +67,7 @@ export class DpopService {
     }
 
     const iat = Math.floor(Date.now() / 1000);
-    const jti = crypto.randomUUID();
+    const jti = randomUuid();
     const encoder = new TextEncoder();
 
     const header: Record<string, unknown> = {
