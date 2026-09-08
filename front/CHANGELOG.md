@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.3] - 2026-09-08
+
 ### Fixed
 
 - **Login page high CPU usage (LBDS-202)**: `AuthCard` background blobs are now static. The three infinite `blur(80px)` float animations (plus `will-change`) forced the compositor to re-rasterize large layers every frame while the login page sat idle, making the whole browser/PC feel sluggish. Same visual design, ~zero idle CPU cost; entry animation and `prefers-reduced-motion` handling unchanged.
