@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- OAuth clients accept custom-scheme `redirect_url` values (e.g. mobile deep links) in admin CRUD; `approveAuthorization` enforces the registered `redirect_uri` exact match like `authorize` does (LBDS-236).
+
 ## [0.34.2] - 2026-09-08
 
 ### Fixed

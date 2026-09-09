@@ -95,4 +95,30 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('authorization_required', true);
     }
+
+    public function test_approve_rejects_foreign_redirect_uri(): void
+    {
+        $response = $this->withToken($this->token)
+            ->postJson('/api/oauth/authorize/approve', [
+                'client_id' => 'test-app',
+                'redirect_uri' => 'https://evil.com/callback',
+                'response_type' => 'code',
+            ]);
+
+        $response->assertStatus(400)
+            ->assertJson(['message' => 'redirect_uri no permitida']);
+    }
+
+    public function test_approve_accepts_registered_redirect_uri(): void
+    {
+        $response = $this->withToken($this->token)
+            ->postJson('/api/oauth/authorize/approve', [
+                'client_id' => 'test-app',
+                'redirect_uri' => 'https://app.example.com/auth/callback',
+                'response_type' => 'code',
+            ]);
+
+        $response->assertOk()
+            ->assertJsonStructure(['code']);
+    }
 }
