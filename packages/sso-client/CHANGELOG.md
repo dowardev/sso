@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1]
+
+### Added
+
+- `client/SSOClient.ts` — `logout({ redirectUri?, openUrl? })` opens the SSO logout page externally on native (default keeps `window.location.href`).
+- Build uses a relative `base` so the emitted crypto-worker URL resolves against the package dist (fixes PWA consumer builds).
+
 ## [0.2.0] - 2026-09-08
 
 ### Added

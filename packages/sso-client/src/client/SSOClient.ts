@@ -254,18 +254,28 @@ export class SSOClient {
       data.dpop_public_key = JSON.stringify(dpopPublicKey);
     }
 
-    const response = await this.internalPost<{
+    let response: {
       token: string;
       token_type: string;
       expires_in: number;
       user: User;
       refresh_token?: string;
       refreshToken?: string;
-    }>("oauth/token", data);
-
-    if (state) {
-      await this.tokenStorage.removePkceVerifier(state);
-      await this.tokenStorage.removePkceRedirectUri(state);
+    };
+    try {
+      response = await this.internalPost<{
+        token: string;
+        token_type: string;
+        expires_in: number;
+        user: User;
+        refresh_token?: string;
+        refreshToken?: string;
+      }>("oauth/token", data);
+    } finally {
+      if (state) {
+        await this.tokenStorage.removePkceVerifier(state);
+        await this.tokenStorage.removePkceRedirectUri(state);
+      }
     }
 
     if (frag) {
@@ -294,7 +304,7 @@ export class SSOClient {
     await this.authService.register(params);
   }
 
-  async logout(options?: { redirectUri?: string }): Promise<void> {
+  async logout(options?: { redirectUri?: string; openUrl?: OpenUrlHandler }): Promise<void> {
     this.stopAutoRefresh();
     await this.tokenStorage.removeRememberMe();
     try {
@@ -318,7 +328,12 @@ export class SSOClient {
     const url = new URL("/auth/logout", this.ssoFrontendUrl);
     url.searchParams.set("client_id", this.clientId);
     url.searchParams.set("redirect_uri", redirectUri);
-    window.location.href = url.toString();
+    const logoutUrl = url.toString();
+    if (options?.openUrl) {
+      await options.openUrl({ url: logoutUrl });
+      return;
+    }
+    window.location.href = logoutUrl;
   }
 
   async refreshToken(refreshToken: string): Promise<AuthResponse> {

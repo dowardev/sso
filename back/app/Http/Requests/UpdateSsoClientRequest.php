@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use App\Models\Setting;
 use App\Models\SsoClient;
+use App\Rules\RedirectUri;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateSsoClientRequest extends FormRequest
@@ -24,7 +25,7 @@ class UpdateSsoClientRequest extends FormRequest
             'name' => 'sometimes|string|max:255',
             'client_id' => 'sometimes|string|max:255|unique:sso_clients,client_id,'.$clientId,
             'client_secret' => 'nullable|string|max:255',
-            'redirect_url' => 'nullable|string|max:255|url',
+            'redirect_url' => ['nullable', 'string', 'max:255', new RedirectUri],
             'allowed_origins' => 'nullable|array',
             'allowed_origins.*' => ['regex:/^https?:\/\/[^\/:]+(:\d+)?$/'],
             'grant_types' => 'nullable|array',

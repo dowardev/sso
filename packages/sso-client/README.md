@@ -65,6 +65,15 @@ await ssoClient.loginWithRedirect({
 await ssoClient.handleCallback(event.url);
 ```
 
+```ts
+// Native logout mirrors login: open externally, the deep-link return just
+// brings the app back (local session is already cleared).
+await ssoClient.logout({
+  redirectUri: "com.example.app://auth/callback",
+  openUrl: ({ url }) => Browser.open({ url }),
+});
+```
+
 ## API
 
 - `SSOClient` — main class (login, logout, getUser, getAuthState, refresh).

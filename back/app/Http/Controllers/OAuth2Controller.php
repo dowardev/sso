@@ -108,6 +108,12 @@ class OAuth2Controller extends Controller
             ], 404);
         }
 
+        if ($client->redirect_url && $request->redirect_uri !== $client->redirect_url) {
+            return response()->json([
+                'message' => 'redirect_uri no permitida',
+            ], 400);
+        }
+
         OauthClientAuthorization::updateOrCreate(
             ['user_id' => $user->id, 'sso_client_id' => $client->id],
             ['status' => 'authorized', 'updated_at' => now()]

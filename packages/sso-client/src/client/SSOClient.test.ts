@@ -370,3 +370,27 @@ describe("native callback failure modes", () => {
     }
   });
 });
+
+describe("native logout", () => {
+  it("opens the logout URL externally when openUrl is given", async () => {
+    const client = makeClient();
+    let opened = "";
+    await client.logout({
+      redirectUri: "com.example.app://auth/callback",
+      openUrl: async (params: { url: string }) => {
+        opened = params.url;
+      },
+    });
+    const url = new URL(opened);
+    expect(url.pathname).toBe("/auth/logout");
+    expect(url.searchParams.get("client_id")).toBe("test-client");
+    expect(url.searchParams.get("redirect_uri")).toBe("com.example.app://auth/callback");
+  });
+
+  it("keeps the web default (window.location.href) without openUrl", async () => {
+    const client = makeClient();
+    await client.logout();
+    const href = (window as unknown as { location: { href: string } }).location.href;
+    expect(href).toContain("/auth/logout");
+  });
+});
