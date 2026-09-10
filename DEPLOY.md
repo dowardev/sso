@@ -377,6 +377,17 @@ The CORS origin list is cached with key `sso_cors_origins_{clientId}` and refres
 
 When registering an SSO client, ensure the `redirect_url` exactly matches your application's callback URI (including protocol, domain, and port).
 
+### Passkey registration fails with `'rp.id' cannot be used with the current origin`
+
+The WebAuthn `rp.id` must equal (or be a parent suffix of) the host of the page driving the ceremony — i.e. the **frontend** host, not the API host. On split-domain deploys the `APP_URL` fallback gets this wrong. Fix in `back/.env`:
+
+```env
+PASSKEY_RP_ID=<frontend-host>                        # e.g. panel.sso.example.com
+PASSKEY_ALLOWED_ORIGINS=https://<frontend-host>      # must include the frontend origin
+```
+
+Then `php artisan config:clear && php artisan config:cache`, and confirm the live values with `php artisan tinker --execute="echo config('passkey.rp_id').PHP_EOL;"`. `setup.sh` derives both from `FRONTEND_URL` on fresh installs (existing values are kept). Warning: changing `rp.id` invalidates credentials registered under the old one — check `PasskeyCredential::count()` first.
+
 ---
 
 ## Domain Summary

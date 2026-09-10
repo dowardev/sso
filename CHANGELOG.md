@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Passkey `rp.id` / allowed origins on split-domain deploys**: `config/passkey.php` defaulted `rp_id` to the `APP_URL` host (API domain), so registration from the SPA on another host died with `'rp.id' cannot be used with the current origin` — and the default `allowed_origins` didn't include the frontend origin either. `setup.sh` now derives `PASSKEY_RP_ID` (frontend host) and `PASSKEY_ALLOWED_ORIGINS` (frontend origin) from `FRONTEND_URL`, filling only when absent so manual overrides survive re-runs; `back/.env.production.example` documents both keys and `DEPLOY.md` troubleshooting covers the failure. Existing installs must set the two vars and refresh `config:cache` (changing `rp.id` invalidates previously registered credentials).
 - OAuth clients accept custom-scheme `redirect_url` values (e.g. mobile deep links) in admin CRUD; `approveAuthorization` enforces the registered `redirect_uri` exact match like `authorize` does (LBDS-236).
 
 ## [0.34.2] - 2026-09-08
