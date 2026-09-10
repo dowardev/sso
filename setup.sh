@@ -391,6 +391,21 @@ configure_backend() {
     app_url_host="$(echo "$app_url" | sed -E 's|^https?://([^/]+).*|\1|')"
     mail_from_address="${mail_from_address:-${prev_mail_from_address:-noreply@${app_url_host}}}"
 
+    # WebAuthn (passkey) origins: rp.id MUST be the frontend host (or a parent
+    # suffix). Deriving it from APP_URL breaks split-domain deploys (API on one
+    # host, SPA on another) with "'rp.id' cannot be used with the current
+    # origin" at registration. Only fill when absent so manual overrides
+    # (e.g. eTLD+1 rp.id covering several frontends) survive re-runs.
+    local frontend_host frontend_origin
+    frontend_host="$(echo "$frontend_url" | sed -E 's|^https?://([^/:]+).*|\1|')"
+    frontend_origin="$(echo "$frontend_url" | sed -E 's|^(https?://[^/]+).*|\1|')"
+    if [ -n "$frontend_host" ] && ! grep -qE "^[[:space:]]*PASSKEY_RP_ID=" ".env"; then
+        sed_set ".env" "PASSKEY_RP_ID" "${SSO_PASSKEY_RP_ID:-$frontend_host}"
+    fi
+    if [ -n "$frontend_origin" ] && ! grep -qE "^[[:space:]]*PASSKEY_ALLOWED_ORIGINS=" ".env"; then
+        sed_set ".env" "PASSKEY_ALLOWED_ORIGINS" "${SSO_PASSKEY_ALLOWED_ORIGINS:-$frontend_origin}"
+    fi
+
     if [ "$DEV_MODE" = true ]; then
         mail_mailer="log"
     fi
