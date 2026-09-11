@@ -31,7 +31,7 @@ class RedirectUriTest extends TestCase
 
     public function test_validate_fails_with_clear_message(): void
     {
-        $rule = new RedirectUri();
+        $rule = new RedirectUri;
         $failed = null;
         $rule->validate('redirect_url', 'not a uri', function (string $message) use (&$failed): void {
             $failed = $message;
@@ -42,7 +42,7 @@ class RedirectUriTest extends TestCase
 
     public function test_validate_passes_for_custom_scheme(): void
     {
-        $rule = new RedirectUri();
+        $rule = new RedirectUri;
         $failed = false;
         $rule->validate('redirect_url', 'com.dowardev.onespend://auth/callback', function () use (&$failed): void {
             $failed = true;

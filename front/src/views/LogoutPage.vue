@@ -10,6 +10,8 @@
       <div class="logout-container">
         <ion-spinner name="crescent" aria-label="Cerrando sesión"></ion-spinner>
         <p aria-live="polite">Cerrando sesión...</p>
+        <p v-if="showReturnButton" class="return-hint">Si no volvés automáticamente a la app:</p>
+        <ion-button v-if="showReturnButton" :href="safeReturnTarget" class="return-button">Volver a la app</ion-button>
       </div>
     </ion-content>
   </ion-page>
@@ -17,7 +19,7 @@
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
-import { onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   IonPage,
@@ -26,6 +28,7 @@ import {
   IonTitle,
   IonContent,
   IonSpinner,
+  IonButton,
 } from '@ionic/vue'
 
 // 2. Controllers / Composables
@@ -40,10 +43,20 @@ const authController = useAuthController()
 
 // 6. Vars and const
 const route = useRoute()
+const redirectUri = ref((route.query.redirect_uri as string) || '')
+const showReturnButton = ref(false)
+
+// This value comes straight from the query string, so it is attacker-shaped:
+// rendering it unchecked (or navigating to it) would turn the logout page into
+// an open redirect / phishing hop on an app-trusted origin. Only the two
+// legitimate shapes survive: a custom app scheme (com.example.app://...) or an
+// http(s) URL pointing back at this same origin (the web flow).
+const FORBIDDEN_PROTOCOLS = ['javascript:', 'data:', 'file:', 'blob:', 'vbscript:', 'about:']
 
 // 7. Watch
 
 // 8. Computed
+const safeReturnTarget = computed(() => toReturnTarget({ raw: redirectUri.value }))
 
 // 9. OnMounted
 onMounted(async () => {
@@ -53,16 +66,33 @@ onMounted(async () => {
     // Continue even if server logout fails — local state is already cleared
   }
 
-  const redirectUri = (route.query.redirect_uri as string) || ''
+  const redirectTarget = safeReturnTarget.value
 
-  if (redirectUri) {
-    window.location.href = redirectUri
+  if (redirectTarget) {
+    // System browsers may block non-gesture cross-scheme navigation, so
+    // always offer an explicit tap target as fallback.
+    showReturnButton.value = true
+    window.location.href = redirectTarget
   } else {
     window.location.href = '/auth/login'
   }
 })
 
 // 10. Functions (named parameters pattern)
+function toReturnTarget(params: { raw: string }): string {
+  const { raw } = params
+  if (!raw) return ''
+  try {
+    const parsed = new URL(raw)
+    if (FORBIDDEN_PROTOCOLS.includes(parsed.protocol)) return ''
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.origin === window.location.origin ? parsed.href : ''
+    }
+    return parsed.href
+  } catch {
+    return ''
+  }
+}
 </script>
 
 <style scoped>
