@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.4] - 2026-09-10
+
+### Fixed
+
+- Logout page validates its return target before rendering or navigating: only a custom app scheme or an http(s) URL on the same origin is accepted, so an attacker-supplied `redirect_uri` can no longer turn the page into an open redirect or phishing hop on the SSO origin. A "Volver a la app" fallback button remains, because system browsers may block non-gesture cross-scheme navigation.
+
 ## [0.24.3] - 2026-09-08
 
 ### Fixed

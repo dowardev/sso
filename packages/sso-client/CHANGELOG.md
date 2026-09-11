@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-09-10
+
+### Fixed
+
+- `dpop/DpopService.ts` — the stored key pair is deleted by removing the record inside a short-lived readwrite transaction, instead of `deleteDatabase()`. The database-level delete fires `onblocked` and never completes while another connection holds the database open, so the key pair survived into the next `init()` and was silently reused; a record delete cannot be blocked. Every IndexedDB path now also settles on `tx.onabort`, `request.onblocked` and `db.onversionchange`, so a blocked upgrade or an aborted transaction can no longer hang `init()` or `logout()`.
+- `client/SSOClient.ts` — `logout()` sends the refresh token in the request body, so the server revokes it even when the bearer cannot be attributed to a user (an expired access token); when the refresh above rotated it, the rotated secret is the one revoked. It also persists the refreshed credentials directly instead of going through `handleAuthResponse`, which spent a `GET user-auth` round trip whose result was discarded a moment later by the logout.
+- `client/SSOClient.ts` — a DPoP proof is only requested when a key pair actually exists. Asking for one before `initialize()` threw, which failed a legal request and warned on every logout made after a fresh boot.
+- `storage/TokenStorage.ts` — PKCE entries carry a timestamp and are swept once older than 10 minutes. `sessionStorage` used to clean itself up when the tab closed; `localStorage` does not, so every abandoned login left a verifier and its redirect URI behind forever. Entries written without a timestamp (by an older version) are preserved, so a login in flight across an upgrade still completes.
+
+### Added
+
+- `dpop/DpopService.test.ts` (new) — covers record removal on `clearKeys()`, no hang while another connection holds the database open, and a fresh key pair after `clearKeys()`.
+- `client/SSOClient.test.ts` — covers the logout body carrying the rotated refresh token, no `user-auth` round trip during logout, logout without an initialized DPoP key pair, and the PKCE sweep (expired entries removed, timestamp-less entries kept).
+
+## [0.2.2] - 2026-09-10
+
+### Fixed
+
+- `client/SSOClient.ts` — `logout()` refreshes the access token before `POST /logout` when a refresh token is available, and warns on failure instead of swallowing it. OAuth access tokens last 1h and never auto-refresh, so logging out late sent an expired bearer: the server answered 401 and revoked nothing, so the SSO session survived while local state was cleared (seen as a silent re-login on the next attempt).
+- `dpop/DpopService.ts` — IndexedDB connections are always closed and `deleteDatabase` resolves on `onblocked`. Leaving handles open made `clearKeys()` (called by `logout()`) block forever once the DPoP keys had been initialized.
+- `storage/TokenStorage.ts` — the PKCE `code_verifier` and the per-`state` `redirect_uri` live in `localStorage` instead of `sessionStorage`. On native the OS recreates the activity while the external browser is in front, so a recreated WebView lost the verifier and the exchange died with "Missing PKCE verifier". The verifier is single-use, ~10 min TTL, and useless without the authorization code; key names are unchanged.
+
+### Added
+
+- `client/SSOClient.test.ts` — tests for refresh-before-logout ordering and bearer, local cleanup when the refresh fails, and PKCE persistence across a recreated WebView.
+
 ## [0.2.1]
 
 ### Added
