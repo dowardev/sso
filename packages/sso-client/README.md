@@ -74,6 +74,19 @@ await ssoClient.logout({
 });
 ```
 
+### Server-side checklist
+
+The deep-link flow only completes if the client registration allows it:
+
+1. **`redirect_url`** must be your custom scheme (`com.example.app://auth/callback`). It is validated by exact match and a client stores a single value, so a native app needs its **own client** — it cannot share the row with the web callback URI.
+2. **`allowed_origins` must include the WebView origin.** A Capacitor app is served from inside the installed package with the `https` scheme on `localhost` (Capacitor's default), so every request it makes looks like `Origin: https://localhost` — in development and in production. Without it the token exchange is blocked by CORS, and the app shows a generic sign-in failure: the request never reaches the API, so nothing shows up in the server logs.
+
+### Three things that bite native integrations
+
+* **A deep link is not proof that a flow is happening.** Android keeps returning the original launch intent on resume, and any app or web page can open a custom-scheme URL. Record the flow you started (and how long ago) and only honour a return while one is pending, otherwise you re-exchange a spent code — or clear local data on a "logout" that never happened.
+* **The PKCE verifier is single-use.** A failed exchange consumes it, so retrying the same deep link can never succeed; start a new login instead. Keep the verifier somewhere that survives the WebView being recreated while the external browser is open.
+* **Local HTTP backends on Android** need cleartext traffic in debug builds only (a debug manifest overlay with `android:usesCleartextTraffic="true"`); never enable it for release.
+
 ## API
 
 - `SSOClient` — main class (login, logout, getUser, getAuthState, refresh).

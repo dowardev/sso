@@ -377,6 +377,28 @@ The CORS origin list is cached with key `sso_cors_origins_{clientId}` and refres
 
 When registering an SSO client, ensure the `redirect_url` exactly matches your application's callback URI (including protocol, domain, and port).
 
+### Native/mobile clients: the WebView origin is `https://localhost`
+
+A Capacitor app does not load its bundle from a server: the WebView serves the app from inside the installed package, using the `https` scheme on `localhost` (the Capacitor default). Every request it makes therefore identifies itself as `Origin: https://localhost` — in development and **in production alike**, because this depends on the WebView, not on where the backend lives.
+
+Consequences when registering a native client:
+
+* The client's `allowed_origins` **must** include `https://localhost`; otherwise the authorization-code exchange is rejected by CORS. The user-visible symptom is a generic "could not sign in" screen, and nothing appears in the server logs because the request never reaches the API.
+* Production should contain **only** the origins it actually serves: the published web app origin plus `https://localhost` for the native build. Development origins (`http://localhost:5173`, `http://localhost`, anything plain HTTP) do not belong in a production client.
+* Register the native app as its **own client**: `redirect_url` is validated by exact match and a client holds a single value, so a custom scheme such as `com.example.app://auth/callback` cannot share the row with the web callback URI.
+
+Verify the registered values with:
+
+```sql
+SELECT client_id, redirect_url, allowed_origins FROM sso_clients;
+```
+
+> **The `client_id` is baked into the app at build time.** A build shipped with the *web* client id cannot complete a native login: the authorize request carries the custom scheme against a client whose `redirect_url` is the https callback, and it is rejected as a redirect_uri mismatch. The web and native builds of the same app therefore need different `VITE_SSO_CLIENT_ID` values — check it before producing a release build, because nothing in the UI surfaces the mistake.
+
+> Trade-off, stated explicitly: allowlisting `https://localhost` means any local process on a user's machine could claim that origin. It is accepted because the Capacitor default also owns the app's offline storage (IndexedDB/localStorage), so changing the WebView hostname would relocate that storage and wipe local data on existing installs. The refresh cookie is `HttpOnly` + `SameSite=Lax`, so it is not sent on these cross-site requests.
+
+When developing a native client against a **local HTTP backend**, Android additionally requires cleartext traffic. Keep it in a debug-only manifest overlay (`android/app/src/debug/AndroidManifest.xml` with `android:usesCleartextTraffic="true"`) so release builds keep the platform default.
+
 ### Passkey registration fails with `'rp.id' cannot be used with the current origin`
 
 The WebAuthn `rp.id` must equal (or be a parent suffix of) the host of the page driving the ceremony — i.e. the **frontend** host, not the API host. On split-domain deploys the `APP_URL` fallback gets this wrong. Fix in `back/.env`:

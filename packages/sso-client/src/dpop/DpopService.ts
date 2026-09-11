@@ -175,8 +175,16 @@ export class DpopService {
         const tx = db.transaction("keys", "readwrite");
         const store = tx.objectStore("keys");
         store.put(data, "dpop");
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
+        // Always close: a lingering connection blocks a later
+        // deleteDatabase (logout clearKeys) forever.
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => {
+          db.close();
+          reject(tx.error);
+        };
       };
       request.onerror = () => reject(request.error);
     });
@@ -184,31 +192,47 @@ export class DpopService {
 
   private async loadFromIndexedDB(): Promise<
     { privateKey: CryptoKey; publicKeyJwk: JsonWebKey; jkt: string } | null
-> {
-return new Promise((resolve) => {
-const request = indexedDB.open("dpop_keys", 1);
-request.onupgradeneeded = () => {
-const db = request.result;
-if (!db.objectStoreNames.contains("keys")) {
-db.createObjectStore("keys");
-}
-};
-request.onsuccess = async () => {
+  > {
+    return new Promise((resolve) => {
+      const request = indexedDB.open("dpop_keys", 1);
+      request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains("keys")) {
+          db.createObjectStore("keys");
+        }
+      };
+      request.onsuccess = async () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("keys")) {
+          db.close();
           resolve(null);
           return;
         }
+        // A concurrent version upgrade (another tab) must not leave this
+        // connection pinning the old schema open.
+        db.onversionchange = () => db.close();
+        let settled = false;
+        const finish = (
+          value: { privateKey: CryptoKey; publicKeyJwk: JsonWebKey; jkt: string } | null
+        ): void => {
+          if (settled) return;
+          settled = true;
+          db.close();
+          resolve(value);
+        };
         const tx = db.transaction("keys", "readonly");
+        // Without these, a transaction that aborts (or an error outside the
+        // request callbacks) never settles the promise and init() hangs.
+        tx.onabort = () => finish(null);
+        tx.onerror = () => finish(null);
         const store = tx.objectStore("keys");
         const getReq = store.get("dpop");
         getReq.onsuccess = async () => {
           const data = getReq.result;
           if (!data) {
-            resolve(null);
+            finish(null);
             return;
           }
-
           try {
             const privateKey = await crypto.subtle.importKey(
               "jwk",
@@ -217,27 +241,63 @@ request.onsuccess = async () => {
               true,
               ["sign"]
             );
-
-            resolve({
+            finish({
               privateKey,
               publicKeyJwk: data.publicKeyJwk,
               jkt: data.jkt,
             });
           } catch {
-            resolve(null);
+            finish(null);
           }
         };
-        getReq.onerror = () => resolve(null);
+        getReq.onerror = () => finish(null);
       };
       request.onerror = () => resolve(null);
+      // An upgrade blocked by another tab's open handle never fires
+      // onsuccess; never leave init() waiting on it.
+      request.onblocked = () => resolve(null);
     });
   }
 
   private async deleteFromIndexedDB(): Promise<void> {
+    // Deleting the record inside a short-lived transaction, instead of
+    // deleteDatabase(), is what makes logout reliable: deleteDatabase() fires
+    // onblocked and never completes while another connection holds the
+    // database open, so the key pair silently survived into the next init().
+    // A row delete cannot be blocked by other open connections.
     return new Promise((resolve) => {
-      const request = indexedDB.deleteDatabase("dpop_keys");
-      request.onsuccess = () => resolve();
+      const request = indexedDB.open("dpop_keys", 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("keys")) {
+          db.createObjectStore("keys");
+        }
+      };
+      request.onsuccess = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("keys")) {
+          db.close();
+          resolve();
+          return;
+        }
+        db.onversionchange = () => db.close();
+        const tx = db.transaction("keys", "readwrite");
+        tx.objectStore("keys").delete("dpop");
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => {
+          db.close();
+          resolve();
+        };
+        tx.onabort = () => {
+          db.close();
+          resolve();
+        };
+      };
       request.onerror = () => resolve();
+      request.onblocked = () => resolve();
     });
   }
 }

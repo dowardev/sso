@@ -307,10 +307,37 @@ export class SSOClient {
   async logout(options?: { redirectUri?: string; openUrl?: OpenUrlHandler }): Promise<void> {
     this.stopAutoRefresh();
     await this.tokenStorage.removeRememberMe();
+    // Best-effort: refresh the access token before logging out. OAuth
+    // sessions never auto-refresh and the JWT TTL is short, so by logout
+    // time the access token is often expired: the server then answers 401
+    // and revokes nothing, leaving the SSO session alive (visible as an
+    // instant silent re-login on the next login attempt).
     try {
-      await this.internalPost("logout", {});
+      const refreshToken = await this.tokenStorage.getRefreshToken();
+      if (refreshToken) {
+        const response = await this.authService.refreshToken({ refreshToken });
+        // Credentials are persisted without resolving the user: the identity is
+        // dropped a few lines below, and handleAuthResponse would otherwise
+        // spend a GET user-auth round trip whose result is discarded.
+        await this.persistRefreshedTokens(response);
+      }
     } catch {
-      // ignore errors on logout — the SSO frontend logout page will handle server-side cleanup
+      // Continue with the current access token; local cleanup always runs.
+    }
+    try {
+      // Send the refresh token as well. The server revokes a refresh token that
+      // arrives in the body even when the bearer cannot be attributed to a user
+      // (an expired access token), which is exactly the case that used to leave
+      // a session alive. If the refresh above rotated it, this is the new value,
+      // so the rotated secret is the one revoked. Residual gap: if this request
+      // never reaches the server, that rotated token is orphaned server-side and
+      // the SSO logout page in the browser is the only second chance.
+      const refreshToken = await this.tokenStorage.getRefreshToken();
+      await this.internalPost("logout", refreshToken ? { refreshToken } : {});
+    } catch (error) {
+      // Never swallow silently: without this POST the server session
+      // survives. The SSO frontend logout page remains a second chance.
+      console.warn("[sso] logout request failed, continuing with local cleanup:", error);
     }
     await this.authService.logout();
     await this.tokenStorage.clear();
@@ -439,6 +466,16 @@ export class SSOClient {
     });
   }
 
+  private async persistRefreshedTokens(response: AuthResponse): Promise<void> {
+    if (response.token) {
+      await this.tokenStorage.setToken(response.token);
+      this.configService.setAccessToken(response.token);
+    }
+    if (response.refreshToken) {
+      await this.tokenStorage.setRefreshToken(response.refreshToken);
+    }
+  }
+
   private async handleRefreshFailed(): Promise<void> {
     this.currentUser = null;
     this._isAuthenticated = false;
@@ -480,9 +517,21 @@ export class SSOClient {
   private async internalPost<T>(url: string, data: object): Promise<T> {
     const accessToken = this.configService.getConfig().accessToken;
     const cleanToken = accessToken.replace(/^Bearer\s+/i, "");
-    const dpopProof = accessToken
-      ? await this.dpopService.createDpopProof("POST", this.getFullUrl(url), cleanToken)
-      : undefined;
+    // Only prove possession when there is a key pair to prove it with: asking
+    // for a proof before (or after) initialize() throws, which turned a legal
+    // request into a failure and a console warning on every logout.
+    let dpopProof: string | undefined;
+    if (accessToken && this.dpopService.getPublicKeyJwk()) {
+      try {
+        dpopProof = await this.dpopService.createDpopProof(
+          "POST",
+          this.getFullUrl(url),
+          cleanToken
+        );
+      } catch (dpopError) {
+        console.warn("[sso] continuing without a DPoP proof:", dpopError);
+      }
+    }
 
     const response = await axios.request<T>({
       url: this.getFullUrl(url),

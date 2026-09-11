@@ -4,6 +4,7 @@ import { IDBFactory } from "fake-indexeddb";
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { SSOClient } from "./SSOClient";
 import { loadProfileAtRest } from "../crypto/profileVault";
+import { TokenStorage } from "../storage/TokenStorage";
 import { bytesToBase64Url } from "../crypto/core";
 import type { UserProfile } from "../types/crypto";
 
@@ -164,7 +165,7 @@ describe("SSOClient advanced (ZKE) profile handling", () => {
   beforeEach(() => {
     // The real token endpoint rejects verifier-less exchanges (invalid_grant),
     // so seed the PKCE verifier the same way loginWithRedirect would.
-    sessionStorage.setItem(
+    localStorage.setItem(
       "@dowardev/sso-client:pkce:xyz",
       "test-verifier-for-xyz-state",
     );
@@ -392,5 +393,184 @@ describe("native logout", () => {
     await client.logout();
     const href = (window as unknown as { location: { href: string } }).location.href;
     expect(href).toContain("/auth/logout");
+  });
+});
+
+describe("logout refresh-before-logout", () => {
+  const NATIVE_URI = "com.example.app://auth/callback";
+
+  beforeEach(() => {
+    localStorage.setItem(
+      "@dowardev/sso-client:pkce:xyz",
+      "test-verifier-for-xyz-state",
+    );
+  });
+
+  async function loginWithStoredRefresh(): Promise<SSOClient> {
+    requestMock.mockImplementation(async (cfg: any) => {
+      const url = String(cfg?.url ?? "");
+      if (url.includes("oauth/token")) {
+        return {
+          data: {
+            token: "stale-access",
+            refresh_token: "stored-refresh",
+            user: SSO_USER_NULLS,
+          },
+        };
+      }
+      if (url.includes("user-auth")) {
+        return { data: SSO_USER_NULLS };
+      }
+      if (url.includes("refresh-token")) {
+        return {
+          data: {
+            token: "fresh-access",
+            refresh_token: "fresh-refresh",
+            user: SSO_USER_NULLS,
+          },
+        };
+      }
+      return { data: null };
+    });
+    const token = await signJws({ payload: TOKEN_CLAIMS("1"), privateKey: keys.privateKey });
+    const callbackUrl = `https://app.example.com/auth/callback?code=abc&state=xyz#profile=${buildFragment({ profile: { name: "Ada", user: "ada", email: "ada@example.com" }, token })}`;
+    const client = makeClient();
+    await client.handleCallback(callbackUrl);
+    // init() mirrors the real app boot: it initializes the DPoP keys so
+    // the authenticated refresh/logout POSTs can build proofs.
+    await client.init();
+    requestMock.mockClear();
+    return client;
+  }
+
+  function calledUrls(): string[] {
+    return requestMock.mock.calls.map((c: any) => String(c?.[0]?.url ?? ""));
+  }
+
+  it("refreshes the access token before POSTing logout", async () => {
+    const client = await loginWithStoredRefresh();
+    await client.logout({
+      redirectUri: NATIVE_URI,
+      openUrl: async () => {},
+    });
+    const urls = calledUrls();
+    const refreshIdx = urls.findIndex((u) => u.includes("refresh-token"));
+    const logoutIdx = urls.findIndex((u) => u.includes("/logout"));
+    expect(refreshIdx).toBeGreaterThanOrEqual(0);
+    expect(logoutIdx).toBeGreaterThan(refreshIdx);
+    // The refresh request carried the stored refresh token.
+    const refreshCall = requestMock.mock.calls[refreshIdx][0] as { data: unknown };
+    expect(JSON.stringify(refreshCall.data)).toContain("stored-refresh");
+    // The logout request carried the fresh bearer, so the server can
+    // attribute it and revoke sessions + refresh tokens.
+    const logoutCall = requestMock.mock.calls[logoutIdx][0] as { headers?: Record<string, string> };
+    expect(logoutCall.headers?.["Authorization"]).toBe("Bearer fresh-access");
+    // The rotated refresh token travels in the logout body: the server revokes
+    // it even when the bearer cannot be attributed to a user.
+    const logoutBody = JSON.stringify((requestMock.mock.calls[logoutIdx][0] as { data: unknown }).data);
+    expect(logoutBody).toContain("fresh-refresh");
+    // The identity is dropped right after, so the logout path must not spend a
+    // user-auth round trip resolving it.
+    expect(urls.some((u) => u.includes("user-auth"))).toBe(false);
+  });
+
+  it("logs out without a DPoP proof when no key pair was ever initialized", async () => {
+    const token = await signJws({ payload: TOKEN_CLAIMS("1"), privateKey: keys.privateKey });
+    const callbackUrl = `https://app.example.com/auth/callback?code=abc&state=xyz#profile=${buildFragment({
+      profile: { name: "Ada", user: "ada", email: "ada@example.com" },
+      token,
+    })}`;
+    const client = makeClient();
+    await client.handleCallback(callbackUrl);
+    // Deliberately no init(): this is the "logout right after a fresh boot (or
+    // after a previous logout)" path. Asking for a DPoP proof here used to
+    // throw and warn on a perfectly legal call.
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    requestMock.mockClear();
+
+    let opened = "";
+    await client.logout({
+      redirectUri: NATIVE_URI,
+      openUrl: async (params: { url: string }) => {
+        opened = params.url;
+      },
+    });
+
+    expect(calledUrls().some((u) => u.includes("/logout"))).toBe(true);
+    expect(warned).not.toHaveBeenCalled();
+    expect(opened).toContain("/auth/logout");
+    warned.mockRestore();
+  });
+
+  it("still logs out locally when the refresh fails", async () => {
+    const client = await loginWithStoredRefresh();
+    requestMock.mockImplementation(async (cfg: any) => {
+      const url = String(cfg?.url ?? "");
+      if (url.includes("refresh-token")) {
+        throw new Error("refresh expired");
+      }
+      return { data: null };
+    });
+    requestMock.mockClear();
+    let opened = "";
+    await client.logout({
+      redirectUri: NATIVE_URI,
+      openUrl: async (params: { url: string }) => {
+        opened = params.url;
+      },
+    });
+    // Falls back to the stale token for the logout POST, then always
+    // clears local state and opens the SSO logout page as second chance.
+    expect(opened).toContain("/auth/logout");
+    expect(client.isAuthenticated).toBe(false);
+  });
+});
+
+describe("PKCE persistence", () => {
+  it("stores the PKCE verifier in localStorage so it survives activity recreation", async () => {
+    const client = makeClient();
+    let opened = "";
+    await client.loginWithRedirect({
+      redirectUri: "com.example.app://auth/callback",
+      openUrl: async (params: { url: string }) => {
+        opened = params.url;
+      },
+    });
+    const state = new URL(opened).searchParams.get("state");
+    expect(state).toBeTruthy();
+    // sessionStorage dies with the WebView when the OS recreates the
+    // activity behind the external browser; localStorage survives.
+    expect(localStorage.getItem(`@dowardev/sso-client:pkce:${state}`)).toBeTruthy();
+    expect(sessionStorage.getItem(`@dowardev/sso-client:pkce:${state}`)).toBeNull();
+    expect(localStorage.getItem(`@dowardev/sso-client:pkce:${state}:redirect-uri`)).toBe(
+      "com.example.app://auth/callback",
+    );
+  });
+
+  it("sweeps the PKCE material of a login attempt that was abandoned", async () => {
+    const storage = new TokenStorage();
+    const staleKey = "@dowardev/sso-client:pkce:stale-state";
+    await storage.setPkceVerifier("stale-state", "stale-verifier");
+    await storage.setPkceRedirectUri("stale-state", "com.example.app://auth/callback");
+    // Backdate the attempt past the TTL: the browser tab closing used to be the
+    // cleanup, which localStorage does not give us.
+    localStorage.setItem(`${staleKey}:at`, String(Date.now() - 11 * 60 * 1000));
+
+    await storage.setPkceVerifier("fresh-state", "fresh-verifier");
+
+    expect(localStorage.getItem(staleKey)).toBeNull();
+    expect(localStorage.getItem(`${staleKey}:at`)).toBeNull();
+    expect(localStorage.getItem(`${staleKey}:redirect-uri`)).toBeNull();
+    expect(localStorage.getItem("@dowardev/sso-client:pkce:fresh-state")).toBe("fresh-verifier");
+  });
+
+  it("keeps a verifier written before the TTL keys existed", async () => {
+    const storage = new TokenStorage();
+    // An attempt started by an older version has no `:at` companion; it must
+    // still be usable so an in-flight upgrade does not break the login.
+    localStorage.setItem("@dowardev/sso-client:pkce:legacy-state", "legacy-verifier");
+
+    expect(await storage.getPkceVerifier("legacy-state")).toBe("legacy-verifier");
+    expect(localStorage.getItem("@dowardev/sso-client:pkce:legacy-state")).toBe("legacy-verifier");
   });
 });
