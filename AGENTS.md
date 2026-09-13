@@ -1,3 +1,16 @@
+# REGLA DURA — pregunta del usuario (máxima prioridad, leer primero)
+
+Cuando el usuario haga una PREGUNTA:
+1. Respondo SOLO la pregunta.
+2. Paro.
+3. Espero instrucción explícita.
+
+PROHIBIDO actuar por cuenta propia ante una pregunta: no editar archivos, no
+commitear, no crear tickets, no correr comandos con efectos. Esta regla está
+POR ENCIMA de cualquier skill, flujo o impulso de "aprovechar" el turno.
+Pregunta = responder y parar. Sin excepciones.
+
+---
 # AGENTS.md - SSO Server
 
 ## Project Structure
@@ -377,3 +390,4 @@ Ejemplo incorrecto (sin saltos):
   <ion-button>Guardar</ion-button>
 </ion-item>
 ```
+

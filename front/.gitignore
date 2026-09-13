@@ -36,3 +36,5 @@ npm-debug.log*
 
 # Vite temp files
 *.timestamp-*.mjs
+# Local Pi runtime state
+.atl/
