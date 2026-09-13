@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Login UX overhaul (LBDS-248)**:
+  - `front` — `AuthLoginForm.vue`: step 2 now shows an `ion-segment` method selector (`Contraseña | Passkey`) instead of always displaying the password field with a secondary passkey button. Each method has its own panel: password panel (field + submit), passkey panel (hint + primary button + master-password unlock as sub-state), and a fallback for accounts without passkeys.
+  - `front` — `AuthLoginForm.vue`: single vertical rhythm using project tokens (`--space-*`, `--radius-*`, `--glass-*`); `remember-me` row now mirrors `.input-item` glass box, aligned with fields; added `button` + explicit `@click` on the `ion-item` for full-row toggle.
+  - `front` — `AuthLoginForm.vue`: passkey hint shortened; master-password unlock rendered as a sub-state inside the passkey panel (with "Volver" returning to the passkey panel, not to password).
+  - `front` — `AuthLoginForm.vue`: eliminated all duplicated blocks (remember-me 3x → 1, submit 2x → 1 per method, error 3x → 1, secondary links 2x → 1 per state).
+  - `front` — `AuthCard.vue`: auth screens now render inside a glass surface (`--glass-bg`, `--glass-border`, `--radius-lg`) with tokenized padding/spacing and increased max-width (440px). This shell is shared by register, recovery, verify-email, OAuth authorization, and setup screens.
+
+### Added
+
+- `front` — `AuthLoginForm.vue`: `usePasswordMethod` computed to centralize the logic for which panel is active (password when selected OR when account has no passkeys).
+
+### Fixed
+
+- `front` — `AuthLoginForm.vue`: remember-me toggle now reliably responds to clicks anywhere on its row (explicit `@click` handler added alongside Ionic's `button` attribute).
+- `front` — `AuthLoginForm.vue`: master-password unlock no longer shows the remember-me toggle (the value was already consumed by the passkey ceremony).
+
 ## [0.34.3] - 2026-09-10
 
 ### Fixed

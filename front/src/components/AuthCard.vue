@@ -8,16 +8,10 @@
     <div class="auth-card-content">
       <slot name="header">
         <div class="auth-card-header">
-          <div
-            class="auth-logo-circle"
-            :class="{ 'auth-logo-circle--plain': logoUrl }"
-          >
+          <div class="auth-logo-circle" :class="{ 'auth-logo-circle--plain': logoUrl }">
             <img
               :src="logoUrl || lambdaLogo"
-              :class="[
-                'auth-logo',
-                logoUrl ? 'auth-logo--custom' : 'auth-logo--filtered',
-              ]"
+              :class="['auth-logo', logoUrl ? 'auth-logo--custom' : 'auth-logo--filtered']"
               alt="Logo SSO Server"
             />
           </div>
@@ -33,13 +27,13 @@
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
-import { onMounted } from 'vue'
-import { IonCard } from '@ionic/vue'
-import lambdaLogo from '@/assets/images/lambda_v1.svg'
+import { onMounted } from 'vue';
+import { IonCard } from '@ionic/vue';
+import lambdaLogo from '@/assets/images/lambda_v1.svg';
 
 // 2. Controllers / Composables
-import { useBranding } from '@/composables/useBranding'
-const { logoUrl, loadBranding } = useBranding()
+import { useBranding } from '@/composables/useBranding';
+const { logoUrl, loadBranding } = useBranding();
 
 // 3. Components
 
@@ -47,9 +41,9 @@ const { logoUrl, loadBranding } = useBranding()
 
 // 5. Main (props, emits, etc.)
 defineProps<{
-  title: string
-  subtitle: string
-}>()
+  title: string;
+  subtitle: string;
+}>();
 
 // 6. Vars and const
 
@@ -59,8 +53,8 @@ defineProps<{
 
 // 9. OnMounted
 onMounted(() => {
-  void loadBranding()
-})
+  void loadBranding();
+});
 
 // 10. Functions (named parameters pattern)
 </script>
@@ -73,7 +67,7 @@ onMounted(() => {
   justify-content: center;
   position: relative;
   overflow: hidden;
-  background: var(--ion-background-color, #0A0F1D);
+  background: var(--ion-background-color, #0a0f1d);
   padding: 24px;
 }
 
@@ -119,8 +113,13 @@ onMounted(() => {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: min(420px, 100%);
-  padding: clamp(24px, 5vw, 40px) clamp(16px, 4vw, 32px);
+  max-width: min(440px, 100%);
+  padding: clamp(28px, 6vw, 44px) clamp(20px, 5vw, 36px);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   animation: card-appear 0.6s ease both;
 }
 
@@ -148,7 +147,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 16px;
+  margin: 0 auto var(--space-4);
   box-shadow: 0 4px 20px rgba(var(--gradient-primary-rgb), 0.3);
 }
 
@@ -175,14 +174,16 @@ onMounted(() => {
 
 .auth-card-header h2 {
   font-family: var(--font-heading);
-  font-size: clamp(22px, 5vw, 24px);
+  font-size: clamp(22px, 5vw, 26px);
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
-  margin: 0 0 6px 0;
+  margin: 0 0 var(--space-2) 0;
 }
 
 .auth-card-header p {
   font-size: clamp(13px, 3vw, 14px);
+  line-height: 1.5;
   color: var(--text-tertiary);
   margin: 0;
 }

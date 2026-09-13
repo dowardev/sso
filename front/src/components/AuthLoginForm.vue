@@ -2,8 +2,14 @@
 <template>
   <AuthCard title="Bienvenido de nuevo" subtitle="Inicia sesión para acceder a tu cuenta">
     <!-- Step 1: identifier -->
-    <form v-if="step === 'identifier'" aria-label="Paso 1 de 2: identificación" @submit.prevent="handleContinue()">
-        <p class="sr-only" role="status">Paso 1 de 2: ingresa tu usuario</p>
+    <form
+      v-if="step === 'identifier'"
+      class="auth-form"
+      aria-label="Paso 1 de 2: identificación"
+      @submit.prevent="handleContinue()"
+    >
+      <p class="sr-only" role="status">Paso 1 de 2: ingresa tu usuario</p>
+
       <ion-item class="input-item" lines="none">
         <ion-input
           ref="identifierInput"
@@ -22,34 +28,80 @@
           @ion-blur="v$.identifier.$touch()"
         />
       </ion-item>
-      <div v-if="v$.identifier.$error" id="login-identifier-error" class="field-error">
+
+      <div v-if="v$.identifier.$error" id="login-identifier-error" class="auth-field-error">
         {{ v$.identifier.$errors[0].$message }}
       </div>
 
-      <div v-if="error" ref="loginError" tabindex="-1" class="error-message" role="alert" aria-live="assertive">
+      <div
+        v-if="error"
+        ref="loginError"
+        tabindex="-1"
+        class="auth-error"
+        role="alert"
+        aria-live="assertive"
+      >
         <ion-icon :icon="alertCircle" size="small"></ion-icon>
-        {{ error }}
+
+        <span>{{ error }}</span>
       </div>
 
-      <div class="ion-padding-top">
-        <ion-button
-          type="submit"
-          expand="block"
-          class="gradient-btn"
-          :disabled="loading"
-        >
-          <ion-spinner v-if="loading" name="lines"></ion-spinner>
-          <span v-else>Continuar</span>
-        </ion-button>
-      </div>
+      <ion-button type="submit" expand="block" class="auth-submit gradient-btn" :disabled="loading">
+        <ion-spinner v-if="loading" name="lines"></ion-spinner>
+
+        <span v-else>Continuar</span>
+      </ion-button>
     </form>
 
     <!-- Step 2: methods supported by the resolved account -->
-    <form v-else aria-label="Paso 2 de 2: autenticación" @submit.prevent="handleStep2Submit()">
-        <p v-if="!masterPasswordVisible" class="sr-only" role="status">Paso 2 de 2: ingresa tu contraseña</p>
-        <p v-else class="sr-only" role="status">Desbloquea tu perfil con tu contraseña maestra</p>
-      <!-- Password method (always available for a found account) -->
-      <ion-item v-if="!masterPasswordVisible" class="input-item" lines="none">
+    <form
+      v-else
+      class="auth-form"
+      aria-label="Paso 2 de 2: autenticación"
+      @submit.prevent="handleStep2Submit()"
+    >
+      <p v-if="!masterPasswordVisible && usePasswordMethod" class="sr-only" role="status">
+        Paso 2 de 2: ingresa tu contraseña
+      </p>
+
+      <p v-else-if="!masterPasswordVisible" class="sr-only" role="status">
+        Paso 2 de 2: autentica con passkey
+      </p>
+
+      <p v-else class="sr-only" role="status">Desbloquea tu perfil con tu contraseña maestra</p>
+
+      <!-- Method selector -->
+      <ion-segment
+        v-if="authMethods.has_passkeys && !masterPasswordVisible"
+        v-model="authMethod"
+        class="auth-methods"
+        aria-label="Método de inicio de sesión"
+      >
+        <ion-segment-button value="password" :aria-selected="authMethod === 'password'">
+          <ion-label>Contraseña</ion-label>
+        </ion-segment-button>
+
+        <ion-segment-button value="passkey" :aria-selected="authMethod === 'passkey'">
+          <ion-label>Passkey</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+
+      <!-- Error -->
+      <div
+        v-if="error"
+        ref="loginError"
+        tabindex="-1"
+        class="auth-error"
+        role="alert"
+        aria-live="assertive"
+      >
+        <ion-icon :icon="alertCircle" size="small"></ion-icon>
+
+        <span>{{ error }}</span>
+      </div>
+
+      <!-- Password method -->
+      <ion-item v-if="!masterPasswordVisible && usePasswordMethod" class="input-item" lines="none">
         <ion-input
           ref="passwordInput"
           v-model="credentials.password"
@@ -66,61 +118,26 @@
           <ion-input-password-toggle slot="end" />
         </ion-input>
       </ion-item>
-      <div v-if="v$.password.$error && !masterPasswordVisible" id="login-password-error" class="field-error">
+
+      <div
+        v-if="!masterPasswordVisible && usePasswordMethod && v$.password.$error"
+        id="login-password-error"
+        class="auth-field-error"
+      >
         {{ v$.password.$errors[0].$message }}
       </div>
 
-      <!-- Remember me toggle -->
-      <ion-item v-if="!masterPasswordVisible" class="input-item remember-item remember-compact" lines="none">
-        <ion-toggle
-          slot="start"
-          :checked="rememberMe"
-          color="primary"
-          aria-describedby="remember-toggle-desc"
-          @ion-change="rememberMe = $event.detail.checked"
-        />
-        <ion-label class="remember-label">Mantener sesión abierta</ion-label>
-      </ion-item>
-      <span v-if="!masterPasswordVisible" id="remember-toggle-desc" class="sr-only">Al activar esta opción, la sesión permanecerá abierta incluso después de cerrar el navegador</span>
+      <!-- Passkey method (initial state) -->
+      <p v-if="!masterPasswordVisible && !usePasswordMethod" class="auth-hint">
+        Usá tu huella, rostro o llave de seguridad.
+      </p>
 
-      <div v-if="error" ref="loginError" tabindex="-1" class="error-message" role="alert" aria-live="assertive">
-        <ion-icon :icon="alertCircle" size="small"></ion-icon>
-        {{ error }}
-      </div>
-
-      <div v-if="!masterPasswordVisible" class="ion-padding-top">
-        <ion-button
-          type="submit"
-          expand="block"
-          class="gradient-btn"
-          :disabled="loading || cryptoLoading"
-        >
-          <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
-          <span v-if="cryptoLoading">{{ cryptoLoadingMessage }}</span>
-          <span v-else-if="loading">Ingresando...</span>
-          <span v-else>Ingresar</span>
-        </ion-button>
-      </div>
-      <span role="status" aria-live="polite" class="sr-only">{{ loading || cryptoLoading ? 'Procesando tu ingreso…' : '' }}</span>
-
-      <!-- Passkey method (only when the account has passkeys enrolled) -->
-      <div v-if="authMethods.has_passkeys && !masterPasswordVisible" class="auth-secondary-action">
-        <ion-button
-          type="button"
-          expand="block"
-          fill="clear"
-          class="subtle passkey-secondary"
-          size="small"
-          :disabled="loading || cryptoLoading"
-          @click="handlePasskeyLogin()"
-        >
-          <ion-icon slot="start" :icon="keyOutline" aria-hidden="true"></ion-icon>
-          Iniciar con passkey
-        </ion-button>
-      </div>
-
-      <!-- Master-password fallback (advanced users, no PRF enrollment) -->
+      <!-- Master-password unlock (sub-state of the passkey method) -->
       <template v-if="masterPasswordVisible">
+        <p class="auth-hint">
+          Tu perfil está protegido. Ingresá tu contraseña maestra para desbloquearlo.
+        </p>
+
         <ion-item class="input-item" lines="none">
           <ion-input
             ref="masterPasswordInput"
@@ -131,52 +148,97 @@
             placeholder="Contraseña para desbloquear tu perfil"
             autocomplete="current-password"
             enterkeyhint="go"
-            :aria-invalid="(masterPasswordTouched && !masterPassword.trim()) ? true : undefined"
+            :aria-invalid="masterPasswordTouched && !masterPassword.trim() ? true : undefined"
             aria-describedby="master-password-error"
             @ion-blur="masterPasswordTouched = true"
           >
             <ion-input-password-toggle slot="end" />
           </ion-input>
         </ion-item>
-        <div v-if="masterPasswordTouched && !masterPassword.trim()" id="master-password-error" class="field-error">
+
+        <div
+          v-if="masterPasswordTouched && !masterPassword.trim()"
+          id="master-password-error"
+          class="auth-field-error"
+        >
           La contraseña maestra es requerida
-        </div>
-        <div class="ion-padding-top">
-          <ion-button
-            type="button"
-            expand="block"
-            class="gradient-btn"
-            :disabled="passkeyUnlocking"
-            @click="handleMasterPasswordUnlock()"
-          >
-            <ion-spinner v-if="passkeyUnlocking" name="lines"></ion-spinner>
-            <span v-else>Desbloquear</span>
-          </ion-button>
-        </div>
-        <div class="secondary-links">
-          <ion-button
-            fill="clear"
-            size="small"
-            class="subtle"
-            :disabled="passkeyUnlocking"
-            @click="cancelUnlock()"
-          >
-            Volver
-          </ion-button>
-          <ion-button
-            fill="clear"
-            size="small"
-            class="subtle"
-            :disabled="passkeyUnlocking"
-            @click="backToIdentifier()"
-          >
-            Usar otro usuario
-          </ion-button>
         </div>
       </template>
 
-      <!-- Secondary actions (single subtle row) -->
-      <div v-if="!masterPasswordVisible" class="secondary-links">
+      <!-- Remember me (single instance; hidden while unlocking — already honoured by the passkey ceremony) -->
+      <ion-item
+        v-if="!masterPasswordVisible"
+        class="auth-remember"
+        lines="none"
+        button
+        @click="rememberMe = !rememberMe"
+      >
+        <ion-toggle
+          slot="start"
+          :checked="rememberMe"
+          color="primary"
+          aria-describedby="remember-toggle-desc"
+          @ion-change="rememberMe = $event.detail.checked"
+        />
+        <ion-label class="auth-remember-label">Mantener sesión abierta</ion-label>
+      </ion-item>
+
+      <span v-if="!masterPasswordVisible" id="remember-toggle-desc" class="sr-only">
+        Al activar esta opción, la sesión permanecerá abierta incluso después de cerrar el navegador
+      </span>
+
+      <!-- Primary action -->
+      <ion-button
+        v-if="!masterPasswordVisible && usePasswordMethod"
+        type="submit"
+        expand="block"
+        class="auth-submit gradient-btn"
+        :disabled="loading || cryptoLoading"
+      >
+        <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
+
+        <span v-if="cryptoLoading">{{ cryptoLoadingMessage }}</span>
+
+        <span v-else-if="loading">Ingresando...</span>
+
+        <span v-else>Ingresar</span>
+      </ion-button>
+
+      <ion-button
+        v-else-if="!masterPasswordVisible"
+        type="button"
+        expand="block"
+        class="auth-submit gradient-btn"
+        :disabled="loading || cryptoLoading"
+        @click="handlePasskeyLogin()"
+      >
+        <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
+
+        <span v-else>
+          <ion-icon slot="start" :icon="keyOutline" aria-hidden="true"></ion-icon>
+          Iniciar con passkey
+        </span>
+      </ion-button>
+
+      <ion-button
+        v-else
+        type="button"
+        expand="block"
+        class="auth-submit gradient-btn"
+        :disabled="passkeyUnlocking"
+        @click="handleMasterPasswordUnlock()"
+      >
+        <ion-spinner v-if="passkeyUnlocking" name="lines"></ion-spinner>
+
+        <span v-else>Desbloquear</span>
+      </ion-button>
+
+      <span role="status" aria-live="polite" class="sr-only">
+        {{ loading || cryptoLoading ? 'Procesando tu ingreso…' : '' }}
+      </span>
+
+      <!-- Secondary links -->
+      <div v-if="!masterPasswordVisible" class="auth-links">
         <ion-button
           fill="clear"
           size="small"
@@ -186,11 +248,34 @@
         >
           ¿Olvidaste tu contraseña?
         </ion-button>
+
         <ion-button
           fill="clear"
           size="small"
           class="subtle"
           :disabled="loading || cryptoLoading"
+          @click="backToIdentifier()"
+        >
+          Usar otro usuario
+        </ion-button>
+      </div>
+
+      <div v-else class="auth-links">
+        <ion-button
+          fill="clear"
+          size="small"
+          class="subtle"
+          :disabled="passkeyUnlocking"
+          @click="cancelUnlock()"
+        >
+          Volver
+        </ion-button>
+
+        <ion-button
+          fill="clear"
+          size="small"
+          class="subtle"
+          :disabled="passkeyUnlocking"
           @click="backToIdentifier()"
         >
           Usar otro usuario
@@ -238,12 +323,10 @@ import {
   IonInputPasswordToggle,
   IonToggle,
   IonLabel,
+  IonSegment,
+  IonSegmentButton,
 } from '@ionic/vue';
-import {
-  arrowBack,
-  alertCircle,
-  keyOutline,
-} from 'ionicons/icons';
+import { arrowBack, alertCircle, keyOutline } from 'ionicons/icons';
 import useVuelidate from '@vuelidate/core';
 import { required } from '@vuelidate/validators';
 import { useValidation, withMsg } from '@/composables/useValidation';
@@ -316,6 +399,10 @@ const masterPasswordTouched = ref(false);
 const passkeyUnlocking = ref(false);
 const activeLoginId = ref('');
 
+// Step 2 method selector: 'password' | 'passkey'
+// Persisted in localStorage so the user's last choice is remembered.
+const authMethod = ref<'password' | 'passkey'>('password');
+
 // 7. Watch
 // (none)
 
@@ -326,6 +413,12 @@ const rules = computed(() => ({
 }));
 
 const v$ = useVuelidate(rules, credentials);
+
+// The password panel is the active method when the user picked it, or when
+// the account has no passkeys enrolled (segment hidden in that case).
+const usePasswordMethod = computed(
+  () => authMethod.value === 'password' || !authMethods.value.has_passkeys,
+);
 
 // 9. OnMounted
 onMounted(async () => {
@@ -363,8 +456,7 @@ onMounted(async () => {
           state: oauthParams.value.state,
           response_type: oauthParams.value.response_type || 'code',
           code_challenge: oauthParams.value.code_challenge || undefined,
-          code_challenge_method:
-            oauthParams.value.code_challenge_method || undefined,
+          code_challenge_method: oauthParams.value.code_challenge_method || undefined,
           code_verifier: oauthParams.value.code_verifier || undefined,
         });
 
@@ -532,8 +624,7 @@ const runPostLoginRedirect = async (): Promise<void> => {
       state: oauthParams.value.state,
       response_type: oauthParams.value.response_type || 'code',
       code_challenge: oauthParams.value.code_challenge || undefined,
-      code_challenge_method:
-        oauthParams.value.code_challenge_method || undefined,
+      code_challenge_method: oauthParams.value.code_challenge_method || undefined,
       code_verifier: oauthParams.value.code_verifier || undefined,
     });
 
@@ -593,9 +684,7 @@ const handlePasskeyLogin = async (): Promise<void> => {
           ? undefined
           : credentials.value.identifier.trim(),
       login_id:
-        authMethods.value.encryption_level === 'advanced'
-          ? resolvedLoginId.value
-          : undefined,
+        authMethods.value.encryption_level === 'advanced' ? resolvedLoginId.value : undefined,
     });
 
     if (result.profile) {
@@ -738,63 +827,93 @@ const goToRecovery = (): void => {
 </script>
 
 <style scoped>
-.error-message {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--ion-color-danger);
-  font-size: 13px;
-  padding: 8px 0;
-}
-
-.auth-card-footer {
-  margin-top: 8px;
+/* Vertical rhythm owned by the form: every direct child is one block. */
+.auth-form {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
+  gap: var(--space-5);
 }
 
-.remember-item {
-  --background: transparent;
-  --padding-start: 0;
-  --inner-padding-end: 0;
-  margin-top: 4px;
+/* The global .input-item carries its own margin-bottom; inside the form the
+       flex gap owns the spacing, so neutralize it to avoid double gaps. */
+.auth-form .input-item {
+  margin-bottom: 0;
 }
 
-.remember-label {
-  font-size: 13px;
+/* Method selector sits slightly closer to the first field below it. */
+.auth-methods {
+  margin-bottom: calc(var(--space-2) * -1);
+}
+
+.auth-hint {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-md, 14px);
+  line-height: 1.5;
   color: var(--text-tertiary);
 }
 
-.auth-secondary-action {
+/* Field-level validation message: hugs the field it belongs to. */
+.auth-field-error {
+  margin-top: calc(var(--space-3) * -1);
+  padding-left: var(--space-4);
+  color: var(--ion-color-danger);
+  font-size: var(--text-sm, 12px);
+}
+
+/* Form-level error: a contained banner instead of loose red text. */
+.auth-error {
   display: flex;
-  justify-content: center;
-  margin-top: 2px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid rgba(var(--ion-color-danger-rgb), 0.35);
+  border-radius: var(--radius-md);
+  background: rgba(var(--ion-color-danger-rgb), 0.1);
+  color: var(--ion-color-danger);
+  font-size: var(--text-sm, 13px);
+  line-height: 1.4;
 }
 
-.passkey-secondary {
-  font-size: 13px;
-  height: 36px;
+/* Mirrors the .input-item box so the toggle aligns with the fields above */
+.auth-remember {
+  --background: var(--glass-bg);
+  --padding-start: var(--space-4);
+  --padding-end: var(--space-4);
+  --inner-padding-end: var(--space-4);
+  --min-height: 52px;
+  margin-bottom: 0;
+  border: 1.5px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
-.secondary-links {
+.auth-remember-label {
+  font-size: var(--text-md, 13px);
+  color: var(--text-secondary);
+}
+
+.auth-submit {
+  --border-radius: var(--radius-md);
+  margin: 0;
+  font-weight: 600;
+}
+
+.auth-links {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0 4px;
-  margin-top: 10px;
+  gap: 0 var(--space-2);
+  margin-top: calc(var(--space-3) * -1);
 }
 
-.remember-compact {
-  margin-top: 2px;
-  min-height: 40px;
-}
-
-@media (max-width: 374px) {
-  .auth-card-footer {
-    gap: 2px;
-  }
+.auth-card-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
 }
 </style>
