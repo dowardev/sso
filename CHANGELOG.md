@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.4] - 2026-09-16
+
 ### Fixed
 
 - **Setup wizard unreachable with stale auth token after DB reset (LBDS-265)**:
@@ -31,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `front` — `AuthLoginForm.vue`: remember-me toggle now reliably responds to clicks anywhere on its row (explicit `@click` handler added alongside Ionic's `button` attribute).
 - `front` — `AuthLoginForm.vue`: master-password unlock no longer shows the remember-me toggle (the value was already consumed by the passkey ceremony).
+- **Login form and setup guard hardening (pre-release review of v0.34.4)**:
+  - `front` — `AuthLoginForm.vue`: `Enter` in step 2 now follows the active method (password → password login, passkey → passkey ceremony, master-password unlock → unlock) instead of always firing the password flow.
+  - `front` — `AuthLoginForm.vue`: method selector now uses `:value` + `@ionChange` (repo pattern) and persists the choice in `localStorage` (`sso_login_method`); focus after step 1 and after cancel-unlock follows the active method.
+  - `front` — `AuthLoginForm.vue`: remember-me toggle no longer double-flips when clicking the toggle itself (`@click.stop`); "Usar otro usuario" resets the method to the persisted preference; removed manual `aria-selected` from segment buttons.
+  - `front` — `router/index.ts`: setup guard re-queries `GET /api/setup/status` on every visit to `/` or `/login` (in-flight dedup only) and clears the stale `localStorage` `setup_completed` claim when setup is incomplete, so a mid-session DB wipe still redirects to `/setup`.
+  - `front` — `AuthCard.vue`: glass CSS variables now have safe fallbacks and `max-width` is exposed as a prop (default `min(440px, 100%)`).
 
 ## [0.34.3] - 2026-09-10
 
