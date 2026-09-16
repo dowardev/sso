@@ -73,15 +73,16 @@
       <!-- Method selector -->
       <ion-segment
         v-if="authMethods.has_passkeys && !masterPasswordVisible"
-        v-model="authMethod"
+        :value="authMethod"
         class="auth-methods"
         aria-label="Método de inicio de sesión"
+        @ion-change="handleAuthMethodChange({ event: $event })"
       >
-        <ion-segment-button value="password" :aria-selected="authMethod === 'password'">
+        <ion-segment-button value="password">
           <ion-label>Contraseña</ion-label>
         </ion-segment-button>
 
-        <ion-segment-button value="passkey" :aria-selected="authMethod === 'passkey'">
+        <ion-segment-button value="passkey">
           <ion-label>Passkey</ion-label>
         </ion-segment-button>
       </ion-segment>
@@ -178,6 +179,7 @@
           :checked="rememberMe"
           color="primary"
           aria-describedby="remember-toggle-desc"
+          @click.stop
           @ion-change="rememberMe = $event.detail.checked"
         />
         <ion-label class="auth-remember-label">Mantener sesión abierta</ion-label>
@@ -206,6 +208,7 @@
 
       <ion-button
         v-else-if="!masterPasswordVisible"
+        ref="passkeyButton"
         type="button"
         expand="block"
         class="auth-submit gradient-btn"
@@ -399,9 +402,18 @@ const masterPasswordTouched = ref(false);
 const passkeyUnlocking = ref(false);
 const activeLoginId = ref('');
 
-// Step 2 method selector: 'password' | 'passkey'
-// Persisted in localStorage so the user's last choice is remembered.
-const authMethod = ref<'password' | 'passkey'>('password');
+// Step 2 method selector: 'password' | 'passkey'. The last choice is
+// persisted in localStorage so it survives reloads and account switches.
+const AUTH_METHOD_STORAGE_KEY = 'sso_login_method';
+const getPersistedAuthMethod = (): 'password' | 'passkey' => {
+  try {
+    return localStorage.getItem(AUTH_METHOD_STORAGE_KEY) === 'passkey' ? 'passkey' : 'password';
+  } catch {
+    return 'password';
+  }
+};
+const authMethod = ref<'password' | 'passkey'>(getPersistedAuthMethod());
+const passkeyButton = ref<{ $el?: HTMLElement } | null>(null);
 
 // 7. Watch
 // (none)
@@ -511,6 +523,24 @@ const handleOAuthResponse = async (params: {
   return true;
 };
 
+const focusPasskeyButton = (): void => {
+  passkeyButton.value?.$el?.focus();
+};
+
+// IonSegment does not support v-model: sync the exposed :value through the
+// ionChange event (repo pattern, see ProfilePage) and persist the choice.
+const handleAuthMethodChange = (params: { event: CustomEvent }): void => {
+  const { event } = params;
+  const value = (event.detail as { value?: string } | undefined)?.value;
+  if (value !== 'password' && value !== 'passkey') return;
+  authMethod.value = value;
+  try {
+    localStorage.setItem(AUTH_METHOD_STORAGE_KEY, value);
+  } catch {
+    // Persistence is best-effort (private mode); the in-memory choice stands.
+  }
+};
+
 // Step 1: resolve the identifier and discover the supported auth methods.
 const handleContinue = async (): Promise<void> => {
   if (loading.value) return;
@@ -547,7 +577,13 @@ const handleContinue = async (): Promise<void> => {
 
     step.value = 'methods';
     await nextTick();
-    await passwordInput.value?.setFocus?.();
+    // Focus follows the active method: the password input is not mounted
+    // when passkey is active, so focus the passkey CTA instead.
+    if (usePasswordMethod.value) {
+      await passwordInput.value?.setFocus?.();
+    } else {
+      focusPasskeyButton();
+    }
   } catch (err) {
     // Step 1 stays enumeration-safe: every lookup failure shows the same
     // message instead of leaking the server error detail.
@@ -570,19 +606,27 @@ const backToIdentifier = async (): Promise<void> => {
   masterPasswordVisible.value = false;
   masterPasswordTouched.value = false;
   activeLoginId.value = '';
+  // Reset the method so the choice does not leak into the next account;
+  // the persisted preference (if any) is restored instead of 'password'.
+  authMethod.value = getPersistedAuthMethod();
   v$.value.$reset();
   await nextTick();
   await identifierInput.value?.setFocus?.();
 };
 
-// Step 2 submit router: unlock mode has no visible password CTA, so Enter
-// inside the master-password input must unlock instead of password-login.
+// Step 2 submit router: Enter inside the form follows the active method.
+// Unlock mode keeps the master-password unlock; passkey mode starts the
+// passkey ceremony (the passkey CTA is type="button" so it needs this).
 const handleStep2Submit = async (): Promise<void> => {
   if (masterPasswordVisible.value) {
     await handleMasterPasswordUnlock();
     return;
   }
-  await handlePasswordLogin();
+  if (usePasswordMethod.value) {
+    await handlePasswordLogin();
+    return;
+  }
+  await handlePasskeyLogin();
 };
 
 // Leave unlock mode keeping the resolved account (step 2 stays mounted).
@@ -593,7 +637,12 @@ const cancelUnlock = async (): Promise<void> => {
   activeLoginId.value = '';
   error.value = '';
   await nextTick();
-  await passwordInput.value?.setFocus?.();
+  // The password input is not mounted when passkey is active.
+  if (usePasswordMethod.value) {
+    await passwordInput.value?.setFocus?.();
+  } else {
+    focusPasskeyButton();
+  }
 };
 
 // Step 2 (password method): route to the basic or advanced flow according to
