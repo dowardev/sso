@@ -162,18 +162,19 @@ const router = createRouter({
   routes,
 });
 
-// Session-memory cache for the setup check (LBDS-265). It avoids repeating
-// GET /setup/status on every visit to / or /login within the same page load.
-// Deliberately NOT persisted: after a DB reset the stored token may be stale
-// while localStorage still claims setup is done, so the source of truth must
-// be re-queried on every cold start. Reset whenever the session is lost so a
-// mid-session wipe still redirects to /setup on the next guard run.
+// Setup-check state (LBDS-265). GET /setup/status is re-queried on every
+// visit to / or /login: after a DB reset the stored token may be stale while
+// an old confirmation (or localStorage) still claims setup is done, so no
+// confirmation is cached across navigations — only the in-flight request is
+// shared to dedup concurrent guard runs.
 let setupCompletedConfirmed = false;
 let setupStatusRequest: Promise<boolean> | null = null;
 
-// Single in-flight GET /setup/status shared by concurrent guard runs (LBDS-265,
-// F4). Records the confirmation in session memory so repeat visits to / or
-// /login within the same page load skip the round-trip.
+// Single in-flight GET /setup/status shared by concurrent guard runs (LBDS-265).
+// It only dedups concurrent guard executions: the confirmation is NOT cached
+// across navigations, because a stored token may be stale (DB reset, revoked
+// session) while an old confirmation is still in memory. Every visit to / or
+// /login re-queries, so a mid-session wipe still redirects to /setup.
 async function fetchSetupCompleted(): Promise<boolean> {
     if (!setupStatusRequest) {
         const { api } = await import('@/services/api');
@@ -183,6 +184,10 @@ async function fetchSetupCompleted(): Promise<boolean> {
                 if (status.setup_completed) {
                     localStorage.setItem('setup_completed', 'true');
                     setupCompletedConfirmed = true;
+                } else {
+                    // Drop the stale claim so a wiped DB never looks done.
+                    localStorage.removeItem('setup_completed');
+                    setupCompletedConfirmed = false;
                 }
                 return status.setup_completed;
             })
@@ -215,9 +220,9 @@ router.beforeEach(async (to, from, next) => {
     }
 
     if (to.path === '/login' || to.path === '/') {
-        if (!authStore.isAuthenticated) {
-            setupCompletedConfirmed = false;
-        }
+        // Always re-query: a stored token may be stale while an old
+        // confirmation survives in memory, skipping the /setup redirect.
+        setupCompletedConfirmed = false;
         if (!setupCompletedConfirmed) {
             try {
                 if (!(await fetchSetupCompleted())) {

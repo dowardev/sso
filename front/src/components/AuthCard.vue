@@ -5,7 +5,7 @@
     <div class="blob blob-2" aria-hidden="true"></div>
     <div class="blob blob-3" aria-hidden="true"></div>
 
-    <div class="auth-card-content">
+    <div class="auth-card-content" :style="{ maxWidth: props.maxWidth }">
       <slot name="header">
         <div class="auth-card-header">
           <div class="auth-logo-circle" :class="{ 'auth-logo-circle--plain': logoUrl }">
@@ -40,10 +40,16 @@ const { logoUrl, loadBranding } = useBranding();
 // 4. Interface and types imports
 
 // 5. Main (props, emits, etc.)
-defineProps<{
-  title: string;
-  subtitle: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    title: string;
+    subtitle: string;
+    maxWidth?: string;
+  }>(),
+  {
+    maxWidth: 'min(440px, 100%)',
+  },
+);
 
 // 6. Vars and const
 
@@ -115,11 +121,11 @@ onMounted(() => {
   width: 100%;
   max-width: min(440px, 100%);
   padding: clamp(28px, 6vw, 44px) clamp(20px, 5vw, 36px);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: var(--glass-bg, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
   border-radius: var(--radius-lg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur, blur(24px));
+  -webkit-backdrop-filter: var(--glass-blur, blur(24px));
   animation: card-appear 0.6s ease both;
 }
 
