@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Setup wizard unreachable with stale auth token after DB reset (LBDS-265)**:
+  - `front` — `router/index.ts`: the navigation guard on `/` and `/login` now checks `GET /api/setup/status` before the authenticated branch — a non-expired JWT from before `migrate:fresh --seed` no longer blocks the redirect to `/setup`. An in-session confirmation flag and a shared in-flight promise dedupe repeat status calls within the same page load (no valid localStorage shortcut).
+
 ### Changed
 
 - **Login UX overhaul (LBDS-248)**:
