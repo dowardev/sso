@@ -162,6 +162,37 @@ const router = createRouter({
   routes,
 });
 
+// Session-memory cache for the setup check (LBDS-265). It avoids repeating
+// GET /setup/status on every visit to / or /login within the same page load.
+// Deliberately NOT persisted: after a DB reset the stored token may be stale
+// while localStorage still claims setup is done, so the source of truth must
+// be re-queried on every cold start. Reset whenever the session is lost so a
+// mid-session wipe still redirects to /setup on the next guard run.
+let setupCompletedConfirmed = false;
+let setupStatusRequest: Promise<boolean> | null = null;
+
+// Single in-flight GET /setup/status shared by concurrent guard runs (LBDS-265,
+// F4). Records the confirmation in session memory so repeat visits to / or
+// /login within the same page load skip the round-trip.
+async function fetchSetupCompleted(): Promise<boolean> {
+    if (!setupStatusRequest) {
+        const { api } = await import('@/services/api');
+        setupStatusRequest = api
+            .get<{ setup_completed: boolean }>({ endpoint: '/setup/status' })
+            .then((status) => {
+                if (status.setup_completed) {
+                    localStorage.setItem('setup_completed', 'true');
+                    setupCompletedConfirmed = true;
+                }
+                return status.setup_completed;
+            })
+            .finally(() => {
+                setupStatusRequest = null;
+            });
+    }
+    return setupStatusRequest;
+}
+
 router.beforeEach(async (to, from, next) => {
     const authStore = useAuthStore();
     await authStore.init();
@@ -183,41 +214,40 @@ router.beforeEach(async (to, from, next) => {
         return;
     }
 
-    if (
-        (to.path === '/login' || to.path === '/') &&
-        authStore.isAuthenticated
-    ) {
-        let user = authStore.user;
-        if (user && (!user.roles || user.roles.length === 0)) {
+    if (to.path === '/login' || to.path === '/') {
+        if (!authStore.isAuthenticated) {
+            setupCompletedConfirmed = false;
+        }
+        if (!setupCompletedConfirmed) {
             try {
-                await authStore.getUser();
-                user = authStore.user;
+                if (!(await fetchSetupCompleted())) {
+                    next('/setup');
+                    return;
+                }
             } catch {
-                next('/login');
+                next();
                 return;
             }
         }
-        if (user && user.roles && user.roles.some((role: { slug: string }) => role.slug === 'admin')) {
-            next('/admin/dashboard');
-        } else {
-            next('/account');
-        }
-        return;
-    }
-
-    if (to.path === '/login' || to.path === '/') {
-        try {
-            const { api } = await import('@/services/api');
-            const status = await api.get<{ setup_completed: boolean }>({ endpoint: '/setup/status' });
-            if (!status.setup_completed) {
-                next('/setup');
-            } else {
-                localStorage.setItem('setup_completed', 'true');
-                next();
+        if (authStore.isAuthenticated) {
+            let user = authStore.user;
+            if (user && (!user.roles || user.roles.length === 0)) {
+                try {
+                    await authStore.getUser();
+                    user = authStore.user;
+                } catch {
+                    next('/login');
+                    return;
+                }
             }
-        } catch {
-            next();
+            if (user && user.roles && user.roles.some((role: { slug: string }) => role.slug === 'admin')) {
+                next('/admin/dashboard');
+            } else {
+                next('/account');
+            }
+            return;
         }
+        next();
         return;
     }
 
