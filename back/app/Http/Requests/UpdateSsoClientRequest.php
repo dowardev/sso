@@ -37,6 +37,13 @@ class UpdateSsoClientRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            if ($this->requiresRedirectUrl() && ! $this->effectiveRedirectUrl()) {
+                $validator->errors()->add(
+                    'redirect_url',
+                    'El redirect_url es obligatorio para clientes con authorization_code: el SSO lo usa para validar el callback.'
+                );
+            }
+
             $redirectUrl = $this->input('redirect_url');
             if ($redirectUrl && ! $this->isRedirectUrlAllowed($redirectUrl)) {
                 $validator->errors()->add(
@@ -45,6 +52,36 @@ class UpdateSsoClientRequest extends FormRequest
                 );
             }
         });
+    }
+
+    private function requiresRedirectUrl(): bool
+    {
+        $grantTypes = $this->input('grant_types');
+
+        if (! is_array($grantTypes)) {
+            $client = $this->route('client');
+            $grantTypes = $client instanceof SsoClient ? ($client->grant_types ?? []) : [];
+        }
+
+        return in_array('authorization_code', $grantTypes, true);
+    }
+
+    /**
+     * The redirect_url the client would end up with: the submitted value when the
+     * request carries the key (even as null, which clears it), the stored one
+     * otherwise.
+     */
+    private function effectiveRedirectUrl(): ?string
+    {
+        if ($this->has('redirect_url')) {
+            $value = $this->input('redirect_url');
+
+            return is_string($value) && $value !== '' ? $value : null;
+        }
+
+        $client = $this->route('client');
+
+        return $client instanceof SsoClient ? $client->redirect_url : null;
     }
 
     private function isRedirectUrlAllowed(string $url): bool

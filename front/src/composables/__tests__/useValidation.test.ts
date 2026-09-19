@@ -156,6 +156,26 @@ describe('userFriendlyErrors catalog', () => {
     expect(showErrorMock).toHaveBeenCalledWith({ message: result })
   })
 
+  it('maps the allowed_origins mismatch to its own copy', () => {
+    // El mensaje real lo fija el backend: su test verifica que contenga
+    // 'redirect_uri' y 'allowed_origins'. Acá se prueba el matching del catálogo
+    // sin volver a copiar el literal completo (evita drift silencioso).
+    const message = 'redirect_uri fuera de allowed_origins'
+
+    expect(getFriendlyMessage({ message, locale: 'es' })).toBe(
+      'La aplicación no está bien configurada para iniciar sesión. Avisá al administrador del SSO.',
+    )
+    expect(getFriendlyMessage({ message, locale: 'en' })).toBe(
+      'The application is misconfigured for sign-in. Please contact the SSO administrator.',
+    )
+  })
+
+  it('does not map an allowed_origins field validation error to the app-config copy', () => {
+    expect(getFriendlyMessage({ message: 'The allowed_origins.0 field must be a valid URL.', locale: 'es' })).toBe(
+      'Ocurrió un error inesperado. Inténtalo de nuevo.',
+    )
+  })
+
 describe('useValidation handleApiError', () => {
   it('turns errors{} into friendly messages and notifies friendly text only', () => {
     const err = Object.assign(new Error('Error de validación'), {

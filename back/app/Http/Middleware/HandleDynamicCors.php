@@ -4,10 +4,10 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\SsoClient;
+use App\Support\CorsOrigins;
+use App\Support\OriginNormalizer;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 class HandleDynamicCors
@@ -21,15 +21,18 @@ class HandleDynamicCors
         }
 
         $allowedOrigins = $this->getAllowedOrigins($request);
-        $normalizedOrigin = $this->normalizeOrigin($origin);
-        $normalizedAllowedOrigins = array_map(
-            [$this, 'normalizeOrigin'],
-            $allowedOrigins
-        );
 
-        if (! in_array($normalizedOrigin, $normalizedAllowedOrigins, true)) {
-            $response = $next($request);
+        if (! OriginNormalizer::matches($origin, $allowedOrigins)) {
+            // A rejected preflight is still answered as a preflight: 204 with the
+            // diagnostic headers and no Access-Control-Allow-Origin, so the
+            // browser still blocks it. Delegating it to $next() would surface a
+            // 405 and bury the diagnostic behind an unrelated error.
+            $response = $request->isMethod('OPTIONS')
+                ? response('', 204)
+                : $next($request);
+
             $this->addVaryOrigin($response);
+            $this->addCorsRejectionDiagnostics($response, $origin, $allowedOrigins, $this->getClientIdFromRequest($request));
 
             return $response;
         }
@@ -43,35 +46,23 @@ class HandleDynamicCors
         return $this->addCorsHeaders($response, $origin);
     }
 
+    private function addCorsRejectionDiagnostics(Response $response, string $origin, array $allowedOrigins, ?string $clientId): void
+    {
+        $response->headers->set('X-CORS-Rejected', 'origin-not-allowed');
+        $response->headers->set('X-CORS-Origin', $origin);
+
+        // The allowlist is only published when it belongs to the client named in
+        // this request. Without a resolvable client_id it would be the union of
+        // every active client's origins, which is not this caller's business.
+        if ($clientId) {
+            $response->headers->set('X-CORS-Client', $clientId);
+            $response->headers->set('X-CORS-Allowed', implode(',', $allowedOrigins));
+        }
+    }
+
     private function getAllowedOrigins(Request $request): array
     {
-        $clientId = $this->getClientIdFromRequest($request);
-
-        $cacheKey = 'sso_cors_origins_'.($clientId ?? '__sso__');
-
-        $origins = Cache::remember($cacheKey, 30, function () use ($clientId) {
-            $query = SsoClient::where('active', true)->whereNotNull('allowed_origins');
-
-            if ($clientId) {
-                $query->where('client_id', $clientId);
-            }
-
-            $clients = $query->get(['allowed_origins']);
-
-            $origins = [];
-            foreach ($clients as $client) {
-                $origins = array_merge($origins, $client->allowed_origins ?? []);
-            }
-
-            return array_unique($origins);
-        });
-
-        $ssoOrigin = config('app.frontend_url') ?? config('app.url');
-        if ($ssoOrigin) {
-            $origins[] = $ssoOrigin;
-        }
-
-        return $origins;
+        return CorsOrigins::forClient($this->getClientIdFromRequest($request));
     }
 
     private function getClientIdFromRequest(Request $request): ?string
@@ -130,24 +121,5 @@ class HandleDynamicCors
         } else {
             $response->headers->set('Vary', 'Origin');
         }
-    }
-
-    private function normalizeOrigin(string $origin): string
-    {
-        $parsed = parse_url($origin);
-        $scheme = strtolower($parsed['scheme'] ?? 'http');
-        $host = strtolower($parsed['host'] ?? '');
-        $port = $parsed['port'] ?? null;
-
-        if (($scheme === 'https' && $port === 443) || ($scheme === 'http' && $port === 80)) {
-            $port = null;
-        }
-
-        $normalized = "{$scheme}://{$host}";
-        if ($port) {
-            $normalized .= ":{$port}";
-        }
-
-        return $normalized;
     }
 }

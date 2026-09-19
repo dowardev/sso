@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **OAuth sign-in no longer leaves you half logged in (LBDS-261)**: when an app's callback origin was not registered among its allowed origins, the SSO logged you in, sent you back to the app, and the app then failed silently to finish signing you in — you stayed logged into the SSO but not into the app, with nothing explaining why. The SSO now detects that mismatch before sending you back and reports it clearly, and the browser-side rejection names the origin that is missing.
+
 ## [0.34.4] - 2026-09-16
 
 ### Fixed
