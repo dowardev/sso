@@ -78,6 +78,16 @@ export const friendlyErrorCatalog: FriendlyErrorEntry[] = [
     en: 'The redirect URL is not allowed.',
   },
   {
+    // Client-side config mismatch: redirect_uri outside allowed_origins. The
+    // browser would block the token exchange, so the flow is stopped up front.
+    // requireAll keeps this from swallowing admin field-validation errors
+    // about allowed_origins alone.
+    match: 'allowed_origins',
+    requireAll: ['redirect_uri'],
+    es: 'La aplicación no está bien configurada para iniciar sesión. Avisá al administrador del SSO.',
+    en: 'The application is misconfigured for sign-in. Please contact the SSO administrator.',
+  },
+  {
     match: 'debe contener',
     requireAll: ['mayus'],
     es: 'La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.',

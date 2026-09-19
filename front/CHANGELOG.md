@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Friendly copy for the CORS origin-mismatch rejection (LBDS-261)**: the friendly-error catalog now maps the backend's `redirect_uri`/`allowed_origins` mismatch to its own ES/EN message, so a misconfigured OAuth client shows "La aplicación no está bien configurada para iniciar sesión" instead of the generic "Ocurrió un error inesperado". The match requires both tokens (`allowed_origins` and `redirect_uri`) so it never swallows a plain field-validation error for the `allowed_origins` form field.
+
 ## [0.24.4] - 2026-09-10
 
 ### Fixed

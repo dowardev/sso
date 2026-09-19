@@ -13,6 +13,8 @@ use App\Models\SsoClient;
 use App\Models\UserActivityLog;
 use App\Services\ActivityLogService;
 use App\Services\OAuth2Service;
+use App\Support\CorsOrigins;
+use App\Support\OriginNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -38,13 +40,27 @@ class OAuth2Controller extends Controller
             ], 403);
         }
 
-        if ($client->redirect_url && $request->redirect_uri !== $client->redirect_url) {
+        if (! $client->redirect_url) {
+            return response()->json([
+                'message' => "El cliente '{$client->client_id}' no tiene redirect_url configurada, así que el SSO no puede validar el callback.",
+            ], 400);
+        }
+
+        if ($request->redirect_uri !== $client->redirect_url) {
             return response()->json([
                 'message' => 'redirect_uri no permitida',
             ], 400);
         }
 
-        if ($client->redirect_url && $this->isSslRequiredViolation($client->redirect_url)) {
+        $originMismatch = $this->describeRedirectOriginMismatch($client, $request->redirect_uri);
+
+        if ($originMismatch !== null) {
+            return response()->json([
+                'message' => $originMismatch,
+            ], 400);
+        }
+
+        if ($this->isSslRequiredViolation($client->redirect_url)) {
             return response()->json([
                 'message' => 'El redirect_url del cliente debe usar HTTPS cuando la opción de requerir SSL está activa',
             ], 400);
@@ -108,9 +124,23 @@ class OAuth2Controller extends Controller
             ], 404);
         }
 
-        if ($client->redirect_url && $request->redirect_uri !== $client->redirect_url) {
+        if (! $client->redirect_url) {
+            return response()->json([
+                'message' => "El cliente '{$client->client_id}' no tiene redirect_url configurada, así que el SSO no puede validar el callback.",
+            ], 400);
+        }
+
+        if ($request->redirect_uri !== $client->redirect_url) {
             return response()->json([
                 'message' => 'redirect_uri no permitida',
+            ], 400);
+        }
+
+        $originMismatch = $this->describeRedirectOriginMismatch($client, $request->redirect_uri);
+
+        if ($originMismatch !== null) {
+            return response()->json([
+                'message' => $originMismatch,
             ], 400);
         }
 
@@ -351,6 +381,76 @@ class OAuth2Controller extends Controller
         }
 
         return response()->json($result);
+    }
+
+    /**
+     * Detect a client whose redirect_uri origin is missing from its own
+     * allowed_origins list. Without this check the flow emits a code, the
+     * browser follows the redirect, and the app's token request is then
+     * blocked by CORS — the user ends up logged into the SSO but not into the
+     * app, with nothing explaining why.
+     */
+    private function describeRedirectOriginMismatch(SsoClient $client, ?string $redirectUri): ?string
+    {
+        // A client holding a secret may exchange the code server-to-server, where
+        // CORS never applies: allowed_origins is the API caller allowlist and says
+        // nothing about the redirect host. Only public clients are expected to run
+        // the exchange from the browser, which is when this check has real meaning.
+        //
+        // Known limit, accepted on purpose: this is an inference, not a certainty.
+        // A public client that relays the exchange from its own backend is still
+        // rejected here, and a confidential client exchanging in the browser skips
+        // the check (to be blocked later by CORS at token time). The false positive
+        // is preferred: it surfaces as a visible 400 the developer can fix in a
+        // minute, whereas dropping the check brings back the silent
+        // half-logged-in user this validation exists to prevent.
+        if ($this->isConfidentialClient($client)) {
+            return null;
+        }
+
+        $allowedOrigins = $this->effectiveCorsOrigins($client);
+
+        if (empty($allowedOrigins) || ! $redirectUri) {
+            return null;
+        }
+
+        if (OriginNormalizer::matches($redirectUri, $allowedOrigins)) {
+            return null;
+        }
+
+        $redirectOrigin = OriginNormalizer::normalize($redirectUri);
+
+        // Native apps redirect through a custom scheme and never hit CORS.
+        if ($redirectOrigin === null) {
+            return null;
+        }
+
+        $allowed = implode(', ', OriginNormalizer::normalizeAll($allowedOrigins));
+
+        return "El redirect_uri del cliente '{$client->client_id}' no está dentro de sus allowed_origins, "
+            .'por lo que el navegador bloqueará el canje del token (CORS). '
+            ."Origen del redirect: {$redirectOrigin}. "
+            ."Orígenes permitidos: {$allowed}. "
+            .'Agregá ese origen a allowed_origins del cliente o corregí su redirect_url.';
+    }
+
+    private function isConfidentialClient(SsoClient $client): bool
+    {
+        return is_string($client->client_secret) && $client->client_secret !== '';
+    }
+
+    /**
+     * The origins HandleDynamicCors actually honours for this client. Resolved
+     * through the same service the middleware uses, so the two cannot disagree.
+     *
+     * @return array<int, string>
+     */
+    private function effectiveCorsOrigins(SsoClient $client): array
+    {
+        return array_values(array_filter(
+            CorsOrigins::forClient($client->client_id),
+            'is_string'
+        ));
     }
 
     private function isSslRequiredViolation(string $redirectUrl): bool

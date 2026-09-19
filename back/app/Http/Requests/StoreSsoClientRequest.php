@@ -35,6 +35,13 @@ class StoreSsoClientRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            if ($this->requiresRedirectUrl() && ! $this->input('redirect_url')) {
+                $validator->errors()->add(
+                    'redirect_url',
+                    'El redirect_url es obligatorio para clientes con authorization_code: el SSO lo usa para validar el callback.'
+                );
+            }
+
             $redirectUrl = $this->input('redirect_url');
             if ($redirectUrl && ! $this->isRedirectUrlAllowed($redirectUrl)) {
                 $validator->errors()->add(
@@ -43,6 +50,13 @@ class StoreSsoClientRequest extends FormRequest
                 );
             }
         });
+    }
+
+    private function requiresRedirectUrl(): bool
+    {
+        $grantTypes = $this->input('grant_types', []);
+
+        return is_array($grantTypes) && in_array('authorization_code', $grantTypes, true);
     }
 
     private function isRedirectUrlAllowed(string $url): bool
