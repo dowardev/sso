@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **OAuth sign-in no longer leaves you half logged in (LBDS-261)**: when an app's callback origin was not registered among its allowed origins, the SSO logged you in, sent you back to the app, and the app then failed silently to finish signing you in — you stayed logged into the SSO but not into the app, with nothing explaining why. The SSO now detects that mismatch before sending you back and reports it clearly, and the browser-side rejection names the origin that is missing.
 
+### Security
+
+- **Refresh tokens issued through OAuth can no longer renew a session without proving possession of the device's DPoP key (LBDS-253)**: exchanging a refresh token for a new session now requires a cryptographic proof of possession, so a stolen refresh token alone (for example from an app's local storage) no longer keeps a session alive. The key binding is stored with the refresh token and survives every rotation. OAuth sessions created before this release must log in again once.
+
 ## [0.34.4] - 2026-09-16
 
 ### Fixed

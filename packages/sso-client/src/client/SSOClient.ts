@@ -517,16 +517,17 @@ export class SSOClient {
   private async internalPost<T>(url: string, data: object): Promise<T> {
     const accessToken = this.configService.getConfig().accessToken;
     const cleanToken = accessToken.replace(/^Bearer\s+/i, "");
-    // Only prove possession when there is a key pair to prove it with: asking
-    // for a proof before (or after) initialize() throws, which turned a legal
-    // request into a failure and a console warning on every logout.
+    // Request a DPoP proof whenever a usable key pair exists, even without an
+    // access token: a refresh token issued with a DPoP binding can only be
+    // rotated when the request proves possession of that key. `ath` is only
+    // added when a token is present, via the optional third argument.
     let dpopProof: string | undefined;
-    if (accessToken && this.dpopService.getPublicKeyJwk()) {
+    if (this.dpopService.getPublicKeyJwk()) {
       try {
         dpopProof = await this.dpopService.createDpopProof(
           "POST",
           this.getFullUrl(url),
-          cleanToken
+          cleanToken || undefined
         );
       } catch (dpopError) {
         console.warn("[sso] continuing without a DPoP proof:", dpopError);
@@ -585,13 +586,21 @@ class SSOClientInternal {
     const accessToken = this.configService.getConfig().accessToken;
     const cleanToken = accessToken.replace(/^Bearer\s+/i, "");
     const fullUrl = this.getFullUrl(url);
-    const dpopProof = accessToken
-      ? await this.dpopService.createDpopProof(
+    // Same best-effort contract as SSOClient.internalPost: prove possession
+    // whenever a key pair exists, and only fall back to no proof if building
+    // the proof throws. `ath` rides along only when an access token exists.
+    let dpopProof: string | undefined;
+    if (this.dpopService.getPublicKeyJwk()) {
+      try {
+        dpopProof = await this.dpopService.createDpopProof(
           method.toUpperCase(),
           fullUrl,
-          cleanToken
-        )
-      : undefined;
+          cleanToken || undefined
+        );
+      } catch (dpopError) {
+        console.warn("[sso] continuing without a DPoP proof:", dpopError);
+      }
+    }
 
     const response = await axios.request<T>({
       url: fullUrl,

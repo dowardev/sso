@@ -90,9 +90,22 @@ export class TokenRefreshManager {
 
     const accessToken = await this.tokenStorage.getToken();
     const cleanAccessToken = accessToken?.replace(/^Bearer\s+/i, "") || "";
-    const dpopProof = cleanAccessToken
-      ? await this.dpopService.createDpopProof("POST", fullUrl, cleanAccessToken)
-      : undefined;
+    // Prove possession whenever the key pair is available, not only when an
+    // access token is cached: a DPoP-bound refresh token cannot be rotated
+    // without a proof. `ath` is added only when a token exists, because the
+    // third argument is omitted (undefined) otherwise.
+    let dpopProof: string | undefined;
+    if (this.dpopService.getPublicKeyJwk()) {
+      try {
+        dpopProof = await this.dpopService.createDpopProof(
+          "POST",
+          fullUrl,
+          cleanAccessToken || undefined
+        );
+      } catch (dpopError) {
+        console.warn("[sso] continuing without a DPoP proof:", dpopError);
+      }
+    }
 
     const response = await axios.request<AuthResponse & { refresh_token?: string }>({
       url: fullUrl,

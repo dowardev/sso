@@ -11,6 +11,7 @@ class UserRefreshToken extends Model
     protected $fillable = [
         'user_id',
         'token_hash',
+        'dpop_jkt',
         'user_agent',
         'ip_address',
         'expires_at',

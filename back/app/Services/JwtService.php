@@ -55,6 +55,47 @@ class JwtService
      */
     public function generateToken(User $user, ?string $dpopPublicKey = null, bool $rememberMe = false, ?string $encryptionLevel = null): array
     {
+        if ($dpopPublicKey) {
+            $publicKeyData = json_decode($dpopPublicKey, true);
+            if ($publicKeyData) {
+                if (! isset($publicKeyData['kty']) || ! isset($publicKeyData['n']) || ! isset($publicKeyData['e'])) {
+                    throw new \InvalidArgumentException('JWK incompleto: se requieren los campos kty, n y e');
+                }
+                if (($publicKeyData['kty'] ?? '') !== 'RSA') {
+                    throw new \InvalidArgumentException('Tipo de clave JWK no soportado: se requiere RSA');
+                }
+            }
+        }
+
+        return $this->buildToken($user, null, $rememberMe, $encryptionLevel, (bool) $dpopPublicKey);
+    }
+
+    /**
+     * Generate a JWT bound to an already-known DPoP JWK thumbprint.
+     *
+     * Used on refresh-token rotation, where the binding is inherited from the
+     * refresh token instead of being recomputed from a JWK request field.
+     */
+    public function generateTokenForJkt(User $user, ?string $dpopJkt, bool $rememberMe = false, ?string $encryptionLevel = null): array
+    {
+        return $this->buildToken($user, $dpopJkt, $rememberMe, $encryptionLevel, $dpopJkt !== null);
+    }
+
+    // NOTE: generateToken()'s payload is deliberately byte-identical to before.
+    // The builder is immutable, so the historical `$builder->withClaim(...)` calls
+    // for encryption_level/remember_me remained no-ops and only `cnf` is gated
+    // (emitted by generateTokenForJkt()). Emitting `cnf` for every DPoP-capable
+    // caller is separate work.
+
+    /**
+     * Shared claim builder for generateToken/generateTokenForJkt.
+     *
+     * @param  bool  $dpopRequested  Whether the caller asked for a DPoP token;
+     *                               this preserves the historical token_type
+     *                               for a malformed JWK (DPoP requested, no cnf).
+     */
+    private function buildToken(User $user, ?string $dpopJkt, bool $rememberMe, ?string $encryptionLevel, bool $dpopRequested): array
+    {
         $now = time();
         $expiresAt = $now + $this->tokenExpiration;
 
@@ -88,27 +129,17 @@ class JwtService
             $builder->withClaim('remember_me', true);
         }
 
-        if ($dpopPublicKey) {
-            $publicKeyData = json_decode($dpopPublicKey, true);
-            if ($publicKeyData) {
-                if (! isset($publicKeyData['kty']) || ! isset($publicKeyData['n']) || ! isset($publicKeyData['e'])) {
-                    throw new \InvalidArgumentException('JWK incompleto: se requieren los campos kty, n y e');
-                }
-                if (($publicKeyData['kty'] ?? '') !== 'RSA') {
-                    throw new \InvalidArgumentException('Tipo de clave JWK no soportado: se requiere RSA');
-                }
-                $jkt = $this->generateJWKThumbprint($publicKeyData);
-                $builder->withClaim('cnf', [
-                    'jkt' => $jkt,
-                ]);
-            }
+        if ($dpopJkt !== null) {
+            $builder = $builder->withClaim('cnf', [
+                'jkt' => $dpopJkt,
+            ]);
         }
 
         $token = $builder->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
 
         return [
             'token' => $token->toString(),
-            'token_type' => $dpopPublicKey ? 'DPoP' : 'Bearer',
+            'token_type' => $dpopRequested ? 'DPoP' : 'Bearer',
             'expires_in' => $this->tokenExpiration,
         ];
     }

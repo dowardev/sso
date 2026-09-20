@@ -68,7 +68,7 @@ class VerifyDpopProof
 
             $dpopToken = $this->jwtConfig->parser()->parse($dpopHeader);
 
-            $this->validateDpopProof($dpopToken, $accessToken, $request, $expectedJkt);
+            $this->validateDpopProof($dpopToken, $request, $expectedJkt, $accessToken, true);
 
         } catch (\Exception $e) {
             return response()->json([
@@ -79,7 +79,42 @@ class VerifyDpopProof
         return null;
     }
 
-    private function validateDpopProof($dpopToken, string $accessToken, Request $request, string $expectedJkt): void
+    /**
+     * Verify a DPoP proof presented at the OAuth token endpoint.
+     *
+     * Unlike verify(), there is no access token binding yet, so the expected
+     * thumbprint is supplied by the caller (the refresh token's dpop_jkt) and
+     * the ath claim is optional: it only has to match when the client sends one.
+     */
+    public function verifyTokenRequest(?string $dpopHeader, Request $request, string $expectedJkt, ?string $accessToken = null): ?Response
+    {
+        if (! $dpopHeader) {
+            return response()->json([
+                'message' => 'DPoP proof requerido para tokens vinculados',
+            ], 401);
+        }
+
+        try {
+            $dpopToken = $this->jwtConfig->parser()->parse($dpopHeader);
+
+            $this->validateDpopProof($dpopToken, $request, $expectedJkt, $accessToken, false);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'DPoP proof inválido: '.$e->getMessage(),
+            ], 401);
+        }
+
+        return null;
+    }
+
+    /**
+     * Shared proof validation used by verify() and verifyTokenRequest().
+     *
+     * @param  bool  $requireAth  verify() requires ath (access-token binding);
+     *                            the token endpoint accepts a proof without it.
+     */
+    private function validateDpopProof($dpopToken, Request $request, string $expectedJkt, ?string $accessToken, bool $requireAth): void
     {
         $header = $dpopToken->headers();
 
@@ -129,8 +164,12 @@ class VerifyDpopProof
         $jti = $payload->get('jti');
         $ath = $payload->get('ath');
 
-        if (! $htm || ! $htu || ! $iat || ! $jti || ! $ath) {
-            throw new \Exception('DPoP proof incompleto: faltan claims requeridos (htm, htu, iat, jti, ath)');
+        if (! $htm || ! $htu || ! $iat || ! $jti || ($requireAth && ! $ath)) {
+            if ($requireAth) {
+                throw new \Exception('DPoP proof incompleto: faltan claims requeridos (htm, htu, iat, jti, ath)');
+            }
+
+            throw new \Exception('DPoP proof incompleto: faltan claims requeridos (htm, htu, iat, jti)');
         }
 
         if ($htm !== $request->method()) {
@@ -150,17 +189,23 @@ class VerifyDpopProof
             throw new \Exception('Timestamp del DPoP proof fuera de rango');
         }
 
-        $tokenHash = rtrim(strtr(base64_encode(hash('sha256', $accessToken, true)), '+/', '-_'), '=');
-        if (! hash_equals($tokenHash, $ath)) {
-            throw new \Exception('Hash del token de acceso no coincide en DPoP proof');
+        if ($ath !== null) {
+            if ($accessToken === null) {
+                throw new \Exception('ath presente en DPoP proof pero no hay token de acceso');
+            }
+
+            $tokenHash = rtrim(strtr(base64_encode(hash('sha256', $accessToken, true)), '+/', '-_'), '=');
+            if (! hash_equals($tokenHash, $ath)) {
+                throw new \Exception('Hash del token de acceso no coincide en DPoP proof');
+            }
         }
 
-        DB::insert('INSERT IGNORE INTO dpop_nonces (jti, expires_at) VALUES (?, ?)', [
+        $inserted = DB::affectingStatement('INSERT IGNORE INTO dpop_nonces (jti, expires_at) VALUES (?, ?)', [
             $jti,
             now()->addMinutes(2),
         ]);
 
-        if (DB::getPdo()->rowCount() === 0) {
+        if ($inserted === 0) {
             throw new \Exception('DPoP proof reutilizado (replay detectado)');
         }
 
@@ -180,42 +225,27 @@ class VerifyDpopProof
 
     private function jwkToPem(array $jwk): string
     {
-        $n = $this->base64UrlDecode($jwk['n']);
-        $e = $this->base64UrlDecode($jwk['e']);
+        $nBin = $this->base64UrlDecode($jwk['n']);
+        $eBin = $this->base64UrlDecode($jwk['e']);
 
-        $modulus = '
------BEGIN PUBLIC KEY-----
-'.wordwrap($this->base64UrlEncode($n.$e), 64, "\n", true).'
------END PUBLIC KEY-----';
-
-        $keyDetails = openssl_pkey_get_details(openssl_pkey_get_public($modulus));
-        if ($keyDetails === false) {
-            $nBin = $this->base64UrlDecode($jwk['n']);
-            $eBin = $this->base64UrlDecode($jwk['e']);
-
-            $asn1 = $this->encodeASN1Sequence(
+        // SubjectPublicKeyInfo for an RSA key: SEQUENCE(AlgorithmIdentifier,
+        // BIT STRING(SEQUENCE(n, e))).
+        $asn1 = $this->encodeASN1Sequence(
+            $this->encodeASN1Sequence(
+                $this->encodeASN1OID('1.2.840.113549.1.1.1').
+                $this->encodeASN1Null()
+            ).
+            $this->encodeASN1BitString(
                 $this->encodeASN1Sequence(
-                    $this->encodeASN1Sequence(
-                        $this->encodeASN1OID('1.2.840.113549.1.1.1').
-                        $this->encodeASN1Null()
-                    ).
-                    $this->encodeASN1BitString(
-                        $this->encodeASN1Sequence(
-                            $this->encodeASN1Integer($nBin).
-                            $this->encodeASN1Integer($eBin)
-                        )
-                    )
+                    $this->encodeASN1Integer($nBin).
+                    $this->encodeASN1Integer($eBin)
                 )
-            );
+            )
+        );
 
-            $pem = "-----BEGIN PUBLIC KEY-----\n".
-                wordwrap(base64_encode($asn1), 64, "\n", true).
-                "\n-----END PUBLIC KEY-----";
-
-            return $pem;
-        }
-
-        return $keyDetails['key'];
+        return "-----BEGIN PUBLIC KEY-----\n".
+            wordwrap(base64_encode($asn1), 64, "\n", true).
+            "\n-----END PUBLIC KEY-----";
     }
 
     private function encodeASN1Integer(string $value): string
