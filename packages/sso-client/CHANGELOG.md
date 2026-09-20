@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `client/SSOClient.ts` — a DPoP proof is requested whenever a usable key pair exists, instead of only when an access token is cached. The refresh path needs it: a refresh token issued with a DPoP binding can only be rotated when the request proves possession of that key. `ath` rides along only when an access token is present, and both request paths (`internalPost`, `SSOClientInternal.request`) now warn and continue without a proof when building one throws, so a missing key pair cannot turn a legal request into a thrown error.
+- `auth/TokenRefreshManager.ts` — the 401 retry and the auto-refresh paths build the DPoP proof the same way, so a refresh works with no cached access token.
+
 ## [0.2.3] - 2026-09-10
 
 ### Fixed

@@ -12,16 +12,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CORS rejection diagnostics (LBDS-261)**: `HandleDynamicCors` now stamps every rejected origin with `X-CORS-Rejected: origin-not-allowed`, plus `X-CORS-Origin`, `X-CORS-Client` and `X-CORS-Allowed`, so a missing origin is visible in devtools instead of surfacing as a generic browser CORS error. A rejected preflight (`OPTIONS`) answers `204` with those headers instead of falling through to a `405`, and it still omits `Access-Control-Allow-Origin` so the browser keeps blocking it. The allowlist header is only emitted when the request names a resolvable `client_id`, so the union of every active client's origins is never published.
 - `App\Support\OriginNormalizer`: canonical `scheme://host[:port]` comparison shared by the CORS middleware and the OAuth redirect validation (returns `null` for non-http schemes such as native app callbacks).
 - `App\Support\CorsOrigins`: single source of truth for the origins the CORS layer honours for a client, cache included, consumed by both the middleware and the OAuth redirect validation so the two cannot disagree.
+- `database/migrations/2026_09_19_000000_add_dpop_jkt_to_user_refresh_tokens_table.php` (new) — nullable indexed `dpop_jkt` column on `user_refresh_tokens`; the binding is inherited by every rotated token.
+- `app/Services/JwtService.php` — `generateTokenForJkt()` issues a `cnf.jkt`-bound access token from a stored thumbprint; `generateToken()` keeps emitting exactly the same claims as before, so existing login flows are untouched.
+- `app/Services/AuthService.php` — `jktFromDpopPublicKey()` derives the RFC 7638 thumbprint from the raw `dpop_public_key` field. Only the authorization-code exchange binds its refresh token: the login/cookie flow has no DPoP proof mechanism on refresh, so binding there would lock those sessions out.
+- `tests/Feature/DpopRefreshTokenTest.php` (new) and `tests/Support/DpopProofBuilder.php` — 18 integration tests over the real endpoints, covering every enforced failure (missing header, wrong key, tampered signature, wrong `htm`/`htu`, stale `iat`, replayed `jti`, `ath` without a bearer, unbound token, revoked-token replay) and the success path with binding preservation and rotation.
 
 ### Changed
 
 - **OAuth redirect validation (LBDS-261)**: `POST /api/oauth/authorize` and `POST /api/oauth/authorize/approve` now reject with `400` a `redirect_uri` whose origin is not covered by the client's effective CORS origins, before issuing an authorization code. Previously the code was issued, the browser was redirected, and the token exchange then died silently in CORS, leaving the user logged into the SSO but not into the app. The check only applies to public clients: a client holding a secret may exchange the code server-to-server, where CORS never applies.
 - **`redirect_url` is required for `authorization_code` clients**: the OAuth endpoints return `400` for a client without a configured `redirect_url` (previously any redirect URI was accepted), and the admin create/update requests now require it when `grant_types` includes `authorization_code`, so a client can no longer be saved into a state that always fails at authorize.
+- `app/Services/AuthService.php` — the rotated access token keeps the DPoP binding (`cnf.jkt`) instead of degrading to a Bearer token, and the DPoP enforcement runs after the token-state checks so that replaying a revoked token still revokes the whole chain.
+- `app/Http/Middleware/VerifyDpopProof.php` — token-endpoint proofs are verified by `verifyTokenRequest()`, sharing the bound-token validation path with an optional `ath` claim (validated against the presented bearer when present).
 
 ### Fixed
 
 - **`Allowed origins` field validation no longer swallowed by the app-config copy**: the frontend catalog entry for the origin mismatch requires both `allowed_origins` and `redirect_uri` to match, so an `allowed_origins`-only field-validation error keeps its own message.
+- `app/Http/Middleware/VerifyDpopProof.php` — `jwkToPem()` fed a raw `n||e` blob to `openssl_pkey_get_public()` and built an extra ASN.1 `SEQUENCE`, so every DPoP signature verification failed; the correct SubjectPublicKeyInfo structure is now produced.
+- `app/Http/Middleware/VerifyDpopProof.php` — the replay check called `DB::getPdo()->rowCount()`, which does not exist on `PDO` and aborted every verification; the `INSERT IGNORE` now runs through `DB::affectingStatement()`.
+- `app/Http/Requests/TokenRequest.php` — a structurally invalid `dpop_public_key` (not RSA or missing `kty`/`n`/`e`) is rejected with 422 instead of raising an uncaught `InvalidArgumentException`.
 
 ### Security
 
 - The CORS rejection diagnostic no longer discloses the union of every active client's allowed origins when no `client_id` can be resolved from the request.
+- `app/Services/AuthService.php` — the OAuth `refresh_token` grant (`POST /api/oauth/token`) requires a DPoP proof whose JWK thumbprint matches the binding stored on the refresh token; a refresh token without a binding is rejected with 401, which forces existing OAuth sessions created before this change to log in again once.
+- `app/Services/AuthService.php` — a refresh token that carries a DPoP binding can only be rotated with a valid matching proof on every refresh endpoint (`/api/oauth/token` and `/api/refresh-token`), so a stolen bound token can no longer be redeemed through the cookie-only endpoint to obtain an unbound access token.

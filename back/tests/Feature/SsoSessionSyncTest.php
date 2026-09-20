@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Tests\Support\DpopProofBuilder;
 use Tests\TestCase;
 
 class SsoSessionSyncTest extends TestCase
@@ -171,17 +172,20 @@ class SsoSessionSyncTest extends TestCase
 
     public function test_oauth_token_supports_refresh_token_grant(): void
     {
+        $builder = DpopProofBuilder::generate();
+
         $auth = $this->createAuthCode();
-        $exchange = $this->exchangeCode($auth['code'], $auth['verifier']);
+        $exchange = $this->exchangeCode($auth['code'], $auth['verifier'], $builder->publicKey());
 
         $exchange->assertOk();
         $refreshToken = $exchange->json('refresh_token');
 
-        $rotated = $this->postJson('/api/oauth/token', [
-            'grant_type' => 'refresh_token',
-            'client_id' => 'test-app',
-            'refresh_token' => $refreshToken,
-        ]);
+        $rotated = $this->withHeaders(['DPoP' => $builder->proof()])
+            ->postJson('/api/oauth/token', [
+                'grant_type' => 'refresh_token',
+                'client_id' => 'test-app',
+                'refresh_token' => $refreshToken,
+            ]);
 
         $rotated->assertOk()
             ->assertJsonStructure(['token', 'refresh_token'])
@@ -191,6 +195,10 @@ class SsoSessionSyncTest extends TestCase
 
         $this->assertNotNull($old->revoked_at);
         $this->assertNotSame($rotated->json('refresh_token'), $refreshToken);
+
+        // The rotated refresh token inherits the DPoP binding.
+        $new = UserRefreshToken::where('token_hash', hash('sha256', $rotated->json('refresh_token')))->first();
+        $this->assertSame($builder->jkt(), $new->dpop_jkt);
     }
 
     public function test_refresh_token_endpoint_accepts_body_refresh_token(): void
@@ -224,15 +232,21 @@ class SsoSessionSyncTest extends TestCase
         return ['code' => $result['code'], 'verifier' => $verifier];
     }
 
-    private function exchangeCode(string $code, string $verifier): TestResponse
+    private function exchangeCode(string $code, string $verifier, ?string $dpopPublicKey = null): TestResponse
     {
-        return $this->postJson('/api/oauth/token', [
+        $payload = [
             'grant_type' => 'authorization_code',
             'client_id' => 'test-app',
             'code' => $code,
             'redirect_uri' => 'https://app.example.com/auth/callback',
             'code_verifier' => $verifier,
-        ]);
+        ];
+
+        if ($dpopPublicKey !== null) {
+            $payload['dpop_public_key'] = $dpopPublicKey;
+        }
+
+        return $this->postJson('/api/oauth/token', $payload);
     }
 
     private function createClientSessionToken(): string

@@ -129,7 +129,7 @@ class OAuth2Service
 
         $this->sessionService->registerSession($user, $tokenData['token'], $request, $dpopPublicKey, false, $client);
 
-        $refreshTokenData = $this->authService->generateRefreshToken($user, $request, false);
+        $refreshTokenData = $this->authService->generateRefreshToken($user, $request, false, $this->authService->jktFromDpopPublicKey($dpopPublicKey));
 
         return [
             'token' => $tokenData['token'],
@@ -148,7 +148,7 @@ class OAuth2Service
             return null;
         }
 
-        return $this->authService->refreshAccessToken($plainRefreshToken, $request);
+        return $this->authService->refreshAccessToken($plainRefreshToken, $request, true);
     }
 
     private function computeCodeChallenge(string $codeVerifier, string $method): string

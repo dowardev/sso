@@ -4,6 +4,7 @@
 
 namespace App\Services;
 
+use App\Http\Middleware\VerifyDpopProof;
 use App\Models\User;
 use App\Models\UserRefreshToken;
 use App\Models\UserSession;
@@ -19,10 +20,13 @@ class AuthService
 
     private SessionService $sessionService;
 
-    public function __construct(JwtService $jwtService, SessionService $sessionService)
+    private VerifyDpopProof $dpopProof;
+
+    public function __construct(JwtService $jwtService, SessionService $sessionService, VerifyDpopProof $dpopProof)
     {
         $this->jwtService = $jwtService;
         $this->sessionService = $sessionService;
+        $this->dpopProof = $dpopProof;
     }
 
     /**
@@ -268,16 +272,43 @@ class AuthService
             'expires_in' => $accessTokenData['expires_in'],
         ];
 
-        $refreshToken = $this->generateRefreshToken($user, $request, $rememberMe);
+        // The login/cookie flow has no DPoP proof mechanism on refresh, so these
+        // refresh tokens stay unbound (DPoP out of scope there, tracked separately).
+        $refreshToken = $this->generateRefreshToken($user, $request, $rememberMe, null);
         $result['refresh_token'] = $refreshToken['plain'];
 
         return $result;
     }
 
     /**
+     * Derive the RFC 7638 JWK thumbprint from a raw dpop_public_key field.
+     *
+     * Returns null rather than throwing when the payload is absent or malformed,
+     * so callers only bind a refresh token when a usable JWK was provided.
+     */
+    public function jktFromDpopPublicKey(?string $dpopPublicKey): ?string
+    {
+        if (! $dpopPublicKey) {
+            return null;
+        }
+
+        $decoded = json_decode($dpopPublicKey, true);
+
+        if (! is_array($decoded)
+            || ($decoded['kty'] ?? null) !== 'RSA'
+            || ! isset($decoded['n'])
+            || ! isset($decoded['e'])
+        ) {
+            return null;
+        }
+
+        return $this->jwtService->generateJWKThumbprint($decoded);
+    }
+
+    /**
      * Generate refresh token.
      */
-    public function generateRefreshToken(User $user, Request $request, bool $rememberMe = false): array
+    public function generateRefreshToken(User $user, Request $request, bool $rememberMe = false, ?string $dpopJkt = null): array
     {
         $plain = Str::random(64);
         $hash = hash('sha256', $plain);
@@ -286,6 +317,7 @@ class AuthService
         $model = UserRefreshToken::create([
             'user_id' => $user->id,
             'token_hash' => $hash,
+            'dpop_jkt' => $dpopJkt,
             'user_agent' => $request->userAgent(),
             'ip_address' => $request->ip(),
             'expires_at' => $expiresAt,
@@ -297,8 +329,13 @@ class AuthService
 
     /**
      * Refresh access token using refresh token.
+     *
+     * @param  bool  $requireDpop  True only for the OAuth token endpoint, which
+     *                             additionally requires the refresh token to be
+     *                             DPoP-bound. A bound token always needs a valid
+     *                             matching proof regardless of this flag.
      */
-    public function refreshAccessToken(string $plainRefreshToken, Request $request): ?array
+    public function refreshAccessToken(string $plainRefreshToken, Request $request, bool $requireDpop = false): ?array
     {
         $hash = hash('sha256', $plainRefreshToken);
         $existing = UserRefreshToken::where('token_hash', $hash)->first();
@@ -332,6 +369,31 @@ class AuthService
             return null;
         }
 
+        // DPoP enforcement: a refresh token that HAS a dpop_jkt can only be
+        // rotated with a valid matching proof, on EVERY endpoint. The endpoint
+        // flag only adds the requirement that the token be bound at all: the
+        // OAuth token endpoint rejects unbound/legacy tokens (approved hard
+        // cutover). The cookie/SSO-web login flow never receives a binding (see
+        // generateTokens()), so it keeps working without a proof. This runs after
+        // the token-state checks above so a replayed revoked token still trips
+        // the existing all-session theft revocation.
+        if ($requireDpop && ! $existing->dpop_jkt) {
+            return null;
+        }
+
+        if ($existing->dpop_jkt) {
+            $dpopError = $this->dpopProof->verifyTokenRequest(
+                $request->header('DPoP'),
+                $request,
+                $existing->dpop_jkt,
+                $request->bearerToken()
+            );
+
+            if ($dpopError !== null) {
+                return null;
+            }
+        }
+
         // Note: rotated_from_id is rotation history (set on every rotated
         // token), NOT a theft signal. Theft is detected above, when a revoked
         // token is presented again outside the race grace window.
@@ -340,17 +402,15 @@ class AuthService
             return null;
         }
 
-        // Generate new access + refresh pair
-        $dpopPublicKey = null;
-        $currentTokenStr = $request->bearerToken();
-        if ($currentTokenStr) {
-            $parsed = $this->jwtService->parseAndValidateToken($currentTokenStr);
-            if ($parsed && $parsed->claims()->get('cnf')) {
-                $dpopPublicKey = $existing->user_agent; // placeholder — real DPoP logic
-            }
-        }
-
-        $accessTokenData = $this->jwtService->generateToken($user, $dpopPublicKey, false);
+        // Any refresh token carrying a binding rotates into an access token that
+        // keeps it; an unbound token keeps producing unbound tokens. The binding
+        // is a property of the refresh token, not of the endpoint, so this applies
+        // on /api/refresh-token too. The cookie/SSO-web login flow never receives
+        // a binding (see generateTokens()), which is why it still works without a
+        // proof.
+        $accessTokenData = $existing->dpop_jkt !== null
+            ? $this->jwtService->generateTokenForJkt($user, $existing->dpop_jkt, false)
+            : $this->jwtService->generateToken($user, null, false);
 
         // Revoke old token and create its replacement atomically, so a crash
         // in between never strands the user with a dead refresh token.
@@ -364,6 +424,7 @@ class AuthService
             UserRefreshToken::create([
                 'user_id' => $existing->user_id,
                 'token_hash' => $newHash,
+                'dpop_jkt' => $existing->dpop_jkt,
                 'user_agent' => $request->userAgent(),
                 'ip_address' => $request->ip(),
                 'expires_at' => $newExpiresAt,
