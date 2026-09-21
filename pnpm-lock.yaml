@@ -163,6 +163,9 @@ importers:
       fake-indexeddb:
         specifier: ^6.0.0
         version: 6.2.5
+      jsdom:
+        specifier: ^22.1.0
+        version: 22.1.0
       typescript:
         specifier: ^5.3.0
         version: 5.9.3

@@ -7,10 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `client/profileFragmentCleanup.test.ts` (new) — covers the fragment erase, the match guard's negative cases (`origin`, `pathname`, `search`, `hash`), idempotence, preservation of the host router's `history.state`, a throwing `replaceState`, and a malformed callback URL. Runs in the `jsdom` environment via `// @vitest-environment jsdom`; the rest of the suite stays on `node`, which the crypto tests need for `crypto.subtle`.
+- `client/SSOClient.test.ts` — covers that `handleCallback` erases the fragment from the live location and passes the host router's existing `history.state` through to `replaceState`, with the OAuth query string preserved.
+
 ### Changed
 
 - `client/SSOClient.ts` — a DPoP proof is requested whenever a usable key pair exists, instead of only when an access token is cached. The refresh path needs it: a refresh token issued with a DPoP binding can only be rotated when the request proves possession of that key. `ath` rides along only when an access token is present, and both request paths (`internalPost`, `SSOClientInternal.request`) now warn and continue without a proof when building one throws, so a missing key pair cannot turn a legal request into a thrown error.
 - `auth/TokenRefreshManager.ts` — the 401 retry and the auto-refresh paths build the DPoP proof the same way, so a refresh works with no cached access token.
+
+### Fixed
+
+- `client/profileFragmentCleanup.ts` (new), `client/SSOClient.ts` — the decrypted ZKE profile handed to an OAuth app as a `#profile=` URL fragment is now erased from the document that received it. `handleCallback` copies the fragment into memory and immediately rewrites the live location with `history.replaceState`, dropping only the hash so the OAuth `code` and `state` query params survive. Before this, the fragment stayed visible in `window.location` and persisted in the session history entry created by the redirect.
+  - The erase is guarded: it runs only when the callback URL passed to `handleCallback` matches the live document on `origin`, `pathname`, `search` and `hash`. An app that passes a stored URL, an iframe URL or a popup URL never has an unrelated location rewritten, and an app that does not pass the live document gets no erase at all.
+  - The existing `history.state` is preserved instead of replaced by a fresh object, so host routers that keep back/forward position, scroll bookkeeping and their replacement flag there (Vue Router 4, `@ionic/vue-router`) are not corrupted.
+  - A `replaceState` that throws (`SecurityError` in a sandboxed or cross-origin-embedded document) is swallowed and reported as `false`, honoring the helper's never-throws contract, so a failed cleanup cannot abort the token exchange that follows.
+  - The fragment reader is unchanged: it still only matches `#profile=` when it is the first complete segment of the hash.
 
 ## [0.2.3] - 2026-09-10
 
