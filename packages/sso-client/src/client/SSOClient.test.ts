@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
-import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { SSOClient } from "./SSOClient";
 import { loadProfileAtRest } from "../crypto/profileVault";
 import { TokenStorage } from "../storage/TokenStorage";
@@ -33,8 +33,12 @@ class MemoryStorage {
 
 vi.stubGlobal("localStorage", new MemoryStorage());
 vi.stubGlobal("sessionStorage", new MemoryStorage());
+const replaceStateMock = vi.fn();
+const ROUTER_HISTORY_STATE = { back: "x", current: "y", position: 3, replaced: true };
 vi.stubGlobal("window", {
   location: { origin: "https://app.example.com", href: "" },
+  history: { replaceState: replaceStateMock, state: ROUTER_HISTORY_STATE },
+  document: { title: "Test" },
 });
 
 // --- axios mock (hoisted so the factory can reference the spy) -----------------
@@ -169,6 +173,11 @@ describe("SSOClient advanced (ZKE) profile handling", () => {
       "@dowardev/sso-client:pkce:xyz",
       "test-verifier-for-xyz-state",
     );
+    replaceStateMock.mockClear();
+    window.location.href = "";
+  });
+  afterEach(() => {
+    window.location.href = "";
   });
   it("merges a valid signed #profile= envelope and recovers it from the vault on reload", async () => {
     const profile: UserProfile = {
@@ -229,6 +238,35 @@ describe("SSOClient advanced (ZKE) profile handling", () => {
     expect(user.name).toBeNull();
     expect(user.user).toBeNull();
     expect(user.email).toBeNull();
+  });
+
+  it("erases the #profile= fragment from the live location after consuming it", async () => {
+    const profile: UserProfile = {
+      name: "Ada Lovelace",
+      user: "ada",
+      email: "ada@example.com",
+    };
+    const token = await signJws({ payload: TOKEN_CLAIMS("1"), privateKey: keys.privateKey });
+    const callbackUrl = `https://app.example.com/auth/callback?code=abc&state=xyz#profile=${buildFragment({ profile, token })}`;
+    window.location.href = callbackUrl;
+
+    const client = makeClient();
+    const { user } = await client.handleCallback(callbackUrl);
+
+    expect(user.name).toBe("Ada Lovelace");
+    expect(user.user).toBe("ada");
+    expect(user.email).toBe("ada@example.com");
+
+    expect(replaceStateMock).toHaveBeenCalledTimes(1);
+    const call = replaceStateMock.mock.calls[0];
+    // The state argument must be the host router's existing state, proving the
+    // erase does not wipe router back/forward/scroll bookkeeping.
+    expect(call[0]).toEqual(ROUTER_HISTORY_STATE);
+    expect(call[1]).toBe("Test");
+    const rewritten = new URL(String(call[2]), "https://app.example.com");
+    expect(rewritten.hash).toBe("");
+    expect(rewritten.search).toBe("?code=abc&state=xyz");
+    expect(rewritten.pathname).toBe("/auth/callback");
   });
 
   it("clears the persisted vault on logout", async () => {

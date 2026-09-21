@@ -25,6 +25,7 @@ import {
   User,
 } from "../types";
 import { verifyProfileFragment } from "../crypto/profileSignature";
+import { eraseProfileFragmentIfCurrentDocument } from "./profileFragmentCleanup";
 import {
   persistProfileAtRest,
   loadProfileAtRest,
@@ -220,6 +221,14 @@ export class SSOClient {
       urlObj.hash.startsWith("#profile=")
         ? urlObj.hash.slice("#profile=".length)
         : null;
+
+    // The decrypted profile now lives in `frag`; the browser must not keep it.
+    // Erasing before the token exchange below closes the window in which the
+    // fragment stays in `window.location`, and `code`/`state` survive because
+    // they live in the query string.
+    if (frag) {
+      eraseProfileFragmentIfCurrentDocument({ callbackUrl: url });
+    }
 
     const code = params.get("code");
     const state = params.get("state");

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - **Refresh tokens issued through OAuth can no longer renew a session without proving possession of the device's DPoP key (LBDS-253)**: exchanging a refresh token for a new session now requires a cryptographic proof of possession, so a stolen refresh token alone (for example from an app's local storage) no longer keeps a session alive. The key binding is stored with the refresh token and survives every rotation. OAuth sessions created before this release must log in again once.
+- **The decrypted profile handed to an OAuth app no longer lingers in the browser (LBDS-250)**: for advanced (zero-knowledge) accounts the SSO hands the app a decrypted copy of the profile so the server never sees it. That copy travelled in the address fragment, and the app used to leave it there: it stayed visible in the address bar and was kept in the browsing history. Apps that use the client library now erase it the moment they have read it, leaving the rest of the callback URL untouched, and the erase never rewrites a page that is not the callback itself. If you build against the published client, your users get this once you upgrade to the version that includes it.
 
 ## [0.34.4] - 2026-09-16
 
