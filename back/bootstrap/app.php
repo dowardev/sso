@@ -9,6 +9,7 @@ use App\Http\Middleware\RefreshToken;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\ThrottleLoginAttempts;
 use App\Http\Middleware\ThrottleRequests;
+use App\Http\Middleware\ThrottleTokenEndpoint;
 use App\Http\Middleware\VerifyDpopProof;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'setup.not_completed' => EnsureSetupNotCompleted::class,
             'refresh.token' => RefreshToken::class,
             'throttle.login' => ThrottleLoginAttempts::class,
+            'throttle.token' => ThrottleTokenEndpoint::class,
             'throttle' => ThrottleRequests::class,
         ]);
 
