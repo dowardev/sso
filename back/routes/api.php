@@ -41,7 +41,7 @@ Route::get('/passkey', [AuthController::class, 'passkeyIndex'])->middleware('jwt
 Route::delete('/passkey', [AuthController::class, 'passkeyDelete'])->middleware('jwt.auth');
 Route::get('/email/verify/{token}', [EmailVerificationController::class, 'verify'])->middleware('throttle:10,1');
 Route::post('/resend-confirmation-email', [EmailVerificationController::class, 'resend'])->middleware('throttle:3,1');
-Route::post('/oauth/token', [OAuth2Controller::class, 'token'])->middleware('throttle:10,1');
+Route::post('/oauth/token', [OAuth2Controller::class, 'token'])->middleware(['throttle:10,1', 'throttle.token']);
 Route::get('/.well-known/jwks', [AuthController::class, 'jwks']);
 Route::get('/session/check', [AuthController::class, 'checkSession']);
 Route::post('/session/check', [AuthController::class, 'checkSession']);
