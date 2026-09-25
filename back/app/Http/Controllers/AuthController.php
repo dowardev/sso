@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Cookie as SymfonyCookie;
 use Webauthn\PublicKeyCredentialCreationOptions;
 use Webauthn\PublicKeyCredentialRequestOptions;
 
@@ -47,6 +48,35 @@ class AuthController extends Controller
         $this->emailVerificationService = $emailVerificationService;
         $this->passwordResetService = $passwordResetService;
         $this->passkeyService = $passkeyService;
+    }
+
+    /**
+     * Build the `refresh_token` cookie with session-config-driven attributes.
+     *
+     * Single point of truth for every refresh_token emission site in this
+     * controller: basic login, advanced login, passkey login, and the
+     * /api/refresh-token rotation endpoint. Pulling these attributes from
+     * `config/session.*` keeps the LBDS-252 hardening (SameSite=Strict,
+     * Secure by default) applied uniformly and lets a single test in
+     * RefreshTokenCookieAttributesTest cover every emission site, so a
+     * future divergence has nowhere to hide.
+     */
+    private function refreshTokenCookie(string $token, bool $rememberMe): SymfonyCookie
+    {
+        $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
+        $minutes = $rememberMe ? (int) ($refreshExpirationDays * 1440) : 0;
+
+        return cookie(
+            'refresh_token',
+            $token,
+            $minutes,
+            '/',
+            null,
+            config('session.secure', false),
+            true,
+            false,
+            config('session.same_site', 'strict')
+        );
     }
 
     public function register(RegisterRequest $request): JsonResponse
@@ -123,17 +153,7 @@ class AuthController extends Controller
         if (isset($tokenData['refresh_token'])) {
             $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
             $minutes = $rememberMe ? $refreshExpirationDays * 1440 : 0;
-            $response->withCookie(cookie(
-                'refresh_token',
-                $tokenData['refresh_token'],
-                $minutes,
-                '/',
-                null,
-                config('session.secure', false),
-                true,
-                false,
-                'Lax'
-            ));
+            $response->withCookie($this->refreshTokenCookie($tokenData['refresh_token'], $rememberMe));
         }
 
         $this->activityLogService->logFromRequest(
@@ -247,17 +267,7 @@ class AuthController extends Controller
         if (isset($tokenData['refresh_token'])) {
             $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
             $minutes = $rememberMe ? $refreshExpirationDays * 1440 : 0;
-            $response->withCookie(cookie(
-                'refresh_token',
-                $tokenData['refresh_token'],
-                $minutes,
-                '/',
-                null,
-                config('session.secure', false),
-                true,
-                false,
-                'Lax'
-            ));
+            $response->withCookie($this->refreshTokenCookie($tokenData['refresh_token'], $rememberMe));
         }
 
         return $response;
@@ -553,17 +563,7 @@ class AuthController extends Controller
 
         $minutes = ($result['remember_me'] ?? false) ? $refreshExpirationDays * 1440 : 0;
 
-        $response->withCookie(cookie(
-            'refresh_token',
-            $result['refresh_token'],
-            $minutes,
-            '/',
-            null,
-            config('session.secure', false),
-            true,
-            false,
-            'Lax'
-        ));
+        $response->withCookie($this->refreshTokenCookie($result['refresh_token'], (bool) ($result['remember_me'] ?? false)));
 
         return $response;
     }
@@ -1127,17 +1127,7 @@ class AuthController extends Controller
             if (isset($tokenData['refresh_token'])) {
                 $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
                 $minutes = $rememberMe ? $refreshExpirationDays * 1440 : 0;
-                $response->withCookie(cookie(
-                    'refresh_token',
-                    $tokenData['refresh_token'],
-                    $minutes,
-                    '/',
-                    null,
-                    config('session.secure', false),
-                    true,
-                    false,
-                    'Lax'
-                ));
+                $response->withCookie($this->refreshTokenCookie($tokenData['refresh_token'], $rememberMe));
             }
 
             return $response;

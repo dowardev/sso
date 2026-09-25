@@ -181,7 +181,18 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Defense-in-depth (LBDS-252): default the Secure flag to true.
+    // Local HTTP dev can override via SESSION_SECURE_COOKIE=false. The guard
+    // treats unset / empty / 'null' as 'use the safe default'; otherwise we
+    // accept Laravel-style truthy strings via filter_var (FILTER_VALIDATE_BOOLEAN).
+    'secure' => (function () {
+        $raw = env('SESSION_SECURE_COOKIE');
+        if ($raw === null || $raw === '' || $raw === 'null') {
+            return true;
+        }
+
+        return filter_var($raw, FILTER_VALIDATE_BOOLEAN) === true;
+    })(),
 
     /*
     |--------------------------------------------------------------------------
@@ -211,7 +222,24 @@ return [
     |
     */
 
-    'same_site' => env('SESSION_SAME_SITE', 'lax'),
+    // Defense-in-depth (LBDS-252): default to Strict to harden CSRF /
+    // cookie-theft for the refresh-token fallback. OAuth redirects in this
+    // server do NOT rely on cross-site cookies (tokens travel in JSON body
+    // or Authorization header), so Strict is safe. If a future OAuth
+    // redirect genuinely needs Lax, set SESSION_SAME_SITE=lax explicitly.
+    // Unset/empty/'null' in the env means 'use safe default' (strict);
+    // unknown values also fall back to strict so the hardening can never
+    // be silently disabled by a typo.
+    'same_site' => (function () {
+        $raw = env('SESSION_SAME_SITE');
+        if ($raw === null || $raw === '' || $raw === 'null') {
+            return 'strict';
+        }
+        $normalized = strtolower(trim((string) $raw));
+        $allowed = ['strict', 'lax', 'none'];
+
+        return in_array($normalized, $allowed, true) ? $normalized : 'strict';
+    })(),
 
     /*
     |--------------------------------------------------------------------------

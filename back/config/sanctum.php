@@ -7,6 +7,23 @@ use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Laravel\Sanctum\Http\Middleware\AuthenticateSession;
 use Laravel\Sanctum\Sanctum;
 
+/*
+ | LBDS-252 + Sanctum guard: do NOT register
+ | `Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful`
+ | in this project's middleware groups or route chains. Its
+ | `configureSecureCookieSessions()` hardcodes `session.same_site => 'lax'`
+ | at runtime, which would silently override the LBDS-252 'strict' default
+ | on every first-party stateful request and re-open the CSRF/cookie-theft
+ | hole. Every refresh_token emission in this app (`AuthController` +
+ | central `refreshTokenCookie()` helper) reads the SameSite flag from
+ | `config/session.*` LAZILY at emit time; a Sanctum runtime mutation
+ | would defeat that without any error.
+ |
+ | Sanctum is intentionally kept as a PersonalAccessToken data model only
+ | (`HasApiTokens` on `User`, `PersonalAccessToken` relation on
+ | `UserSession`); it does NOT authenticate requests here.
+ */
+
 return [
 
     /*
