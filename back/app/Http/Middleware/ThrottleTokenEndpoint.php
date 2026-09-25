@@ -22,9 +22,17 @@ use Symfony\Component\HttpFoundation\Response;
  * `grant_type=authorization_code` is intentionally skipped: PKCE + the auth
  * code's own short TTL + single-use enforcement already protect that flow.
  *
+ * Defense-in-depth: this middleware runs AFTER the generic `throttle:10,1` in
+ * routes/api.php. In production the upstream already caps traffic at 10/min/IP
+ * — the dedicated throttle adds per-client granularity on top of that ceiling.
+ *
  * Algorithm per bucket: 2-bucket sliding window approximation.
  *   estimated = current_count + floor(previous_count * weight)
  *   weight    = (window - elapsed_in_current) / window
+ *
+ * `Retry-After` is a conservative upper bound (time until the current window
+ * closes), not the optimal moment to retry once the previous window's weight
+ * has decayed. Clients should not rely on it being exact.
  *
  * Drivers that support atomic Cache::increment (redis, database, memcached,
  * dynamodb, array) work out of the box. Production MUST use redis/database;
@@ -53,7 +61,7 @@ class ThrottleTokenEndpoint
         $windowSeconds = $window !== null ? max(1, (int) $window) : self::DEFAULT_WINDOW_SECONDS;
         $burstLimit = $burst !== null ? max($maxAttempts, (int) $burst) : self::DEFAULT_BURST;
 
-        if ((string) $request->input('grant_type', '') === 'authorization_code') {
+        if (strtolower((string) $request->input('grant_type', '')) === 'authorization_code') {
             return $next($request);
         }
 
@@ -105,22 +113,31 @@ class ThrottleTokenEndpoint
         ];
     }
 
+    /**
+     * Atomic increment with TTL set on first hit of the window.
+     *
+     * Order matters: `Cache::add()` first, then `Cache::increment()`. The
+     * `add` resolves to `SET NX EX` on Redis drivers — it only sets the key
+     * when it does not yet exist, with the TTL baked in, in a single atomic
+     * round trip. On subsequent hits `add` is a no-op and the TTL survives.
+     *
+     * Drivers without atomic increment (e.g. file) return 0/false from
+     * `increment`; we fall back to `put` and degrade gracefully (documented
+     * in the class docblock).
+     *
+     * This pattern avoids the race where two concurrent first-hits both see
+     * count=1 and one of them races a `Cache::put` that resets the counter.
+     */
     private function incrementWithTtl(string $key, int $windowSeconds): int
     {
+        Cache::add($key, 0, $windowSeconds * 2);
+
         $count = (int) Cache::increment($key);
 
-        // Cache::increment returns 0/false on drivers without atomic increment
-        // (e.g. file store) or on the very first hit before the row exists.
-        // Seed with 1 and rely on the next request to bump it.
         if ($count < 1) {
             Cache::put($key, 1, $windowSeconds * 2);
 
             return 1;
-        }
-
-        // First real hit in this window: ensure TTL is set so the bucket evicts.
-        if ($count === 1) {
-            Cache::put($key, 1, $windowSeconds * 2);
         }
 
         return $count;
@@ -138,11 +155,12 @@ class ThrottleTokenEndpoint
     {
         $rawClientId = trim((string) $request->input('client_id', ''));
 
-        if ($rawClientId === '' || strlen($rawClientId) > self::MAX_CLIENT_ID_LENGTH) {
-            $clientKey = 'unknown';
+        // Use mb_strlen so the byte cap is actually a character cap.
+        if ($rawClientId === '' || mb_strlen($rawClientId, 'UTF-8') > self::MAX_CLIENT_ID_LENGTH) {
+            $clientKey = '_unknown';
         } else {
             $sanitized = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $rawClientId);
-            $clientKey = $sanitized !== null && $sanitized !== '' ? $sanitized : 'unknown';
+            $clientKey = $sanitized !== null && $sanitized !== '' ? $sanitized : '_unknown';
         }
 
         $ip = (string) ($request->ip() ?? '0.0.0.0');

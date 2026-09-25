@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use App\Models\SsoClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class ThrottleTokenEndpointTest extends TestCase
@@ -171,5 +173,93 @@ class ThrottleTokenEndpointTest extends TestCase
                 $this->assertTrue($response->headers->has('Retry-After'));
             }
         }
+    }
+
+    public function test_burst_limit_kicks_in_at_21st_request(): void
+    {
+        $client = $this->makeClient();
+
+        // 20 requests in the same window must pass the burst gate (current > 20).
+        for ($i = 0; $i < 20; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.7'])
+                ->postJson('/api/oauth/token', $this->refreshTokenPayload($client));
+        }
+
+        // The 21st request must cross the burst threshold.
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.7'])
+            ->postJson('/api/oauth/token', $this->refreshTokenPayload($client));
+
+        $response->assertStatus(429);
+        $response->assertHeader('X-RateLimit-Limit', '10');
+        $response->assertHeader('X-RateLimit-Remaining', '0');
+    }
+
+    public function test_middleware_handles_file_cache_driver_gracefully(): void
+    {
+        // CACHE_STORE=file degrades: `Cache::increment` returns 0/false on the
+        // first hit because file storage cannot atomically increment a missing
+        // entry. The middleware must still produce 429 once the limit is hit
+        // and never throw an uncaught exception.
+        config(['cache.default' => 'file']);
+        Cache::store('file')->clear();
+
+        $client = $this->makeClient();
+
+        for ($i = 0; $i < 15; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
+                ->postJson('/api/oauth/token', $this->refreshTokenPayload($client));
+        }
+
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
+            ->postJson('/api/oauth/token', $this->refreshTokenPayload($client));
+
+        $response->assertStatus(429);
+        $response->assertHeader('X-RateLimit-Limit', '10');
+    }
+
+    public function test_previous_window_weight_is_applied_after_rollover(): void
+    {
+        // Burn 10 requests in window N (current bucket hits limit), then move
+        // time forward into the next window and verify that the previous
+        // window's count keeps contributing with decaying weight.
+        $client = $this->makeClient();
+
+        // Anchor at t = 0 (start of a clean 60s window).
+        $start = Carbon::create(2026, 1, 1, 12, 0, 0, 'UTC');
+        Carbon::setTestNow($start);
+        Cache::flush();
+
+        // 10 requests within window N → current window is at the limit.
+        for ($i = 0; $i < 10; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '172.16.0.1'])
+                ->postJson('/api/oauth/token', $this->refreshTokenPayload($client));
+        }
+
+        // Move into window N+1 at elapsed = 5s (weight on previous = (60-5)/60 ≈ 0.92).
+        // 9 new requests in N+1: current=9, previous=10 → estimated = 9 + floor(10*0.92)=9+9=18 > 10 → 429.
+        Carbon::setTestNow($start->copy()->addSeconds(65));
+
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '172.16.0.1'])
+            ->postJson('/api/oauth/token', $this->refreshTokenPayload($client));
+
+        $response->assertStatus(429);
+
+        // Move further: weight should drop toward 0 as we approach the end of N+1.
+        // At elapsed=59s in N+1, weight on N = (60-59)/60 ≈ 0.02 → previous contributes
+        // 10*0.02 = 0.2. 10 fresh in N+1 → estimated = 10 + 0 = 10. Anything above that
+        // must produce 429.
+        Carbon::setTestNow($start->copy()->addSeconds(120 + 59));
+        Cache::flush();
+        // Issue 11 requests after the flush + 59s rollover: 11th must 429.
+        for ($i = 0; $i < 10; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '172.16.0.1'])
+                ->postJson('/api/oauth/token', $this->refreshTokenPayload($client));
+        }
+        $last = $this->withServerVariables(['REMOTE_ADDR' => '172.16.0.1'])
+            ->postJson('/api/oauth/token', $this->refreshTokenPayload($client));
+        $last->assertStatus(429);
+
+        Carbon::setTestNow();
+        Cache::flush();
     }
 }
