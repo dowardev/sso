@@ -5,6 +5,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use Illuminate\Support\Str;
 use Lcobucci\JWT\Configuration;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
@@ -114,7 +115,7 @@ class JwtService
 
         $builder = $this->jwtConfig->builder()
             ->issuedBy($this->issuer)
-            ->identifiedBy(bin2hex(random_bytes(16)))
+            ->identifiedBy((string) Str::uuid())
             ->issuedAt(new \DateTimeImmutable('@'.$now))
             ->expiresAt(new \DateTimeImmutable('@'.$expiresAt))
             ->relatedTo((string) $user->id)
@@ -151,7 +152,7 @@ class JwtService
 
         $builder = $this->jwtConfig->builder()
             ->issuedBy($this->issuer)
-            ->identifiedBy(bin2hex(random_bytes(16)))
+            ->identifiedBy((string) Str::uuid())
             ->issuedAt(new \DateTimeImmutable('@'.$now))
             ->expiresAt(new \DateTimeImmutable('@'.$expiresAt))
             ->relatedTo($clientId)
@@ -181,7 +182,7 @@ class JwtService
 
         $builder = $this->jwtConfig->builder()
             ->issuedBy($this->issuer)
-            ->identifiedBy(bin2hex(random_bytes(16)))
+            ->identifiedBy((string) Str::uuid())
             ->issuedAt(new \DateTimeImmutable('@'.$now))
             ->expiresAt(new \DateTimeImmutable('@'.$expiresAt))
             ->relatedTo((string) $user->id)
