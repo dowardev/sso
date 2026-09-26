@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class AuthService
@@ -499,9 +500,6 @@ class AuthService
     }
 
     /**
-     * Get JWKS for JWT verification.
-     */
-    /**
      * Issue a short-lived SSO-signed profile token for advanced (ZKE) users.
      * See JwtService::issueProfileToken.
      */
@@ -510,31 +508,67 @@ class AuthService
         return $this->jwtService->issueProfileToken($user);
     }
 
+    /**
+     * Get JWKS for JWT verification.
+     *
+     * LBDS-256: derive the JWKS from the configured key set, not a hardcoded
+     * kid. The kid in each entry is the single source of truth and must match
+     * the `kid` header on issued tokens. Per-entry failures (missing file,
+     * unparseable key) are logged and skipped, not silently consumed — when
+     * every entry fails the aggregate-error contract is preserved.
+     */
     public function getJwks(): array
     {
         return Cache::remember('jwks', 86400, function () {
-            $privateKeyContent = file_get_contents(config('jwt.private_key_path'));
-            $keyDetails = openssl_pkey_get_details(openssl_pkey_get_private($privateKeyContent));
+            $configuredKeys = config('jwt.keys', []);
+            $jwkKeys = [];
 
-            if (! $keyDetails) {
+            foreach ($configuredKeys as $entry) {
+                $kid = (string) ($entry['kid'] ?? '');
+                $privatePath = $entry['private_key_path'] ?? null;
+
+                if ($kid === '' || ! $privatePath) {
+                    Log::warning('JWKS: skipping key entry with missing kid or private_key_path', [
+                        'kid' => $kid !== '' ? $kid : null,
+                    ]);
+
+                    continue;
+                }
+
+                $privateKeyContent = @file_get_contents($privatePath);
+                if ($privateKeyContent === false) {
+                    Log::warning('JWKS: unable to read private key file for kid', [
+                        'kid' => $kid,
+                        'private_key_path' => $privatePath,
+                    ]);
+
+                    continue;
+                }
+
+                $keyDetails = openssl_pkey_get_details(openssl_pkey_get_private($privateKeyContent));
+                if (! $keyDetails) {
+                    Log::warning('JWKS: openssl_pkey_get_details failed for kid', [
+                        'kid' => $kid,
+                    ]);
+
+                    continue;
+                }
+
+                $jwkKeys[] = [
+                    'kty' => 'RSA',
+                    'use' => 'sig',
+                    'alg' => 'RS256',
+                    'kid' => $kid,
+                    'n' => $this->jwtService->base64UrlEncode($keyDetails['rsa']['n']),
+                    'e' => $this->jwtService->base64UrlEncode($keyDetails['rsa']['e']),
+                ];
+            }
+
+            if ($jwkKeys === []) {
                 return ['error' => 'Unable to get key details'];
             }
 
-            $n = $this->jwtService->base64UrlEncode($keyDetails['rsa']['n']);
-            $e = $this->jwtService->base64UrlEncode($keyDetails['rsa']['e']);
-
-            return [
-                'keys' => [
-                    [
-                        'kty' => 'RSA',
-                        'use' => 'sig',
-                        'alg' => 'RS256',
-                        'kid' => 'sso-key-1',
-                        'n' => $n,
-                        'e' => $e,
-                    ],
-                ],
-            ];
+            return ['keys' => $jwkKeys];
         });
     }
 

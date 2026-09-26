@@ -32,6 +32,7 @@ properties.
 8. [Security Properties](#8-security-properties)
 9. [Known Limitations](#9-known-limitations)
 10. [File Map](#10-file-map)
+11. [Key Rotation](#11-key-rotation)
 
 ---
 
@@ -516,3 +517,67 @@ Documented gaps to address in later phases:
 | `front/src/components/AuthLoginForm.vue` | Unified identifier field (basic vs advanced detection) |
 | `front/src/views/RegisterPage.vue` | Encryption-level selector, seed modal |
 | `front/src/components/user/ProfileForm.vue` | Upgrade card + seed modal |
+
+---
+
+## 11. Key Rotation
+
+The JWT signing key (`back/keys/private.pem` / `public.pem`) is published at
+`/.well-known/jwks` with a `kid` header. Since LBDS-256 every JWT carries the
+same `kid` in its protected header, so consumers can match a token to the key
+that signed it. Rotation is a config-only change.
+
+### How rotation works
+
+1. Generate a new key pair (RSA 2048+ is fine, ECDSA P-256 is faster and is the
+   long-term target — see LBDS-258).
+2. Drop the new `private.pem` / `public.pem` onto disk next to the old pair
+   (e.g. `back/keys/private.kid-sso-key-2.pem`).
+3. Update `back/config/jwt.php` to add a second entry to the `keys` array with
+   `kid => 'sso-key-2'` and the new paths. **The new key MUST be the last
+   entry** (signature always uses the active `kid`, currently `keys[0]`).
+4. Deploy.
+5. Wait for the access-token TTL (`JWT_TOKEN_EXPIRATION`, default `3600`s) so
+   every previously-issued token expires naturally.
+6. Move `sso-key-2` to position 0 in the `keys` array and remove the old entry.
+7. Deploy again. Old key is no longer used for signing; consumers that still
+   have a cached JWKS for the old key continue to verify already-issued
+   tokens until they expire.
+
+### Cache invalidation
+
+The SSO server caches the JWKS for 24h via `AuthService::getJwks()`
+(`Cache::remember('jwks', 86400, ...)`). Consumers embedding
+`packages/sso-server` cache the per-kid PEM in
+`JwksFetcher::getPublicKeyPemByKid()` (key `sso_jwt_public_key:<kid>`,
+TTL via `config('sso.jwks_cache_ttl')`). The full JWKS response is cached
+separately in `JwksFetcher::getJwks()` (key `sso_jwks`, same TTL). After step 3, run:
+
+```bash
+php artisan cache:clear     # back/  — clears the `jwks` key for the JWKS endpoint
+```
+
+Consumers (apps embedding `packages/sso-server`) clear their cache on the next
+`JwksFetcher::clearCache()` call, which the `JwtValidator::validate()`
+failure path already invokes when verification fails. No coordinated cache
+flush is required if you accept up to 24h of slow rollout.
+
+### Operational caveats
+
+- **Tokens issued before the rotation are valid until they expire.** This is
+  the entire point of the rotation procedure. Do not shorten `JWT_TOKEN_EXPIRATION`
+  to force rotation — it expires refresh-token chains more aggressively than
+  the rotation procedure expects.
+- **Refresh tokens are bound by `cnf.jkt` (LBDS-253) or by the session row.**
+  Rotating the signing key does not invalidate refresh tokens; it only changes
+  the access-token verification key. Logout / password change / upgrade still
+  invalidate sessions normally.
+- **The `kid` is not a cryptographic identifier.** It is an opaque string the
+  issuer chooses. Consumers MUST match it against the JWKS, not against any
+  hardcoded table.
+- **Rotation is NOT a key compromise response.** If the private key is leaked,
+  revoke every session immediately (DB-level: `DELETE FROM user_sessions` for
+  the affected key fingerprint window) and rotate `JWT_KID` to a fresh value
+  alongside the new key pair. The 24h cache window is the maximum lag for
+  consumers that have already fetched the leaked key.
+

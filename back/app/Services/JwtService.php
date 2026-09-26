@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Support\Str;
 use Lcobucci\JWT\Configuration;
+use Lcobucci\JWT\Signer\Key;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
 use Lcobucci\JWT\Token\Plain;
@@ -21,16 +22,118 @@ class JwtService
 
     private string $issuer;
 
+    /**
+     * Single source of truth for the kid stamped into every JWT header.
+     * Mirrors config('jwt.keys')[0]['kid']; verified at boot.
+     */
+    private string $kid;
+
+    /**
+     * Single source of truth for the signing key. Mirrors
+     * config('jwt.keys')[0]['private_key_path']; loaded as an InMemory file
+     * once and reused by every builder's getToken().
+     */
+    private Key $signingKey;
+
+    /**
+     * Single source of truth for the primary verification key. Mirrors
+     * config('jwt.keys')[0]['public_key_path']; used as the back-compat
+     * fallback when a token's `kid` header is absent.
+     */
+    private Key $verificationKey;
+
+    /**
+     * Active key set, keyed by kid. Built once per request from config('jwt.keys').
+     * Forward-compatible: today a single entry, but the resolver already supports
+     * multi-key rotation (LBDS-258). The first entry is treated as the primary.
+     *
+     * @var array<string, array{kid: string, public_key: Key, private_key: Key}>
+     */
+    private array $activeKeys;
+
     public function __construct()
     {
+        $configured = config('jwt.keys', []);
+        $primary = is_array($configured) ? ($configured[0] ?? null) : null;
+
+        if (! is_array($primary)) {
+            throw new \RuntimeException(
+                'config/jwt.php `keys` must contain at least one entry; '
+                .'without it the service cannot sign or verify JWTs.'
+            );
+        }
+
+        $primaryKid = (string) ($primary['kid'] ?? '');
+        $primaryPrivate = $primary['private_key_path'] ?? null;
+        $primaryPublic = $primary['public_key_path'] ?? null;
+
+        if ($primaryKid === '') {
+            throw new \RuntimeException(
+                'config/jwt.php `keys[0].kid` is required (got empty value).'
+            );
+        }
+
+        if (! is_string($primaryPrivate) || $primaryPrivate === '') {
+            throw new \RuntimeException(
+                'config/jwt.php `keys[0].private_key_path` is required.'
+            );
+        }
+
+        if (! is_string($primaryPublic) || $primaryPublic === '') {
+            throw new \RuntimeException(
+                'config/jwt.php `keys[0].public_key_path` is required.'
+            );
+        }
+
+        // keys[0] is the canonical source of truth: signing, header kid, and
+        // primary verification fallback all resolve from this entry. The top-
+        // level `jwt.private_key_path` / `jwt.public_key_path` config values
+        // are intentionally ignored here — see the comment in config/jwt.php.
+        $this->kid = $primaryKid;
+        $this->signingKey = InMemory::file($primaryPrivate);
+        $this->verificationKey = InMemory::file($primaryPublic);
+
+        // jwtConfig is kept only for parser() and signer() (the algorithm is
+        // still RS256). We feed it the same keys[0] paths so it stays
+        // internally consistent for any caller that uses builder()/signer().
         $this->jwtConfig = Configuration::forAsymmetricSigner(
             new Sha256,
-            InMemory::file(config('jwt.private_key_path')),
-            InMemory::file(config('jwt.public_key_path'))
+            $this->signingKey,
+            $this->verificationKey
         );
 
         $this->tokenExpiration = config('jwt.token_expiration', 3600);
         $this->issuer = config('jwt.issuer', 'http://localhost:8001');
+        $this->activeKeys = $this->loadActiveKeys();
+    }
+
+    /**
+     * Read the configured key set and load every public/private key into memory.
+     * Single source of truth for both signing (token builders) and verification
+     * (parseAndValidateToken). Adding a new key only requires a new entry in
+     * config('jwt.keys') — no code change.
+     *
+     * @return array<string, array{kid: string, public_key: Key, private_key: Key}>
+     */
+    private function loadActiveKeys(): array
+    {
+        $configured = config('jwt.keys', []);
+        $loaded = [];
+
+        foreach ($configured as $entry) {
+            $kid = (string) ($entry['kid'] ?? '');
+            if ($kid === '') {
+                continue;
+            }
+
+            $loaded[$kid] = [
+                'kid' => $kid,
+                'private_key' => InMemory::file($entry['private_key_path']),
+                'public_key' => InMemory::file($entry['public_key_path']),
+            ];
+        }
+
+        return $loaded;
     }
 
     public function getJwtConfig(): Configuration
@@ -136,7 +239,11 @@ class JwtService
             ]);
         }
 
-        $token = $builder->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
+        // LBDS-256: every issued JWT carries the configured kid in its
+        // protected header so consumers can resolve the verification key by kid.
+        $builder = $builder->withHeader('kid', $this->kid);
+
+        $token = $builder->getToken($this->jwtConfig->signer(), $this->signingKey);
 
         return [
             'token' => $token->toString(),
@@ -159,7 +266,11 @@ class JwtService
             ->withClaim('grant_type', $grantType ?? 'client_credentials')
             ->withClaim('client_id', $clientId);
 
-        $token = $builder->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
+        // LBDS-256: client-credentials tokens also carry the kid header so
+        // resource servers can verify them by kid (same as user tokens).
+        $builder = $builder->withHeader('kid', $this->kid);
+
+        $token = $builder->getToken($this->jwtConfig->signer(), $this->signingKey);
 
         return [
             'token' => $token->toString(),
@@ -188,7 +299,11 @@ class JwtService
             ->relatedTo((string) $user->id)
             ->withClaim('profile_version', (int) $user->profile_version);
 
-        $token = $builder->getToken($this->jwtConfig->signer(), $this->jwtConfig->signingKey());
+        // LBDS-256: profile tokens (ZKE) carry the same kid header so OAuth apps
+        // verifying them via /.well-known/jwks can match by kid.
+        $builder = $builder->withHeader('kid', $this->kid);
+
+        $token = $builder->getToken($this->jwtConfig->signer(), $this->signingKey);
 
         return [
             'token' => $token->toString(),
@@ -217,10 +332,23 @@ class JwtService
         try {
             $token = $this->jwtConfig->parser()->parse($tokenString);
 
+            // LBDS-256: resolve the verification key by the kid claim in the
+            // protected header. Tokens issued before this change don't carry a
+            // kid; per D4 in odd/tasks/lbds-256-kid-header-jwts.md we fall
+            // back to the primary key for back-compat. An unknown kid is a
+            // hard error (matches the existing validation-failure contract:
+            // returns null, no exception leaking).
+            $tokenKid = $token->headers()->get('kid');
+            $verificationKey = $this->resolveVerificationKey($tokenKid);
+
+            if ($verificationKey === null) {
+                return null;
+            }
+
             $constraints = [
                 new SignedWith(
                     $this->jwtConfig->signer(),
-                    $this->jwtConfig->verificationKey()
+                    $verificationKey
                 ),
                 new IssuedBy($this->issuer),
             ];
@@ -233,5 +361,40 @@ class JwtService
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+    /**
+     * Resolve the public key used to verify a token's signature by its kid
+     * header. Null when the kid is present but unknown — callers (only
+     * parseAndValidateToken today) treat that as a validation failure.
+     *
+     * Fallback rule (D4):
+     *   - kid present & matches any configured key  → that key
+     *   - kid absent                                 → primary key (compat)
+     *   - kid present & unknown                      → null
+     */
+    private function resolveVerificationKey(mixed $tokenKid): ?Key
+    {
+        if ($tokenKid === null || $tokenKid === '' || ! is_string($tokenKid)) {
+            // Absent / empty / non-string kid → primary key (back-compat with
+            // tokens issued before this change). $this->verificationKey
+            // mirrors config('jwt.keys')[0]['public_key_path'] and is the
+            // canonical primary.
+            return $this->verificationKey;
+        }
+
+        if (! isset($this->activeKeys[$tokenKid])) {
+            return null;
+        }
+
+        return $this->activeKeys[$tokenKid]['public_key'];
+    }
+
+    /**
+     * Get the kid value used by every JWT this service issues.
+     */
+    public function getKid(): string
+    {
+        return $this->kid;
     }
 }
