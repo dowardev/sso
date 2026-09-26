@@ -16,6 +16,7 @@ use Dowardev\SsoServer\Jwt\JwtValidator;
 use Dowardev\SsoServer\Middleware\SsoAuthMiddleware;
 use Dowardev\SsoServer\Middleware\SsoRoleMiddleware;
 use Dowardev\SsoServer\Types\SsoConfig;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 class SsoServerServiceProvider extends ServiceProvider
@@ -50,7 +51,31 @@ class SsoServerServiceProvider extends ServiceProvider
             ], 'sso-config');
         }
 
+        $this->warnOnNonAtomicCacheDriver();
+
         $this->app['router']->aliasMiddleware('sso.auth', SsoAuthMiddleware::class);
         $this->app['router']->aliasMiddleware('sso.role', SsoRoleMiddleware::class);
+    }
+
+    /**
+     * Emit a warning when the cache driver is non-atomic (file or array).
+     *
+     * DPoP replay protection relies on Cache::add() atomicity. The file and
+     * array drivers are not atomic across processes/pods, so multi-instance
+     * deployments will silently accept replayed DPoP proofs.
+     */
+    private function warnOnNonAtomicCacheDriver(): void
+    {
+        $driver = config('cache.default');
+        $nonAtomicDrivers = ['file', 'array'];
+
+        if (in_array($driver, $nonAtomicDrivers, true)) {
+            Log::warning(
+                'DPoP replay protection will not work across pods/instances '
+                .'because the cache driver "'.$driver.'" is non-atomic. '
+                .'Switch CACHE_STORE to redis, database, or memcached for '
+                .'multi-instance deployments.'
+            );
+        }
     }
 }
