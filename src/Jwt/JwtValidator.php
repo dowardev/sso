@@ -24,15 +24,31 @@ class JwtValidator
 
     public function validate(string $token): Token
     {
-        $publicKeyPem = $this->jwksFetcher->getPublicKeyPem();
+        // We parse first, then conditionally hit the JWKS endpoint. Parsing
+        // happens before the JWKS fetch, so a malformed token fails fast
+        // without an HTTP call. At large JWKS sizes an attacker could
+        // measure the unknown-kid path's O(n) iteration as a timing oracle;
+        // out-of-scope today, tracked as part of the LBDS-258 multi-key work.
+        $parsedToken = $this->parse($token);
+
+        $kid = $parsedToken->headers()->get('kid');
+
+        if ($kid !== null && $kid !== '') {
+            // Kid-aware path: resolve PEM by kid. Throws JwksFetchException
+            // when the kid is not present in the JWKS; we let it propagate
+            // to match the existing behaviour for JWKS fetch failures.
+            $publicKeyPem = $this->jwksFetcher->getPublicKeyPemByKid($kid);
+        } else {
+            // Back-compat: tokens issued before kid headers still verify
+            // against the primary key.
+            $publicKeyPem = $this->jwksFetcher->getPublicKeyPem();
+        }
 
         $jwtConfig = Configuration::forAsymmetricSigner(
             new Sha256,
             InMemory::plainText('unused-signing-key'),
             InMemory::plainText($publicKeyPem)
         );
-
-        $parsedToken = $jwtConfig->parser()->parse($token);
 
         $constraints = [
             new SignedWith($jwtConfig->signer(), $jwtConfig->verificationKey()),
