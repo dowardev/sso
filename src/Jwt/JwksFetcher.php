@@ -12,6 +12,14 @@ use Illuminate\Support\Facades\Log;
 
 class JwksFetcher
 {
+    /**
+     * Kids resolved via getPublicKeyPemByKid() during this instance's
+     * lifetime, so clearCache() can also forget their per-kid cache entries.
+     *
+     * @var array<string, true>
+     */
+    private array $seenKids = [];
+
     public function __construct(
         private readonly SsoConfig $config,
         private readonly JwkToPemConverter $converter,
@@ -23,6 +31,17 @@ class JwksFetcher
             'sso_jwt_public_key',
             $this->config->jwksCacheTtl,
             fn () => $this->fetchPublicKeyFromJwks()
+        );
+    }
+
+    public function getPublicKeyPemByKid(string $kid): string
+    {
+        $this->seenKids[$kid] = true;
+
+        return Cache::remember(
+            'sso_jwt_public_key:'.$kid,
+            $this->config->jwksCacheTtl,
+            fn () => $this->fetchPublicKeyFromJwks($kid)
         );
     }
 
@@ -39,9 +58,13 @@ class JwksFetcher
     {
         Cache::forget('sso_jwt_public_key');
         Cache::forget('sso_jwks');
+        foreach (array_keys($this->seenKids) as $kid) {
+            Cache::forget('sso_jwt_public_key:'.$kid);
+        }
+        $this->seenKids = [];
     }
 
-    private function fetchPublicKeyFromJwks(): string
+    private function fetchPublicKeyFromJwks(?string $kid = null): string
     {
         $jwks = $this->fetchJwks();
 
@@ -49,9 +72,19 @@ class JwksFetcher
             throw JwksFetchException::emptyJwks();
         }
 
-        $keyData = $jwks['keys'][0];
+        if ($kid === null) {
+            $keyData = $jwks['keys'][0];
 
-        return $this->converter->convert($keyData);
+            return $this->converter->convert($keyData);
+        }
+
+        foreach ($jwks['keys'] as $keyData) {
+            if (($keyData['kid'] ?? null) === $kid) {
+                return $this->converter->convert($keyData);
+            }
+        }
+
+        throw JwksFetchException::unknownKid($kid);
     }
 
     private function fetchJwks(): ?array
