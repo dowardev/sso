@@ -581,3 +581,63 @@ flush is required if you accept up to 24h of slow rollout.
   alongside the new key pair. The 24h cache window is the maximum lag for
   consumers that have already fetched the leaked key.
 
+---
+
+## 12. Cache Store Requirements
+
+The `packages/sso-server` package implements DPoP replay protection as a
+single `Cache::add('dpop_jti:'.$jti, true, $ttl)` call. The atomicity of that
+call is delegated to the cache driver configured in the **embedding
+application** (Laravel's `CACHE_STORE` env, or `config('cache.default')`).
+This is intentional: the package is driver-agnostic and the embedding app
+already chooses a driver for the rest of its caches.
+
+### Atomic-capable drivers (safe for multi-instance)
+
+| Driver | Atomic primitive used |
+|---|---|
+| `redis` | `SET key value NX EX ttl` |
+| `database` | `INSERT IGNORE` on the `cache` table |
+| `memcached` | `add` |
+| `array` | in-memory set (single-process only) |
+
+For an embedding application running more than one pod (k8s, load balancer,
+multi-node), only `redis`, `database`, and `memcached` preserve replay
+protection across pods.
+
+### Non-atomic drivers (warn at boot)
+
+| Driver | Risk |
+|---|---|
+| `file` | Best-effort `file_exists` + `file_put_contents`; TOCTOU between pods sharing an NFS mount is not safe. |
+| `array` | In-process only; does not survive across PHP processes. |
+
+`SsoServerServiceProvider::boot()` emits a `Log::warning` when
+`config('cache.default')` is `file` or `array`. The warning is informational,
+not a fatal error: a single-instance embedding still gets correct in-process
+replay protection. Multi-instance deployments running these drivers will
+silently accept replayed DPoP proofs.
+
+### Operational checklist for a multi-pod deployment
+
+1. Confirm `CACHE_STORE` is `redis`, `database`, or `memcached`.
+2. Confirm the driver is reachable from every pod:
+   - `redis`: a single Redis cluster or replica set visible to every pod.
+   - `database`: every pod pointing at the same MySQL/Postgres that hosts
+     the `cache` table (Laravel's default schema).
+   - `memcached`: every pod pointing at the same Memcached pool.
+3. Confirm the boot warning is **not** present in any pod's logs after
+   deployment.
+4. Smoke-test the protection: send the same DPoP proof to pod A and pod B
+   within the `dpopReplayTtl` window (default 120s); pod B must return 401
+   with the replay-detected error.
+
+### Back-side (`back/`) status
+
+The Laravel backend's DPoP replay protection was already atomic across
+instances: the `dpop_nonces` MySQL table uses `jti` as PRIMARY KEY and
+`VerifyDpopProof` performs `INSERT IGNORE`. The `CleanupDpopNonces` console
+command and the inline `lazyCleanup` stay in place — the table still needs
+periodic cleanup until Redis is provisioned and the back adopts `Cache::add`
+as well.
+
