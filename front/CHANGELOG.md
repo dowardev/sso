@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Friendly copy for the CORS origin-mismatch rejection (LBDS-261)**: the friendly-error catalog now maps the backend's `redirect_uri`/`allowed_origins` mismatch to its own ES/EN message, so a misconfigured OAuth client shows "La aplicación no está bien configurada para iniciar sesión" instead of the generic "Ocurrió un error inesperado". The match requires both tokens (`allowed_origins` and `redirect_uri`) so it never swallows a plain field-validation error for the `allowed_origins` form field.
 
+### Fixed
+
+- **Duplicate API error notification (LBDS-267)**: form errors used to fire both a toast and an inline `error.value` block at the same time, so users saw the same message twice. `handleApiError` is now a pure translator — it returns the friendly copy and logs the raw error to the console — and the caller decides the channel: inline for form errors, an explicit `showError({ message: ... })` toast for actions without a form. All twenty-five call sites across the frontend were aligned to this contract. `console.error` keeps the raw backend detail for developers (LBDS-232 invariant preserved). No backend changes.
+
 ## [0.24.4] - 2026-09-10
 
 ### Fixed

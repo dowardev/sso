@@ -173,9 +173,11 @@ import { useSecurityController } from '@/controllers/securityController'
 const securityController = useSecurityController()
 
 import { useFormValidation } from '@/composables/useFormValidation'
+import { useToast } from '@/composables/useToast'
 import { useValidation, validators } from '@/composables/useValidation'
 const { handleApiError } = useValidation()
 const v = validators
+const { showError } = useToast()
 
 // 3. Components
 
@@ -258,7 +260,8 @@ const addExclusionValidated = async (_params: object = {}): Promise<void> => {
     exclusionForm.value.host = ''
     showAddExclusionModal.value = false
   } catch (err) {
-    handleApiError(err)
+    // LBDS-267: this screen has no inline error block, so the caller owns the toast.
+    showError({ message: handleApiError(err) })
   } finally {
     addingExclusion.value = false
   }

@@ -147,13 +147,15 @@ describe('userFriendlyErrors catalog', () => {
     const err = Object.assign(new Error('Error de validacion'), { errors: { email: [] as string[] } })
     const result = handleApiError(err)
     expect(result).toBe('Error de validación. Revisa los datos e inténtalo de nuevo.')
-    expect(showErrorMock).toHaveBeenCalledWith({ message: result })
+    // LBDS-267: helper is pure; the caller decides if/how to notify.
+    expect(showErrorMock).not.toHaveBeenCalled()
   })
 
   it('falls back to generic for malformed errors shapes', () => {
     const result = handleApiError({ errors: 'oops' })
     expect(result).toBe('Ocurrió un error inesperado. Inténtalo de nuevo.')
-    expect(showErrorMock).toHaveBeenCalledWith({ message: result })
+    // LBDS-267: helper is pure; the caller decides if/how to notify.
+    expect(showErrorMock).not.toHaveBeenCalled()
   })
 
   it('maps the allowed_origins mismatch to its own copy', () => {
@@ -189,19 +191,22 @@ describe('useValidation handleApiError', () => {
     expect(result).toBe('El campo Email debe ser un email válido. El campo Contraseña es requerido.')
     expect(result).not.toContain('must be a valid email')
     expect(result).not.toContain('field is required')
-    expect(showErrorMock).toHaveBeenCalledWith({ message: result })
+    // LBDS-267: helper is pure; the caller decides if/how to notify.
+    expect(showErrorMock).not.toHaveBeenCalled()
   })
 
   it('accepts a plain object with errors{}', () => {
     const result = handleApiError({ errors: { slug: ['The slug has already been taken.'] } })
     expect(result).toBe('El campo Slug ya está en uso.')
-    expect(showErrorMock).toHaveBeenCalledWith({ message: result })
+    // LBDS-267: helper is pure; the caller decides if/how to notify.
+    expect(showErrorMock).not.toHaveBeenCalled()
   })
 
   it('maps a plain Error without leaking raw text', () => {
     const result = handleApiError(new Error('Invalid credentials'))
     expect(result).toBe('Credenciales inválidas.')
-    expect(showErrorMock).toHaveBeenCalledWith({ message: 'Credenciales inválidas.' })
+    // LBDS-267: helper is pure; the caller decides if/how to notify.
+    expect(showErrorMock).not.toHaveBeenCalled()
   })
 
   it('uses the friendly fallback for unknown errors', () => {

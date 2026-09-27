@@ -3,7 +3,6 @@ import { helpers, required, email, minLength, maxLength, sameAs, url as urlValid
 import type { ValidationRule } from '@vuelidate/core'
 import type { ComputedRef } from 'vue'
 
-import { useToast } from '@/composables/useToast'
 import { fieldLabelsEn, getFieldFriendlyMessage, getFriendlyMessage } from '@/utils/userFriendlyErrors'
 
 const fieldLabels: Record<string, string> = {
@@ -47,11 +46,24 @@ function getValidationErrors(params: { err: unknown }): Record<string, string[]>
   return Object.keys(record).length > 0 ? record : null
 }
 
+/**
+ * Notification contract (LBDS-267):
+ * - `handleApiError` is a PURE translator: it returns the friendly copy and
+ *   logs the raw error to the console. It does NOT show a toast.
+ * - Form errors are rendered inline by the caller (Pattern A):
+ *     `error.value = handleApiError(err)`
+ *   This avoids showing the same message twice (toast + inline text).
+ * - Actions without an inline error block MUST notify through an explicit
+ *   `showError({ message: handleApiError(err) })` (Pattern B), so the user
+ *   still gets feedback.
+ * - Callers that already pass the result to `showError` (Pattern C) MUST
+ *   keep that wrapping — do NOT remove the `showError` wrapper just because
+ *   the helper used to toast on its own. The wrapper is now the only channel
+ *   firing; dropping it would silence the screen entirely.
+ */
 export function useValidation() {
-  const { showError } = useToast()
-
   function handleApiError(err: unknown): string {
-    // Raw backend detail always goes to the console; the toast only shows
+    // Raw backend detail always goes to the console; the returned string is
     // friendly catalog copy so raw text never leaks into the UI.
     console.error('[API Error]', err)
     const messages: string[] = []
@@ -75,7 +87,6 @@ export function useValidation() {
 
     const cleaned = messages.map((item) => item.trim().replace(/[.\s]+$/, '')).filter((item) => item.length > 0)
     const joined = cleaned.join('. ') + (cleaned.length > 0 ? '.' : '')
-    showError({ message: joined })
     return joined
   }
 
