@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The same API error is no longer shown twice (LBDS-267)**: every form-bound error in the SSO frontend used to fire both a toast and an inline message at the same time, so the user saw the same text in two places at once. The translation helper is now pure (returns the friendly copy and keeps the raw detail in the developer console), and each screen explicitly picks one channel — inline for form errors, a toast for actions that have no form. The fix lives entirely in the frontend; the SSO backend and OAuth flow are unchanged.
 - **OAuth sign-in no longer leaves you half logged in (LBDS-261)**: when an app's callback origin was not registered among its allowed origins, the SSO logged you in, sent you back to the app, and the app then failed silently to finish signing you in — you stayed logged into the SSO but not into the app, with nothing explaining why. The SSO now detects that mismatch before sending you back and reports it clearly, and the browser-side rejection names the origin that is missing.
 
 ### Security

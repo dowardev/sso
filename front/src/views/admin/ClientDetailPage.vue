@@ -408,7 +408,8 @@
       showSuccess({ message: 'Cliente actualizado correctamente' });
       await loadClient();
     } catch (err) {
-      handleApiError(err);
+      // LBDS-267: this screen has no inline error block, so the caller owns the toast.
+      showError({ message: handleApiError(err) });
     } finally {
       saving.value = false;
     }

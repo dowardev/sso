@@ -501,7 +501,8 @@ const authStore = useAuthStore();
       showEditModal.value = false;
       showSuccess({ message: 'Usuario actualizado correctamente' });
     } catch (err) {
-      handleApiError(err);
+      // LBDS-267: this screen has no inline error block, so the caller owns the toast.
+      showError({ message: handleApiError(err) });
     } finally {
       updating.value = false;
     }
