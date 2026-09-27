@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-27
+
 ### Added
 
 - `client/profileFragmentCleanup.test.ts` (new) — covers the fragment erase, the match guard's negative cases (`origin`, `pathname`, `search`, `hash`), idempotence, preservation of the host router's `history.state`, a throwing `replaceState`, and a malformed callback URL. Runs in the `jsdom` environment via `// @vitest-environment jsdom`; the rest of the suite stays on `node`, which the crypto tests need for `crypto.subtle`.
