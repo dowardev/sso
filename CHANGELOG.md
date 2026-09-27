@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-27
+
 ### Security
 
 - **DPoP replay protection is now atomic across instances (LBDS-255)**: `ReplayProtection::checkAndStore()` used a non-atomic `Cache::has` + `Cache::put` pair against a per-instance Cache. Any embedding application running more than one pod (k8s, load balancer) could accept the same DPoP `jti` twice — once per pod. The implementation now uses a single `Cache::add('dpop_jti:'.$jti, true, $ttl)` call, which dispatches to the atomic primitive of the configured cache driver: `SET NX EX` on Redis, `INSERT IGNORE` on the `database` cache store, Memcached `add`, or in-process for `array`. The `file` driver is not atomic across processes; `SsoServerServiceProvider::boot()` now emits a `Log::warning` when `cache.default` is `file` or `array` so multi-instance deployments never silently lose replay protection. Tests cover the atomicity contract via two `Repository` instances backed by the same `ArrayStore`, plus driver parity for `array` and `database` (the two drivers available without external services in the test environment). Operator config knob is unchanged: `CACHE_STORE=redis|database|memcached` is safe across pods; `CACHE_STORE=file` is not.
