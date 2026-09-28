@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `app/Services/JwtService.php` — `generateTokenForJkt()` issues a `cnf.jkt`-bound access token from a stored thumbprint; `generateToken()` keeps emitting exactly the same claims as before, so existing login flows are untouched.
 - `app/Services/AuthService.php` — `jktFromDpopPublicKey()` derives the RFC 7638 thumbprint from the raw `dpop_public_key` field. Only the authorization-code exchange binds its refresh token: the login/cookie flow has no DPoP proof mechanism on refresh, so binding there would lock those sessions out.
 - `tests/Feature/DpopRefreshTokenTest.php` (new) and `tests/Support/DpopProofBuilder.php` — 18 integration tests over the real endpoints, covering every enforced failure (missing header, wrong key, tampered signature, wrong `htm`/`htu`, stale `iat`, replayed `jti`, `ath` without a bearer, unbound token, revoked-token replay) and the success path with binding preservation and rotation.
+- **Documentation: hardening snapshot at `v0.35.0` (LBDS-249)**: new `docs/architecture/security.md` documents the security posture of the stack — authentication, transport hardening, token binding (DPoP), JWT hardening, rate limits, validation, observability — with explicit deferral decisions for LBDS-258 (DPoP ECDSA P-256), LBDS-257 (Ed25519 Passkeys), and LBDS-259 (mTLS, regulatory-only). Internal tracking at `odd/tasks/lbds-249-epic-close-decision.md`.
 
 ### Changed
 
