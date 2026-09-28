@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Friendly copy for the CORS origin-mismatch rejection (LBDS-261)**: the friendly-error catalog now maps the backend's `redirect_uri`/`allowed_origins` mismatch to its own ES/EN message, so a misconfigured OAuth client shows "La aplicación no está bien configurada para iniciar sesión" instead of the generic "Ocurrió un error inesperado". The match requires both tokens (`allowed_origins` and `redirect_uri`) so it never swallows a plain field-validation error for the `allowed_origins` form field.
+- **Documentation: hardening snapshot at `v0.35.0` (LBDS-249)**: new `docs/architecture/security.md` documents the security posture of the stack — authentication, transport hardening, token binding (DPoP), JWT hardening, rate limits, validation, observability — with explicit deferral decisions for LBDS-258 (DPoP ECDSA P-256), LBDS-257 (Ed25519 Passkeys), and LBDS-259 (mTLS, regulatory-only). Internal tracking at `odd/tasks/lbds-249-epic-close-decision.md`.
 
 ### Fixed
 

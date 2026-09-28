@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Documentation: hardening snapshot at `v0.35.0` (LBDS-249)**: new `docs/architecture/security.md` documents the security posture of the stack — authentication, transport hardening, token binding (DPoP), JWT hardening, rate limits, validation, observability — with explicit deferral decisions for LBDS-258 (DPoP ECDSA P-256), LBDS-257 (Ed25519 Passkeys), and LBDS-259 (mTLS, regulatory-only). Internal tracking at `odd/tasks/lbds-249-epic-close-decision.md`.
+
 ## [0.3.0] - 2026-09-27
 
 ### Added
