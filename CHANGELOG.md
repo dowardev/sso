@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Passkeys now support Ed25519 (LBDS-257)**: authenticators that prefer EdDSA — Android Passkeys, modern Linux/Firefox setups, and credentials that rely on self-attestation — can register a passkey against the SSO without being forced to ES256 or RS256. ES256 and RS256 stay available for older devices. Certificate-based packed attestations (YubiKey 5 series, Windows Hello with TPM) are still tracked separately under LBDS-286.
+
 ### Fixed
 
 - **The same API error is no longer shown twice (LBDS-267)**: every form-bound error in the SSO frontend used to fire both a toast and an inline message at the same time, so the user saw the same text in two places at once. The translation helper is now pure (returns the friendly copy and keeps the raw detail in the developer console), and each screen explicitly picks one channel — inline for form errors, a toast for actions that have no form. The fix lives entirely in the frontend; the SSO backend and OAuth flow are unchanged.
