@@ -6,10 +6,15 @@ namespace App\Services;
 
 use App\Models\PasskeyCredential;
 use App\Models\User;
+use Cose\Algorithm\Manager as CoseAlgorithmManager;
+use Cose\Algorithm\Signature\ECDSA\ES256;
+use Cose\Algorithm\Signature\EdDSA\EdDSA;
+use Cose\Algorithm\Signature\RSA\RS256;
 use Exception;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Uid\Uuid;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
+use Webauthn\AttestationStatement\PackedAttestationStatementSupport;
 use Webauthn\AuthenticationExtensions\AuthenticationExtensions;
 use Webauthn\AuthenticatorAssertionResponse;
 use Webauthn\AuthenticatorAssertionResponseValidator;
@@ -49,6 +54,26 @@ class PasskeyService
     {
         $this->factory = new CeremonyStepManagerFactory;
 
+        // Algorithm manager must include EdDSA so CheckSignature can verify
+        // Ed25519 (COSE alg -8) credentials. The default factory manager only
+        // ships ES256/RS256, which means any EdDSA registration/assertion
+        // would throw "Unsupported algorithm" at signature verification time
+        // — the exact case the LBDS-257 feature is meant to enable.
+        $algorithmManager = CoseAlgorithmManager::create()
+            ->add(new EdDSA)
+            ->add(ES256::create())
+            ->add(RS256::create());
+        $this->factory->setAlgorithmManager($algorithmManager);
+
+        // Attestation manager must include PackedAttestationStatementSupport so
+        // fmt="packed" attestation (the common YubiKey / Windows Hello /
+        // Android Passkey format) can be parsed. NoneAttestationStatementSupport
+        // is added automatically by the manager's constructor.
+        $attestationStatementSupportManager = AttestationStatementSupportManager::create([
+            PackedAttestationStatementSupport::create($algorithmManager),
+        ]);
+        $this->factory->setAttestationStatementSupportManager($attestationStatementSupportManager);
+
         // Configure allowed origins (the browser origins driving WebAuthn)
         $appUrl = config('app.url', 'http://localhost:8101');
         $allowedOrigins = config('passkey.allowed_origins', ['http://localhost:8101']);
@@ -66,9 +91,10 @@ class PasskeyService
         $this->attestationValidator = AuthenticatorAttestationResponseValidator::create($this->creationCeremony);
         $this->assertionValidator = AuthenticatorAssertionResponseValidator::create($this->requestCeremony);
 
-        // Serializer builds/reads web-auth DTOs (options, responses) from JSON
+        // Serializer builds/reads web-auth DTOs (options, responses) from JSON.
+        // Pass the same attestation manager so packed attestations deserialize.
         $this->serializer = (new WebauthnSerializerFactory(
-            AttestationStatementSupportManager::create()
+            $attestationStatementSupportManager
         ))->create();
 
         // Relying Party Entity
@@ -113,6 +139,10 @@ class PasskeyService
             $userEntity,
             $this->generateChallenge(),
             [
+                // Order matters: authenticators pick the first alg they support.
+                // Modern hardware (YubiKey 5+, Windows Hello, Android Passkeys)
+                // prefers Ed25519; older fall back to ES256 / RS256.
+                PublicKeyCredentialParameters::create('public-key', -8), // Ed25519
                 PublicKeyCredentialParameters::create('public-key', -7), // ES256
                 PublicKeyCredentialParameters::create('public-key', -257), // RS256
             ],
