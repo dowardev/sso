@@ -17,6 +17,7 @@ back/guides/
 cookie_jar.txt
 front/.eslintcache
 front/.vite/
+odd/
 
 # Build outputs and vendor
 packages/*/dist/
