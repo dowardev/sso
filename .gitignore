@@ -16,6 +16,7 @@ back/guides/
 .playwright-cli/
 cookie_jar.txt
 front/.eslintcache
+front/.vite/
 
 # Build outputs and vendor
 packages/*/dist/
