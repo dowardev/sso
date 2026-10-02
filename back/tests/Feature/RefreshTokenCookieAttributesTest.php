@@ -16,6 +16,13 @@ use Tests\TestCase;
  * Secure flag driven by the session config). These flags are the last line of
  * defense in depth against CSRF and cross-site cookie theft.
  *
+ * LBDS-278 extends this guarantee to the logout clear: the cookie used by
+ * `AuthController::logout()` to drop `refresh_token` on the client must read
+ * the same session config (`session.secure`, `session.same_site`) at the same
+ * call site as the emission, so a cookie issued under one set of attributes
+ * is matched by the clear under the same attributes. The emission/clear
+ * parity tests at the bottom of this file pin that contract end-to-end.
+ *
  * Coverage scope:
  *   - The four emission sites in `AuthController` (basic login, advanced
  *     login, passkey login, /api/refresh-token rotation) all funnel through
@@ -25,6 +32,10 @@ use Tests\TestCase;
  *     `test_refresh_token_cookie_helper_is_called_by_controller_methods`,
  *     which introspects the helper rather than going through the heavy
  *     zero-knowledge / WebAuthn ceremony.
+ *   - The LBDS-278 clear-cookie parity (`refreshTokenForgetCookie()` vs
+ *     `refreshTokenCookie()`) is pinned by
+ *     `test_refresh_token_forget_cookie_helper_mirrors_emission_attributes`
+ *     and the two logout round-trip tests below it.
  *   - The session config guards (`config/session.php` same_site/secure IIFEs)
  *     are pinned by `test_session_config_guards_against_empty_env_vars`.
  */
@@ -159,6 +170,131 @@ class RefreshTokenCookieAttributesTest extends TestCase
         $this->assertTrue($sessionCookie->isHttpOnly());
         $this->assertSame(0, $sessionCookie->getExpiresTime(),
             'remember_me=false must produce a session-scoped cookie');
+    }
+
+    public function test_refresh_token_forget_cookie_helper_mirrors_emission_attributes(): void
+    {
+        // LBDS-278 regression: the cookie used by logout() to clear
+        // refresh_token must agree with the emission cookie on every
+        // config-driven attribute (Secure, SameSite, HttpOnly, Path) so a
+        // cookie issued under one set of attributes is matched by the clear
+        // under the same attributes. Invokes both helpers via the same closure
+        // trick used above and asserts each attribute is identical.
+        $controller = app(AuthController::class);
+
+        $emission = (function (string $token, bool $rememberMe): Cookie {
+            return $this->refreshTokenCookie($token, $rememberMe);
+        })->call($controller, 'fixture-token', true);
+
+        $clear = (function (): Cookie {
+            return $this->refreshTokenForgetCookie();
+        })->call($controller);
+
+        $this->assertSame('refresh_token', $clear->getName());
+        $this->assertNull($clear->getValue(),
+            'forget cookie must carry no value (browser-side deletion)');
+        $this->assertSame($emission->isSecure(), $clear->isSecure(),
+            'clear cookie Secure flag must mirror the emission cookie (LBDS-278)');
+        $this->assertSame($emission->getSameSite(), $clear->getSameSite(),
+            'clear cookie SameSite must mirror the emission cookie');
+        $this->assertSame($emission->isHttpOnly(), $clear->isHttpOnly());
+        $this->assertSame($emission->getPath(), $clear->getPath());
+        $this->assertLessThan(time(), $clear->getExpiresTime(),
+            'forget cookie must be in the past so the browser drops it');
+    }
+
+    public function test_refresh_token_forget_cookie_helper_reflects_insecure_session_config(): void
+    {
+        // Mirrors the LBDS-252 emission test that flips session.secure at
+        // runtime. Before LBDS-278, the clear cookie went through
+        // CookieJar::forget which cached its secure flag at framework boot;
+        // a runtime override of config('session.secure') would NOT affect
+        // the clear. After LBDS-278, both helpers read the config at call
+        // time, so the override is picked up by both.
+        config(['session.secure' => false]);
+
+        $controller = app(AuthController::class);
+
+        $clear = (function (): Cookie {
+            return $this->refreshTokenForgetCookie();
+        })->call($controller);
+
+        $this->assertFalse($clear->isSecure(),
+            'clear cookie must mirror session.secure=false at call time (LBDS-278)');
+        $this->assertSame('strict', $clear->getSameSite(),
+            'SameSite=Strict must hold regardless of session.secure');
+        $this->assertTrue($clear->isHttpOnly());
+        $this->assertSame('/', $clear->getPath());
+    }
+
+    public function test_logout_emits_clear_cookie_matching_emission_default_attributes(): void
+    {
+        // End-to-end parity check: after a real login + logout round-trip
+        // the cookies' configurable attributes (Secure, SameSite, HttpOnly,
+        // Path) must agree. This is the user-facing LBDS-278 acceptance
+        // criterion pinned against the HTTP response, not the helper.
+        $this->createVerifiedUser();
+
+        $loginResponse = $this->postJson('/api/login', [
+            'email' => 'cookie-attrs@example.com',
+            'password' => 'password123',
+            'remember_me' => true,
+        ]);
+        $loginResponse->assertOk();
+
+        $emissionCookie = $this->findRefreshCookie($loginResponse);
+        $this->assertNotNull($emissionCookie, 'login must set refresh_token cookie');
+
+        $token = $loginResponse->json('token');
+        $this->assertNotEmpty($token, 'login must issue an access token for the bearer logout');
+
+        $logoutResponse = $this->withToken($token)->postJson('/api/logout');
+        $logoutResponse->assertOk();
+
+        $clearCookie = $this->findRefreshCookie($logoutResponse);
+        $this->assertNotNull($clearCookie, 'logout must clear refresh_token cookie');
+
+        $this->assertSame($emissionCookie->isSecure(), $clearCookie->isSecure(),
+            'logout clear-cookie Secure must mirror login emission (LBDS-278)');
+        $this->assertSame($emissionCookie->getSameSite(), $clearCookie->getSameSite(),
+            'logout clear-cookie SameSite must mirror login emission');
+        $this->assertSame($emissionCookie->isHttpOnly(), $clearCookie->isHttpOnly());
+        $this->assertSame($emissionCookie->getPath(), $clearCookie->getPath());
+        $this->assertLessThan(time(), $clearCookie->getExpiresTime(),
+            'clear cookie must expire in the past so the browser drops it');
+    }
+
+    public function test_logout_emits_clear_cookie_matching_emission_when_session_overridden_insecure(): void
+    {
+        // End-to-end parity under the same dev-mode override used by the
+        // LBDS-252 emission test: SESSION_SECURE_COOKIE=false at the framework
+        // level must be reflected on BOTH sides of the round-trip.
+        config(['session.secure' => false]);
+
+        $this->createVerifiedUser();
+
+        $loginResponse = $this->postJson('/api/login', [
+            'email' => 'cookie-attrs@example.com',
+            'password' => 'password123',
+            'remember_me' => true,
+        ]);
+        $loginResponse->assertOk();
+        $emissionCookie = $this->findRefreshCookie($loginResponse);
+        $this->assertNotNull($emissionCookie);
+        $this->assertFalse($emissionCookie->isSecure(),
+            'emission must mirror session.secure=false at call time');
+
+        $logoutResponse = $this->withToken($loginResponse->json('token'))
+            ->postJson('/api/logout');
+        $logoutResponse->assertOk();
+        $clearCookie = $this->findRefreshCookie($logoutResponse);
+        $this->assertNotNull($clearCookie);
+
+        $this->assertFalse($clearCookie->isSecure(),
+            'clear must mirror session.secure=false at call time (LBDS-278)');
+        $this->assertSame($emissionCookie->getSameSite(), $clearCookie->getSameSite());
+        $this->assertSame($emissionCookie->isHttpOnly(), $clearCookie->isHttpOnly());
+        $this->assertSame($emissionCookie->getPath(), $clearCookie->getPath());
     }
 
     public function test_session_config_defaults_match_hardening_intent(): void
