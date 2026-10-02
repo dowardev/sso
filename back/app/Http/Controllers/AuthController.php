@@ -79,6 +79,32 @@ class AuthController extends Controller
         );
     }
 
+    /**
+     * Build the cookie used by `logout()` to clear `refresh_token` on the
+     * client. Mirrors the attribute selection of {@see refreshTokenCookie()}
+     * exactly so a cookie issued under one set of attributes is matched by the
+     * clear under the same attributes — fixing the LBDS-278 asymmetry where
+     * the previous `Cookie::forget(...)` call produced a clear cookie whose
+     * Secure flag did not reflect `config('session.secure')`. Browsers match
+     * a cookie by name+path+domain (not by Secure), so this parity is
+     * defence-in-depth rather than a behavioural fix, but it keeps the
+     * emission/clear pair self-consistent and visible to a single test.
+     */
+    private function refreshTokenForgetCookie(): SymfonyCookie
+    {
+        return cookie(
+            'refresh_token',
+            null,
+            -2628000,
+            '/',
+            null,
+            config('session.secure', false),
+            true,
+            false,
+            config('session.same_site', 'strict')
+        );
+    }
+
     public function register(RegisterRequest $request): JsonResponse
     {
         $result = $this->authService->register($request->validated());
@@ -618,7 +644,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Sesión cerrada correctamente',
         ])
-            ->withCookie(Cookie::forget('refresh_token', '/', null, true, true));
+            ->withCookie($this->refreshTokenForgetCookie());
     }
 
     public function me(Request $request): JsonResponse
