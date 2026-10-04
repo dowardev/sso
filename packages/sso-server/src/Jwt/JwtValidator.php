@@ -6,10 +6,13 @@ namespace Dowardev\SsoServer\Jwt;
 
 use Dowardev\SsoServer\Exceptions\SsoAuthenticationException;
 use Dowardev\SsoServer\Types\SsoConfig;
+use InvalidArgumentException;
 use Lcobucci\Clock\SystemClock;
 use Lcobucci\JWT\Configuration;
+use Lcobucci\JWT\Signer;
+use Lcobucci\JWT\Signer\Ecdsa\Sha256 as EcdsaSha256;
 use Lcobucci\JWT\Signer\Key\InMemory;
-use Lcobucci\JWT\Signer\Rsa\Sha256;
+use Lcobucci\JWT\Signer\Rsa\Sha256 as RsaSha256;
 use Lcobucci\JWT\Token;
 use Lcobucci\JWT\Validation\Constraint\IssuedBy;
 use Lcobucci\JWT\Validation\Constraint\LooseValidAt;
@@ -45,7 +48,7 @@ class JwtValidator
         }
 
         $jwtConfig = Configuration::forAsymmetricSigner(
-            new Sha256,
+            new RsaSha256,
             InMemory::plainText('unused-signing-key'),
             InMemory::plainText($publicKeyPem)
         );
@@ -67,7 +70,7 @@ class JwtValidator
     public function parse(string $jwt): Token
     {
         $config = Configuration::forAsymmetricSigner(
-            new Sha256,
+            new RsaSha256,
             InMemory::plainText('unused'),
             InMemory::plainText('unused')
         );
@@ -75,25 +78,43 @@ class JwtValidator
         return $config->parser()->parse($jwt);
     }
 
+    /**
+     * Verify a DPoP proof's signature against the public PEM derived from
+     * its own header JWK. The signer is selected from the `alg` header so
+     * RS256 (legacy) and ES256 (ES256/P-256, post-migration) proofs both
+     * validate during the gradual rollout.
+     */
     public function validateDpopProofSignature(string $dpopProof, string $pem): Token
     {
-        $verificationKey = InMemory::plainText($pem);
-        $signer = new Sha256;
+        // Parse twice: once with an inert config to discover the alg, then
+        // a second time bound to the right signer. Parsing is cheap and the
+        // header `alg` is the only legitimate way to pick a verifier here.
+        $parsedToken = $this->parse($dpopProof);
+        $alg = (string) $parsedToken->headers()->get('alg');
+
+        $signer = $this->signerForAlgorithm($alg);
 
         $dpopConfig = Configuration::forAsymmetricSigner(
             $signer,
             InMemory::plainText('unused'),
-            $verificationKey
+            InMemory::plainText($pem)
         );
 
-        $parsedToken = $dpopConfig->parser()->parse($dpopProof);
-
-        $signedWith = new SignedWith($signer, $verificationKey);
+        $signedWith = new SignedWith($signer, $dpopConfig->verificationKey());
         if (! $dpopConfig->validator()->validate($parsedToken, $signedWith)) {
             throw SsoAuthenticationException::tokenInvalid('Firma del DPoP proof inválida');
         }
 
         return $parsedToken;
+    }
+
+    private function signerForAlgorithm(string $alg): Signer
+    {
+        return match ($alg) {
+            'ES256' => new EcdsaSha256,
+            'RS256' => new RsaSha256,
+            default => throw new InvalidArgumentException("Unsupported DPoP alg: {$alg}"),
+        };
     }
 
     public function getClaim(Token $token, string $claim): mixed

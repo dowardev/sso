@@ -162,11 +162,22 @@ class JwtService
         if ($dpopPublicKey) {
             $publicKeyData = json_decode($dpopPublicKey, true);
             if ($publicKeyData) {
-                if (! isset($publicKeyData['kty']) || ! isset($publicKeyData['n']) || ! isset($publicKeyData['e'])) {
-                    throw new \InvalidArgumentException('JWK incompleto: se requieren los campos kty, n y e');
-                }
-                if (($publicKeyData['kty'] ?? '') !== 'RSA') {
-                    throw new \InvalidArgumentException('Tipo de clave JWK no soportado: se requiere RSA');
+                $kty = $publicKeyData['kty'] ?? null;
+                if ($kty === 'RSA') {
+                    if (! isset($publicKeyData['n'], $publicKeyData['e'])) {
+                        throw new \InvalidArgumentException('JWK incompleto: se requieren los campos kty, n y e');
+                    }
+                } elseif ($kty === 'EC') {
+                    // Allow EC P-256 only during the LBDS-258 migration
+                    // window — an EC key with a different curve (or missing
+                    // x/y) is rejected the same way the request validator
+                    // rejects it.
+                    if (! isset($publicKeyData['crv'], $publicKeyData['x'], $publicKeyData['y'])
+                        || $publicKeyData['crv'] !== 'P-256') {
+                        throw new \InvalidArgumentException('JWK EC P-256 incompleto: se requieren los campos kty, crv, x e y');
+                    }
+                } else {
+                    throw new \InvalidArgumentException('Tipo de clave JWK no soportado: se requiere RSA o EC P-256');
                 }
             }
         }
@@ -313,11 +324,24 @@ class JwtService
 
     public function generateJWKThumbprint(array $jwk): string
     {
-        $jwkString = json_encode([
-            'e' => $jwk['e'] ?? null,
-            'kty' => $jwk['kty'] ?? 'RSA',
-            'n' => $jwk['n'] ?? null,
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        // RFC 7638 §3 — fields MUST be in the order specified, no whitespace.
+        // EC: { crv, kty, x, y }; RSA: { e, kty, n }. json_encode preserves
+        // insertion order in PHP, so the array literal is the contract here.
+        $kty = $jwk['kty'] ?? '';
+        if ($kty === 'EC') {
+            $jwkString = json_encode([
+                'crv' => $jwk['crv'] ?? null,
+                'kty' => $jwk['kty'] ?? 'EC',
+                'x' => $jwk['x'] ?? null,
+                'y' => $jwk['y'] ?? null,
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        } else {
+            $jwkString = json_encode([
+                'e' => $jwk['e'] ?? null,
+                'kty' => $jwk['kty'] ?? 'RSA',
+                'n' => $jwk['n'] ?? null,
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }
 
         return rtrim(strtr(base64_encode(hash('sha256', $jwkString, true)), '+/', '-_'), '=');
     }

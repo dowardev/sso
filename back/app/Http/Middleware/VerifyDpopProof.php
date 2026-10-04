@@ -9,19 +9,52 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Lcobucci\JWT\Configuration;
+use Lcobucci\JWT\Signer;
+use Lcobucci\JWT\Signer\Ecdsa\Sha256 as EcdsaSha256;
 use Lcobucci\JWT\Signer\Key\InMemory;
-use Lcobucci\JWT\Signer\Rsa\Sha256;
+use Lcobucci\JWT\Signer\Rsa\Sha256 as RsaSha256;
 use Lcobucci\JWT\Validation\Constraint\SignedWith;
 use Symfony\Component\HttpFoundation\Response;
 
 class VerifyDpopProof
 {
+    /**
+     * Algorithms accepted in the DPoP proof header during the gradual
+     * RSA-2048 → ECDSA P-256 migration. The signer is chosen from this set
+     * based on the `alg` header of each incoming proof.
+     */
+    private const SUPPORTED_ALGS = ['RS256', 'ES256'];
+
+    /**
+     * The OIDs in the algorithmIdentifier.parameters field of an EC
+     * SubjectPublicKeyInfo identify the curve by name. Only the curve we
+     * currently support (ES256) is listed — P-384/P-521 are intentionally
+     * excluded until the verifier gains matching signer support, so a
+     * proof with a non-P-256 curve fails fast instead of silently using
+     * the wrong signer.
+     */
+    private const EC_CURVE_OIDS = [
+        'P-256' => '1.2.840.10045.3.1.7',
+    ];
+
+    /**
+     * Coordinate byte length for each supported EC curve. The PEM
+     * SubjectPublicKeyInfo encodes the uncompressed point as 0x04 || x || y,
+     * so the input JWK's x/y must decode to exactly these lengths.
+     */
+    private const EC_COORDINATE_LENGTHS = [
+        'P-256' => 32,
+    ];
+
     private Configuration $jwtConfig;
 
     public function __construct()
     {
+        // Parse-only config: the parser does not need real RSA keys, just a
+        // signer hint. Per-proof verification builds its own Configuration
+        // bound to the right signer (RS256 or ES256) below.
         $this->jwtConfig = Configuration::forAsymmetricSigner(
-            new Sha256,
+            new RsaSha256,
             InMemory::file(base_path(env('JWT_PRIVATE_KEY_PATH', 'keys/private.pem'))),
             InMemory::file(base_path(env('JWT_PUBLIC_KEY_PATH', 'keys/public.pem')))
         );
@@ -122,9 +155,9 @@ class VerifyDpopProof
             throw new \Exception('Tipo de token DPoP inválido');
         }
 
-        $alg = $header->get('alg');
-        if ($alg !== 'RS256') {
-            throw new \Exception('Algoritmo DPoP no soportado');
+        $alg = (string) $header->get('alg');
+        if (! in_array($alg, self::SUPPORTED_ALGS, true)) {
+            throw new \Exception('Algoritmo DPoP no soportado: '.$alg);
         }
 
         $jwkHeader = $header->get('jwk');
@@ -133,12 +166,33 @@ class VerifyDpopProof
         }
 
         $jwkArray = (array) $jwkHeader;
-        if (! isset($jwkArray['kty']) || ! isset($jwkArray['n']) || ! isset($jwkArray['e'])) {
-            throw new \Exception('JWK del DPoP proof incompleto: faltan campos requeridos');
+        $kty = $jwkArray['kty'] ?? '';
+
+        // alg/kty cross-check: an attacker must not be able to mix algorithms
+        // and key types. The signer selection (ECDSA vs RSA) and the PEM
+        // generation (EC vs RSA) both depend on these being consistent —
+        // a mismatch is rejected with a clear error before the signature
+        // verification step.
+        if ($alg === 'ES256' && $kty !== 'EC') {
+            throw new \Exception("alg ES256 requiere kty EC, se recibió {$kty}");
+        }
+        if ($alg === 'RS256' && $kty !== 'RSA') {
+            throw new \Exception("alg RS256 requiere kty RSA, se recibió {$kty}");
         }
 
-        if (($jwkArray['kty'] ?? '') !== 'RSA') {
-            throw new \Exception('Tipo de clave JWK no soportado: se requiere RSA');
+        if ($kty === 'EC') {
+            if (! isset($jwkArray['crv'], $jwkArray['x'], $jwkArray['y'])) {
+                throw new \Exception('JWK del DPoP proof incompleto: faltan campos requeridos (crv, x, y)');
+            }
+            if (! isset(self::EC_CURVE_OIDS[$jwkArray['crv']])) {
+                throw new \Exception('Curva EC no soportada: '.$jwkArray['crv']);
+            }
+        } elseif ($kty === 'RSA') {
+            if (! isset($jwkArray['n'], $jwkArray['e'])) {
+                throw new \Exception('JWK del DPoP proof incompleto: faltan campos requeridos (n, e)');
+            }
+        } else {
+            throw new \Exception('Tipo de clave JWK no soportado: '.($kty ?: 'desconocido'));
         }
 
         $jktFromProof = $this->generateJWKThumbprint($jwkArray);
@@ -149,10 +203,17 @@ class VerifyDpopProof
         $dpopPublicKey = $this->jwkToPem($jwkArray);
 
         $verificationKey = InMemory::plainText($dpopPublicKey);
-        $signer = new Sha256;
+        $signer = $this->signerForAlgorithm($alg);
+
+        $proofConfig = Configuration::forAsymmetricSigner(
+            $signer,
+            InMemory::plainText('unused'),
+            $verificationKey
+        );
+
         $constraint = new SignedWith($signer, $verificationKey);
 
-        if (! $this->jwtConfig->validator()->validate($dpopToken, $constraint)) {
+        if (! $proofConfig->validator()->validate($dpopToken, $constraint)) {
             throw new \Exception('Firma del DPoP proof inválida');
         }
 
@@ -212,18 +273,51 @@ class VerifyDpopProof
         $this->lazyCleanup();
     }
 
+    private function signerForAlgorithm(string $alg): Signer
+    {
+        return match ($alg) {
+            'ES256' => new EcdsaSha256,
+            'RS256' => new RsaSha256,
+            default => throw new \Exception('Algoritmo DPoP no soportado: '.$alg),
+        };
+    }
+
     private function generateJWKThumbprint(array $jwk): string
     {
-        $jwkString = json_encode([
-            'e' => $jwk['e'] ?? null,
-            'kty' => $jwk['kty'] ?? 'RSA',
-            'n' => $jwk['n'] ?? null,
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        // RFC 7638 §3 — fields MUST be in the order specified, no whitespace.
+        // EC: { crv, kty, x, y }; RSA: { e, kty, n }. json_encode preserves
+        // insertion order in PHP, so the array literal is the contract here.
+        $kty = $jwk['kty'] ?? '';
+        if ($kty === 'EC') {
+            $jwkString = json_encode([
+                'crv' => $jwk['crv'] ?? null,
+                'kty' => $jwk['kty'] ?? 'EC',
+                'x' => $jwk['x'] ?? null,
+                'y' => $jwk['y'] ?? null,
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        } else {
+            $jwkString = json_encode([
+                'e' => $jwk['e'] ?? null,
+                'kty' => $jwk['kty'] ?? 'RSA',
+                'n' => $jwk['n'] ?? null,
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }
 
         return rtrim(strtr(base64_encode(hash('sha256', $jwkString, true)), '+/', '-_'), '=');
     }
 
     private function jwkToPem(array $jwk): string
+    {
+        $kty = $jwk['kty'] ?? '';
+
+        if ($kty === 'EC') {
+            return $this->ecJwkToPem($jwk);
+        }
+
+        return $this->rsaJwkToPem($jwk);
+    }
+
+    private function rsaJwkToPem(array $jwk): string
     {
         $nBin = $this->base64UrlDecode($jwk['n']);
         $eBin = $this->base64UrlDecode($jwk['e']);
@@ -242,6 +336,39 @@ class VerifyDpopProof
                 )
             )
         );
+
+        return "-----BEGIN PUBLIC KEY-----\n".
+            wordwrap(base64_encode($asn1), 64, "\n", true).
+            "\n-----END PUBLIC KEY-----";
+    }
+
+    private function ecJwkToPem(array $jwk): string
+    {
+        $crv = (string) $jwk['crv'];
+        $xBin = $this->base64UrlDecode($jwk['x']);
+        $yBin = $this->base64UrlDecode($jwk['y']);
+
+        // Validate coordinate length up front. OpenSSL would reject a
+        // wrong-length point at import time but with a generic error;
+        // this fails fast with a clear message.
+        $expectedLength = self::EC_COORDINATE_LENGTHS[$crv];
+        if (strlen($xBin) !== $expectedLength || strlen($yBin) !== $expectedLength) {
+            throw new \Exception("Coordenadas EC para {$crv} deben ser exactamente {$expectedLength} bytes; se recibió x=".strlen($xBin).', y='.strlen($yBin));
+        }
+
+        // Uncompressed EC point format: 0x04 || x || y.
+        $point = "\x04".$xBin.$yBin;
+
+        // RFC 5480 §2.1.1 — AlgorithmIdentifier for EC:
+        //   SEQUENCE { OID id-ecPublicKey (1.2.840.10045.2.1),
+        //              OID <namedCurveId> }
+        $algorithmIdentifier = $this->encodeASN1Sequence(
+            $this->encodeASN1OID('1.2.840.10045.2.1')
+            .$this->encodeASN1OID(self::EC_CURVE_OIDS[$crv])
+        );
+        $bitString = $this->encodeASN1BitString($point);
+
+        $asn1 = $this->encodeASN1Sequence($algorithmIdentifier.$bitString);
 
         return "-----BEGIN PUBLIC KEY-----\n".
             wordwrap(base64_encode($asn1), 64, "\n", true).

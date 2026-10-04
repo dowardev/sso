@@ -3,6 +3,7 @@
 namespace Dowardev\SsoServer\Tests;
 
 use Dowardev\SsoServer\Jwt\JwkToPemConverter;
+use InvalidArgumentException;
 
 class JwkToPemConverterTest extends TestCase
 {
@@ -55,5 +56,86 @@ class JwkToPemConverterTest extends TestCase
         $this->assertStringNotContainsString('+', $result);
         $this->assertStringNotContainsString('/', $result);
         $this->assertStringNotContainsString('=', $result);
+    }
+
+    public function test_convert_for_ec_p256_emits_correct_subject_public_key_info(): void
+    {
+        // Fixture: a real EC P-256 key generated via openssl_pkey_new.
+        // The expected PEM is what openssl_pkey_get_details() reports for
+        // the same (x, y) pair, so a byte-for-byte match is the strictest
+        // possible assertion that our hand-rolled ASN.1 matches OpenSSL.
+        $jwk = [
+            'kty' => 'EC',
+            'crv' => 'P-256',
+            'x' => '4yPUckJUSjT0rHbaqsaEKf41dyOA0OctKkrYmNr2Za8',
+            'y' => 'MG_KCzPrsX_PAIbVMBG5xKd8y23LnVQW_-QygFUi3aQ',
+        ];
+
+        $expected = "-----BEGIN PUBLIC KEY-----\n".
+            "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4yPUckJUSjT0rHbaqsaEKf41dyOA\n".
+            "0OctKkrYmNr2Za8wb8oLM+uxf88AhtUwEbnEp3zLbcudVBb/5DKAVSLdpA==\n".
+            '-----END PUBLIC KEY-----';
+
+        $pem = $this->converter->convert($jwk);
+
+        $this->assertEquals($expected, $pem);
+
+        // OpenSSL must accept our PEM and report the same curve/point — a
+        // round-trip through openssl_pkey_get_details is the strongest
+        // structural test that the SubjectPublicKeyInfo is well-formed.
+        $key = openssl_pkey_get_public($pem);
+        $this->assertNotFalse($key, 'OpenSSL failed to parse the EC PEM');
+
+        $details = openssl_pkey_get_details($key);
+        $this->assertSame('prime256v1', $details['ec']['curve_name']);
+        $this->assertSame(
+            $this->converter->base64UrlDecode($jwk['x']),
+            $details['ec']['x']
+        );
+        $this->assertSame(
+            $this->converter->base64UrlDecode($jwk['y']),
+            $details['ec']['y']
+        );
+    }
+
+    public function test_convert_rejects_unknown_kty(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->converter->convert(['kty' => 'oct', 'k' => 'x']);
+    }
+
+    public function test_convert_rejects_unsupported_ec_curve(): void
+    {
+        // secp256k1 is a real curve but not on our allowlist; the converter
+        // must reject it before the bytes reach the verifier, so a hostile
+        // client cannot trick OpenSSL into using an exotic algorithm.
+        $this->expectException(InvalidArgumentException::class);
+        $this->converter->convert([
+            'kty' => 'EC',
+            'crv' => 'secp256k1',
+            'x' => 'AAAAAAAAAAAAAAAAAAAAAA',
+            'y' => 'AAAAAAAAAAAAAAAAAAAAAA',
+        ]);
+    }
+
+    public function test_convert_rejects_ec_jwk_missing_required_fields(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->converter->convert(['kty' => 'EC', 'crv' => 'P-256']);
+    }
+
+    public function test_convert_rejects_ec_jwk_with_wrong_coordinate_length(): void
+    {
+        // S-3 (LBDS-258 review): a P-256 JWK with x/y decoded to anything
+        // other than 32 bytes must fail fast with a clear message, not
+        // silently produce a PEM that OpenSSL rejects at import time.
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('EC coordinates for P-256 must be exactly 32 bytes');
+        $this->converter->convert([
+            'kty' => 'EC',
+            'crv' => 'P-256',
+            'x' => 'AA', // 1 byte after base64url decode
+            'y' => '4yPUckJUSjT0rHbaqsaEKf41dyOA0OctKkrYmNr2Za8', // 32 bytes
+        ]);
     }
 }
