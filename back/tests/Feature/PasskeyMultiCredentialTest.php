@@ -7,12 +7,14 @@ namespace Tests\Feature;
 use App\Models\PasskeyCredential;
 use App\Models\User;
 use App\Services\PasskeyService;
+use App\Webauthn\PackedAttestationStatementSupportWithEdDSA;
 use Cose\Algorithm\Manager as CoseAlgorithmManager;
 use Cose\Algorithm\Signature\EdDSA\EdDSA;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use ReflectionClass;
 use Symfony\Component\Uid\Uuid;
 use Tests\TestCase;
+use Webauthn\AttestationStatement\AttestationStatementSupport;
 use Webauthn\AttestationStatement\PackedAttestationStatementSupport;
 use Webauthn\CredentialRecord;
 use Webauthn\PublicKeyCredentialCreationOptions;
@@ -288,6 +290,15 @@ class PasskeyMultiCredentialTest extends TestCase
      * format — the common YubiKey / Windows Hello / Android Passkey
      * attestation. Without it the serializer rejects the response before
      * signature verification even runs.
+     *
+     * LBDS-286: the upstream `PackedAttestationStatementSupport` is wrapped in
+     * `PackedAttestationStatementSupportWithEdDSA` so that the Ed25519 + x5c
+     * case (which the upstream cannot verify because `openssl_verify` doesn't
+     * handle EdDSA) is verified via libsodium. The wrapper registers itself
+     * under `fmt="packed"` and forwards every non-EdDSA case to the wrapped
+     * upstream instance, so the contract from this consumer's perspective is
+     * unchanged: `has('packed')` is true and the handler is an
+     * `AttestationStatementSupport`.
      */
     public function test_ceremony_factory_attestation_manager_supports_packed_format(): void
     {
@@ -297,7 +308,10 @@ class PasskeyMultiCredentialTest extends TestCase
         $attestationManager = (new ReflectionClass($factory))->getProperty('attestationStatementSupportManager')->getValue($factory);
 
         $this->assertTrue($attestationManager->has('packed'), 'fmt="packed" must be supported');
-        $this->assertInstanceOf(PackedAttestationStatementSupport::class, $attestationManager->get('packed'));
+        $packedHandler = $attestationManager->get('packed');
+        $this->assertInstanceOf(AttestationStatementSupport::class, $packedHandler);
+        $this->assertSame('packed', $packedHandler->name());
+        $this->assertInstanceOf(PackedAttestationStatementSupportWithEdDSA::class, $packedHandler);
         // NoneAttestationStatementSupport is added automatically by the manager.
         $this->assertTrue($attestationManager->has('none'));
     }
