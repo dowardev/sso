@@ -321,6 +321,126 @@ class DpopRefreshTokenTest extends TestCase
         $this->assertNotSame($refreshToken, $response->json('refresh_token'));
     }
 
+    // --- ES256 (post-migration, ECDSA P-256) --------------------------------------
+
+    // Mirror of the legacy RS256 happy path. Covers the LBDS-258 acceptance
+    // criterion that the server validates both algorithms during the gradual
+    // rollout: a fresh ECDSA P-256 binding must complete the refresh and
+    // carry the EC thumbprint all the way through to the access token.
+    public function test_es256_proof_rotates_and_preserves_binding(): void
+    {
+        $builder = DpopProofBuilder::generateEc();
+        $expectedJkt = $builder->jkt();
+        $refreshToken = $this->boundRefreshToken($builder);
+
+        $response = $this->refresh($refreshToken, $builder->proof());
+
+        $response->assertOk()->assertJsonStructure(['token', 'token_type', 'expires_in', 'refresh_token']);
+
+        $new = UserRefreshToken::where('token_hash', hash('sha256', $response->json('refresh_token')))->first();
+        $this->assertNotNull($new);
+        $this->assertSame($expectedJkt, $new->dpop_jkt);
+
+        $parsed = app(JwtService::class)->parseAndValidateToken($response->json('token'));
+        $this->assertNotNull($parsed);
+        $this->assertSame($expectedJkt, $parsed->claims()->get('cnf')['jkt'] ?? null);
+    }
+
+    // The header alg of an ES256 proof MUST be 'ES256' — the verifier must
+    // dispatch the signer based on the header alg, not assume RS256.
+    public function test_es256_proof_header_uses_es256_alg_and_ec_jwk(): void
+    {
+        $builder = DpopProofBuilder::generateEc();
+        $refreshToken = $this->boundRefreshToken($builder);
+
+        $response = $this->refresh($refreshToken, $builder->proof());
+
+        $response->assertOk();
+
+        // Decode the proof we just sent and assert the protected header.
+        $proof = $builder->proof();
+        $header = json_decode(
+            base64_decode(strtr(explode('.', $proof)[0], '-_', '+/').str_repeat('=', 3 - strlen(explode('.', $proof)[0] ?? '') % 4)),
+            true
+        );
+
+        $this->assertSame('dpop+jwt', $header['typ']);
+        $this->assertSame('ES256', $header['alg']);
+        $this->assertSame('EC', $header['jwk']['kty']);
+        $this->assertSame('P-256', $header['jwk']['crv']);
+        $this->assertArrayHasKey('x', $header['jwk']);
+        $this->assertArrayHasKey('y', $header['jwk']);
+        $this->assertArrayNotHasKey('n', $header['jwk']);
+        $this->assertArrayNotHasKey('e', $header['jwk']);
+    }
+
+    // The verifier must not blindly accept the proof with a different alg:
+    // a proof that signs with ES256 but advertises RS256 in its header has a
+    // thumbprint collision only by accident, and the signer must disagree
+    // before the request is allowed through.
+    public function test_es256_signature_with_rs256_header_alg_is_rejected(): void
+    {
+        $builder = DpopProofBuilder::generateEc();
+        $refreshToken = $this->boundRefreshToken($builder);
+
+        // Build a fresh EC proof and rewrite its header alg to RS256 in place.
+        // The signature bytes are valid ES256 but the header now claims
+        // RS256 — the verifier MUST reject before replay protection or
+        // anything else runs.
+        $proof = $builder->proof();
+        [$encodedHeader, $encodedPayload, $encodedSignature] = explode('.', $proof);
+
+        $tamperedHeader = json_decode(
+            base64_decode(strtr($encodedHeader, '-_', '+/')),
+            true
+        );
+        $tamperedHeader['alg'] = 'RS256';
+        $tamperedHeader['jwk'] = [
+            'kty' => 'RSA',
+            'n' => str_pad('', 256, 'A'),
+            'e' => 'AQAB',
+        ];
+        $tamperedEncodedHeader = rtrim(
+            strtr(base64_encode(json_encode($tamperedHeader)), '+/', '-_'),
+            '='
+        );
+        $tamperedProof = $tamperedEncodedHeader.'.'.$encodedPayload.'.'.$encodedSignature;
+
+        $this->refresh($refreshToken, $tamperedProof)->assertUnauthorized();
+    }
+
+    // B-3 (LBDS-258 review): the previous ES256 tests only covered the
+    // /api/oauth/token path (verifyTokenRequest, no ath). This exercises
+    // the full JwtAuth middleware path (verify, ath-bound) on a real
+    // protected endpoint, so the ES256 support reaches every layer the
+    // RS256 path has been tested on.
+    public function test_es256_proof_validates_on_protected_endpoint_with_ath(): void
+    {
+        $builder = DpopProofBuilder::generateEc();
+        $refreshToken = $this->boundRefreshToken($builder);
+
+        // Refresh to obtain a cnf.jkt-bound access token.
+        $refreshResponse = $this->refresh($refreshToken, $builder->proof());
+        $accessToken = $refreshResponse->json('token');
+        $this->assertNotEmpty($accessToken);
+
+        // Hit a JwtAuth-protected endpoint with the access token + a
+        // fresh ES256 DPoP proof. The proof's `ath` MUST match the SHA-256
+        // of the bearer, otherwise the middleware rejects the request.
+        $proof = $builder->proof([
+            'htm' => 'GET',
+            'htu' => 'http://localhost/api/passkey',
+            'ath' => DpopProofBuilder::ath($accessToken),
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$accessToken,
+            'DPoP' => $proof,
+        ])->getJson('/api/passkey');
+
+        $response->assertOk();
+    }
+
     // --- Helpers -------------------------------------------------------------------
 
     private function boundRefreshToken(DpopProofBuilder $builder): string

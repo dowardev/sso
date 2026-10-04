@@ -286,6 +286,11 @@ class AuthService
      *
      * Returns null rather than throwing when the payload is absent or malformed,
      * so callers only bind a refresh token when a usable JWK was provided.
+     *
+     * During the LBDS-258 migration the field accepts both RSA-2048 (legacy)
+     * and EC P-256 (post-migration). The thumbprint serialization switches
+     * to match RFC 7638 §3.2 for EC keys; everything else keeps the §3.3
+     * RSA serialization so legacy bindings are byte-stable.
      */
     public function jktFromDpopPublicKey(?string $dpopPublicKey): ?string
     {
@@ -295,11 +300,16 @@ class AuthService
 
         $decoded = json_decode($dpopPublicKey, true);
 
-        if (! is_array($decoded)
-            || ($decoded['kty'] ?? null) !== 'RSA'
-            || ! isset($decoded['n'])
-            || ! isset($decoded['e'])
-        ) {
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        $kty = $decoded['kty'] ?? null;
+        if ($kty === 'EC') {
+            if (! isset($decoded['crv'], $decoded['x'], $decoded['y']) || $decoded['crv'] !== 'P-256') {
+                return null;
+            }
+        } elseif ($kty !== 'RSA' || ! isset($decoded['n'], $decoded['e'])) {
             return null;
         }
 

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DPoP proofs can now use ECDSA P-256 / ES256 (LBDS-258)**: every new DPoP key the SSO client generates is ECDSA P-256 — the proof header shrinks from roughly 1.5–2 KB to 300–400 B per request and key generation becomes effectively instant on mobile (WebCrypto on Capacitor, browsers, and Node alike). The server validates both `ES256` and the legacy `RS256` during the gradual migration, so a refresh issued under either algorithm keeps working. A new defense-in-depth check rejects proofs whose `alg` header does not match the JWK's key type before reaching the signature stage, closing an algorithm-confusion class surfaced by the pre-merge review. Stored RSA keys from a previous version of the SSO client still sign `RS256` until the next logout/login rotates them. The migration is gradual by design; a follow-up (LBDS-290) will add the metrics, config flag, and force-rotation needed to retire the RS256 path.
 - **Passkeys now support Ed25519 (LBDS-257)**: authenticators that prefer EdDSA — Android Passkeys, modern Linux/Firefox setups, and credentials that rely on self-attestation — can register a passkey against the SSO without being forced to ES256 or RS256. ES256 and RS256 stay available for older devices. Certificate-based packed attestations (YubiKey 5 series, Windows Hello with TPM) are still tracked separately under LBDS-286.
 
 ### Fixed
