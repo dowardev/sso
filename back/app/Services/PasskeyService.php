@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\PasskeyCredential;
 use App\Models\User;
+use App\Webauthn\PackedAttestationStatementSupportWithEdDSA;
 use Cose\Algorithm\Manager as CoseAlgorithmManager;
 use Cose\Algorithm\Signature\ECDSA\ES256;
 use Cose\Algorithm\Signature\EdDSA\EdDSA;
@@ -69,8 +70,17 @@ class PasskeyService
         // fmt="packed" attestation (the common YubiKey / Windows Hello /
         // Android Passkey format) can be parsed. NoneAttestationStatementSupport
         // is added automatically by the manager's constructor.
+        //
+        // We wrap the upstream in `PackedAttestationStatementSupportWithEdDSA`
+        // so that the Ed25519 + x5c case (YubiKey 5, Windows Hello TPM,
+        // several Android devices) is verified with libsodium. The upstream
+        // class is `final` and its `processWithCertificate()` throws
+        // `InvalidArgumentException` for EdDSA because OpenSSL cannot verify
+        // Ed25519 — see LBDS-286 for the gap and the workaround contract.
         $attestationStatementSupportManager = AttestationStatementSupportManager::create([
-            PackedAttestationStatementSupport::create($algorithmManager),
+            new PackedAttestationStatementSupportWithEdDSA(
+                PackedAttestationStatementSupport::create($algorithmManager)
+            ),
         ]);
         $this->factory->setAttestationStatementSupportManager($attestationStatementSupportManager);
 
