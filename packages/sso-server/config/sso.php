@@ -18,4 +18,13 @@ return [
     'role_mappings' => [
         'admin' => ['slug' => 'admin'],
     ],
+
+    // Algorithms accepted by the DPoP proof verifier. The default is the
+    // post-LBDS-258 dual-allowlist; cutover will set this to ['ES256']
+    // once the metric in back/docs/DPOP_CUTOVER_RUNBOOK.md shows < 1%
+    // RS256 sustained. Resolved at runtime by
+    // SsoServerServiceProvider::resolveDpopAllowedAlgsConfig() from
+    // SSO_DPOP_ALLOWED_ALGS — config:cache freezes any `env()` call
+    // inside this file, so the env read lives in the provider.
+    'dpop_allowed_algs' => ['ES256', 'RS256'],
 ];
