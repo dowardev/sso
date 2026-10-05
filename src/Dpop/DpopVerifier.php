@@ -8,16 +8,20 @@ use Dowardev\SsoServer\Exceptions\DpopVerificationException;
 use Dowardev\SsoServer\Jwt\JwkToPemConverter;
 use Dowardev\SsoServer\Jwt\JwtValidator;
 use Dowardev\SsoServer\Types\SsoConfig;
+use Illuminate\Support\Facades\Log;
 use Lcobucci\JWT\Token;
 
 class DpopVerifier
 {
     /**
-     * Algorithms accepted in the DPoP proof header during the gradual
-     * RSA-2048 → ECDSA P-256 migration. New clients must sign with ES256,
-     * but RS256 remains valid until legacy keys rotate out at next login.
+     * Best-effort tracker for the alg of the proof currently being
+     * verified. Set in `validateTypeAndAlgorithm()` from a header the
+     * caller has already parsed, so the catch handlers (which sit OUTSIDE
+     * the try/catch) can emit a metric with the real alg even when a
+     * later step (signature, thumbprint, replay) throws. Reset to null on
+     * entry.
      */
-    private const SUPPORTED_ALGS = ['RS256', 'ES256'];
+    private ?string $lastSeenAlg = null;
 
     public function __construct(
         private readonly SsoConfig $config,
@@ -33,6 +37,8 @@ class DpopVerifier
         string $method,
         string $uri,
     ): void {
+        $this->lastSeenAlg = null;
+
         try {
             $dpopToken = $this->jwtValidator->parse($dpopProof);
 
@@ -49,9 +55,26 @@ class DpopVerifier
 
             $jti = $this->jwtValidator->getClaim($dpopToken, 'jti');
             $this->replayProtection->checkAndStore((string) $jti);
+
+            $this->emitMetric('accepted', $alg, [
+                'jkt_prefix' => substr($expectedJkt, 0, 8),
+                'htm' => $method,
+            ]);
         } catch (DpopVerificationException $e) {
+            $alg = $this->lastSeenAlg ?? 'unknown';
+            $this->emitMetric('rejected', $alg, [
+                'reason' => $e->getErrorCode(),
+                'message' => $e->getMessage(),
+            ]);
+
             throw $e;
         } catch (\Exception $e) {
+            $alg = $this->lastSeenAlg ?? 'unknown';
+            $this->emitMetric('rejected', $alg, [
+                'reason' => 'exception',
+                'message' => $e->getMessage(),
+            ]);
+
             throw DpopVerificationException::invalidProof($e->getMessage());
         }
     }
@@ -64,7 +87,12 @@ class DpopVerifier
         }
 
         $alg = (string) $this->jwtValidator->getHeader($dpopToken, 'alg');
-        if (! in_array($alg, self::SUPPORTED_ALGS, true)) {
+
+        // Set the tracker BEFORE the allowlist check so the catch can emit
+        // a metric with the real alg even when the proof is rejected here.
+        $this->lastSeenAlg = $alg;
+
+        if (! in_array($alg, $this->config->dpopAllowedAlgs, true)) {
             throw DpopVerificationException::unsupportedAlgorithm($alg);
         }
 
@@ -152,6 +180,48 @@ class DpopVerifier
         $tokenHash = JwkToPemConverter::base64UrlEncode(hash('sha256', $accessToken, true));
         if (! hash_equals($tokenHash, $ath)) {
             throw DpopVerificationException::accessTokenHashMismatch();
+        }
+    }
+
+    /**
+     * Emit a structured log line for the DPoP cutover metric. The runbook
+     * (back/docs/DPOP_CUTOVER_RUNBOOK.md) treats `event=dpop_proof_verified`
+     * as the canonical counter — aggregate by `alg` and `result` to get
+     * `dpop_proofs_total{alg,result}`. Stays free of any direct Prometheus /
+     * OTLP dependency; the log line is what feeds the dashboard.
+     *
+     * The emission is best-effort: a logging failure must not turn a valid
+     * proof into an invalid one (the verifier's contract is auth, not
+     * telemetry). If the configured channel throws, the emission falls back
+     * to the `single` channel (file-backed and always present in Laravel)
+     * and finally to PHP's `error_log` as the last-resort visibility hook,
+     * so a misconfigured pipeline never silently kills the cutover metric.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    private function emitMetric(string $result, string $alg, array $context = []): void
+    {
+        $context['event'] = 'dpop_proof_verified';
+        $context['alg'] = $alg;
+        $context['result'] = $result;
+        $context['allowlist'] = $this->config->dpopAllowedAlgs;
+
+        $primary = config('logging.default') ?? 'stack';
+
+        try {
+            Log::channel($primary)->info('dpop_proof_verified', $context);
+        } catch (\Throwable $primaryError) {
+            try {
+                Log::channel('single')->info('dpop_proof_verified', $context + [
+                    'metric_primary_channel_error' => $primaryError->getMessage(),
+                ]);
+            } catch (\Throwable) {
+                // Last-resort visibility hook. We never want a broken log
+                // pipeline to silently drop every cutover metric, so this
+                // is the floor: a single line in PHP's error log that the
+                // on-call can grep while the real channel is fixed.
+                error_log('dpop_proof_verified '.json_encode($context));
+            }
         }
     }
 }

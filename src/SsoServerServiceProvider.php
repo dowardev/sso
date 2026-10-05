@@ -28,6 +28,13 @@ class SsoServerServiceProvider extends ServiceProvider
             'sso'
         );
 
+        // Resolve SSO_DPOP_ALLOWED_ALGS at runtime so the cutover config
+        // flag survives `php artisan config:cache` (which would otherwise
+        // freeze any `env()` call inside a config file to the value at
+        // cache time). Must run BEFORE the SsoConfig singleton below
+        // reads config('sso.dpop_allowed_algs').
+        $this->resolveDpopAllowedAlgsConfig();
+
         $this->app->singleton(SsoConfig::class, fn () => SsoConfig::fromConfig());
 
         $this->app->singleton(JwkToPemConverter::class);
@@ -75,6 +82,75 @@ class SsoServerServiceProvider extends ServiceProvider
                 .'because the cache driver "'.$driver.'" is non-atomic. '
                 .'Switch CACHE_STORE to redis, database, or memcached for '
                 .'multi-instance deployments.'
+            );
+        }
+    }
+
+    /**
+     * Read SSO_DPOP_ALLOWED_ALGS at runtime and write it into the live
+     * config repository. See AppServiceProvider::bindDpopAllowedAlgs() on
+     * the back side for the symmetric pattern and the rationale (avoid
+     * config:cache freezing the value).
+     */
+    private function resolveDpopAllowedAlgsConfig(): void
+    {
+        $envValue = env('SSO_DPOP_ALLOWED_ALGS');
+
+        if (is_string($envValue) && trim($envValue) !== '') {
+            $resolved = $this->sanitizeDpopAllowedAlgs(array_values(array_filter(array_map(
+                'trim',
+                explode(',', $envValue)
+            ))));
+
+            config()->set('sso.dpop_allowed_algs', $resolved);
+
+            $this->validateDpopAllowedAlgs($resolved);
+        }
+    }
+
+    /**
+     * Mirror of AppServiceProvider::sanitizeDpopAllowedAlgs(). Drop any
+     * entries the verifier cannot dispatch. Keeps the dual-side defaults
+     * in sync — same trim/intersect semantics, same supported set.
+     *
+     * @param  array<int, mixed>  $values
+     * @return array<int, string>
+     */
+    private function sanitizeDpopAllowedAlgs(array $values): array
+    {
+        return array_values(array_intersect(
+            array_map('strval', $values),
+            ['ES256', 'RS256']
+        ));
+    }
+
+    /**
+     * Fail fast on a misconfigured allowlist. The verifier only
+     * dispatches signers for `ES256` and `RS256`; an unknown value
+     * would reach `signerForAlgorithm()` and throw a generic
+     * `verification_failed` metric (alg=unknown), defeating the cutover
+     * metric. A `Log::warning` here gives on-call a clear signal
+     * without taking the auth path down. Mirrors the back-side
+     * `AppServiceProvider::validateDpopAllowedAlgs()`.
+     *
+     * @param  array<int, string>  $allowlist
+     */
+    private function validateDpopAllowedAlgs(array $allowlist): void
+    {
+        $supported = ['ES256', 'RS256'];
+        $unknown = array_values(array_diff($allowlist, $supported));
+
+        if ($unknown !== []) {
+            Log::warning(
+                'SSO DPoP allowlist contains unsupported algorithms: '.implode(',', $unknown)
+                .'. Only ES256 and RS256 are wired into the verifier; '
+                .'unknown values will fail proof verification with alg=unknown '
+                .'and defeat the cutover metric. Update SSO_DPOP_ALLOWED_ALGS or '
+                .'config("sso.dpop_allowed_algs") to a subset of '.implode(',', $supported).'.',
+                [
+                    'sso_dpop_allowlist' => $allowlist,
+                    'sso_dpop_unknown_algs' => $unknown,
+                ]
             );
         }
     }
