@@ -366,4 +366,120 @@ describe("DpopService ECDSA P-256 / ES256 generation", () => {
     const { header } = decodeDpopJwt(proof);
     expect(header.alg).toBe("RS256");
   });
+
+  it("exposes hasLegacyRsaKey() matching the loaded key type", async () => {
+    // EC key → false. RSA key → true. Uninitialized → false. The flag is
+    // what the cutover flow (LBDS-290) checks at logout to decide
+    // whether to call forceRotateLegacyKeys().
+    const ec = new DpopService();
+    expect(ec.hasLegacyRsaKey()).toBe(false);
+    await ec.initialize();
+    expect(ec.hasLegacyRsaKey()).toBe(false);
+
+    const rsaKeyPair = await crypto.subtle.generateKey(
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: "SHA-256",
+      },
+      true,
+      ["sign", "verify"]
+    );
+    const privateJwk = await crypto.subtle.exportKey("jwk", rsaKeyPair.privateKey);
+    const publicJwk = await crypto.subtle.exportKey("jwk", rsaKeyPair.publicKey);
+    await writeStoredDpopRecord({
+      privateKeyJwk: privateJwk,
+      publicKeyJwk: { kty: "RSA", n: publicJwk.n!, e: publicJwk.e! },
+      jkt: "legacy-jkt",
+    });
+
+    const rsa = new DpopService();
+    await rsa.initialize();
+    expect(rsa.hasLegacyRsaKey()).toBe(true);
+  });
+
+  it("forceRotateLegacyKeys() drops a stored RSA key and is a no-op for EC", async () => {
+    // Pre-seed an RSA record so the rotation path runs end-to-end.
+    const rsaKeyPair = await crypto.subtle.generateKey(
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: "SHA-256",
+      },
+      true,
+      ["sign", "verify"]
+    );
+    const privateJwk = await crypto.subtle.exportKey("jwk", rsaKeyPair.privateKey);
+    const publicJwk = await crypto.subtle.exportKey("jwk", rsaKeyPair.publicKey);
+    await writeStoredDpopRecord({
+      privateKeyJwk: privateJwk,
+      publicKeyJwk: { kty: "RSA", n: publicJwk.n!, e: publicJwk.e! },
+      jkt: "legacy-jkt-to-rotate",
+    });
+
+    const service = new DpopService();
+    await service.initialize();
+    expect(service.hasLegacyRsaKey()).toBe(true);
+
+    const rotated = await service.forceRotateLegacyKeys();
+    expect(rotated).toBe(true);
+    expect(service.getPublicKeyJwk()).toBeNull();
+    expect(await readStoredDpopRecord()).toBeNull();
+
+    // A second call on the now-empty service must be a no-op (returns
+    // false) instead of an error — the cutover flow expects to call
+    // this defensively.
+    const rotatedAgain = await service.forceRotateLegacyKeys();
+    expect(rotatedAgain).toBe(false);
+
+    // After rotate, a fresh initialize() generates a clean EC key.
+    await service.initialize();
+    expect(service.hasLegacyRsaKey()).toBe(false);
+    expect(service.getPublicKeyJwk()?.kty).toBe("EC");
+  });
+
+  it("forceRotateLegacyKeys() emits dpop_legacy_key_rotated structured log (LBDS-290 review #15)", async () => {
+    // Pre-merge review #15: the rotation must emit a structured event
+    // so SRE can build dpop_legacy_keys_rotated_total from the
+    // browser-side console pipeline. JSON format keeps it compatible
+    // with Loki / Datadog RUM (no k=v string parsing).
+    const rsaKeyPair = await crypto.subtle.generateKey(
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: "SHA-256",
+      },
+      true,
+      ["sign", "verify"]
+    );
+    const privateJwk = await crypto.subtle.exportKey("jwk", rsaKeyPair.privateKey);
+    const publicJwk = await crypto.subtle.exportKey("jwk", rsaKeyPair.publicKey);
+    await writeStoredDpopRecord({
+      privateKeyJwk: privateJwk,
+      publicKeyJwk: { kty: "RSA", n: publicJwk.n!, e: publicJwk.e! },
+      jkt: "legacy-jkt-rotation-event",
+    });
+
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    try {
+      const service = new DpopService();
+      await service.initialize();
+      await service.forceRotateLegacyKeys();
+
+      const rotatedCall = infoSpy.mock.calls.find(
+        ([arg]) => typeof arg === "string" && arg.includes("dpop_legacy_key_rotated")
+      );
+      expect(rotatedCall).toBeDefined();
+      const payload = JSON.parse(rotatedCall![0] as string);
+      expect(payload.event).toBe("dpop_legacy_key_rotated");
+      expect(payload.previous_alg).toBe("RS256");
+      expect(payload.previous_jkt_prefix).toBe("legacy-j");
+    } finally {
+      infoSpy.mockRestore();
+    }
+  });
 });

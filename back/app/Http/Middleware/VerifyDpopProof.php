@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Lcobucci\JWT\Configuration;
 use Lcobucci\JWT\Signer;
 use Lcobucci\JWT\Signer\Ecdsa\Sha256 as EcdsaSha256;
@@ -19,11 +20,52 @@ use Symfony\Component\HttpFoundation\Response;
 class VerifyDpopProof
 {
     /**
-     * Algorithms accepted in the DPoP proof header during the gradual
-     * RSA-2048 → ECDSA P-256 migration. The signer is chosen from this set
-     * based on the `alg` header of each incoming proof.
+     * Best-effort tracker for the alg of the proof currently being
+     * verified. Set in `validateDpopProof()` from a header the caller has
+     * already parsed, so the catch handlers (which sit OUTSIDE the
+     * try/catch) can emit a metric with the real alg even when the
+     * verifier throws on a later step (bad signature, thumbprint
+     * mismatch, replay, etc.). Reset to null on entry.
      */
-    private const SUPPORTED_ALGS = ['RS256', 'ES256'];
+    private ?string $lastSeenAlg = null;
+
+    /**
+     * Flag set by `validateDpopProof()` when it has already emitted the
+     * `alg_not_in_allowlist` metric for the current verification. The
+     * outer catch handler in `verify()` / `verifyTokenRequest()` MUST
+     * skip its own emission when this flag is true, otherwise the cutover
+     * dashboard sees two `dpop_proof_verified` lines per rejected proof
+     * — a regression caught by the scoped re-review (finding A, critical).
+     */
+    private bool $metricAlreadyEmitted = false;
+
+    /**
+     * Fallback allowlist when the live config has nothing usable.
+     * Source of truth for the dual-allowlist default. Kept in sync
+     * manually with `SsoConfig::DEFAULT_DPOP_ALLOWED_ALGS` on the
+     * sso-server side (the two live in different packages, so a shared
+     * constant is not possible); the cutover runbook
+     * (back/docs/DPOP_CUTOVER_RUNBOOK.md) treats the two as a single
+     * config surface that must be flipped together.
+     */
+    public const DEFAULT_DPOP_ALLOWED_ALGS = ['ES256', 'RS256'];
+
+    /**
+     * Algorithms accepted in the DPoP proof header during the gradual
+     * RSA-2048 → ECDSA P-256 migration. Source of truth lives in
+     * config('jwt.dpop_allowed_algs') so the allowlist can be tightened
+     * to ['ES256'] via config (or `DPOP_ALLOWED_ALGS=ES256` in env) when
+     * the cutover metric shows < 1% RS256 — see docs/DPOP_CUTOVER_RUNBOOK.md.
+     * LBDS-258 originally hard-coded this to ['RS256', 'ES256'].
+     */
+    private function supportedAlgs(): array
+    {
+        $configured = config('jwt.dpop_allowed_algs');
+
+        return is_array($configured) && $configured !== []
+            ? array_values(array_unique(array_map('strval', $configured)))
+            : self::DEFAULT_DPOP_ALLOWED_ALGS;
+    }
 
     /**
      * The OIDs in the algorithmIdentifier.parameters field of an EC
@@ -75,6 +117,14 @@ class VerifyDpopProof
 
     public function verify(?string $accessToken, ?string $dpopHeader, Request $request): ?Response
     {
+        // Reset the dedupe flag AND the alg tracker at the entry-point so
+        // a single request that somehow runs multiple verifications
+        // (re-review finding D) starts with a clean slate. Mirrors the
+        // pattern in DpopVerifier::verify() (which resets lastSeenAlg
+        // at the entry-point, not inside the validation method).
+        $this->metricAlreadyEmitted = false;
+        $this->lastSeenAlg = null;
+
         if (! $accessToken) {
             return response()->json([
                 'message' => 'Token de acceso requerido',
@@ -101,9 +151,34 @@ class VerifyDpopProof
 
             $dpopToken = $this->jwtConfig->parser()->parse($dpopHeader);
 
-            $this->validateDpopProof($dpopToken, $request, $expectedJkt, $accessToken, true);
+            // Extract the alg from the header BEFORE running the full
+            // validation. This is best-effort: if the proof is so malformed
+            // that the alg cannot be read, the catch below emits with
+            // alg=unknown and reason=parse_failed. Every other rejection
+            // path (signature, thumbprint, claims, replay) now reports the
+            // real alg so the cutover dashboard can aggregate by alg.
+            $alg = $this->extractAlgFromHeader($dpopToken);
+
+            $this->validateDpopProof($dpopToken, $request, $expectedJkt, $accessToken, true, $alg);
 
         } catch (\Exception $e) {
+            // `validateDpopProof()` already emits the metric for the
+            // allowlist-reject path (and sets metricAlreadyEmitted).
+            // The catch below covers every OTHER failure (bad signature,
+            // thumbprint mismatch, missing claims, replay, etc.) so the
+            // cutover dashboard reflects all rejections — but only once
+            // per verification. Re-review finding A: without the flag,
+            // the dashboard saw double `dpop_proof_verified` lines on
+            // every allowlist-reject and the `rejected` counter was
+            // inflated by 2x.
+            if (! $this->metricAlreadyEmitted) {
+                $alg = $this->lastSeenAlg ?? 'unknown';
+                $this->emitDpopMetric('rejected', $alg, [
+                    'reason' => 'verification_failed',
+                    'message' => $e->getMessage(),
+                ]);
+            }
+
             return response()->json([
                 'message' => 'DPoP proof inválido: '.$e->getMessage(),
             ], 401);
@@ -121,6 +196,11 @@ class VerifyDpopProof
      */
     public function verifyTokenRequest(?string $dpopHeader, Request $request, string $expectedJkt, ?string $accessToken = null): ?Response
     {
+        // Reset the dedupe flag AND the alg tracker at the entry-point
+        // (re-review finding D) — mirrors verify() above.
+        $this->metricAlreadyEmitted = false;
+        $this->lastSeenAlg = null;
+
         if (! $dpopHeader) {
             return response()->json([
                 'message' => 'DPoP proof requerido para tokens vinculados',
@@ -130,9 +210,21 @@ class VerifyDpopProof
         try {
             $dpopToken = $this->jwtConfig->parser()->parse($dpopHeader);
 
-            $this->validateDpopProof($dpopToken, $request, $expectedJkt, $accessToken, false);
+            $alg = $this->extractAlgFromHeader($dpopToken);
+
+            $this->validateDpopProof($dpopToken, $request, $expectedJkt, $accessToken, false, $alg);
 
         } catch (\Exception $e) {
+            // Same dedupe contract as verify() — see metricAlreadyEmitted
+            // docblock (re-review finding A).
+            if (! $this->metricAlreadyEmitted) {
+                $alg = $this->lastSeenAlg ?? 'unknown';
+                $this->emitDpopMetric('rejected', $alg, [
+                    'reason' => 'verification_failed',
+                    'message' => $e->getMessage(),
+                ]);
+            }
+
             return response()->json([
                 'message' => 'DPoP proof inválido: '.$e->getMessage(),
             ], 401);
@@ -142,21 +234,52 @@ class VerifyDpopProof
     }
 
     /**
+     * Read just the `alg` header from an already-parsed DPoP token. Used
+     * by the verify() entry points to capture the alg before running
+     * validation, so the post-validation catch can emit a metric with the
+     * real alg instead of `unknown`. Returns `null` if the header is
+     * missing or unparsable; the caller treats null as `unknown` for the
+     * metric and lets the real validation throw on the missing header.
+     */
+    private function extractAlgFromHeader($dpopToken): ?string
+    {
+        $header = $dpopToken->headers();
+        $alg = $header->get('alg');
+
+        return $alg === null ? null : (string) $alg;
+    }
+
+    /**
      * Shared proof validation used by verify() and verifyTokenRequest().
      *
      * @param  bool  $requireAth  verify() requires ath (access-token binding);
      *                            the token endpoint accepts a proof without it.
      */
-    private function validateDpopProof($dpopToken, Request $request, string $expectedJkt, ?string $accessToken, bool $requireAth): void
+    private function validateDpopProof($dpopToken, Request $request, string $expectedJkt, ?string $accessToken, bool $requireAth, ?string $alg = null): void
     {
+        // lastSeenAlg and metricAlreadyEmitted are reset by the public
+        // entry-points verify()/verifyTokenRequest(). Keeping the reset
+        // here too would clobber an alg that an outer caller already
+        // captured; not resetting it (the previous behavior) left stale
+        // state from a prior verification in the same instance.
         $header = $dpopToken->headers();
 
         if ($header->get('typ') !== 'dpop+jwt') {
             throw new \Exception('Tipo de token DPoP inválido');
         }
 
-        $alg = (string) $header->get('alg');
-        if (! in_array($alg, self::SUPPORTED_ALGS, true)) {
+        $alg = $alg ?? (string) $header->get('alg');
+        $this->lastSeenAlg = $alg;
+
+        if (! in_array($alg, $this->supportedAlgs(), true)) {
+            // Emit the metric for the allowlist-reject path HERE and set
+            // the dedupe flag so the outer catch handler does not
+            // double-emit (re-review finding A, critical).
+            $this->emitDpopMetric('rejected', $alg, [
+                'reason' => 'alg_not_in_allowlist',
+            ]);
+            $this->metricAlreadyEmitted = true;
+
             throw new \Exception('Algoritmo DPoP no soportado: '.$alg);
         }
 
@@ -270,7 +393,54 @@ class VerifyDpopProof
             throw new \Exception('DPoP proof reutilizado (replay detectado)');
         }
 
+        $this->emitDpopMetric('accepted', $alg, [
+            'jkt_prefix' => substr($expectedJkt, 0, 8),
+            'htm' => (string) $htm,
+        ]);
+
         $this->lazyCleanup();
+    }
+
+    /**
+     * Emit a structured log line for the DPoP cutover metric. The runbook
+     * (back/docs/DPOP_CUTOVER_RUNBOOK.md) treats the `event=dpop_proof_verified`
+     * line as the canonical counter — aggregate by `alg` and `result` to get
+     * `dpop_proofs_total{alg,result}`. The verifier stays free of any direct
+     * Prometheus / OTLP dependency; the log line is what feeds the dashboard.
+     *
+     * The emission is best-effort: a logging failure must not turn a valid
+     * proof into an invalid one (the verifier's contract is auth, not
+     * telemetry). If the configured channel throws, the emission falls back
+     * to the `single` channel (file-backed and always present in Laravel)
+     * and finally to PHP's `error_log` as the last-resort visibility hook,
+     * so a misconfigured pipeline never silently kills the cutover metric.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    private function emitDpopMetric(string $result, string $alg, array $context = []): void
+    {
+        $context['event'] = 'dpop_proof_verified';
+        $context['alg'] = $alg;
+        $context['result'] = $result;
+        $context['allowlist'] = $this->supportedAlgs();
+
+        $primary = config('logging.default') ?? 'stack';
+
+        try {
+            Log::channel($primary)->info('dpop_proof_verified', $context);
+        } catch (\Throwable $primaryError) {
+            try {
+                Log::channel('single')->info('dpop_proof_verified', $context + [
+                    'metric_primary_channel_error' => $primaryError->getMessage(),
+                ]);
+            } catch (\Throwable) {
+                // Last-resort visibility hook. We never want a broken log
+                // pipeline to silently drop every cutover metric, so this
+                // is the floor: a single line in PHP's error log that the
+                // on-call can grep while the real channel is fixed.
+                error_log('dpop_proof_verified '.json_encode($context));
+            }
+        }
     }
 
     private function signerForAlgorithm(string $alg): Signer

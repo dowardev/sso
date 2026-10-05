@@ -1,6 +1,34 @@
 // SPDX-License-Identifier: MIT
 import { randomUuid } from "../utils/randomUuid";
 
+/**
+ * Structured log emitter for DPoP events. The format mirrors the
+ * server-side metric (`event=dpop_proof_verified alg=... result=...`) so
+ * client and server lines aggregate in the same dashboard. The cutover
+ * runbook (back/docs/DPOP_CUTOVER_RUNBOOK.md) relies on these tags.
+ *
+ * Pre-merge review #13: the client used to emit `dpop_event=... k=v k=v`
+ * (k=v string format), which the server-side emits as a JSON context
+ * array. The two diverged for pipelines that expect JSON (Loki /
+ * Promtail, Datadog RUM). Now both sides emit a single JSON string per
+ * line so the same parser handles both.
+ */
+function emitDpopEvent(event: string, fields: Record<string, unknown>): void {
+  const payload = { event, ...fields };
+  console.info(JSON.stringify(payload));
+}
+
+/**
+ * JKT prefixes already reported for `dpop_legacy_key_retained` across
+ * the page lifetime. Pre-merge review #F: the previous implementation
+ * kept this set per `DpopService` instance, which only worked if the
+ * caller used a singleton. Apps that lazily construct a fresh
+ * `DpopService` per route / per request defeat the dedupe and inflate
+ * the runbook's "absolute count of retained RSA keys" counter.
+ * Module-level makes the dedupe robust regardless of caller strategy.
+ */
+const reportedLegacyJktPrefixes = new Set<string>();
+
 export class DpopService {
   private privateKey: CryptoKey | null = null;
   private publicKeyJwk: JsonWebKey | null = null;
@@ -12,6 +40,24 @@ export class DpopService {
       this.privateKey = stored.privateKey;
       this.publicKeyJwk = stored.publicKeyJwk;
       this.jkt = stored.jkt;
+
+      // LBDS-290 force-rotation telemetry: surface stored RSA keys so the
+      // app can decide whether to call `forceRotateLegacyKeys()` on the
+      // next logout / session-boundary. A RSA key here is a pre-LBDS-258
+      // binding that has not rotated to ES256 yet. Pre-merge review #14:
+      // deduplicate by jkt_prefix using a module-level Set so the dedupe
+      // works regardless of caller strategy (singleton or per-route).
+      if (stored.publicKeyJwk.kty === "RSA") {
+        const jktPrefix = stored.jkt.slice(0, 8);
+        if (!reportedLegacyJktPrefixes.has(jktPrefix)) {
+          reportedLegacyJktPrefixes.add(jktPrefix);
+          emitDpopEvent("dpop_legacy_key_retained", {
+            alg: "RS256",
+            jkt_prefix: jktPrefix,
+          });
+        }
+      }
+
       return;
     }
 
@@ -153,6 +199,51 @@ export class DpopService {
     this.publicKeyJwk = null;
     this.jkt = null;
     await this.deleteFromIndexedDB();
+  }
+
+  /**
+   * Whether the currently-loaded key pair is a legacy RSA (RS256) one
+   * carried over from a pre-LBDS-258 session. Use this to decide whether
+   * the next logout (or a manual trigger) should call
+   * `forceRotateLegacyKeys()` to retire the key early.
+   *
+   * Returns `false` for fresh sessions, for ES256 (post-migration) keys,
+   * and for sessions that have not called `initialize()` yet.
+   */
+  hasLegacyRsaKey(): boolean {
+    return this.publicKeyJwk?.kty === "RSA";
+  }
+
+  /**
+   * LBDS-290 force-rotation helper. If the loaded key pair is RSA
+   * (RS256, pre-LBDS-258), wipe it from IndexedDB and clear the
+   * in-memory copy. The next `initialize()` (or a fresh login) will
+   * generate a fresh ES256 pair. Returns `true` when a key was rotated,
+   * `false` otherwise (no-op for ES256 or empty sessions).
+   *
+   * Safe to call at any point: the public API (`createDpopProof`)
+   * throws if no key is loaded, so callers should re-initialize or
+   * trigger a fresh login after invoking this.
+   */
+  async forceRotateLegacyKeys(): Promise<boolean> {
+    if (!this.hasLegacyRsaKey()) {
+      return false;
+    }
+
+    // Pre-merge review #E: `this.jkt` MUST be set when hasLegacyRsaKey()
+    // returns true (initialize() sets both in lock-step). The non-null
+    // assertion documents that contract and keeps the emitted JSON
+    // schema stable for the runbook's dashboard queries.
+    const rotatedJktPrefix = this.jkt!.slice(0, 8);
+
+    await this.clearKeys();
+
+    emitDpopEvent("dpop_legacy_key_rotated", {
+      previous_alg: "RS256",
+      previous_jkt_prefix: rotatedJktPrefix,
+    });
+
+    return true;
   }
 
   private async computeJwkThumbprint(jwk: JsonWebKey): Promise<string> {
