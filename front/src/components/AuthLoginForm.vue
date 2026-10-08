@@ -130,7 +130,9 @@
 
       <!-- Passkey method (initial state) -->
       <p v-if="!masterPasswordVisible && !usePasswordMethod" class="auth-hint">
-        Usá tu huella, rostro o llave de seguridad.
+        Usá tu huella, rostro o llave de seguridad. Si este navegador no
+        tiene una, escaneá el QR con tu teléfono para aprobarla desde ahí
+        (Chrome y Safari; en Firefox usá la passkey local o tu contraseña).
       </p>
 
       <!-- Master-password unlock (sub-state of the passkey method) -->
