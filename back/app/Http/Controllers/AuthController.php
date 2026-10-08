@@ -921,8 +921,12 @@ class AuthController extends Controller
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
 
-        // Get existing credentials to exclude (multi-passkey)
-        $existingCredentials = $this->passkeyService->getCredentialIds($user);
+        // Get existing credentials to exclude (multi-passkey). Forwarding the
+        // stored transports here keeps excludeCredentials symmetric with what
+        // the browser was told at login — without it a hybrid-registered
+        // credential could be silently re-registered from a platform
+        // authenticator on the same browser (LBDS-225).
+        $existingCredentials = $this->passkeyService->getRegistrationExcludeDescriptors($user);
 
         $options = $this->passkeyService->generateRegistrationOptions($user, $existingCredentials);
         $optionsJson = $this->passkeyService->serializeOptions($options);
@@ -1013,15 +1017,23 @@ class AuthController extends Controller
         }
 
         if (! $discoverable) {
-            // Get stored credential records
-            $records = $this->passkeyService->getUserCredentialRecords($user);
-            if (empty($records)) {
+            // Build the per-credential descriptor list once and reuse both the
+            // count (to fail fast when the user has no passkeys enrolled) and
+            // the descriptor shape (with stored transports) for the ceremony.
+            $allowCredentials = $this->passkeyService->getAuthenticationDescriptors($user);
+            if (empty($allowCredentials)) {
                 return response()->json(['message' => 'Usuario no tiene passkeys registrados'], 400);
             }
         }
 
+        // Per-credential stored transports drive the browser's authenticator
+        // picker. Without forwarding the stored transports, the service fell
+        // back to a hardcoded ['usb','nfc','ble','internal'] list that
+        // excluded `hybrid`, blocking cross-device QR login (LBDS-225). For
+        // the discoverable flow there is no per-user allow list — the browser
+        // surfaces every resident credential it knows.
         $options = $this->passkeyService->generateAuthenticationOptions(
-            $discoverable ? [] : array_map(fn ($r) => base64_encode($r->publicKeyCredentialId), $records)
+            $discoverable ? [] : $allowCredentials
         );
         $optionsJson = $this->passkeyService->serializeOptions($options);
 

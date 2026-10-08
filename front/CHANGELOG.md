@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Passkey login copy mentions QR / phone and Firefox fallback (LBDS-225)**: `front/src/components/AuthLoginForm.vue` — the passkey hint used to say "Usá tu huella, rostro o llave de seguridad" (implying a local authenticator). The copy now also mentions that a browser without a local passkey can scan a QR with the phone in Chrome/Safari, and that Firefox users fall back to the platform passkey or password. Aligns the in-product copy with the new backend behavior that forwards the credential's stored transports (including `hybrid`) on `allowCredentials`.
 - **Duplicate API error notification (LBDS-267)**: form errors used to fire both a toast and an inline `error.value` block at the same time, so users saw the same message twice. `handleApiError` is now a pure translator — it returns the friendly copy and logs the raw error to the console — and the caller decides the channel: inline for form errors, an explicit `showError({ message: ... })` toast for actions without a form. All twenty-five call sites across the frontend were aligned to this contract. `console.error` keeps the raw backend detail for developers (LBDS-232 invariant preserved). No backend changes.
 
 ## [0.24.4] - 2026-09-10

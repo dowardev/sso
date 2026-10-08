@@ -122,6 +122,12 @@ class PasskeyService
      * exposes a device-bound PRF secret. The SSO client then wraps the ZKE
      * DEK with a key derived from that secret (HKDF), enabling silent profile
      * refresh gated only by a biometric gesture — never a password.
+     *
+     * Each entry in $excludeCredentials can be either:
+     *   - a string (base64 credential id — legacy; no stored transports used)
+     *   - an array {credential_id: string, transports: string[]} produced by
+     *     {@see getRegistrationExcludeDescriptors()} so the descriptor carries
+     *     whatever transports were registered (incl. `hybrid`).
      */
     public function generateRegistrationOptions(User $user, array $excludeCredentials = []): PublicKeyCredentialCreationOptions
     {
@@ -136,12 +142,8 @@ class PasskeyService
         );
 
         $excludeDescriptors = [];
-        foreach ($excludeCredentials as $credId) {
-            $excludeDescriptors[] = PublicKeyCredentialDescriptor::create(
-                'public-key',
-                base64_decode($credId),
-                ['usb', 'nfc', 'ble', 'internal']
-            );
+        foreach ($excludeCredentials as $cred) {
+            $excludeDescriptors[] = $this->buildDescriptor($cred);
         }
 
         return PublicKeyCredentialCreationOptions::create(
@@ -170,16 +172,21 @@ class PasskeyService
 
     /**
      * Generate authentication options for passkey login.
+     *
+     * Each entry in $allowCredentials can be either:
+     *   - a string (base64 credential id — legacy; treated as no transports
+     *     info, so the descriptor is built with an empty transports array and
+     *     the serializer omits the field, letting the browser offer every
+     *     authenticator it can reach).
+     *   - an array {credential_id: string, transports: string[]} produced by
+     *     {@see getAuthenticationDescriptors()} so the descriptor carries the
+     *     stored transports (incl. `hybrid` for cross-device QR on desktop).
      */
     public function generateAuthenticationOptions(array $allowCredentials = []): PublicKeyCredentialRequestOptions
     {
         $allowDescriptors = [];
-        foreach ($allowCredentials as $credId) {
-            $allowDescriptors[] = PublicKeyCredentialDescriptor::create(
-                'public-key',
-                base64_decode($credId),
-                ['usb', 'nfc', 'ble', 'internal']
-            );
+        foreach ($allowCredentials as $cred) {
+            $allowDescriptors[] = $this->buildDescriptor($cred);
         }
 
         return PublicKeyCredentialRequestOptions::create(
@@ -303,6 +310,117 @@ class PasskeyService
         return $user->passkeyCredentials()
             ->pluck('credential_id')
             ->all();
+    }
+
+    /**
+     * Build the per-credential descriptor data for the authentication
+     * ceremony. Reading the stored transports (incl. `hybrid`) is what makes
+     * cross-device QR login reachable: a desktop Chrome without a local
+     * passkey can offer the phone over the hybrid transport when the stored
+     * credential was registered with `hybrid` in its transports array. An
+     * empty stored-transports array yields a descriptor with no `transports`
+     * field after serialization, which lets the browser surface every
+     * available authenticator (incl. QR) — the desired fallback for legacy
+     * credentials registered before transports were persisted.
+     *
+     * @return list<array{credential_id: string, transports: list<string>}>
+     */
+    public function getAuthenticationDescriptors(User $user): array
+    {
+        $out = [];
+        foreach ($user->passkeyCredentials as $credential) {
+            $out[] = [
+                'credential_id' => $credential->credential_id,
+                'transports' => array_values($credential->transports ?? []),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Build the per-credential descriptor data used as excludeCredentials in
+     * the registration ceremony. Symmetric with
+     * {@see getAuthenticationDescriptors()}: stored transports are forwarded
+     * so the re-enrollment check matches the same transport set the browser
+     * was told the credential supports at login. Without this, a hybrid-
+     * registered credential could be silently re-registered from the same
+     * browser on a platform authenticator.
+     *
+     * @return list<array{credential_id: string, transports: list<string>}>
+     */
+    public function getRegistrationExcludeDescriptors(User $user): array
+    {
+        return $this->getAuthenticationDescriptors($user);
+    }
+
+    /**
+     * Build a PublicKeyCredentialDescriptor from one of two shapes:
+     *   - string: legacy credential id only (no transports info)
+     *   - array:  {credential_id: string, transports: string[]}
+     *
+     * Transport values are filtered against the WebAuthn-known set so a stale
+     * or garbage value persisted in the database cannot poison the request.
+     * Empty transports are forwarded as an empty array, which the upstream
+     * serializer omits from the JSON — letting the browser offer every
+     * authenticator it can reach (LBDS-225 scope item 2).
+     */
+    private function buildDescriptor(string|array $cred): PublicKeyCredentialDescriptor
+    {
+        if (is_string($cred)) {
+            return PublicKeyCredentialDescriptor::create(
+                'public-key',
+                base64_decode($cred),
+                []
+            );
+        }
+
+        // Guard against a malformed descriptor entry (missing credential_id).
+        // Without this, base64_decode(null) emits a deprecation notice and
+        // yields an empty string, producing a PublicKeyCredentialDescriptor
+        // with id='' that silently fails the assertion. A typo at the call
+        // site (or a future caller wiring this directly) would otherwise land
+        // in main as a class of invisible 400s on the QR login path.
+        if (! isset($cred['credential_id']) || ! is_string($cred['credential_id']) || $cred['credential_id'] === '') {
+            throw new \InvalidArgumentException(
+                'Passkey descriptor entry is missing a non-empty credential_id'
+            );
+        }
+
+        $transports = $this->normalizeTransports($cred['transports'] ?? []);
+
+        return PublicKeyCredentialDescriptor::create(
+            'public-key',
+            base64_decode($cred['credential_id']),
+            $transports
+        );
+    }
+
+    /**
+     * @param  array<int, string>|null  $transports
+     * @return list<string>
+     */
+    private function normalizeTransports(?array $transports): array
+    {
+        if (empty($transports)) {
+            return [];
+        }
+
+        $allowed = PublicKeyCredentialDescriptor::AUTHENTICATOR_TRANSPORTS;
+        $filtered = [];
+        foreach ($transports as $t) {
+            if (! is_string($t)) {
+                continue;
+            }
+            if (! in_array($t, $allowed, true)) {
+                continue;
+            }
+            if (! in_array($t, $filtered, true)) {
+                $filtered[] = $t;
+            }
+        }
+
+        return $filtered;
     }
 
     /**

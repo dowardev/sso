@@ -11,6 +11,7 @@ use App\Webauthn\PackedAttestationStatementSupportWithEdDSA;
 use Cose\Algorithm\Manager as CoseAlgorithmManager;
 use Cose\Algorithm\Signature\EdDSA\EdDSA;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 use Symfony\Component\Uid\Uuid;
 use Tests\TestCase;
@@ -354,6 +355,315 @@ class PasskeyMultiCredentialTest extends TestCase
         $this->assertCount(2, $options->allowCredentials);
         $this->assertSame(base64_decode($allowA), $options->allowCredentials[0]->id);
         $this->assertSame(base64_decode($allowB), $options->allowCredentials[1]->id);
+    }
+
+    // ─── LBDS-225: cross-device hybrid transport (QR) ──────────────────────────────────────────
+
+    /**
+     * When a credential is registered as `hybrid` (modern phones), the
+     * authentication ceremony must forward that transport in
+     * `allowCredentials[].transports`. Otherwise the browser silently
+     * filters the credential out of its authenticator picker and the
+     * cross-device QR flow is unreachable from a desktop without a local
+     * passkey.
+     */
+    public function test_authentication_descriptor_forwards_stored_hybrid_transport(): void
+    {
+        $user = $this->makeUser();
+        $service = app(PasskeyService::class);
+
+        $service->storeCredential(
+            $user,
+            $this->fakeRecord('AAAA'),
+            ['transports' => ['hybrid']]
+        );
+
+        $descriptors = $service->getAuthenticationDescriptors($user->fresh());
+        $this->assertCount(1, $descriptors);
+        $this->assertSame($service->getCredentialIds($user->fresh())[0], $descriptors[0]['credential_id']);
+        $this->assertSame(['hybrid'], $descriptors[0]['transports']);
+
+        $options = $service->generateAuthenticationOptions($descriptors);
+        $serialized = $service->serializeOptions($options);
+
+        $this->assertCount(1, $serialized['allowCredentials']);
+        $this->assertSame(['hybrid'], $serialized['allowCredentials'][0]['transports']);
+    }
+
+    /**
+     * Legacy credentials persisted before transports were tracked have an
+     * empty stored transports array. The descriptor must omit the `transports`
+     * field entirely so the browser is allowed to surface every available
+     * authenticator — incl. the hybrid QR option when a phone-issued
+     * credential happens to be in the allow list.
+     */
+    public function test_authentication_descriptor_omits_transports_when_empty(): void
+    {
+        $user = $this->makeUser();
+        $service = app(PasskeyService::class);
+
+        $service->storeCredential($user, $this->fakeRecord('AAAA'));
+
+        $options = $service->generateAuthenticationOptions(
+            $service->getAuthenticationDescriptors($user->fresh())
+        );
+        $serialized = $service->serializeOptions($options);
+
+        $this->assertCount(1, $serialized['allowCredentials']);
+        $this->assertArrayNotHasKey(
+            'transports',
+            $serialized['allowCredentials'][0],
+            'Empty stored transports must NOT serialize as an empty array — omitting lets the browser offer every authenticator.'
+        );
+    }
+
+    /**
+     * Registration's `excludeCredentials` must be symmetric with login's
+     * `allowCredentials` — same transport set. Otherwise a hybrid-registered
+     * credential could be silently re-registered from a platform
+     * authenticator on the same browser.
+     */
+    public function test_registration_exclude_credentials_forwards_stored_transports(): void
+    {
+        $user = $this->makeUser();
+        $service = app(PasskeyService::class);
+
+        $service->storeCredential(
+            $user,
+            $this->fakeRecord('AAAA'),
+            ['transports' => ['hybrid', 'internal']]
+        );
+
+        $options = $service->generateRegistrationOptions(
+            $user,
+            $service->getRegistrationExcludeDescriptors($user->fresh())
+        );
+        $serialized = $service->serializeOptions($options);
+
+        $this->assertCount(1, $serialized['excludeCredentials']);
+        $transports = $serialized['excludeCredentials'][0]['transports'] ?? [];
+        $this->assertContains('hybrid', $transports);
+        $this->assertContains('internal', $transports);
+    }
+
+    /**
+     * Garbage in stored transports (malformed DB write, manual override,
+     * future spec drift) must be filtered before being forwarded to the
+     * browser. Otherwise the descriptor could carry values the WebAuthn
+     * spec doesn't define and the whole allow list could be silently
+     * ignored.
+     */
+    public function test_descriptor_filters_unknown_transport_values(): void
+    {
+        $user = $this->makeUser();
+        $service = app(PasskeyService::class);
+
+        $service->storeCredential(
+            $user,
+            $this->fakeRecord('AAAA'),
+            ['transports' => ['hybrid', 'magic-beam', 42, 'internal']]
+        );
+
+        $options = $service->generateAuthenticationOptions(
+            $service->getAuthenticationDescriptors($user->fresh())
+        );
+        $serialized = $service->serializeOptions($options);
+
+        $transports = $serialized['allowCredentials'][0]['transports'] ?? [];
+        $this->assertSame(['hybrid', 'internal'], array_values($transports));
+    }
+
+    /**
+     * End-to-end check through the controller: a user with a hybrid-registered
+     * credential receives that transport in the JSON `allowCredentials[]`
+     * returned by `/api/passkey/authenticate/start`. This is the wire format
+     * the browser's `navigator.credentials.get()` reads.
+     */
+    public function test_authenticate_start_endpoint_forwards_stored_hybrid_transport(): void
+    {
+        $user = $this->makeUser();
+        $service = app(PasskeyService::class);
+
+        $service->storeCredential(
+            $user,
+            $this->fakeRecord('AAAA'),
+            ['transports' => ['hybrid']]
+        );
+
+        $response = $this->postJson('/api/passkey/authenticate/start', [
+            'username' => $user->email,
+        ]);
+
+        $response->assertOk();
+        $allowCredentials = $response->json('allowCredentials');
+        $this->assertCount(1, $allowCredentials);
+        $this->assertSame(['hybrid'], $allowCredentials[0]['transports']);
+    }
+
+    /**
+     * Same end-to-end check through the registration endpoint:
+     * `excludeCredentials[]` carries the stored transport, not the legacy
+     * hardcoded fallback.
+     */
+    public function test_register_start_endpoint_forwards_stored_hybrid_in_exclude(): void
+    {
+        $user = $this->makeUser();
+        $service = app(PasskeyService::class);
+
+        $service->storeCredential(
+            $user,
+            $this->fakeRecord('AAAA'),
+            ['transports' => ['hybrid']]
+        );
+
+        // Re-enrollment requires an authenticated session — use the JWT flow.
+        $token = $this->loginToken($user);
+
+        $response = $this->withToken($token)
+            ->postJson('/api/passkey/register/start', [
+                'user_id' => $user->id,
+            ]);
+
+        $response->assertOk();
+        $excludeCredentials = $response->json('excludeCredentials');
+        $this->assertCount(1, $excludeCredentials);
+        $this->assertSame(['hybrid'], $excludeCredentials[0]['transports']);
+    }
+
+    /**
+     * F2 — The legacy string path of `buildDescriptor` (called when the
+     * caller passes a bare base64 credential id, not the new array shape)
+     * must also produce a descriptor with no `transports` field in JSON. The
+     * array path is exercised by every other test; without this one a
+     * regression that only affects the legacy input would slip through.
+     */
+    public function test_legacy_string_input_omits_transports_field(): void
+    {
+        $service = app(PasskeyService::class);
+        $allowId = $this->b64('AAAA');
+
+        $options = $service->generateAuthenticationOptions([$allowId]);
+        $serialized = $service->serializeOptions($options);
+
+        $this->assertCount(1, $serialized['allowCredentials']);
+        $this->assertArrayNotHasKey('transports', $serialized['allowCredentials'][0]);
+    }
+
+    /**
+     * F3 — `cable` is the WebAuthn-library constant kept for backwards
+     * compatibility with older Android authenticators that registered under
+     * the deprecated alias. `normalizeTransports` allows it through, and
+     * that contract is worth pinning down so a future refactor doesn't
+     * silently drop legacy credentials registered as `cable`.
+     */
+    public function test_cable_transport_is_forwarded(): void
+    {
+        $user = $this->makeUser();
+        $service = app(PasskeyService::class);
+
+        $service->storeCredential(
+            $user,
+            $this->fakeRecord('AAAA'),
+            ['transports' => ['cable']]
+        );
+
+        $options = $service->generateAuthenticationOptions(
+            $service->getAuthenticationDescriptors($user->fresh())
+        );
+        $serialized = $service->serializeOptions($options);
+
+        $this->assertSame(['cable'], $serialized['allowCredentials'][0]['transports']);
+    }
+
+    /**
+     * F4 — `smart-card` is a valid WebAuthn transport (e.g. PIV/CAC cards)
+     * that the allowlist passes through. Pin the contract so a smart-card
+     * user doesn't get silently blocked out of the QR-less authenticator
+     * picker if someone tightens the allowlist.
+     */
+    public function test_smart_card_transport_is_forwarded(): void
+    {
+        $user = $this->makeUser();
+        $service = app(PasskeyService::class);
+
+        $service->storeCredential(
+            $user,
+            $this->fakeRecord('AAAA'),
+            ['transports' => ['smart-card']]
+        );
+
+        $options = $service->generateAuthenticationOptions(
+            $service->getAuthenticationDescriptors($user->fresh())
+        );
+        $serialized = $service->serializeOptions($options);
+
+        $this->assertSame(['smart-card'], $serialized['allowCredentials'][0]['transports']);
+    }
+
+    /**
+     * F1 — A descriptor entry that lacks `credential_id` (or carries an
+     * empty / non-string one) must throw instead of silently building a
+     * PublicKeyCredentialDescriptor with id=''. Without this guard,
+     * base64_decode(null) emits a deprecation notice and yields an empty
+     * id, producing a WebAuthn options blob that fails the assertion
+     * ceremony with a confusing downstream error. Each documented failure
+     * mode (missing key, null, non-string, empty string) is exercised so a
+     * future refactor cannot silently drop one branch.
+     *
+     * R2 — The exception message itself is part of the contract: it
+     * pinpoints the malformed descriptor entry so the upstream caller can
+     * log the bad input. A silent message change would be a regression.
+     *
+     * @return array<string, array{array<string, mixed>}>
+     */
+    public static function invalidDescriptorEntries(): array
+    {
+        return [
+            'missing credential_id key' => [['transports' => ['hybrid']]],
+            'null credential_id' => [['credential_id' => null, 'transports' => ['hybrid']]],
+            'integer credential_id' => [['credential_id' => 42, 'transports' => ['hybrid']]],
+            'empty-string credential_id' => [['credential_id' => '', 'transports' => ['hybrid']]],
+        ];
+    }
+
+    #[DataProvider('invalidDescriptorEntries')]
+    public function test_build_descriptor_rejects_invalid_credential_id(array $badEntry): void
+    {
+        $service = app(PasskeyService::class);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Passkey descriptor entry is missing a non-empty credential_id');
+
+        $service->generateAuthenticationOptions([$badEntry]);
+    }
+
+    /**
+     * R4 — `normalizeTransports` is a pure allowlist+dedupe function. Its
+     * contract is exercised end-to-end through F3/F4's integration tests,
+     * but those go through DB writes and serialization to reach it. A
+     * direct unit test pins the function's behavior in isolation so a
+     * future refactor that touches internal wiring doesn't silently break
+     * the filter. Reflection is the established pattern in this file
+     * (`test_ceremony_factory_algorithm_manager_includes_eddsa` uses the
+     * same trick).
+     */
+    public function test_normalize_transports_filters_unknown_values_and_dedupes(): void
+    {
+        $service = app(PasskeyService::class);
+        $method = (new \ReflectionClass($service))->getMethod('normalizeTransports');
+        $method->setAccessible(true);
+
+        $this->assertSame([], $method->invoke($service, []));
+        $this->assertSame([], $method->invoke($service, null));
+        $this->assertSame([], $method->invoke($service, ['magic-beam', 'non-existent']));
+        $this->assertSame(
+            ['hybrid', 'internal'],
+            $method->invoke($service, ['hybrid', 'magic-beam', 42, 'internal', 'hybrid'])
+        );
+        // Deprecated alias still flows through (library contract; see F3).
+        $this->assertSame(['cable'], $method->invoke($service, ['cable']));
+        // Smart-card is a first-class WebAuthn transport (see F4).
+        $this->assertSame(['smart-card'], $method->invoke($service, ['smart-card']));
     }
 
     // ─── helpers ─────────────────────────────────────────────────────────────
