@@ -177,7 +177,7 @@ export const useAuthStore = defineStore('auth', () => {
     password: string;
     client_id?: string;
     rememberMe?: boolean;
-  }) {
+  }): Promise<{ token: string; user: User }> {
     const { client_id, rememberMe } = params;
 
     await dpopService.initialize();
@@ -201,16 +201,74 @@ export const useAuthStore = defineStore('auth', () => {
       loginData.remember_me = true;
     }
 
-    const response = await api.post<{ token: string; user: User }>({
+    const response = await api.post<{ token?: string; user?: User; code?: string }>({
       endpoint: '/login',
       data: loginData,
     });
+
+    // TOTP gate (LBDS-8): when the password step succeeds but the
+    // account has TOTP enabled, the backend returns 200 with
+    // { code: 'TOTP_REQUIRED', totp_token, ... } instead of issuing
+    // the JWT. The caller (AuthLoginForm) catches the typed error
+    // below and shows the challenge modal that posts to /api/totp/login.
+    if (response.code === 'TOTP_REQUIRED') {
+      const err = new Error(
+        'Necesitás tu código TOTP para continuar.',
+      ) as Error & {
+        code: 'TOTP_REQUIRED';
+        totpToken: string;
+        digits: number;
+        period: number;
+      };
+      err.code = 'TOTP_REQUIRED';
+      err.totpToken = (response as { totp_token: string }).totp_token;
+      err.digits = (response as { digits: number }).digits;
+      err.period = (response as { period: number }).period;
+      throw err;
+    }
+
+    if (!response.token || !response.user) {
+      throw new Error('Respuesta inesperada del servidor al iniciar sesión.');
+    }
 
     applyLoginSession({
       token: response.token,
       user: response.user,
       dpopPublicKey,
       rememberMe,
+    });
+
+    return { token: response.token, user: response.user };
+  }
+
+  /**
+   * Complete a TOTP-gated login. The totp_token comes from the password
+   * step (see login() above). On success the JWT is applied locally so
+   * the caller can redirect without further bookkeeping.
+   */
+  async function loginWithTotp(params: {
+    totpToken: string;
+    code?: string;
+    backupCode?: string;
+    rememberMe?: boolean;
+    dpopPublicKey?: JsonWebKey | null;
+  }) {
+    const { totpToken, code, backupCode, rememberMe, dpopPublicKey } = params;
+
+    const response = await api.post<{ token: string; user: User }>({
+      endpoint: '/totp/login',
+      data: {
+        totp_token: totpToken,
+        code,
+        backup_code: backupCode,
+      },
+    });
+
+    applyLoginSession({
+      token: response.token,
+      user: response.user,
+      dpopPublicKey: dpopPublicKey ?? null,
+      rememberMe: rememberMe ?? false,
     });
 
     return response;
@@ -345,6 +403,7 @@ export const useAuthStore = defineStore('auth', () => {
     getLoginId: () => cryptoState.value.loginId,
     // Actions
     login,
+    loginWithTotp,
     applyLoginSession,
     logout,
     getUser,

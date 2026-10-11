@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **TOTP (RFC 6238) 2FA fallback (LBDS-8)**:
+    - `app/Services/TotpService.php` (new) — RFC 6238 implementation: base32 codec, HOTP/TOTP, encrypted-at-rest secret (Laravel Crypt), ±1-step window per RFC §5.2, last-used-step anti-reuse, 10-code backup generation with re-roll on collision. Anti-reuse race closed via `lockForUpdate` (LBDS-8 review B-01). Backup codes use a Crockford-style alphabet (no I/O/0/1/l) to avoid hand-transcription errors.
+    - `app/Models/TotpCredential.php`, `app/Models/TotpBackupCode.php` (new) — credentials and single-use codes scoped to the user.
+    - `app/Models/User.php` — `totpCredential()`, `activeTotpCredential()` (whereNotNull confirmed_at), `totpBackupCodes()` relations.
+    - `app/Models/UserActivityLog.php` — `ACTION_TOTP_ENROLLED`, `ACTION_TOTP_DISABLED`, `ACTION_TOTP_VERIFIED`, `ACTION_TOTP_BACKUP_CODE_REGENERATED` audit constants.
+    - `app/Http/Controllers/AuthController.php` — `startTotpChallenge()` helper invoked from `login()` and `loginAdvancedVerify()` after the email-verified gate; on a hit the response is `{ code: 'TOTP_REQUIRED', totp_token, digits, period }` and a one-time cache entry holds the password-step state for 5 minutes. New endpoints: `totpEnrollStart` (regenerates a secret, returns the otpauth URI), `totpEnrollConfirm` (verifies the first code, emits 10 backup codes), `totpDisable` / `totpBackupCodesRegenerate` (require password for basic, derived `auth_proof` for advanced ZKE users — same re-auth contract as `passkeyDelete`), `totpStatus`, `totpLogin` (challenge step that consumes the cache entry, accepts `code` or `backup_code`).
+    - `database/migrations/2026_10_08_000000_create_totp_credentials_table.php` (new) — credentials table, encrypted secret column, `last_used_step` anti-reuse counter.
+    - `database/migrations/2026_10_08_000001_create_totp_backup_codes_table.php` (new) — backup codes table, `code_hash` Argon2id, `used_at` timestamp.
+    - `database/migrations/2026_10_09_000000_add_composite_index_to_totp_backup_codes_table.php` (new) — composite `(user_id, used_at)` index on `totp_backup_codes` so the hot "is this code still valid?" query becomes an index range scan (LBDS-8 review B-08).
+    - `routes/api.php` — 7 new TOTP routes; `/api/totp/login` tightened to `throttle:3,1` because the `totp_token` is an unauthenticated bearer, and the enrollment endpoints get `throttle:5,1` to stop an authenticated user spamming `start` to rotate their secret and wipe their backup codes (LBDS-8 review B-03 / B-10).
+- **TOTP tests** (26): `tests/Unit/TotpServiceTest.php` covers the base32 round-trip and RFC 6238 Appendix B test vectors; `tests/Feature/TotpEnrollmentTest.php` covers every endpoint; `tests/Feature/TotpLoginTest.php` covers the login challenge path including a concurrency regression test for the anti-reuse race.
 - **Passkey / Ed25519 (COSE alg -8) registration support (LBDS-257)**:
     - `app/Services/PasskeyService.php` — `generateRegistrationOptions()` now advertises `-8` (Ed25519) first in `pubKeyCredParams`, followed by ES256 (-7) and RS256 (-257). Authenticator preference order matches the WebAuthn spec; legacy authenticators still fall back to ES256 / RS256.
     - `app/Services/PasskeyService.php` (constructor) — the ceremony factory now receives an `AlgorithmManager` registered with `Cose\Algorithm\Signature\EdDSA\EdDSA` plus ES256/RS256, so the `CheckSignature` step accepts Ed25519 signatures at both attestation and assertion time. The default factory manager only ships ES256/RS256, so this wiring was required for Ed25519 to work end-to-end.
@@ -57,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **TOTP secret encrypted at rest (LBDS-8)**: secrets are stored via `Crypt::encryptString` (AES-256-CBC via APP_KEY). A DB leak does not expose usable secrets. Operational risk: APP_KEY rotation requires re-encrypting the column.
 - The CORS rejection diagnostic no longer discloses the union of every active client's allowed origins when no `client_id` can be resolved from the request.
 - `app/Services/AuthService.php` — the OAuth `refresh_token` grant (`POST /api/oauth/token`) requires a DPoP proof whose JWK thumbprint matches the binding stored on the refresh token; a refresh token without a binding is rejected with 401, which forces existing OAuth sessions created before this change to log in again once.
 - `app/Services/AuthService.php` — a refresh token that carries a DPoP binding can only be rotated with a valid matching proof on every refresh endpoint (`/api/oauth/token` and `/api/refresh-token`), so a stolen bound token can no longer be redeemed through the cookie-only endpoint to obtain an unbound access token.

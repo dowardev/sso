@@ -313,11 +313,73 @@
       </ion-button>
     </div>
   </AuthCard>
+
+  <!-- TOTP challenge modal (LBDS-8): shown after password when the
+       account has TOTP enabled. Closes on success (caller redirects)
+       or on cancel (returns to the password form). -->
+  <ion-modal :is-open="totpRequired" @did-dismiss="cancelTotpChallenge">
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Código TOTP</ion-title>
+        <ion-buttons slot="end">
+          <ion-button @click="cancelTotpChallenge">Cancelar</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      <p class="totp-intro">
+        Ingresá el código de {{ totpDigits }} dígitos de tu app autenticadora.
+        Si no tenés acceso al dispositivo, ingresá uno de los códigos de respaldo.
+      </p>
+
+      <ion-segment v-model="totpInputMode" mode="ios">
+        <ion-segment-button value="code">
+          <ion-label>Código</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="backup">
+          <ion-label>De respaldo</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+
+      <ion-item v-if="totpInputMode === 'code'">
+        <ion-label position="stacked">Código TOTP</ion-label>
+        <ion-input
+          ref="totpCodeInput"
+          v-model="totpCode"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          :maxlength="totpDigits"
+          :placeholder="'0'.repeat(totpDigits)"
+          :disabled="totpSubmitting"
+        />
+      </ion-item>
+
+      <ion-item v-else>
+        <ion-label position="stacked">Código de respaldo</ion-label>
+        <ion-input
+          ref="totpBackupInput"
+          v-model="totpBackupCode"
+          autocapitalize="characters"
+          :disabled="totpSubmitting"
+        />
+      </ion-item>
+
+      <div v-if="totpError" class="auth-field-error" role="alert">{{ totpError }}</div>
+
+      <ion-button
+        expand="block"
+        :disabled="totpSubmitting || !canSubmitTotp"
+        @click="submitTotpChallenge"
+      >
+        Verificar
+      </ion-button>
+    </ion-content>
+  </ion-modal>
 </template>
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
-import { ref, onMounted, computed, nextTick } from 'vue';
+import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import {
   IonItem,
@@ -330,6 +392,12 @@ import {
   IonLabel,
   IonSegment,
   IonSegmentButton,
+  IonModal,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonContent,
 } from '@ionic/vue';
 import { arrowBack, alertCircle, keyOutline } from 'ionicons/icons';
 import useVuelidate from '@vuelidate/core';
@@ -416,6 +484,52 @@ const getPersistedAuthMethod = (): 'password' | 'passkey' => {
 };
 const authMethod = ref<'password' | 'passkey'>(getPersistedAuthMethod());
 const passkeyButton = ref<{ $el?: HTMLElement } | null>(null);
+
+// TOTP challenge (LBDS-8): set when the password step returns
+// TOTP_REQUIRED. The modal is open as long as `totpToken` is non-empty;
+// closing it (or cancelling) clears the token so the user can re-enter
+// their password.
+const totpToken = ref('');
+const totpDigits = ref(6);
+const totpCode = ref('');
+const totpBackupCode = ref('');
+const totpInputMode = ref<'code' | 'backup'>('code');
+const totpSubmitting = ref(false);
+const totpError = ref('');
+const totpRememberMe = ref(false);
+// LBDS-8 review (F-05, F-06): template refs to the modal inputs so we
+// can auto-focus on open and when the user switches between "Código" /
+// "De respaldo" segments. Without these, the user has to click or
+// tab into the field manually.
+const totpCodeInput = ref<{ setFocus?: () => Promise<void> } | null>(null);
+const totpBackupInput = ref<{ setFocus?: () => Promise<void> } | null>(null);
+const totpRequired = computed(() => totpToken.value !== '');
+const canSubmitTotp = computed(() =>
+  totpInputMode.value === 'code'
+    ? totpCode.value.length === totpDigits.value
+    : totpBackupCode.value.trim().length > 0,
+);
+
+// Auto-focus the active input when the modal opens and when the user
+// switches the segment.
+watch(totpRequired, async (open) => {
+  if (!open) return;
+  await nextTick();
+  if (totpInputMode.value === 'code') {
+    await totpCodeInput.value?.setFocus?.();
+  } else {
+    await totpBackupInput.value?.setFocus?.();
+  }
+});
+watch(totpInputMode, async () => {
+  if (!totpRequired.value) return;
+  await nextTick();
+  if (totpInputMode.value === 'code') {
+    await totpCodeInput.value?.setFocus?.();
+  } else {
+    await totpBackupInput.value?.setFocus?.();
+  }
+});
 
 // 7. Watch
 // (none)
@@ -667,6 +781,67 @@ const handlePasswordLogin = async (): Promise<void> => {
 
 // Post-login redirect shared by the password and passkey flows: OAuth apps
 // go through oauthAuthorize, direct logins land on the dashboard.
+async function submitTotpChallenge(): Promise<void> {
+  if (!totpToken.value || totpSubmitting.value) return;
+  // LBDS-8 review (F-07): the backend would reject a request with
+  // neither code nor backup_code, but the resulting generic error
+  // message degrades the UX. Validate client-side and surface a clear
+  // copy when the user hits "Verificar" with an empty field.
+  if (totpInputMode.value === 'code' && totpCode.value.length !== totpDigits.value) {
+    totpError.value = `Ingresá el código de ${totpDigits.value} dígitos.`;
+    return;
+  }
+  if (totpInputMode.value === 'backup' && totpBackupCode.value.trim().length === 0) {
+    totpError.value = 'Ingresá uno de los códigos de respaldo.';
+    return;
+  }
+  totpSubmitting.value = true;
+  totpError.value = '';
+  try {
+    await authController.loginWithTotp({
+      totpToken: totpToken.value,
+      code: totpInputMode.value === 'code' ? totpCode.value : undefined,
+      backupCode: totpInputMode.value === 'backup' ? totpBackupCode.value.trim() : undefined,
+      rememberMe: totpRememberMe.value,
+    });
+    // On success: clear the modal state and continue with the
+    // post-login redirect (OAuth apps, dashboard, etc.).
+    totpToken.value = '';
+    // LBDS-8 review (F-01): the redirect used to be unguarded — if
+    // OAuth authorize failed after TOTP succeeded, the modal would
+    // close and the user would be left without a session. Catch and
+    // surface the failure so the user can retry from a logged-in
+    // state.
+    try {
+      await runPostLoginRedirect();
+    } catch (redirectErr) {
+      totpError.value = redirectErr instanceof Error
+        ? redirectErr.message
+        : 'No se pudo redirigir tras el login. Recargá la página.';
+    }
+  } catch (err) {
+    const apiError = err as Error & { code?: string };
+    totpError.value = apiError.code === 'TOTP_REQUIRED'
+      ? 'La sesión TOTP expiró. Iniciá sesión de nuevo.'
+      : (apiError.message || 'Código TOTP inválido.');
+    if (apiError.code === 'TOTP_REQUIRED') {
+      // Token is spent; close the modal so the user can re-enter
+      // their password.
+      totpToken.value = '';
+    }
+  } finally {
+    totpSubmitting.value = false;
+  }
+}
+
+function cancelTotpChallenge(): void {
+  totpToken.value = '';
+  totpCode.value = '';
+  totpBackupCode.value = '';
+  totpError.value = '';
+  totpInputMode.value = 'code';
+}
+
 const runPostLoginRedirect = async (): Promise<void> => {
   if (isOAuthFlow.value) {
     const oauthResult = await authController.oauthAuthorize({
@@ -784,7 +959,24 @@ const handleBasicLogin = async (params: { identifier: string }): Promise<void> =
     // invoked via handlePasskeyLogin when the user chooses that method.
     await runPostLoginRedirect();
   } catch (err) {
-    const apiError = err as Error & { code?: string; email?: string };
+    const apiError = err as Error & {
+      code?: string;
+      email?: string;
+      totpToken?: string;
+      digits?: number;
+      period?: number;
+    };
+    if (apiError.code === 'TOTP_REQUIRED') {
+      // Hand the password step's result to the TOTP challenge modal.
+      totpRememberMe.value = rememberMe.value;
+      totpDigits.value = apiError.digits ?? 6;
+      totpToken.value = apiError.totpToken ?? '';
+      totpCode.value = '';
+      totpBackupCode.value = '';
+      totpError.value = '';
+      totpInputMode.value = 'code';
+      return;
+    }
     if (apiError.code === 'EMAIL_NOT_VERIFIED') {
       router.replace({
         name: 'VerifyEmailPending',
@@ -827,7 +1019,23 @@ const handleAdvancedLogin = async (params: { loginId: string }): Promise<void> =
 
     await runPostLoginRedirect();
   } catch (err) {
-    const apiError = err as Error & { code?: string; email?: string };
+    const apiError = err as Error & {
+      code?: string;
+      email?: string;
+      totpToken?: string;
+      digits?: number;
+      period?: number;
+    };
+    if (apiError.code === 'TOTP_REQUIRED') {
+      totpRememberMe.value = rememberMe.value;
+      totpDigits.value = apiError.digits ?? 6;
+      totpToken.value = apiError.totpToken ?? '';
+      totpCode.value = '';
+      totpBackupCode.value = '';
+      totpError.value = '';
+      totpInputMode.value = 'code';
+      return;
+    }
     if (apiError.code === 'EMAIL_NOT_VERIFIED') {
       router.replace({
         name: 'VerifyEmailPending',

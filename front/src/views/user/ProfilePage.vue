@@ -126,8 +126,13 @@
             />
           </div>
 
-          <!-- Security / Activity Log -->
+          <!-- Security / Activity Log + TOTP settings -->
           <div v-if="activeSegment === 'security'" class="segment-panel">
+            <TotpSettings
+              v-if="showTabs.includes('security')"
+              @changed="loadActivities"
+            />
+
             <ActivityLog
               v-if="showTabs.includes('security')"
               :activities="activities"
@@ -205,6 +210,7 @@
   import AuthorizationsList from '@/components/user/AuthorizationsList.vue';
   import SessionsList from '@/components/user/SessionsList.vue';
   import ActivityLog from '@/components/user/ActivityLog.vue';
+  import TotpSettings from '@/components/user/TotpSettings.vue';
 
   // 4. Interface and types imports
   import type { User, UserSession, EncryptionLevel } from '@/types';

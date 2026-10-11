@@ -186,6 +186,26 @@ export function useAuthController() {
     return authStore.login(params);
   }
 
+  /**
+   * Complete a TOTP-gated login. The TOTP_REQUIRED error thrown by
+   * {@link login} (or {@link loginAdvanced}) surfaces the totp_token
+   * the password step returned; the AuthLoginForm catches it and
+   * prompts the user for the code, then calls this with the result.
+   */
+  async function loginWithTotp(params: {
+    totpToken: string;
+    code?: string;
+    backupCode?: string;
+    rememberMe?: boolean;
+  }): Promise<{ token: string; user: User }> {
+    return authStore.loginWithTotp({
+      totpToken: params.totpToken,
+      code: params.code,
+      backupCode: params.backupCode,
+      rememberMe: params.rememberMe,
+    });
+  }
+
   // ─── Advanced Login (Zero-Knowledge) ───────────────────────────────────────
 
   /**
@@ -234,10 +254,33 @@ export function useAuthController() {
       requestData.dpop_public_key = JSON.stringify(dpopPublicKey);
     }
 
-    const response = await api.post<{ token: string; user: User }>({
+    const response = await api.post<{ token?: string; user?: User; code?: string }>({
       endpoint: '/login/advanced/verify',
       data: requestData,
     });
+
+    // TOTP gate (LBDS-8): when the auth_proof step succeeds but the
+    // account has TOTP enabled, the backend returns 200 with
+    // { code: 'TOTP_REQUIRED', totp_token } instead of issuing the JWT.
+    // The caller catches this typed error and shows the challenge
+    // modal that posts to /api/totp/login.
+    if (response.code === 'TOTP_REQUIRED') {
+      const err = new Error('Necesitás tu código TOTP para continuar.') as Error & {
+        code: 'TOTP_REQUIRED';
+        totpToken: string;
+        digits: number;
+        period: number;
+      };
+      err.code = 'TOTP_REQUIRED';
+      err.totpToken = (response as { totp_token: string }).totp_token;
+      err.digits = (response as { digits: number }).digits;
+      err.period = (response as { period: number }).period;
+      throw err;
+    }
+
+    if (!response.token || !response.user) {
+      throw new Error('Respuesta inesperada del servidor al iniciar sesión.');
+    }
 
     // Session persistence (localStorage + crypto state) lives in the store.
     authStore.applyLoginSession({
@@ -247,7 +290,7 @@ export function useAuthController() {
       rememberMe: params.rememberMe,
     });
 
-    return response;
+    return { token: response.token, user: response.user };
   }
 
   /**
@@ -1142,6 +1185,7 @@ export function useAuthController() {
     user,
     isAuthenticated,
     login,
+    loginWithTotp,
     fetchAuthMethods,
     logout,
     getUser,

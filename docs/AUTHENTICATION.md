@@ -267,6 +267,48 @@ and operates on the caller's own credential.
   material directly from the authenticator. Without PRF, advanced login is
   effectively `passkey + master password`.
 
+#### TOTP (RFC 6238) as 2FA fallback — LBDS-8
+
+TOTP is the **opt-in fallback** for users who cannot use passkeys (notably
+Firefox + Linux without biometrics). Passkeys remain the primary 2FA; TOTP
+exists to close that small coverage gap, never to replace passkeys.
+
+**Enrollment (authenticated settings flow):**
+
+1. `POST /api/totp/enroll/start` → generates a 20-byte secret, encrypts it
+   at rest with `Crypt::encryptString` (AES-256-CBC via `APP_KEY`), and
+   returns `{ secret, otpauth_uri, digits: 6, period: 30, algorithm: SHA1 }`.
+   The secret is shown exactly once; the client renders the otpauth URI as
+   a QR code (via `qrcode`) plus a manual-entry fallback.
+2. `POST /api/totp/enroll/confirm` with `{ code }` → verifies the code
+   against the encrypted secret (RFC 6238, ±1 step window), marks the
+   credential `confirmed_at`, and returns 10 single-use backup codes
+   (Argon2id-hashed, plain text returned exactly once).
+
+**Login (gated behind the password step):**
+
+1. `POST /api/login` (or `POST /api/login/advanced/verify`) → if the user
+   has an active TOTP credential, returns `200 { code: 'TOTP_REQUIRED',
+   totp_token, digits, period }` instead of issuing the JWT. The
+   `totp_token` is a 64-byte random opaque string cached server-side for
+   5 minutes (`Cache::put("totp_pending:<token>", ...)`).
+2. `POST /api/totp/login` with `{ totp_token, code | backup_code }` →
+   consumes the cache entry on success, verifies the code (or backup
+   code), and issues the same JWT the password step would have.
+
+**Anti-reuse:** every successful verify advances `last_used_step`; a code at
+a step ≤ the stored counter is rejected even if its HMAC matches.
+**Backup codes:** single-use (`used_at` set on first match, scoped to
+`lockForUpdate` so two parallel requests cannot double-spend).
+**Re-auth:** disabling TOTP and regenerating backup codes both require the
+current password (basic) or `auth_proof` (advanced), matching the passkey
+re-auth contract.
+
+Passkey users are never forced through TOTP: the challenge path is
+gated on the user having no passkey second factor AND an active TOTP
+credential. A user who enrolled both can still sign in with their
+passkey without ever touching TOTP.
+
 #### Session-based authentication ceremony
 
 The passkey authentication endpoints rely on a server-side session:

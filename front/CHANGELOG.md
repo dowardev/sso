@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **TOTP (RFC 6238) 2FA fallback UI (LBDS-8)**: settings surface in Perfil → Seguridad lets users enroll (QR + 6-digit confirmation), see remaining backup codes, regenerate (re-auth), and disable (re-auth). The login challenge modal opens after the password step when the user has TOTP enabled, accepts a TOTP code OR a backup code, and auto-focuses the active input. A new `TOTP_REQUIRED` error shape flows from `/api/login` and `/api/login/advanced/verify` through the Pinia store to the modal; the second step posts to `/api/totp/login` to complete the login. Advanced (ZKE) users get `auth_proof` derived client-side via `cryptoService.deriveKeyA` + `computeAuthProof` for disable and regenerate.
+    - `services/totpService.ts` (new) — typed HTTP wrapper for `/api/totp/*`.
+    - `composables/useTotpEnrollment.ts` (new) — enrollment state composable with `start`/`confirm`/`setBackupCodes`/`reset`. Guarded against re-entrant calls so a rapid double-click does not fire two enrollment requests.
+    - `components/user/TotpSettings.vue` (new) — enrollment QR, backup-codes display + download + copy, disable/regenerate modals with re-auth (password for basic, derived `auth_proof` for advanced).
+    - `components/AuthLoginForm.vue` — TOTP challenge modal with auto-focus on open and on segment switch, plus the catch-block that opens the modal when `/login` returns `code: 'TOTP_REQUIRED'`.
+    - `controllers/authController.ts` + `stores/auth.ts` — `loginWithTotp()` and the typed `TOTP_REQUIRED` error throw path.
+    - `views/user/ProfilePage.vue` — `<TotpSettings />` mounted in the Security tab.
+    - `package.json` + `pnpm-lock.yaml` — new dep `qrcode` (and `@types/qrcode` in dev) for the enrollment QR.
+- **TOTP tests** (11): `composables/__tests__/useTotpEnrollment.test.ts` covers start/confirm/reset, error paths, non-Error throws, the re-entrancy guard, and the `setBackupCodes` setter.
 - **Friendly copy for the CORS origin-mismatch rejection (LBDS-261)**: the friendly-error catalog now maps the backend's `redirect_uri`/`allowed_origins` mismatch to its own ES/EN message, so a misconfigured OAuth client shows "La aplicación no está bien configurada para iniciar sesión" instead of the generic "Ocurrió un error inesperado". The match requires both tokens (`allowed_origins` and `redirect_uri`) so it never swallows a plain field-validation error for the `allowed_origins` form field.
 - **Documentation: hardening snapshot at `v0.35.0` (LBDS-249)**: new `docs/architecture/security.md` documents the security posture of the stack — authentication, transport hardening, token binding (DPoP), JWT hardening, rate limits, validation, observability — with explicit deferral decisions for LBDS-258 (DPoP ECDSA P-256), LBDS-257 (Ed25519 Passkeys), and LBDS-259 (mTLS, regulatory-only). Internal tracking at `odd/tasks/lbds-249-epic-close-decision.md`.
 

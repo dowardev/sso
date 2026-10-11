@@ -9,6 +9,7 @@ use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\UpdatePasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Models\TotpCredential;
 use App\Models\User;
 use App\Models\UserActivityLog;
 use App\Services\ActivityLogService;
@@ -17,10 +18,13 @@ use App\Services\EmailVerificationService;
 use App\Services\PasskeyService;
 use App\Services\PasswordResetService;
 use App\Services\SessionService;
+use App\Services\TotpService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Cookie as SymfonyCookie;
 use Webauthn\PublicKeyCredentialCreationOptions;
@@ -40,7 +44,9 @@ class AuthController extends Controller
 
     private PasskeyService $passkeyService;
 
-    public function __construct(AuthService $authService, SessionService $sessionService, ActivityLogService $activityLogService, EmailVerificationService $emailVerificationService, PasswordResetService $passwordResetService, PasskeyService $passkeyService)
+    private TotpService $totpService;
+
+    public function __construct(AuthService $authService, SessionService $sessionService, ActivityLogService $activityLogService, EmailVerificationService $emailVerificationService, PasswordResetService $passwordResetService, PasskeyService $passkeyService, TotpService $totpService)
     {
         $this->authService = $authService;
         $this->sessionService = $sessionService;
@@ -48,6 +54,7 @@ class AuthController extends Controller
         $this->emailVerificationService = $emailVerificationService;
         $this->passwordResetService = $passwordResetService;
         $this->passkeyService = $passkeyService;
+        $this->totpService = $totpService;
     }
 
     /**
@@ -105,6 +112,51 @@ class AuthController extends Controller
         );
     }
 
+    /**
+     * If the user has an active TOTP credential, return a "challenge
+     * pending" response with a one-time token instead of issuing the JWT
+     * straight away. Returns null when no TOTP is enabled — the caller
+     * keeps going with the normal token issuance.
+     *
+     * The pending token is a high-entropy opaque string stored in cache
+     * for 5 minutes; the second step (/api/totp/login) consumes it via
+     * {@see self::purgeTotpPending()} (single-use, so a parallel replay
+     * cannot piggy-back on a successful challenge).
+     */
+    private function startTotpChallenge(User $user, Request $request, bool $rememberMe, ?string $dpopPublicKey): ?JsonResponse
+    {
+        $credential = $user->activeTotpCredential()->first();
+        if (! $credential) {
+            return null;
+        }
+
+        $token = Str::random(64);
+
+        Cache::put("totp_pending:{$token}", [
+            'user_id' => $user->id,
+            'remember_me' => $rememberMe,
+            'dpop_public_key' => $dpopPublicKey,
+            'user_agent' => $request->userAgent(),
+            'ip_address' => $request->ip(),
+            // Defense-in-depth: cache the algorithm/digits so the second
+            // step never has to trust the request payload for security-
+            // sensitive parameters.
+            'digits' => $credential->digits,
+            'period' => $credential->period,
+            'algorithm' => $credential->algorithm,
+        ], 300);
+
+        return response()->json([
+            'code' => 'TOTP_REQUIRED',
+            'message' => 'Necesitás tu código TOTP (o un código de respaldo) para continuar.',
+            'totp_token' => $token,
+            // Surface the policy so the client can label the input field
+            // correctly (6 digits, 30s period) without hardcoding it.
+            'digits' => $credential->digits,
+            'period' => $credential->period,
+        ], 200);
+    }
+
     public function register(RegisterRequest $request): JsonResponse
     {
         $result = $this->authService->register($request->validated());
@@ -160,6 +212,12 @@ class AuthController extends Controller
 
         $dpopPublicKey = $request->input('dpop_public_key');
         $rememberMe = $request->boolean('remember_me');
+
+        // TOTP gate (LBDS-8): when the user has an active TOTP credential,
+        // password alone is not enough — the second step is /api/totp/login.
+        if ($totpResponse = $this->startTotpChallenge($user, $request, $rememberMe, $dpopPublicKey)) {
+            return $totpResponse;
+        }
 
         $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
 
@@ -263,6 +321,13 @@ class AuthController extends Controller
 
         $dpopPublicKey = $request->input('dpop_public_key');
         $rememberMe = $request->boolean('remember_me');
+
+        // TOTP gate (LBDS-8): advanced (ZKE) users can also opt-in to
+        // TOTP as a fallback to their passkey — the challenge path is
+        // identical to the basic login flow above.
+        if ($totpResponse = $this->startTotpChallenge($user, $request, $rememberMe, $dpopPublicKey)) {
+            return $totpResponse;
+        }
 
         $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
 
@@ -1239,6 +1304,350 @@ class AuthController extends Controller
         );
 
         return response()->json(['message' => 'Passkey eliminado correctamente']);
+    }
+
+    // ─── TOTP / RFC 6238 Endpoints ──────────────────────────────────────────
+
+    /**
+     * Start TOTP enrollment: generate a fresh secret, store it encrypted,
+     * and return the otpauth:// URI the client renders as a QR code. The
+     * plaintext secret is included in the response so the client can also
+     * offer a manual-entry fallback for authenticator apps that cannot
+     * scan a QR (e.g. desktop browsers without a camera). The secret is
+     * NOT marked confirmed yet — see totpEnrollConfirm().
+     *
+     * Replacing an existing (already confirmed) credential rolls it over:
+     * the old encrypted_secret is overwritten with the new one, the
+     * confirmation timestamp is reset, and any backup codes are deleted.
+     * A user re-enrolling does not get to keep the previous codes by
+     * accident — they would otherwise recover access to a forgotten
+     * device through old codes they forgot they had.
+     */
+    public function totpEnrollStart(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        $plainSecret = $this->totpService->generateSecret();
+        $encrypted = $this->totpService->encryptSecret($plainSecret);
+        $uri = $this->totpService->buildOtpauthUri($user, $plainSecret);
+
+        // Wipe any in-flight enrollment (unconfirmed) or confirmed
+        // credential. UPSERT-by-user_id keeps a UNIQUE on the column, so
+        // updateOrCreate is the cleanest path.
+        $credential = TotpCredential::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'encrypted_secret' => $encrypted,
+                'confirmed_at' => null,
+                'last_used_step' => null,
+                'digits' => TotpService::DEFAULT_DIGITS,
+                'period' => TotpService::DEFAULT_PERIOD,
+                'algorithm' => TotpService::DEFAULT_ALGORITHM,
+            ],
+        );
+
+        // Re-enrollment invalidates old backup codes — the user is
+        // starting a fresh set after losing their device, so leftover
+        // codes from the previous setup would be a backdoor.
+        $this->totpService->deleteAllBackupCodes($user);
+
+        return response()->json([
+            'secret' => $plainSecret,
+            'otpauth_uri' => $uri,
+            'digits' => $credential->digits,
+            'period' => $credential->period,
+            'algorithm' => $credential->algorithm,
+        ]);
+    }
+
+    /**
+     * Complete TOTP enrollment: verify the user can produce a valid code
+     * with the freshly generated secret, mark the credential confirmed,
+     * and return a one-time list of backup codes the user MUST save
+     * somewhere safe.
+     *
+     * The plaintext backup codes are NEVER returned again — losing them
+     * means generating new ones via totpBackupCodesRegenerate(), which
+     * requires re-authentication.
+     */
+    public function totpEnrollConfirm(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        $request->validate([
+            'code' => 'required|string',
+        ]);
+
+        $credential = $user->totpCredential;
+        if (! $credential) {
+            return response()->json([
+                'message' => 'No hay enrollment TOTP en curso. Iniciá uno primero.',
+            ], 400);
+        }
+
+        $acceptedStep = $this->totpService->verifyAndConsume($credential, $request->code);
+        if ($acceptedStep === null) {
+            return response()->json([
+                'message' => 'Código inválido. Verificá que tu app muestra la hora correcta.',
+            ], 422);
+        }
+
+        // verifyAndConsume already saved last_used_step. Mark confirmed.
+        $credential->confirmed_at = now();
+        $credential->save();
+
+        $backupCodes = $this->totpService->generateBackupCodes($user);
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_TOTP_ENROLLED,
+            'TOTP habilitado',
+            ['digits' => $credential->digits, 'period' => $credential->period, 'algorithm' => $credential->algorithm],
+            $request,
+        );
+
+        return response()->json([
+            'message' => 'TOTP habilitado correctamente',
+            'backup_codes' => $backupCodes,
+            'backup_codes_count' => count($backupCodes),
+        ]);
+    }
+
+    /**
+     * Disable TOTP for the current user. Requires re-authentication
+     * (plaintext password for basic users, auth_proof for advanced) so
+     * a stolen access token alone cannot turn 2FA off.
+     *
+     * Cascade: the credential row is deleted (cascadeOnDelete handles the
+     * SQL FK; we delete explicitly here to keep the model code obvious and
+     * to log a single UserActivityLog entry).
+     */
+    public function totpDisable(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        $request->validate([
+            'password' => 'required_without:auth_proof|string',
+            'auth_proof' => 'required_without:password|string',
+        ]);
+
+        $reAuthSecret = $user->encryption_level === 'advanced'
+            ? (string) $request->input('auth_proof')
+            : (string) $request->input('password');
+        if (! Hash::check($reAuthSecret, $user->password)) {
+            return response()->json(['message' => 'Contraseña actual incorrecta'], 422);
+        }
+
+        TotpCredential::where('user_id', $user->id)->delete();
+        $this->totpService->deleteAllBackupCodes($user);
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_TOTP_DISABLED,
+            'TOTP deshabilitado',
+            null,
+            $request,
+        );
+
+        return response()->json(['message' => 'TOTP deshabilitado correctamente']);
+    }
+
+    /**
+     * Complete a TOTP-gated login. Called by the frontend after the basic
+     * (or advanced) `/login` endpoint returns `code: TOTP_REQUIRED`.
+     *
+     * The client posts either `code` (the 6-digit TOTP code from the
+     * authenticator app) or `backup_code` (one of the single-use recovery
+     * codes shown at enrollment). Single-use semantics live in
+     * {@see TotpService::verifyAndConsume()} and
+     * {@see TotpService::verifyBackupCode()}.
+     *
+     * The pending login state was cached in {@see self::startTotpChallenge()}
+     * with a 5-minute TTL and is consumed via Cache::pull (get + delete in
+     * one operation) so a parallel replay cannot double-issue a JWT.
+     */
+    public function totpLogin(Request $request): JsonResponse
+    {
+        $request->validate([
+            'totp_token' => 'required|string',
+            'code' => 'required_without:backup_code|nullable|string',
+            'backup_code' => 'required_without:code|nullable|string',
+        ]);
+
+        // Read first, delete only on success: a wrong code MUST NOT
+        // consume the pending entry, otherwise a typo would force the
+        // user to redo the password step. Cache::pull() does get+delete
+        // in one call, which is the wrong semantic for this endpoint.
+        $pending = Cache::get("totp_pending:{$request->input('totp_token')}");
+
+        if (! $pending || ! isset($pending['user_id'])) {
+            return response()->json([
+                'message' => 'La sesión TOTP expiró o ya fue usada. Iniciá sesión de nuevo.',
+            ], 401);
+        }
+
+        $user = User::find($pending['user_id']);
+        if (! $user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+        $credential = $user->activeTotpCredential()->first();
+        if (! $credential) {
+            // TOTP was disabled between start and confirm. Force a fresh
+            // login so the user does not silently end up logged in without
+            // the second factor they configured.
+            return response()->json([
+                'message' => 'TOTP ya no está habilitado para esta cuenta. Iniciá sesión de nuevo.',
+            ], 422);
+        }
+
+        $verified = false;
+        $usedBackupCode = false;
+        if ($request->filled('code')) {
+            $verified = $this->totpService->verifyAndConsume($credential, $request->input('code')) !== null;
+        } else {
+            $usedBackupCode = true;
+            $verified = $this->totpService->verifyBackupCode($user, $request->input('backup_code'));
+        }
+
+        if (! $verified) {
+            return response()->json([
+                'message' => $usedBackupCode
+                    ? 'Código de respaldo inválido o ya usado.'
+                    : 'Código TOTP inválido. Verificá que tu app muestra la hora correcta.',
+            ], 422);
+        }
+
+        // Verified. From here on, the pending entry MUST be deleted so a
+        // replay of the same totp_token cannot double-issue a JWT.
+        Cache::forget("totp_pending:{$request->input('totp_token')}");
+
+        $user->load('roles');
+
+        $rememberMe = (bool) ($pending['remember_me'] ?? false);
+        $dpopPublicKey = $pending['dpop_public_key'] ?? null;
+
+        $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
+        $this->authService->registerUserSession($user, $tokenData['token'], $request, $dpopPublicKey, $rememberMe);
+
+        $user->makeVisible(['login_id', 'encryption_level']);
+
+        $responseData = [
+            'user' => $user,
+            'token' => $tokenData['token'],
+            'token_type' => $tokenData['token_type'],
+            'expires_in' => $tokenData['expires_in'],
+        ];
+
+        $response = response()->json($responseData);
+
+        if (isset($tokenData['refresh_token'])) {
+            $refreshExpirationDays = config('jwt.refresh_expiration', 86400) / 86400;
+            $minutes = $rememberMe ? $refreshExpirationDays * 1440 : 0;
+            $response->withCookie($this->refreshTokenCookie($tokenData['refresh_token'], $rememberMe));
+        }
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_LOGIN,
+            $usedBackupCode ? 'Inicio de sesión (TOTP — código de respaldo)' : 'Inicio de sesión (TOTP)',
+            ['login_method' => 'password_totp', 'remember_me' => $rememberMe, 'used_backup_code' => $usedBackupCode],
+            $request,
+        );
+
+        return $response;
+    }
+
+    /**
+     * Surface the user's TOTP status so the settings UI can render the
+     * right card (enable vs. enrolled) without the client having to retry
+     * enrollment to discover the state.
+     *
+     * The plaintext secret and the backup codes are NEVER returned here;
+     * `enabled` is the only flag the UI needs, and the count of unused
+     * backup codes is what drives the "X códigos restantes" copy.
+     */
+    public function totpStatus(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        $credential = $user->activeTotpCredential()->first();
+        $remaining = $user->totpBackupCodes()->whereNull('used_at')->count();
+
+        return response()->json([
+            'enabled' => $credential !== null,
+            'digits' => $credential?->digits,
+            'period' => $credential?->period,
+            'algorithm' => $credential?->algorithm,
+            'confirmed_at' => $credential?->confirmed_at?->toIso8601String(),
+            'backup_codes_remaining' => $remaining,
+        ]);
+    }
+
+    /**
+     * Regenerate the user's backup codes. Existing unused codes are
+     * invalidated (deleted) and a fresh set is returned in plaintext.
+     * Used codes are kept in the audit trail indirectly via the
+     * `used_at` column on the rows being deleted here.
+     *
+     * Re-authentication is mandatory: an attacker who somehow got a
+     * session token must not be able to silently rotate the backup-code
+     * set and lock the legitimate user out.
+     */
+    public function totpBackupCodesRegenerate(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        $request->validate([
+            'password' => 'required_without:auth_proof|string',
+            'auth_proof' => 'required_without:password|string',
+        ]);
+
+        $reAuthSecret = $user->encryption_level === 'advanced'
+            ? (string) $request->input('auth_proof')
+            : (string) $request->input('password');
+        if (! Hash::check($reAuthSecret, $user->password)) {
+            return response()->json(['message' => 'Contraseña actual incorrecta'], 422);
+        }
+
+        $credential = $user->activeTotpCredential()->first();
+        if (! $credential) {
+            return response()->json([
+                'message' => 'No hay TOTP habilitado. Habilitá TOTP antes de generar códigos de respaldo.',
+            ], 422);
+        }
+
+        $this->totpService->deleteAllBackupCodes($user);
+        $newCodes = $this->totpService->generateBackupCodes($user);
+
+        $this->activityLogService->logFromRequest(
+            $user,
+            UserActivityLog::ACTION_TOTP_BACKUP_CODE_REGENERATED,
+            'Códigos de respaldo TOTP regenerados',
+            ['count' => count($newCodes)],
+            $request,
+        );
+
+        return response()->json([
+            'message' => 'Códigos de respaldo regenerados',
+            'backup_codes' => $newCodes,
+            'backup_codes_count' => count($newCodes),
+        ]);
     }
 
     public function getUserSessions(Request $request): JsonResponse
