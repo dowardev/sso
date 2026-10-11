@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-11
+
 ### Added
 
 - **DPoP verifier accepts ECDSA P-256 / ES256 alongside RS256 (LBDS-258)**: `DpopVerifier::verify()` now allows `ES256` in `SUPPORTED_ALGS`. The signer is selected from the proof's protected header (`Lcobucci\JWT\Signer\Ecdsa\Sha256` vs `Rsa\Sha256`) inside `JwtValidator::validateDpopProofSignature()`, so the library dispatches the right algorithm per request. `JwkToPemConverter` adds a dedicated EC P-256 path: the SubjectPublicKeyInfo is built by hand per RFC 5480 §2.1.1 with the `id-ecPublicKey` OID (`1.2.840.10045.2.1`) and the `prime256v1` curve OID (`1.2.840.10045.3.1.7`). The curve allowlist is intentionally narrow: P-384 / P-521 are rejected before the bytes reach the signer. `JwkThumbprint` adds the EC branch of RFC 7638 §3.2 (`{ crv, kty, x, y }`) and is now strict about it — a partial EC JWK throws `InvalidArgumentException` instead of silently hashing empty fields.
