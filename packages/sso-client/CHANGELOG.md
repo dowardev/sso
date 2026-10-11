@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-11
+
 ### Added
 
 - **DPoP key generation is now ECDSA P-256 / ES256 (LBDS-258)**: `DpopService.generateKeyPair()` produces a fresh `EC` key with `namedCurve: "P-256"` instead of `RSASSA-PKCS1-v1_5` 2048-bit. The proof header shrinks from roughly 1.5–2 KB to 300–400 B per request and key generation drops to effectively instant on Capacitor / WebCrypto / Node. The header JWK now includes `crv: "P-256"` plus the `x` / `y` coordinates per RFC 7518, and the proof's protected header advertises `alg: "ES256"`. The JWK thumbprint is computed per RFC 7638 §3.2 (`{ crv, kty, x, y }`), matching the server. The signature is normalized to the JOSE raw `R || S` form: browsers' WebCrypto returns ASN.1 DER (parsed in-house), Node's WebCrypto already returns the IEEEP1363 form (passed through). A length check disambiguates the two (`DER` is ≥ 70 bytes for P-256; `raw` is exactly 64). A 64-byte signature whose first byte happens to be `0x30` — the ASN.1 SEQUENCE tag, possible with probability 1/256 — is no longer misclassified as DER. The `importStoredPrivateKey()` helper now omits `namedCurve` from the WebCrypto import algorithm so the curve is read from the JWK itself; that keeps the import open to a future non-P-256 curve while still letting the production verifier reject it server-side.

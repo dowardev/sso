@@ -2,6 +2,36 @@
 
 <!-- markdownlint-disable MD013 MD060 -->
 
+> This file is both the deployment guide and the deploy log. Newest deploy entries are appended to the **Deploy Log** section below. Everything else is the guide.
+
+## Deploy Log
+
+### v0.36.0 — 2026-10-11
+
+- **Environment**: production
+- **Source tag**: `v0.36.0`
+- **Status**: shipped
+- **Per-package versions**:
+  - root: 0.34.4 → **0.36.0**
+  - `front`: 0.24.4 → **0.26.0**
+  - `back`: first versioned → **0.2.0** (`composer.json` has no `version` field; git tag is the source of truth)
+  - `@dowardev/sso-client`: 0.3.0 → **0.4.0**
+  - `dowardev/sso-server`: 0.1.2 → **0.2.0**
+- **Migration notes**:
+  - **TOTP enrollment is opt-in** — existing users are not affected until they enroll via Perfil → Seguridad. New TOTP endpoints require no migration; tables `totp_credentials` and `totp_backup_codes` are created by the new migrations.
+  - **DPoP refresh binding is enforced** for new sessions; existing OAuth sessions must log in once to re-bind.
+  - **`SESSION_SAME_SITE` template bumped from `lax` → `strict`** in `back/.env.production.example`. If your production env explicitly set `SESSION_SAME_SITE=lax`, update it to `strict` (or leave it; the runtime will treat blank/non-value as the safe default).
+  - **`SESSION_SECURE_COOKIE=true`** is still required for the `Secure` flag to apply; verify the prod env is not blank.
+  - **JWT `kid` header** is now stamped on every issued JWT. Consumers that don't read `kid` keep working; consumers that do must call `/.well-known/jwks` and resolve by `kid` (the package's `JwksFetcher::getPublicKeyPemByKid` does this for sso-server embeddings).
+  - **DPoP allowlist now configurable at runtime** via `DPOP_ALLOWED_ALGS=ES256` (sso-server) / `DPOP_ALLOWED_ALGS=ES256` (Laravel). Default is still `['ES256','RS256']`. Sanity check the env value after the deploy — a typo is sanitised and logged as a `Log::warning` at boot.
+  - **Migrations to run on the next `php artisan migrate`**: `2026_10_08_000000_create_totp_credentials_table`, `2026_10_08_000001_create_totp_backup_codes_table`, `2026_10_09_000000_add_composite_index_to_totp_backup_codes_table`, `2026_09_19_000000_add_dpop_jkt_to_user_refresh_tokens_table`.
+- **Rollback notes**:
+  - The release is a MINOR bump; the migrations are additive and forward-compatible (new tables, nullable column on `user_refresh_tokens`). Rolling back to v0.34.4 is safe data-wise: only the TOTP tables and the `dpop_jkt` column are dropped, no data is destroyed. The DPoP `dpopenforced` semantic (LBDS-253) reverts — already-bound refresh tokens will fail to refresh until re-bound.
+  - The v0.35.0 retrospective sections in the changelogs are documentation-only; they describe features that were already in v0.35.0, so rolling back v0.36.0 does not change behavior of those features.
+  - **TOTP encryption key dependency**: if you have rotated `APP_KEY` since v0.35.0, the encrypted TOTP secrets (post-2026-10-08) will not decrypt under the old key. The `back/CHANGELOG.md` entry on LBDS-8 calls this out as an operational risk; do not rotate `APP_KEY` without re-encrypting the `totp_credentials.secret` column first.
+
+---
+
 Centralized authentication server for distributed applications. Provides OAuth2 authorization code flow, JWT token issuance, and user management.
 
 ## Demo

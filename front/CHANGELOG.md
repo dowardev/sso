@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-10-11
+
 ### Added
 
 - **TOTP (RFC 6238) 2FA fallback UI (LBDS-8)**: settings surface in Perfil → Seguridad lets users enroll (QR + 6-digit confirmation), see remaining backup codes, regenerate (re-auth), and disable (re-auth). The login challenge modal opens after the password step when the user has TOTP enabled, accepts a TOTP code OR a backup code, and auto-focuses the active input. A new `TOTP_REQUIRED` error shape flows from `/api/login` and `/api/login/advanced/verify` through the Pinia store to the modal; the second step posts to `/api/totp/login` to complete the login. Advanced (ZKE) users get `auth_proof` derived client-side via `cryptoService.deriveKeyA` + `computeAuthProof` for disable and regenerate.
@@ -18,12 +20,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `views/user/ProfilePage.vue` — `<TotpSettings />` mounted in the Security tab.
     - `package.json` + `pnpm-lock.yaml` — new dep `qrcode` (and `@types/qrcode` in dev) for the enrollment QR.
 - **TOTP tests** (11): `composables/__tests__/useTotpEnrollment.test.ts` covers start/confirm/reset, error paths, non-Error throws, the re-entrancy guard, and the `setBackupCodes` setter.
-- **Friendly copy for the CORS origin-mismatch rejection (LBDS-261)**: the friendly-error catalog now maps the backend's `redirect_uri`/`allowed_origins` mismatch to its own ES/EN message, so a misconfigured OAuth client shows "La aplicación no está bien configurada para iniciar sesión" instead of the generic "Ocurrió un error inesperado". The match requires both tokens (`allowed_origins` and `redirect_uri`) so it never swallows a plain field-validation error for the `allowed_origins` form field.
 - **Documentation: hardening snapshot at `v0.35.0` (LBDS-249)**: new `docs/architecture/security.md` documents the security posture of the stack — authentication, transport hardening, token binding (DPoP), JWT hardening, rate limits, validation, observability — with explicit deferral decisions for LBDS-258 (DPoP ECDSA P-256), LBDS-257 (Ed25519 Passkeys), and LBDS-259 (mTLS, regulatory-only). Internal tracking at `odd/tasks/lbds-249-epic-close-decision.md`.
 
 ### Fixed
 
 - **Passkey login copy mentions QR / phone and Firefox fallback (LBDS-225)**: `front/src/components/AuthLoginForm.vue` — the passkey hint used to say "Usá tu huella, rostro o llave de seguridad" (implying a local authenticator). The copy now also mentions that a browser without a local passkey can scan a QR with the phone in Chrome/Safari, and that Firefox users fall back to the platform passkey or password. Aligns the in-product copy with the new backend behavior that forwards the credential's stored transports (including `hybrid`) on `allowCredentials`.
+
+## [0.25.0] - 2026-09-27
+
+> **Note:** v0.25.0 corresponds to the v0.35.0 monorepo tag (2026-09-27). The monorepo tag was cut without bumping the frontend `package.json` or versioning this changelog; entries below were in `[Unreleased]` at the tag point. `front/package.json` is now bumped to `0.26.0` (see below) to align with the v0.36.0 monorepo tag.
+
+### Added
+
+- **Friendly copy for the CORS origin-mismatch rejection (LBDS-261)**: the friendly-error catalog now maps the backend's `redirect_uri`/`allowed_origins` mismatch to its own ES/EN message, so a misconfigured OAuth client shows "La aplicación no está bien configurada para iniciar sesión" instead of the generic "Ocurrió un error inesperado". The match requires both tokens (`allowed_origins` and `redirect_uri`) so it never swallows a plain field-validation error for the `allowed_origins` form field.
+
+### Fixed
+
 - **Duplicate API error notification (LBDS-267)**: form errors used to fire both a toast and an inline `error.value` block at the same time, so users saw the same message twice. `handleApiError` is now a pure translator — it returns the friendly copy and logs the raw error to the console — and the caller decides the channel: inline for form errors, an explicit `showError({ message: ... })` toast for actions without a form. All twenty-five call sites across the frontend were aligned to this contract. `console.error` keeps the raw backend detail for developers (LBDS-232 invariant preserved). No backend changes.
 
 ## [0.24.4] - 2026-09-10
