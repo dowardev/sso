@@ -30,6 +30,7 @@
     "@vuelidate/validators": "^2.0.4",
     "ionicons": "^7.0.0",
     "pinia": "^3.0.4",
+    "qrcode": "^1.5.4",
     "ua-parser-js": "^2.0.10",
     "vue": "^3.3.0",
     "vue-router": "^4.2.0"
@@ -38,6 +39,7 @@
     "@capacitor/cli": "8.3.0",
     "@eslint/js": "^9.39.1",
     "@simplewebauthn/typescript-types": "^8.3.4",
+    "@types/qrcode": "^1.5.6",
     "@types/ua-parser-js": "^0.7.39",
     "@vitejs/plugin-legacy": "^5.0.0",
     "@vitejs/plugin-vue": "^4.0.0",

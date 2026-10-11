@@ -39,6 +39,31 @@ Route::post('/passkey/authenticate/start', [AuthController::class, 'passkeyAuthe
 Route::post('/passkey/authenticate/finish', [AuthController::class, 'passkeyAuthenticateFinish'])->middleware(['throttle:5,1', StartSession::class]);
 Route::get('/passkey', [AuthController::class, 'passkeyIndex'])->middleware('jwt.auth');
 Route::delete('/passkey', [AuthController::class, 'passkeyDelete'])->middleware('jwt.auth');
+
+// TOTP (RFC 6238) enrollment — opt-in 2FA fallback for users without a
+// usable passkey (LBDS-8). Re-auth happens inside totpDisable via the
+// password/auth_proof fields the client sends; the endpoints themselves
+// are JWT-gated like every other settings surface.
+// TOTP (RFC 6238) enrollment — opt-in 2FA fallback for users without a
+// usable passkey (LBDS-8). Re-auth happens inside totpDisable via the
+// password/auth_proof fields the client sends; the endpoints themselves
+// are JWT-gated like every other settings surface. The throttle guards
+// against an authenticated user spamming /enroll/start to rotate the
+// secret and wipe backup codes (LBDS-8 review B-03).
+Route::post('/totp/enroll/start', [AuthController::class, 'totpEnrollStart'])->middleware(['jwt.auth', 'throttle:5,1']);
+Route::post('/totp/enroll/confirm', [AuthController::class, 'totpEnrollConfirm'])->middleware(['jwt.auth', 'throttle:5,1']);
+Route::delete('/totp', [AuthController::class, 'totpDisable'])->middleware(['jwt.auth', 'throttle:5,1']);
+Route::get('/totp/status', [AuthController::class, 'totpStatus'])->middleware('jwt.auth');
+Route::post('/totp/backup-codes/regenerate', [AuthController::class, 'totpBackupCodesRegenerate'])->middleware(['jwt.auth', 'throttle:3,1']);
+
+// Login-challenge step: basic /login and /login/advanced/verify return
+// { code: 'TOTP_REQUIRED', totp_token } when the user has TOTP enabled.
+// The client posts totp_token + (code | backup_code) here to complete
+// the login. Unauthenticated (no jwt.auth) — the totp_token itself is
+// the proof that the password step already succeeded. The IP-bucket
+// throttle is tight (3/min) because the totp_token is a bearer
+// credential and the endpoint is unauthenticated (LBDS-8 review B-10).
+Route::post('/totp/login', [AuthController::class, 'totpLogin'])->middleware(['throttle.login', 'throttle:3,1']);
 Route::get('/email/verify/{token}', [EmailVerificationController::class, 'verify'])->middleware('throttle:10,1');
 Route::post('/resend-confirmation-email', [EmailVerificationController::class, 'resend'])->middleware('throttle:3,1');
 Route::post('/oauth/token', [OAuth2Controller::class, 'token'])->middleware(['throttle:10,1', 'throttle.token']);

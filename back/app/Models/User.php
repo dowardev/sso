@@ -77,6 +77,28 @@ class User extends Authenticatable
         return $this->hasMany(PasskeyCredential::class);
     }
 
+    /**
+     * One TOTP credential per user (UNIQUE on the table); the relation is
+     * hasOne for convenience even though the model itself lives in
+     * {@see TotpCredential}. Inactive (un-confirmed) enrollments still
+     * appear here — callers that need "active TOTP" must filter on
+     * `confirmed_at` or use {@see activeTotpCredential()}.
+     */
+    public function totpCredential()
+    {
+        return $this->hasOne(TotpCredential::class);
+    }
+
+    public function activeTotpCredential()
+    {
+        return $this->totpCredential()->whereNotNull('confirmed_at');
+    }
+
+    public function totpBackupCodes(): HasMany
+    {
+        return $this->hasMany(TotpBackupCode::class);
+    }
+
     public function activeTokens()
     {
         return $this->tokens()->where(function ($q) {

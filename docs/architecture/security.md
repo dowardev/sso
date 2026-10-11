@@ -54,7 +54,7 @@ Passkeys**.
 | Passkeys (WebAuthn, ES256 / RS256) | Shipped | `back/app/Services/PasskeyService.php`, `front/src/services/passkeyService.ts` |
 | OAuth2 Authorization Code + PKCE (S256) | Shipped | `back/app/Services/OAuth2Service.php` |
 | Zero-Knowledge Encryption (ZKE) for advanced users | Shipped | `packages/sso-client/src/crypto/` |
-| TOTP (RFC 6238) as 2FA fallback | Not implemented | LBDS-8 (tracked under the **LBDS-7** Security & identity roadmap epic, not LBDS-249). Planned for Firefox + Linux users without a usable passkey. |
+| TOTP (RFC 6238) as 2FA fallback | Shipped | LBDS-8. `back/app/Services/TotpService.php`, `back/app/Http/Controllers/AuthController.php` (enrollment + login challenge), `front/src/components/user/TotpSettings.vue`. Secret encrypted at rest via `Crypt::encryptString`; backup codes Argon2id-hashed, single-use, regenerable. Opt-in only — passkey users are never forced through TOTP. |
 | Passkey cross-device (hybrid transport / QR) | Partially verified | LBDS-225 — needs real-device testing |
 | Ed25519 (alg -8) in Passkeys | Not implemented | LBDS-257 — kept open in Backlog |
 | Inbound IdP federation (OIDC/SAML) | Not implemented | Blocked until a paying client requires it. Readiness audit + ADR tracked under **LBDS-226** (parent: LBDS-7). |

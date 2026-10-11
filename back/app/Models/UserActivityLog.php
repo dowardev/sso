@@ -34,6 +34,14 @@ class UserActivityLog extends Model
 
     const ACTION_EMAIL_VERIFIED = 'email_verified';
 
+    const ACTION_TOTP_ENROLLED = 'totp_enrolled';
+
+    const ACTION_TOTP_DISABLED = 'totp_disabled';
+
+    const ACTION_TOTP_VERIFIED = 'totp_verified';
+
+    const ACTION_TOTP_BACKUP_CODE_REGENERATED = 'totp_backup_code_regenerated';
+
     const UPDATED_AT = null;
 
     protected $fillable = [
