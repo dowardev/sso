@@ -1,9 +1,6 @@
 # OIDC IdP integration
 
-**Ticket:** LBDS-303.
-**Status:** Discovery + scope plumbing + userinfo + id_token + PKCE + claims
-mapping + RP-initiated logout all shipped on `dowardev/lbds-303-...`. The
-SSO is now a standards-compliant OpenID Connect identity provider; any RP
+The SSO is a standards-compliant OpenID Connect identity provider; any RP
 that supports "Sign in with OIDC" can integrate with it the same way it
 would integrate with Auth0, Keycloak, or Okta.
 
@@ -16,8 +13,9 @@ specific to its product.
 
 If you are looking for internal architecture notes (why the OIDC
 controller is split from `OAuth2Controller`, how the id_token's
-`aud` differs from the access token's `sub`, etc.), those live in
-the commit messages of the `dowardev/lbds-303-...` branch.
+`aud` differs from the access token's `sub`, etc.), check the
+source tree under `back/app/Http/Controllers/OidcController.php`
+and `back/app/Services/JwtService.php`.
 
 ---
 
@@ -77,7 +75,7 @@ to OIDC integration:
 | `client_secret` | OIDC client_secret | Leave empty for public clients (SPAs, native). |
 | `redirect_url` | The exact callback URL | Must match the `redirect_uri` on every request, character for character. |
 | `allowed_origins` | CORS allowlist for the token exchange | One entry per browser-origin that will call the token endpoint directly. |
-| `allowed_scopes` | Subset of `[openid, profile, email, offline_access]` | Defaults to the full set for pre-LBDS-303 clients. |
+| `allowed_scopes` | Subset of `[openid, profile, email, offline_access]` | Defaults to the full set for pre-existing clients. |
 | `grant_types` | `[authorization_code]` for OIDC | Add `refresh_token` if you also want a refresh-token grant (most RPs do). |
 | `claim_overrides` | Optional JSON | See §7. |
 
@@ -461,5 +459,4 @@ curl -sf -i "$SSO/api/oauth/logout?id_token_hint=$ID&post_logout_redirect_uri=$(
   pattern-match the SSO's text.
 - **Out of scope**: SAML, SCIM, inbound federation from
   external IdPs (Google / Azure / Okta as the IdP for this SSO).
-  These are explicitly excluded from LBDS-303 and tracked
-  separately.
+  These are tracked separately.
