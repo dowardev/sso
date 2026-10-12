@@ -4,6 +4,7 @@
 
 namespace App\Services;
 
+use App\Models\SsoClient;
 use App\Models\User;
 use Illuminate\Support\Str;
 use Lcobucci\JWT\Configuration;
@@ -19,6 +20,8 @@ class JwtService
     private Configuration $jwtConfig;
 
     private int $tokenExpiration;
+
+    private int $idTokenExpiration;
 
     private string $issuer;
 
@@ -103,6 +106,7 @@ class JwtService
         );
 
         $this->tokenExpiration = config('jwt.token_expiration', 3600);
+        $this->idTokenExpiration = (int) config('jwt.id_token_expiration', 600);
         $this->issuer = config('jwt.issuer', 'http://localhost:8001');
         $this->activeKeys = $this->loadActiveKeys();
     }
@@ -157,7 +161,7 @@ class JwtService
      * For advanced encryption level users, omits name/email from user claim
      * and adds encryption_level claim.
      */
-    public function generateToken(User $user, ?string $dpopPublicKey = null, bool $rememberMe = false, ?string $encryptionLevel = null): array
+    public function generateToken(User $user, ?string $dpopPublicKey = null, bool $rememberMe = false, ?string $encryptionLevel = null, ?string $scope = null, ?string $clientId = null): array
     {
         if ($dpopPublicKey) {
             $publicKeyData = json_decode($dpopPublicKey, true);
@@ -182,7 +186,7 @@ class JwtService
             }
         }
 
-        return $this->buildToken($user, null, $rememberMe, $encryptionLevel, (bool) $dpopPublicKey);
+        return $this->buildToken($user, null, $rememberMe, $encryptionLevel, (bool) $dpopPublicKey, $scope, $clientId);
     }
 
     /**
@@ -191,9 +195,9 @@ class JwtService
      * Used on refresh-token rotation, where the binding is inherited from the
      * refresh token instead of being recomputed from a JWK request field.
      */
-    public function generateTokenForJkt(User $user, ?string $dpopJkt, bool $rememberMe = false, ?string $encryptionLevel = null): array
+    public function generateTokenForJkt(User $user, ?string $dpopJkt, bool $rememberMe = false, ?string $encryptionLevel = null, ?string $scope = null, ?string $clientId = null): array
     {
-        return $this->buildToken($user, $dpopJkt, $rememberMe, $encryptionLevel, $dpopJkt !== null);
+        return $this->buildToken($user, $dpopJkt, $rememberMe, $encryptionLevel, $dpopJkt !== null, $scope, $clientId);
     }
 
     // NOTE: generateToken()'s payload is deliberately byte-identical to before.
@@ -209,7 +213,7 @@ class JwtService
      *                               this preserves the historical token_type
      *                               for a malformed JWK (DPoP requested, no cnf).
      */
-    private function buildToken(User $user, ?string $dpopJkt, bool $rememberMe, ?string $encryptionLevel, bool $dpopRequested): array
+    private function buildToken(User $user, ?string $dpopJkt, bool $rememberMe, ?string $encryptionLevel, bool $dpopRequested, ?string $scope = null, ?string $clientId = null): array
     {
         $now = time();
         $expiresAt = $now + $this->tokenExpiration;
@@ -244,6 +248,24 @@ class JwtService
             $builder->withClaim('remember_me', true);
         }
 
+        // LBDS-303: emit the OAuth2 `scope` claim (space-separated, RFC 6749
+        // §3.3) when the caller granted a non-empty scope. OIDC clients read
+        // this to know which claim groups (profile / email / openid) apply
+        // for the userinfo and id_token — a missing `scope` claim is a
+        // signal that the IdP does not understand OAuth2 scope at all.
+        if ($scope !== null && $scope !== '') {
+            $builder = $builder->withClaim('scope', $scope);
+        }
+
+        // LBDS-303: the access token carries the client_id so the OIDC
+        // userinfo endpoint can resolve which SsoClient made the request
+        // and apply the per-client claim_overrides. Without this claim,
+        // the userinfo handler can only read the scope and the user, not
+        // the requesting client.
+        if ($clientId !== null && $clientId !== '') {
+            $builder = $builder->withClaim('client_id', $clientId);
+        }
+
         if ($dpopJkt !== null) {
             $builder = $builder->withClaim('cnf', [
                 'jkt' => $dpopJkt,
@@ -256,11 +278,17 @@ class JwtService
 
         $token = $builder->getToken($this->jwtConfig->signer(), $this->signingKey);
 
-        return [
+        $response = [
             'token' => $token->toString(),
             'token_type' => $dpopRequested ? 'DPoP' : 'Bearer',
             'expires_in' => $this->tokenExpiration,
         ];
+
+        if ($scope !== null && $scope !== '') {
+            $response['scope'] = $scope;
+        }
+
+        return $response;
     }
 
     public function generateClientToken(string $clientId, ?string $grantType = null): array
@@ -287,6 +315,167 @@ class JwtService
             'token' => $token->toString(),
             'token_type' => 'Bearer',
             'expires_in' => $this->tokenExpiration,
+        ];
+    }
+
+    /**
+     * Issue an OIDC Core 1.0 §2 id_token for the given user / client pair.
+     *
+     * Distinct from the access token in three ways:
+     *   1. The `aud` claim is the client_id of the RP, not the user id
+     *      (per OIDC §2: the id_token identifies the audience that should
+     *      consume it).
+     *   2. It carries a shorter lifetime (default 10 minutes) since it is
+     *      meant to be verified once at login, not reused on every API call.
+     *   3. It is NOT DPoP-bound — DPoP is for the access token, where the
+     *      sender proves possession of the key. The id_token is a passive
+     *      attestation and must be verifiable by the RP without a DPoP
+     *      dance on the SSO.
+     *
+     * `grantedScopes` drives which claim groups are inlined (profile,
+     * email). RPs that want the canonical values still call /oauth/userinfo
+     * — the inlined claims are an optimization, not a substitute.
+     *
+     * `authTime` is when the user authenticated, in unix seconds. Null
+     * means "we don't track this precisely" and the claim is omitted; the
+     * OIDC spec makes auth_time OPTIONAL unless `max_age` is requested,
+     * which the SSO does not support.
+     *
+     * `amr` and `acr` are placeholders. The right value depends on the
+     * exact authentication method the user used at login, which lives on
+     * the user's session row — wiring that is a follow-up. The current
+     * values ("pwd" / "0") are honest defaults: every SSO login is at
+     * least a password holder, and no auth class is claimed.
+     */
+    public function generateIdToken(
+        User $user,
+        SsoClient $client,
+        ?string $nonce = null,
+        array $grantedScopes = [],
+        ?int $authTime = null,
+        array $extraClaims = [],
+    ): string {
+        $now = time();
+        $expiresAt = $now + $this->idTokenExpiration;
+
+        $isAdvanced = $user->encryption_level === 'advanced';
+
+        $builder = $this->jwtConfig->builder()
+            ->issuedBy($this->issuer)
+            ->identifiedBy((string) Str::uuid())
+            ->issuedAt(new \DateTimeImmutable('@'.$now))
+            ->expiresAt(new \DateTimeImmutable('@'.$expiresAt))
+            ->relatedTo((string) $user->id)
+            ->permittedFor($client->client_id)
+            ->withClaim('acr', '0')
+            ->withClaim('amr', ['pwd']);
+
+        if ($nonce !== null && $nonce !== '') {
+            $builder = $builder->withClaim('nonce', $nonce);
+        }
+
+        if ($authTime !== null) {
+            $builder = $builder->withClaim('auth_time', $authTime);
+        }
+
+        if (in_array('profile', $grantedScopes, true)) {
+            $builder = $builder->withClaim('name', $user->name);
+            $builder = $builder->withClaim('preferred_username', $user->user);
+            $builder = $builder->withClaim('updated_at', $user->updated_at?->getTimestamp());
+        }
+
+        if (in_array('email', $grantedScopes, true) && ! $isAdvanced) {
+            $builder = $builder->withClaim('email', $user->email);
+            $builder = $builder->withClaim('email_verified', $user->email_verified_at !== null);
+        }
+
+        // LBDS-303: per-client claim overrides. Values starting with
+        // `user.` are resolved from the User model so a client can
+        // request a dynamic claim (e.g. `user.email`) without the SSO
+        // hardcoding a particular attribute name. Anything else is
+        // emitted as a literal string. The id_token stays compliant
+        // with OIDC §2: a custom claim can never shadow one of the
+        // five REQUIRED ones (iss/sub/aud/exp/iat), nor the scope-
+        // derived ones (name/preferred_username/updated_at/email/
+        // email_verified) which are written earlier in this method —
+        // an override named `email` would otherwise silently change
+        // what the RP sees in the id_token vs. userinfo, an
+        // inconsistency the OidcController::userinfo path also guards
+        // against via the same reserved list.
+        $reservedClaims = self::reservedClaims();
+
+        foreach ($extraClaims as $name => $value) {
+            if (! is_string($name) || $name === '' || in_array($name, $reservedClaims, true)) {
+                continue;
+            }
+
+            $resolved = $this->resolveClaimValue($value, $user);
+            $builder = $builder->withClaim($name, $resolved);
+        }
+
+        $builder = $builder->withHeader('kid', $this->kid);
+
+        return $builder->getToken($this->jwtConfig->signer(), $this->signingKey)->toString();
+    }
+
+    /**
+     * Resolve a single claim override value. Values starting with `user.`
+     * are looked up on the User model; everything else is returned
+     * unchanged. Returns null for unknown `user.<x>` paths so the
+     * builder skips the claim instead of emitting the raw string —
+     * failing silently here would be worse than skipping, but a
+     * misconfigured override should not poison the whole id_token.
+     */
+    private function resolveClaimValue(string $value, User $user): mixed
+    {
+        if (! str_starts_with($value, 'user.')) {
+            return $value;
+        }
+
+        $attribute = substr($value, 5);
+
+        if ($attribute === '' || ! array_key_exists($attribute, $user->getAttributes())) {
+            return null;
+        }
+
+        $raw = $user->getAttribute($attribute);
+
+        // DateTime cast: OIDC timestamps are unix seconds, not ISO strings.
+        if ($raw instanceof \DateTimeInterface) {
+            return $raw->getTimestamp();
+        }
+
+        // Boolean for email_verified and similar: the OIDC expectation
+        // is a JSON bool, not 0/1.
+        if (is_string($raw) && in_array($raw, ['0', '1'], true) && $attribute === 'email_verified_at') {
+            return $raw === '1';
+        }
+
+        return $raw;
+    }
+
+    /**
+     * Claim names that a per-client `claim_overrides` entry must NOT
+     * shadow. The list covers three groups:
+     *
+     *   - OIDC §2 REQUIRED claims: iss, sub, aud, exp, iat.
+     *   - Claims the SSO writes by name: nonce, auth_time, acr, amr,
+     *     jti. These are OPTIONAL per the spec, but the SSO emits
+     *     them with specific values; an override that shadows them
+     *     would either be a spec break (the REQUIRED ones) or a
+     *     behaviour change (the OPTIONAL-but-emitted ones).
+     *   - Scope-derived claims: name, preferred_username, updated_at,
+     *     email, email_verified. These are written by the scope-driven
+     *     claim loop and must be shared between id_token and
+     *     /oauth/userinfo, so a per-client override that names one of
+     *     them would otherwise make the two surfaces disagree.
+     */
+    public static function reservedClaims(): array
+    {
+        return [
+            'iss', 'sub', 'aud', 'exp', 'iat',
+            'nonce', 'auth_time', 'acr', 'amr', 'jti',
+            'name', 'preferred_username', 'updated_at', 'email', 'email_verified',
         ];
     }
 

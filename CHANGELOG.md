@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The SSO is now a standards-compliant OpenID Connect identity provider (LBDS-303)**: external apps can configure themselves against the SSO the same way they configure against Auth0 / Keycloak / Okta. The new surface covers OIDC Discovery (`/.well-known/openid-configuration`), the `userinfo` endpoint (Bearer access token, scope-filtered claim set), an OIDC-shaped `id_token` issued alongside the access token when the `openid` scope is granted (10-minute lifetime, `aud=client_id`, `nonce` echoed back, scope-driven claim groups), RP-initiated logout at `end_session_endpoint` (id_token_hint-anchored, open-redirect protected, every refresh token and session row for the user revoked), and per-client claim injection so an RP can ask for the exact claim shape it expects. PKCE is required for public clients and optional for confidential ones (RFC 7636 §1). Integration is documented end-to-end in `back/docs/oidc-idp.md` with a copy-paste curl run.
+
 ## [0.36.0] - 2026-10-11
 
 ### Added

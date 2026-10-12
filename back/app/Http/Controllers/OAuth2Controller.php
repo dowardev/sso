@@ -46,6 +46,29 @@ class OAuth2Controller extends Controller
             ], 400);
         }
 
+        // A challenge without a method is half-formed PKCE: the verifier
+        // cannot recompute the challenge without knowing the hash. We
+        // reject that here, even for confidential clients, because a
+        // code with a challenge but no method is unusable and the
+        // silent "best effort" path would leave a stuck auth code
+        // behind.
+        if ($request->code_challenge && ! $request->code_challenge_method) {
+            return response()->json([
+                'message' => 'code_challenge_method es obligatorio cuando se envía code_challenge.',
+            ], 400);
+        }
+
+        // PKCE is required for public clients (no client_secret). For
+        // confidential clients, omitting it is RFC 7636-compliant: the
+        // client_secret is its own defense. The check is here, after
+        // the client lookup, because the rule depends on the client's
+        // own configuration, which the FormRequest cannot see.
+        if ($client->isPublic() && ! $request->code_challenge) {
+            return response()->json([
+                'message' => 'PKCE es obligatorio para clientes públicos: incluí code_challenge + code_challenge_method (RFC 7636).',
+            ], 400);
+        }
+
         if ($request->redirect_uri !== $client->redirect_url) {
             return response()->json([
                 'message' => 'redirect_uri no permitida',
@@ -78,6 +101,14 @@ class OAuth2Controller extends Controller
             ->where('status', 'authorized')
             ->exists();
 
+        [$scope, $scopeError] = $this->oauth2Service->resolveScope($client, $request->scope);
+
+        if ($scopeError !== null) {
+            return response()->json([
+                'message' => $scopeError,
+            ], 400);
+        }
+
         if (! $hasAuthorized) {
             return response()->json([
                 'authorization_required' => true,
@@ -91,10 +122,11 @@ class OAuth2Controller extends Controller
                     'email' => $user->email,
                     'user' => $user->user,
                 ],
+                'scope' => $scope,
             ]);
         }
 
-        $result = $this->oauth2Service->createAuthorizationCode($user, $client, $request->validated());
+        $result = $this->oauth2Service->createAuthorizationCode($user, $client, $request->validated(), $scope, $request->nonce);
 
         return response()->json($result);
     }
@@ -106,6 +138,8 @@ class OAuth2Controller extends Controller
             'redirect_uri' => 'required|string',
             'state' => 'nullable|string',
             'response_type' => 'nullable|string',
+            'scope' => 'nullable|string',
+            'nonce' => 'nullable|string|max:255',
             'code_challenge' => 'nullable|string',
             'code_challenge_method' => 'nullable|string|in:S256,plain',
         ]);
@@ -130,6 +164,18 @@ class OAuth2Controller extends Controller
             ], 400);
         }
 
+        if ($request->code_challenge && ! $request->code_challenge_method) {
+            return response()->json([
+                'message' => 'code_challenge_method es obligatorio cuando se envía code_challenge.',
+            ], 400);
+        }
+
+        if ($client->isPublic() && ! $request->code_challenge) {
+            return response()->json([
+                'message' => 'PKCE es obligatorio para clientes públicos: incluí code_challenge + code_challenge_method (RFC 7636).',
+            ], 400);
+        }
+
         if ($request->redirect_uri !== $client->redirect_url) {
             return response()->json([
                 'message' => 'redirect_uri no permitida',
@@ -141,6 +187,14 @@ class OAuth2Controller extends Controller
         if ($originMismatch !== null) {
             return response()->json([
                 'message' => $originMismatch,
+            ], 400);
+        }
+
+        [$scope, $scopeError] = $this->oauth2Service->resolveScope($client, $request->scope);
+
+        if ($scopeError !== null) {
+            return response()->json([
+                'message' => $scopeError,
             ], 400);
         }
 
@@ -162,7 +216,7 @@ class OAuth2Controller extends Controller
             'state',
             'code_challenge',
             'code_challenge_method',
-        ]));
+        ]), $scope, $request->nonce);
 
         return response()->json($result);
     }

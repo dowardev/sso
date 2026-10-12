@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\OAuth2Controller;
+use App\Http\Controllers\OidcController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SetupController;
@@ -68,6 +69,8 @@ Route::get('/email/verify/{token}', [EmailVerificationController::class, 'verify
 Route::post('/resend-confirmation-email', [EmailVerificationController::class, 'resend'])->middleware('throttle:3,1');
 Route::post('/oauth/token', [OAuth2Controller::class, 'token'])->middleware(['throttle:10,1', 'throttle.token']);
 Route::get('/.well-known/jwks', [AuthController::class, 'jwks']);
+Route::get('/.well-known/openid-configuration', [OidcController::class, 'discovery']);
+Route::get('/oauth/logout', [OidcController::class, 'endSession']);
 Route::get('/session/check', [AuthController::class, 'checkSession']);
 Route::post('/session/check', [AuthController::class, 'checkSession']);
 Route::post('/logout', [AuthController::class, 'logout']);
@@ -84,6 +87,8 @@ Route::middleware('jwt.auth')->group(function () {
     Route::post('/oauth/authorize/revoke', [OAuth2Controller::class, 'revokeAuthorization']);
 
     Route::get('/oauth/authorizations', [OAuth2Controller::class, 'userAuthorizations']);
+
+    Route::get('/oauth/userinfo', [OidcController::class, 'userinfo']);
 
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/user/profile', [AuthController::class, 'getUserProfile']);

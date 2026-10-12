@@ -319,7 +319,7 @@ class AuthService
     /**
      * Generate refresh token.
      */
-    public function generateRefreshToken(User $user, Request $request, bool $rememberMe = false, ?string $dpopJkt = null): array
+    public function generateRefreshToken(User $user, Request $request, bool $rememberMe = false, ?string $dpopJkt = null, ?string $scope = null, ?string $clientId = null): array
     {
         $plain = Str::random(64);
         $hash = hash('sha256', $plain);
@@ -329,6 +329,8 @@ class AuthService
             'user_id' => $user->id,
             'token_hash' => $hash,
             'dpop_jkt' => $dpopJkt,
+            'scope' => $scope,
+            'client_id' => $clientId,
             'user_agent' => $request->userAgent(),
             'ip_address' => $request->ip(),
             'expires_at' => $expiresAt,
@@ -419,9 +421,18 @@ class AuthService
         // on /api/refresh-token too. The cookie/SSO-web login flow never receives
         // a binding (see generateTokens()), which is why it still works without a
         // proof.
+        //
+        // The OIDC scope and client_id are inherited from the refresh token row,
+        // not the original auth code (which has been consumed at the initial
+        // token exchange). Without this inheritance the rotated access token
+        // would arrive at /oauth/userinfo with no scope and no client_id, and
+        // every per-client claim_override would silently disappear after a
+        // refresh. Pre-LBDS-303 rows carry null here, so the rotated token falls
+        // back to the old "no scope, no client_id" shape — back-compat for
+        // refresh tokens that pre-date the migration.
         $accessTokenData = $existing->dpop_jkt !== null
-            ? $this->jwtService->generateTokenForJkt($user, $existing->dpop_jkt, false)
-            : $this->jwtService->generateToken($user, null, false);
+            ? $this->jwtService->generateTokenForJkt($user, $existing->dpop_jkt, false, null, $existing->scope, $existing->client_id)
+            : $this->jwtService->generateToken($user, null, false, null, $existing->scope, $existing->client_id);
 
         // Revoke old token and create its replacement atomically, so a crash
         // in between never strands the user with a dead refresh token.
@@ -436,6 +447,8 @@ class AuthService
                 'user_id' => $existing->user_id,
                 'token_hash' => $newHash,
                 'dpop_jkt' => $existing->dpop_jkt,
+                'scope' => $existing->scope,
+                'client_id' => $existing->client_id,
                 'user_agent' => $request->userAgent(),
                 'ip_address' => $request->ip(),
                 'expires_at' => $newExpiresAt,
