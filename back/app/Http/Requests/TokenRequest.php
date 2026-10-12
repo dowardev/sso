@@ -61,7 +61,17 @@ class TokenRequest extends FormRequest
                     $fail('The :attribute must be a valid RSA or EC P-256 JWK.');
                 },
             ],
-            'code_verifier' => 'required_if:grant_type,authorization_code|string|min:43|max:128',
+            // code_verifier is required when the auth code carries a
+            // code_challenge (i.e. PKCE was used). Confidential clients
+            // may skip PKCE entirely (RFC 7636 §1), in which case the
+            // code has no challenge and the verifier is not needed. The
+            // controller has the auth code + client context, so the
+            // final "challenge but no verifier" check lives there, not
+            // here. Without making the field nullable at the FormRequest
+            // level, a confidential client without PKCE would be
+            // rejected with a 422 for a missing field it never needed
+            // to send in the first place.
+            'code_verifier' => 'nullable|string|min:43|max:128',
         ];
     }
 }

@@ -12,6 +12,8 @@ class UserRefreshToken extends Model
         'user_id',
         'token_hash',
         'dpop_jkt',
+        'scope',
+        'client_id',
         'user_agent',
         'ip_address',
         'expires_at',

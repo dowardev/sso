@@ -15,6 +15,8 @@ class OAuthAuthCode extends Model
         'user_id',
         'sso_client_id',
         'redirect_uri',
+        'scope',
+        'nonce',
         'code_challenge',
         'code_challenge_method',
         'expires_at',

@@ -50,6 +50,8 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
                 'client_id' => 'test-app',
                 'redirect_uri' => 'https://evil.com/callback',
                 'response_type' => 'code',
+                'code_challenge' => str_repeat('a', 43),
+                'code_challenge_method' => 'S256',
             ]);
 
         $response->assertStatus(400)
@@ -63,6 +65,8 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
                 'client_id' => 'test-app',
                 'redirect_uri' => 'https://app.example.com/auth/callback',
                 'response_type' => 'code',
+                'code_challenge' => str_repeat('a', 43),
+                'code_challenge_method' => 'S256',
             ]);
 
         // Debe avanzar más allá de la validación de redirect_uri.
@@ -90,6 +94,8 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
                 'client_id' => 'no-redirect-app',
                 'redirect_uri' => 'https://app.example.com/auth/callback',
                 'response_type' => 'code',
+                'code_challenge' => str_repeat('a', 43),
+                'code_challenge_method' => 'S256',
             ]);
 
         $response->assertStatus(400);
@@ -115,6 +121,8 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
                 'client_id' => 'crossed-app',
                 'redirect_uri' => 'http://localhost:8102/auth/callback',
                 'response_type' => 'code',
+                'code_challenge' => str_repeat('a', 43),
+                'code_challenge_method' => 'S256',
             ]);
 
         $response->assertStatus(400);
@@ -141,6 +149,8 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
                 'client_id' => 'crossed-app',
                 'redirect_uri' => 'http://localhost:8102/auth/callback',
                 'response_type' => 'code',
+                'code_challenge' => str_repeat('a', 43),
+                'code_challenge_method' => 'S256',
             ]);
 
         $response->assertStatus(400);
@@ -165,6 +175,8 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
                 'client_id' => 'native-app',
                 'redirect_uri' => 'com.example.app://auth/callback',
                 'response_type' => 'code',
+                'code_challenge' => str_repeat('a', 43),
+                'code_challenge_method' => 'S256',
             ]);
 
         $response->assertOk()
@@ -191,6 +203,8 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
                 'client_id' => 'bff-app',
                 'redirect_uri' => 'https://app.example.com/auth/callback',
                 'response_type' => 'code',
+                'code_challenge' => str_repeat('a', 43),
+                'code_challenge_method' => 'S256',
             ]);
 
         $response->assertOk()
@@ -217,6 +231,8 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
                 'client_id' => 'frontend-app',
                 'redirect_uri' => 'https://sso.example.com/auth/callback',
                 'response_type' => 'code',
+                'code_challenge' => str_repeat('a', 43),
+                'code_challenge_method' => 'S256',
             ]);
 
         $response->assertOk()
@@ -239,6 +255,8 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
                 'client_id' => 'no-redirect-app',
                 'redirect_uri' => 'https://app.example.com/auth/callback',
                 'response_type' => 'code',
+                'code_challenge' => str_repeat('a', 43),
+                'code_challenge_method' => 'S256',
             ]);
 
         $response->assertStatus(400);
@@ -252,6 +270,8 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
                 'client_id' => 'test-app',
                 'redirect_uri' => 'https://evil.com/callback',
                 'response_type' => 'code',
+                'code_challenge' => str_repeat('a', 43),
+                'code_challenge_method' => 'S256',
             ]);
 
         $response->assertStatus(400)
@@ -265,6 +285,8 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
                 'client_id' => 'test-app',
                 'redirect_uri' => 'https://app.example.com/auth/callback',
                 'response_type' => 'code',
+                'code_challenge' => str_repeat('a', 43),
+                'code_challenge_method' => 'S256',
             ]);
 
         $response->assertOk()
