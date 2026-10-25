@@ -390,7 +390,7 @@ class TotpService
         if (strlen($input) === 0 || strlen($input) % 8 !== 0) {
             throw new \InvalidArgumentException(
                 'Base32 secret length must be a non-zero multiple of 8 characters (got '
-                . strlen($input) . ').'
+                .strlen($input).').'
             );
         }
 

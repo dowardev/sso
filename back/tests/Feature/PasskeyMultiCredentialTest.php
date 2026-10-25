@@ -650,7 +650,7 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_normalize_transports_filters_unknown_values_and_dedupes(): void
     {
         $service = app(PasskeyService::class);
-        $method = (new \ReflectionClass($service))->getMethod('normalizeTransports');
+        $method = (new ReflectionClass($service))->getMethod('normalizeTransports');
         $method->setAccessible(true);
 
         $this->assertSame([], $method->invoke($service, []));
