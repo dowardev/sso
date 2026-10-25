@@ -6,6 +6,7 @@
         <ion-title>Iniciar Sesión</ion-title>
       </ion-toolbar>
     </ion-header>
+
     <ion-content :fullscreen="true">
       <AuthLoginForm :is-public="false" />
     </ion-content>
@@ -35,6 +36,3 @@ import AuthLoginForm from '@/components/AuthLoginForm.vue'
 
 // 10. Functions (named parameters pattern)
 </script>
-
-<style scoped>
-</style>

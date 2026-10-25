@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The login's second step now defaults to a passkey (LBDS-304)**: when an account has both a passkey and a code-based second factor, step 2 now offers the passkey ceremony as the primary action and demotes the TOTP challenge behind an "Usar otro método" escape, instead of splitting both methods across a segment control. Accounts with no passkey go straight to the TOTP challenge; accounts with a passkey and no TOTP are unaffected.
+    - `components/AuthLoginForm.vue` — step-2 state reworked from a segment control (`Contraseña | Passkey`) to a single-view model with `twoFactorView: 'passkey' | 'totp' | null`; the TOTP challenge is rendered inline in the card instead of in a modal.
+    - `components/AuthLoginForm.vue` — the secondary links ("¿Olvidaste tu contraseña?", "← Cambiar de usuario") moved out of the card body into a new `#below` slot on `AuthCard`, so they sit directly under the glass box instead of inside it.
+    - `components/AuthCard.vue` — new `below` slot and `below` prop; when content is rendered below the card its bottom padding shrinks so no dead band appears, and `flex: 0 0 auto` + `min-height: min-content` stop `ion-card`'s paint containment (`contain: content`) from clipping the last line of the form.
+    - `views/LoginPage.vue` — the step-2 action block, the 250 ms step-polling timer and the `defineExpose` / `step-change` plumbing are gone; the form owns its own step state.
+
 ## [0.26.0] - 2026-10-11
 
 ### Added
