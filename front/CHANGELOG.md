@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.37.0] - 2026-10-25
+
 ### Changed
 
 - **The login's second step now defaults to a passkey (LBDS-304)**: when an account has both a passkey and a code-based second factor, step 2 now offers the passkey ceremony as the primary action and demotes the TOTP challenge behind an "Usar otro método" escape, instead of splitting both methods across a segment control. Accounts with no passkey go straight to the TOTP challenge; accounts with a passkey and no TOTP are unaffected.

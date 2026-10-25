@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v0.37.0] - 2026-10-25
 
 ### Added
 
@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Login with a second factor is now one step instead of a chooser (LBDS-304)**: when an account has both a passkey and an authenticator app, the second step of the login offers the passkey straight away and keeps the code-based challenge behind a "use another method" link, instead of asking which method to use first. Accounts without a passkey go directly to the code prompt, and the "Olvidaste tu contraseña?" and "Cambiar de usuario" links now sit right below the login card instead of inside it.
+
+## [Unreleased]
 
 ## [0.36.0] - 2026-10-11
 
