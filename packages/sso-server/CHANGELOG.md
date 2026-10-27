@@ -5,6 +5,12 @@ All notable changes to `dowardev/sso-server` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-10-25
+
+### Fixed
+
+- **P-256 EC coordinates with a stripped leading zero byte are accepted again**: a JWK whose `x` or `y` coordinate decoded to 31 bytes (the leading `0x00` was missing, which happens for roughly 1 in every 256 P-256 keys) was rejected with `EC coordinates for P-256 must be exactly 32 bytes`. The coordinate is now left-padded with `0x00` back to 32 bytes before use, so those keys verify instead of failing. A coordinate of any other length is still rejected.
+
 ## [Unreleased]
 
 ## [0.2.0] - 2026-10-11
