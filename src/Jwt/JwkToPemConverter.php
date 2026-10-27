@@ -82,16 +82,15 @@ class JwkToPemConverter
         $x = $this->base64UrlDecode($jwk['x']);
         $y = $this->base64UrlDecode($jwk['y']);
 
-        // Validate the coordinate length up front. OpenSSL would reject a
-        // wrong-length point at import time, but with a generic error; this
-        // gives a clear message and fails fast.
+        // Normalize and validate coordinate lengths. A valid P-256 coordinate
+        // is always 32 bytes. If the base64url-decoded value is 31 bytes,
+        // it means the leading 0x00 byte was stripped during encoding (when
+        // the MSB of the 32-byte coordinate is 0x00). This happens for
+        // roughly 1 in 256 keys. We restore the leading zero padding before
+        // use. Any other length is invalid.
         $expectedLength = self::EC_COORDINATE_LENGTHS[$crv];
-        if (strlen($x) !== $expectedLength || strlen($y) !== $expectedLength) {
-            throw new InvalidArgumentException(
-                "EC coordinates for {$crv} must be exactly {$expectedLength} bytes; got x=".strlen($x).', y='.strlen($y)
-            );
-        }
-
+        $x = $this->normalizeEcCoordinate($x, $expectedLength);
+        $y = $this->normalizeEcCoordinate($y, $expectedLength);
         // The uncompressed point format: 0x04 || x || y. OpenSSL's EC
         // importer is happy with either form; we always emit uncompressed so
         // the byte length is deterministic (1 + 2 * coordinateSize) and
@@ -177,6 +176,30 @@ class JwkToPemConverter
         }
 
         return chr(0x80 | strlen($lengthBytes)).$lengthBytes;
+    }
+
+    /**
+     * Normalize an EC coordinate to the expected length.
+     *
+     * A valid P-256 coordinate is always 32 bytes. If the decoded value
+     * is 31 bytes, the leading 0x00 byte was stripped during base64url
+     * encoding (when the MSB of the 32-byte coordinate is 0x00). We
+     * restore it by left-padding with a single 0x00 byte. Any other
+     * length is invalid and throws.
+     */
+    private function normalizeEcCoordinate(string $coord, int $expectedLength): string
+    {
+        $len = strlen($coord);
+        if ($len === $expectedLength) {
+            return $coord;
+        }
+        if ($len === $expectedLength - 1) {
+            // Leading 0x00 was stripped; restore it.
+            return "\x00".$coord;
+        }
+        throw new InvalidArgumentException(
+            "EC coordinates for P-256 must be exactly {$expectedLength} bytes; got ".$len
+        );
     }
 
     public function base64UrlDecode(string $data): string

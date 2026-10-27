@@ -4,6 +4,7 @@ namespace Dowardev\SsoServer\Tests;
 
 use Dowardev\SsoServer\Jwt\JwkToPemConverter;
 use InvalidArgumentException;
+use ReflectionMethod;
 
 class JwkToPemConverterTest extends TestCase
 {
@@ -137,5 +138,50 @@ class JwkToPemConverterTest extends TestCase
             'x' => 'AA', // 1 byte after base64url decode
             'y' => '4yPUckJUSjT0rHbaqsaEKf41dyOA0OctKkrYmNr2Za8', // 32 bytes
         ]);
+    }
+
+    public function test_normalize_ec_coordinate_accepts_31_byte_and_pads_to_32(): void
+    {
+        // Test the private normalizeEcCoordinate method via reflection.
+        // This tests the fix for the 31-byte coordinate issue where a valid
+        // P-256 coordinate with a leading 0x00 byte gets base64url-encoded
+        // without that leading zero, resulting in a 31-byte decoded value.
+        $method = new ReflectionMethod(JwkToPemConverter::class, 'normalizeEcCoordinate');
+        $method->setAccessible(true);
+
+        // 32 bytes - should pass through unchanged
+        $coord32 = random_bytes(32);
+        $result = $method->invoke($this->converter, $coord32, 32);
+        $this->assertSame($coord32, $result);
+        $this->assertSame(32, strlen($result));
+
+        // 31 bytes - should be left-padded with a single 0x00 byte
+        $coord31 = random_bytes(31);
+        $result = $method->invoke($this->converter, $coord31, 32);
+        $this->assertSame(32, strlen($result));
+        $this->assertSame("\x00", $result[0]);
+        $this->assertSame($coord31, substr($result, 1));
+    }
+
+    public function test_normalize_ec_coordinate_rejects_30_byte(): void
+    {
+        $method = new ReflectionMethod(JwkToPemConverter::class, 'normalizeEcCoordinate');
+        $method->setAccessible(true);
+
+        $coord30 = random_bytes(30);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('EC coordinates for P-256 must be exactly 32 bytes; got 30');
+        $method->invoke($this->converter, $coord30, 32);
+    }
+
+    public function test_normalize_ec_coordinate_rejects_33_byte(): void
+    {
+        $method = new ReflectionMethod(JwkToPemConverter::class, 'normalizeEcCoordinate');
+        $method->setAccessible(true);
+
+        $coord33 = random_bytes(33);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('EC coordinates for P-256 must be exactly 32 bytes; got 33');
+        $method->invoke($this->converter, $coord33, 32);
     }
 }
