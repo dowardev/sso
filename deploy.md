@@ -6,6 +6,31 @@
 
 ## Deploy Log
 
+### v0.37.0 — 2026-10-25
+
+- **Environment**: production
+- **Source tag**: `v0.37.0`
+- **Status**: shipped
+- **Per-package versions**:
+  - root: 0.36.0 → **0.37.0**
+  - `front`: 0.26.0 → **0.27.0**
+  - `back`: 0.2.0 → **0.3.0** (`composer.json` has no `version` field; git tag is the source of truth)
+  - `@dowardev/sso-client`: 0.4.0 → **0.4.0** (no pending `[Unreleased]` entries)
+  - `dowardev/sso-server`: 0.2.0 → **0.2.0** (no pending `[Unreleased]` entries)
+- **Migration notes**:
+  - **Migrations to run on the next `php artisan migrate`** (LBDS-303 OIDC IdP):
+    - `2026_10_12_000000_add_scope_to_oauth_auth_codes_and_sso_clients.php` — adds `scope` on `oauth_auth_codes`, `allowed_scopes` on `sso_clients`
+    - `2026_10_12_000001_add_nonce_to_oauth_auth_codes.php` — adds `nonce` on `oauth_auth_codes`
+    - `2026_10_12_000002_add_claim_overrides_to_sso_clients.php` — adds `claim_overrides` JSON on `sso_clients`
+    - `2026_10_12_000003_add_scope_and_client_id_to_user_refresh_tokens.php` — adds `scope` + `client_id` on `user_refresh_tokens`
+  - **TOTP enrollment is opt-in** (LBDS-8, from v0.36.0) — existing users are not affected until they enroll via Perfil → Seguridad.
+  - **LBDS-304 is frontend-only** — no migrations required; the passkey-first 2FA flow change lives entirely in `front/`.
+- **Rollback notes**:
+  - The LBDS-303 migrations are additive (new columns / new JSON columns on existing tables) and forward-compatible. Rolling back to v0.36.0 is data-safe: only the four OIDC columns are dropped, no user data is destroyed.
+  - On rollback, the OIDC endpoints (`/.well-known/openid-configuration`, `/oauth/userinfo`, `/oauth/logout`) will disappear; external RPs configured against this IdP will fail discovery and token validation.
+  - LBDS-304 is frontend-only; rolling back the frontend restores the previous 2FA chooser behavior.
+  - The `dowardev/sso-server` and `@dowardev/sso-client` packages are unchanged in this release; no rollback action needed for them.
+
 ### v0.36.0 — 2026-10-11
 
 - **Environment**: production

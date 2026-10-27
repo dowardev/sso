@@ -384,9 +384,9 @@ class VerifyDpopProof
             }
         }
 
-        $inserted = DB::affectingStatement('INSERT IGNORE INTO dpop_nonces (jti, expires_at) VALUES (?, ?)', [
-            $jti,
-            now()->addMinutes(2),
+        $inserted = DB::table('dpop_nonces')->insertOrIgnore([
+            'jti' => $jti,
+            'expires_at' => now()->addMinutes(2),
         ]);
 
         if ($inserted === 0) {

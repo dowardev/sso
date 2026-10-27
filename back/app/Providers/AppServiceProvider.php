@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Models\SsoClient;
 use App\Observers\SsoClientObserver;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -106,7 +107,7 @@ class AppServiceProvider extends ServiceProvider
         $unknown = array_values(array_diff($allowlist, $supported));
 
         if ($unknown !== []) {
-            \Illuminate\Support\Facades\Log::warning(
+            Log::warning(
                 'DPoP allowlist contains unsupported algorithms: '.implode(',', $unknown)
                 .'. Only ES256 and RS256 are wired into the verifier; '
                 .'unknown values will fail proof verification with alg=unknown '
@@ -124,7 +125,7 @@ class AppServiceProvider extends ServiceProvider
             // empty allowlist falls back to ['ES256','RS256']. The
             // warning still fires so a `DPOP_ALLOWED_ALGS=` typo is
             // visible.
-            \Illuminate\Support\Facades\Log::info(
+            Log::info(
                 'DPoP allowlist resolved empty; falling back to dual default',
                 ['dpop_allowlist' => $allowlist]
             );

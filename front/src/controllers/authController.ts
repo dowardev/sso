@@ -278,6 +278,19 @@ export function useAuthController() {
       throw err;
     }
 
+    // Passkey gate (LBDS-304): when the account has passkeys but no TOTP,
+    // the backend returns 200 with { code: 'PASSKEY_REQUIRED', passkey_token }.
+    // The caller catches this and continues with the passkey ceremony.
+    if (response.code === 'PASSKEY_REQUIRED') {
+      const err = new Error('Usá tu passkey para completar el inicio de sesión.') as Error & {
+        code: 'PASSKEY_REQUIRED';
+        passkeyToken: string;
+      };
+      err.code = 'PASSKEY_REQUIRED';
+      err.passkeyToken = (response as { passkey_token: string }).passkey_token;
+      throw err;
+    }
+
     if (!response.token || !response.user) {
       throw new Error('Respuesta inesperada del servidor al iniciar sesión.');
     }
@@ -367,11 +380,15 @@ export function useAuthController() {
    * restore their encrypted profile — silent PRF restore (one extra gesture) or
    * a master-password fallback signalled via MASTER_PASSWORD_REQUIRED (the
    * error carries the resolved loginId).
+   *
+   * When `passkeyToken` is provided, it is forwarded to the authentication
+   * finish endpoint to consume a pending password+passkey login (LBDS-304).
    */
   async function passkeyLogin(params: {
     rememberMe?: boolean;
     username?: string;
     login_id?: string;
+    passkeyToken?: string;
   }): Promise<{ token: string; user: User; profile?: CryptoUserProfile | null }> {
     await dpopService.initialize();
     const dpopPublicKey = dpopService.getPublicKeyJwk();
@@ -384,6 +401,7 @@ export function useAuthController() {
       login_id: params.login_id,
       rememberMe: params.rememberMe,
       dpopPublicKey: dpopPublicKey ? JSON.stringify(dpopPublicKey) : undefined,
+      passkeyToken: params.passkeyToken,
     });
 
     authStore.applyLoginSession({

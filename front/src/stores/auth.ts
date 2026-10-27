@@ -227,6 +227,19 @@ export const useAuthStore = defineStore('auth', () => {
       throw err;
     }
 
+    // Passkey gate (LBDS-304): when the account has passkeys but no TOTP,
+    // the backend returns 200 with { code: 'PASSKEY_REQUIRED', passkey_token }.
+    // The caller catches this typed error and continues with the passkey ceremony.
+    if (response.code === 'PASSKEY_REQUIRED') {
+      const err = new Error('Usá tu passkey para completar el inicio de sesión.') as Error & {
+        code: 'PASSKEY_REQUIRED';
+        passkeyToken: string;
+      };
+      err.code = 'PASSKEY_REQUIRED';
+      err.passkeyToken = (response as { passkey_token: string }).passkey_token;
+      throw err;
+    }
+
     if (!response.token || !response.user) {
       throw new Error('Respuesta inesperada del servidor al iniciar sesión.');
     }

@@ -8,7 +8,11 @@ namespace App\Webauthn;
 
 use Cose\Algorithms;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use SpomkyLabs\Pki\ASN1\Type\Primitive\OctetString;
+use SpomkyLabs\Pki\ASN1\Type\UnspecifiedType;
 use SpomkyLabs\Pki\CryptoEncoding\PEM;
+use SpomkyLabs\Pki\CryptoTypes\AlgorithmIdentifier\Asymmetric\Ed25519AlgorithmIdentifier;
+use SpomkyLabs\Pki\X501\ASN1\AttributeType;
 use SpomkyLabs\Pki\X509\Certificate\Certificate;
 use SpomkyLabs\Pki\X509\Certificate\TBSCertificate;
 use Throwable;
@@ -78,7 +82,7 @@ final class PackedAttestationStatementSupportWithEdDSA implements AttestationSta
     public function __construct(
         private readonly PackedAttestationStatementSupport $delegate
     ) {
-        $this->dispatcher = new NullEventDispatcher();
+        $this->dispatcher = new NullEventDispatcher;
     }
 
     public function setEventDispatcher(EventDispatcherInterface $eventDispatcher): void
@@ -97,7 +101,7 @@ final class PackedAttestationStatementSupportWithEdDSA implements AttestationSta
      * depend on the COSE algorithm value, so the upstream loader works for
      * EdDSA x5c attestations just as well as for ES256 / RS256 ones.
      *
-     * @param array<string, mixed> $attestation
+     * @param  array<string, mixed>  $attestation
      */
     public function load(array $attestation): AttestationStatement
     {
@@ -160,7 +164,7 @@ final class PackedAttestationStatementSupportWithEdDSA implements AttestationSta
             // F2: only accept Ed25519 SPKIs. Defense-in-depth so a 32-byte
             // public key of a different algorithm can't pass the length
             // check below and reach `sodium_crypto_sign_verify_detached`.
-            if ($algorithmIdentifier->oid() !== \SpomkyLabs\Pki\CryptoTypes\AlgorithmIdentifier\Asymmetric\Ed25519AlgorithmIdentifier::OID_ED25519) {
+            if ($algorithmIdentifier->oid() !== Ed25519AlgorithmIdentifier::OID_ED25519) {
                 return false;
             }
             $publicKeyBytes = $publicKeyInfo->publicKey()->subjectPublicKey()->string();
@@ -213,13 +217,13 @@ final class PackedAttestationStatementSupportWithEdDSA implements AttestationSta
         );
 
         $subject = $tbsCertificate->subject();
-        $subject->countOfType(\SpomkyLabs\Pki\X501\ASN1\AttributeType::OID_COUNTRY_NAME) > 0
+        $subject->countOfType(AttributeType::OID_COUNTRY_NAME) > 0
             || throw AttestationStatementVerificationException::create('Certificate Subject-C must be set');
-        $subject->countOfType(\SpomkyLabs\Pki\X501\ASN1\AttributeType::OID_ORGANIZATION_NAME) > 0
+        $subject->countOfType(AttributeType::OID_ORGANIZATION_NAME) > 0
             || throw AttestationStatementVerificationException::create('Certificate Subject-O must be set');
-        $subject->countOfType(\SpomkyLabs\Pki\X501\ASN1\AttributeType::OID_ORGANIZATIONAL_UNIT_NAME) > 0
+        $subject->countOfType(AttributeType::OID_ORGANIZATIONAL_UNIT_NAME) > 0
             || throw AttestationStatementVerificationException::create('Certificate Subject-OU must be set');
-        $subject->countOfType(\SpomkyLabs\Pki\X501\ASN1\AttributeType::OID_COMMON_NAME) > 0
+        $subject->countOfType(AttributeType::OID_COMMON_NAME) > 0
             || throw AttestationStatementVerificationException::create('Certificate Subject-CN must be set');
 
         $ouValue = $subject->firstValueOf('OU')->stringValue();
@@ -248,8 +252,8 @@ final class PackedAttestationStatementSupportWithEdDSA implements AttestationSta
                     'Extension '.self::FIDO_OID_AAGUID_EXTENSION.' must not be marked as critical'
                 );
 
-            $aaguidElement = \SpomkyLabs\Pki\ASN1\Type\UnspecifiedType::fromDER($aaguidExtension->extensionValue())->asElement();
-            $aaguidElement instanceof \SpomkyLabs\Pki\ASN1\Type\Primitive\OctetString
+            $aaguidElement = UnspecifiedType::fromDER($aaguidExtension->extensionValue())->asElement();
+            $aaguidElement instanceof OctetString
                 || throw AttestationStatementVerificationException::create(
                     'Invalid '.self::FIDO_OID_AAGUID_EXTENSION.' extension format'
                 );

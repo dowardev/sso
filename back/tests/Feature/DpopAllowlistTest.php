@@ -8,6 +8,7 @@ use App\Models\SsoClient;
 use App\Models\User;
 use App\Services\OAuth2Service;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -279,7 +280,7 @@ class DpopAllowlistTest extends TestCase
      * which is NOT one JSON object per line — only the trailing context
      * blob is JSON. We regex-strip the prefix and decode the suffix.
      */
-    private function readDpopMetricFromLog(): \Illuminate\Support\Collection
+    private function readDpopMetricFromLog(): Collection
     {
         $path = storage_path('logs/laravel.log');
 
