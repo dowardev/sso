@@ -11,8 +11,8 @@ use Dowardev\SsoServer\Jwt\JwksFetcher;
 use Dowardev\SsoServer\Jwt\JwkToPemConverter;
 use Dowardev\SsoServer\Jwt\JwtValidator;
 use Dowardev\SsoServer\Types\SsoConfig;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Covers the DPoP algorithm allowlist cutover tracked by LBDS-290.
@@ -264,7 +264,7 @@ class DpopAllowlistTest extends TestCase
         }
     }
 
-    private function readDpopMetricFromLog(): \Illuminate\Support\Collection
+    private function readDpopMetricFromLog(): Collection
     {
         $path = storage_path('logs/laravel.log');
 
