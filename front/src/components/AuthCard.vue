@@ -5,29 +5,41 @@
     <div class="blob blob-2" aria-hidden="true"></div>
     <div class="blob blob-3" aria-hidden="true"></div>
 
-    <div class="auth-card-content" :style="{ maxWidth: props.maxWidth }">
-      <slot name="header">
-        <div class="auth-card-header">
-          <div class="auth-logo-circle" :class="{ 'auth-logo-circle--plain': logoUrl }">
-            <img
-              :src="logoUrl || lambdaLogo"
-              :class="['auth-logo', logoUrl ? 'auth-logo--custom' : 'auth-logo--filtered']"
-              alt="Logo SSO Server"
-            />
+    <div class="auth-screen-inner">
+      <div
+        class="auth-card-content"
+        :class="{ 'auth-card-content--with-below': hasBelow }"
+        :style="{ maxWidth: props.maxWidth }"
+      >
+        <slot name="header">
+          <div class="auth-card-header">
+            <div class="auth-logo-circle" :class="{ 'auth-logo-circle--plain': logoUrl }">
+              <img
+                :src="logoUrl || lambdaLogo"
+                :class="['auth-logo', logoUrl ? 'auth-logo--custom' : 'auth-logo--filtered']"
+                alt="Logo SSO Server"
+              />
+            </div>
+            <h2>{{ title }}</h2>
+            <p>{{ subtitle }}</p>
           </div>
-          <h2>{{ title }}</h2>
-          <p>{{ subtitle }}</p>
-        </div>
-      </slot>
+        </slot>
 
-      <slot />
+        <slot />
+      </div>
+
+      <!-- Rendered right BELOW the card (outside the glass box), still
+           inside the centered block so it reads as attached to it. -->
+      <div v-if="hasBelow" class="auth-card-below">
+        <slot name="below" />
+      </div>
     </div>
   </ion-card>
 </template>
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
-import { onMounted } from 'vue';
+import { computed, onMounted, useSlots } from 'vue';
 import { IonCard } from '@ionic/vue';
 import lambdaLogo from '@/assets/images/lambda_v1.svg';
 
@@ -45,11 +57,21 @@ const props = withDefaults(
     title: string;
     subtitle: string;
     maxWidth?: string;
+    /** Force the "below" slot on/off. When omitted it is auto-detected
+     *  from the presence of the slot. */
+    below?: boolean;
   }>(),
   {
     maxWidth: 'min(440px, 100%)',
   },
 );
+
+// True when the host renders content below the card: the card's bottom
+// padding shrinks so no dead space is left between the card content and
+// whatever follows it. `props.below` lets a host that always provides
+// the slot opt out explicitly (e.g. a public route that renders nothing).
+const slots = useSlots();
+const hasBelow = computed(() => props.below ?? Boolean(slots.below));
 
 // 6. Vars and const
 
@@ -68,6 +90,7 @@ onMounted(() => {
 <style scoped>
 .auth-screen {
   min-height: 100dvh;
+  height: auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -75,6 +98,22 @@ onMounted(() => {
   overflow: hidden;
   background: var(--ion-background-color, #0a0f1d);
   padding: 24px;
+}
+
+/* Wraps the card so it is centered as one block. `flex: 0 0 auto` is
+   mandatory: ion-card paints with `contain: content` (paint containment
+   clips descendants to its border box), so if this block were ever
+   allowed to shrink, the card's content would be clipped mid-text and
+   a dead gap would appear under the card. */
+.auth-screen-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  flex: 0 0 auto;
+  min-height: min-content;
 }
 
 .blob {
@@ -120,6 +159,11 @@ onMounted(() => {
   z-index: 1;
   width: 100%;
   max-width: min(440px, 100%);
+  /* Never let the flex parent squeeze the card: its box must always be
+     at least as tall as its content, otherwise the paint containment of
+     ion-card cuts the last line of the form in half. */
+  flex: 0 0 auto;
+  min-height: min-content;
   padding: clamp(28px, 6vw, 44px) clamp(20px, 5vw, 36px);
   background: var(--glass-bg, rgba(255, 255, 255, 0.08));
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
@@ -127,6 +171,34 @@ onMounted(() => {
   backdrop-filter: var(--glass-blur, blur(24px));
   -webkit-backdrop-filter: var(--glass-blur, blur(24px));
   animation: card-appear 0.6s ease both;
+}
+
+/* When something is rendered right below the card, the card's bottom
+   padding would leave a dead band of empty glass between the content
+   and that link. Shrink it so the link reads as attached to the card. */
+.auth-card-content--with-below {
+  padding-bottom: var(--space-2);
+}
+
+.auth-card-below {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  /* Desktop: both links on one row, right under the card. Mobile: they
+     stack (the two labels do not fit side by side below 768px). */
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-2);
+  flex: 0 0 auto;
+}
+
+@media (max-width: 767px) {
+  .auth-card-below {
+    flex-direction: column;
+  }
 }
 
 @keyframes card-appear {

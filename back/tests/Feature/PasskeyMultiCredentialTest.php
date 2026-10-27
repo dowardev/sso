@@ -120,11 +120,14 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_delete_endpoint_removes_a_single_credential_by_id(): void
     {
         $user = $this->makeUser();
+
+        // Login FIRST (without passkeys) to get a valid token
+        $token = $this->loginToken($user);
+
+        // Now add passkeys
         $service = app(PasskeyService::class);
         $service->storeCredential($user, $this->fakeRecord('AAAA'));
         $service->storeCredential($user, $this->fakeRecord('BBBB'));
-
-        $token = $this->loginToken($user);
 
         $this->withToken($token)
             ->deleteJson('/api/passkey', ['credential_id' => $this->b64('AAAA'), 'password' => 'Password123'])
@@ -136,10 +139,13 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_delete_endpoint_rejects_unowned_credential(): void
     {
         $user = $this->makeUser();
+
+        // Login FIRST (without passkeys) to get a valid token
+        $token = $this->loginToken($user);
+
+        // Now add a passkey
         $service = app(PasskeyService::class);
         $service->storeCredential($user, $this->fakeRecord('AAAA'));
-
-        $token = $this->loginToken($user);
 
         $this->withToken($token)
             ->deleteJson('/api/passkey', ['credential_id' => 'ZZZZ', 'password' => 'Password123'])
@@ -508,8 +514,12 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_register_start_endpoint_forwards_stored_hybrid_in_exclude(): void
     {
         $user = $this->makeUser();
-        $service = app(PasskeyService::class);
 
+        // Login FIRST (without passkeys) to get a valid token
+        $token = $this->loginToken($user);
+
+        // Now add a passkey with hybrid transport
+        $service = app(PasskeyService::class);
         $service->storeCredential(
             $user,
             $this->fakeRecord('AAAA'),
@@ -517,8 +527,6 @@ class PasskeyMultiCredentialTest extends TestCase
         );
 
         // Re-enrollment requires an authenticated session — use the JWT flow.
-        $token = $this->loginToken($user);
-
         $response = $this->withToken($token)
             ->postJson('/api/passkey/register/start', [
                 'user_id' => $user->id,
@@ -650,7 +658,7 @@ class PasskeyMultiCredentialTest extends TestCase
     public function test_normalize_transports_filters_unknown_values_and_dedupes(): void
     {
         $service = app(PasskeyService::class);
-        $method = (new \ReflectionClass($service))->getMethod('normalizeTransports');
+        $method = (new ReflectionClass($service))->getMethod('normalizeTransports');
         $method->setAccessible(true);
 
         $this->assertSame([], $method->invoke($service, []));

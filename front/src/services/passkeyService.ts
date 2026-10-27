@@ -240,6 +240,7 @@ export const passkeyService = {
     optionsJSON: PublicKeyCredentialRequestOptionsJSON;
     rememberMe?: boolean;
     dpopPublicKey?: string;
+    passkeyToken?: string;
   }): Promise<AuthenticationFinishResponse> {
     const credential = (await navigator.credentials.get(
       decodeRequestOptions({ optionsJSON: params.optionsJSON }),
@@ -255,6 +256,9 @@ export const passkeyService = {
     }
     if (params.dpopPublicKey) {
       data['dpop_public_key'] = params.dpopPublicKey;
+    }
+    if (params.passkeyToken) {
+      data['passkey_token'] = params.passkeyToken;
     }
 
     return api.post<AuthenticationFinishResponse>({
@@ -290,6 +294,7 @@ export const passkeyService = {
     username?: string;
     rememberMe?: boolean;
     dpopPublicKey?: string;
+    passkeyToken?: string;
   }): Promise<AuthenticationFinishResponse> {
     const optionsJSON = await this.authenticationStart({
       user_id: params.user_id,
@@ -300,6 +305,7 @@ export const passkeyService = {
       optionsJSON,
       rememberMe: params.rememberMe,
       dpopPublicKey: params.dpopPublicKey,
+      passkeyToken: params.passkeyToken,
     });
   },
 };

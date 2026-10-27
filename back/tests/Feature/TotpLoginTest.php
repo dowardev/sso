@@ -15,6 +15,8 @@ use App\Models\User;
 use App\Services\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class TotpLoginTest extends TestCase
@@ -238,7 +240,7 @@ class TotpLoginTest extends TestCase
             'name' => 'Totp Login Tester',
             'user' => 'totp_login_tester',
             'email' => 'totp_login_tester@example.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('correct-password'),
+            'password' => Hash::make('correct-password'),
             'email_verified_at' => now(),
             'encryption_level' => 'basic',
         ], $overrides));
@@ -267,11 +269,11 @@ class TotpLoginTest extends TestCase
         // Generate 10 backup codes the same way enroll-confirm does.
         $backupCodes = [];
         for ($i = 0; $i < TotpService::BACKUP_CODE_COUNT; $i++) {
-            $code = strtoupper(\Illuminate\Support\Str::random(TotpService::BACKUP_CODE_LENGTH));
+            $code = strtoupper(Str::random(TotpService::BACKUP_CODE_LENGTH));
             $backupCodes[] = $code;
             TotpBackupCode::create([
                 'user_id' => $user->id,
-                'code_hash' => \Illuminate\Support\Facades\Hash::make($code),
+                'code_hash' => Hash::make($code),
             ]);
         }
 

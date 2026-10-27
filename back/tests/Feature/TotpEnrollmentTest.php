@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class TotpEnrollmentTest extends TestCase
@@ -83,7 +84,7 @@ class TotpEnrollmentTest extends TestCase
         $start = $this->withToken($token)->postJson('/api/totp/enroll/start');
         $start->assertOk();
         $secret = $start->json('secret');
-        $code = app(\App\Services\TotpService::class)->totpNow($secret);
+        $code = app(TotpService::class)->totpNow($secret);
 
         $confirm = $this->withToken($token)->postJson('/api/totp/enroll/confirm', ['code' => $code]);
 
@@ -107,7 +108,7 @@ class TotpEnrollmentTest extends TestCase
         foreach ($codes as $code) {
             $matchFound = false;
             foreach ($rows as $row) {
-                if (\Illuminate\Support\Facades\Hash::check($code, $row->code_hash)) {
+                if (Hash::check($code, $row->code_hash)) {
                     $matchFound = true;
                     break;
                 }
@@ -151,7 +152,7 @@ class TotpEnrollmentTest extends TestCase
         $first = $this->withToken($token)->postJson('/api/totp/enroll/start');
         $first->assertOk();
         $firstSecret = $first->json('secret');
-        $firstCode = app(\App\Services\TotpService::class)->totpNow($firstSecret);
+        $firstCode = app(TotpService::class)->totpNow($firstSecret);
         $this->withToken($token)->postJson('/api/totp/enroll/confirm', ['code' => $firstCode])->assertOk();
 
         $oldCodes = TotpBackupCode::where('user_id', $user->id)->get();
@@ -180,7 +181,7 @@ class TotpEnrollmentTest extends TestCase
         // Enroll + confirm.
         $start = $this->withToken($token)->postJson('/api/totp/enroll/start');
         $secret = $start->json('secret');
-        $code = app(\App\Services\TotpService::class)->totpNow($secret);
+        $code = app(TotpService::class)->totpNow($secret);
         $this->withToken($token)->postJson('/api/totp/enroll/confirm', ['code' => $code])->assertOk();
 
         $status = $this->withToken($token)->getJson('/api/totp/status');
@@ -218,7 +219,7 @@ class TotpEnrollmentTest extends TestCase
 
         // Full enrollment.
         $start = $this->withToken($token)->postJson('/api/totp/enroll/start');
-        $code = app(\App\Services\TotpService::class)->totpNow($start->json('secret'));
+        $code = app(TotpService::class)->totpNow($start->json('secret'));
         $this->withToken($token)->postJson('/api/totp/enroll/confirm', ['code' => $code])->assertOk();
 
         $this->assertSame(TotpService::BACKUP_CODE_COUNT, TotpBackupCode::where('user_id', $user->id)->count());
@@ -234,7 +235,7 @@ class TotpEnrollmentTest extends TestCase
         $token = $this->loginAs($user);
 
         $start = $this->withToken($token)->postJson('/api/totp/enroll/start');
-        $code = app(\App\Services\TotpService::class)->totpNow($start->json('secret'));
+        $code = app(TotpService::class)->totpNow($start->json('secret'));
         $confirm = $this->withToken($token)->postJson('/api/totp/enroll/confirm', ['code' => $code]);
         $oldCodes = $confirm->json('backup_codes');
 
@@ -258,7 +259,7 @@ class TotpEnrollmentTest extends TestCase
             'name' => 'Totp Tester',
             'user' => 'totp_tester',
             'email' => 'totp_tester@example.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('correct-password'),
+            'password' => Hash::make('correct-password'),
             'email_verified_at' => now(),
             'encryption_level' => 'basic',
         ], $overrides));

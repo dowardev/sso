@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`startTotpChallenge()` now issues a `passkey_token` alongside `totp_token` when the user has both TOTP and passkeys**, enabling the frontend to offer both 2FA methods on step 2. `passkeyAuthenticateFinish()` verifies the WebAuthn assertion before consuming the pending token (single-use), preventing token burn on cancelled or failed ceremonies.
+    - `app/Http/Controllers/AuthController.php` — `startTotpChallenge()` adds `passkey_token` for dual-factor accounts; `passkeyAuthenticateFinish()` reads then atomically pulls the token on success.
+
+## [v0.37.0] - 2026-10-25
+
 ### Added
 
 - **OpenID Connect IdP surface (LBDS-303)**:

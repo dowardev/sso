@@ -1,14 +1,18 @@
 <!-- SPDX-License-Identifier: MIT -->
 <template>
-  <AuthCard title="Bienvenido de nuevo" subtitle="Inicia sesión para acceder a tu cuenta">
-    <!-- Step 1: identifier -->
+  <AuthCard
+    title="Bienvenido de nuevo"
+    subtitle="Inicia sesión para acceder a tu cuenta"
+    :below="!props.isPublic"
+  >
+    <!-- Step 1 (LBDS-304): identifier + password in one screen. -->
     <form
-      v-if="step === 'identifier'"
+      v-if="step === 'credentials'"
       class="auth-form"
-      aria-label="Paso 1 de 2: identificación"
+      aria-label="Paso 1 de 2: credenciales"
       @submit.prevent="handleContinue()"
     >
-      <p class="sr-only" role="status">Paso 1 de 2: ingresa tu usuario</p>
+      <p class="sr-only" role="status">Paso 1 de 2: ingresa tu usuario y contraseña</p>
 
       <ion-item class="input-item" lines="none">
         <ion-input
@@ -33,6 +37,32 @@
         {{ v$.identifier.$errors[0].$message }}
       </div>
 
+      <ion-item class="input-item" lines="none">
+        <ion-input
+          ref="passwordInput"
+          v-model="credentials.password"
+          label="Contraseña"
+          label-placement="floating"
+          type="password"
+          placeholder="Ingresa tu contraseña"
+          autocomplete="current-password"
+          enterkeyhint="go"
+          :aria-invalid="v$.password.$error ? true : undefined"
+          aria-describedby="login-password-error"
+          @ion-blur="v$.password.$touch()"
+        >
+          <ion-input-password-toggle slot="end" />
+        </ion-input>
+      </ion-item>
+
+      <div
+        v-if="v$.password.$error"
+        id="login-password-error"
+        class="auth-field-error"
+      >
+        {{ v$.password.$errors[0].$message }}
+      </div>
+
       <div
         v-if="error"
         ref="loginError"
@@ -53,39 +83,21 @@
       </ion-button>
     </form>
 
-    <!-- Step 2: methods supported by the resolved account -->
+    <!-- Step 2 (LBDS-304): second factor of auth. Passkey is the primary
+         action when the account has passkeys; TOTP is the fallback via
+         "Usar otro método". When the account has no passkeys, TOTP is
+         shown directly. -->
     <form
       v-else
       class="auth-form"
-      aria-label="Paso 2 de 2: autenticación"
+      aria-label="Paso 2 de 2: verificación en dos pasos"
       @submit.prevent="handleStep2Submit()"
     >
-      <p v-if="!masterPasswordVisible && usePasswordMethod" class="sr-only" role="status">
-        Paso 2 de 2: ingresa tu contraseña
-      </p>
-
-      <p v-else-if="!masterPasswordVisible" class="sr-only" role="status">
-        Paso 2 de 2: autentica con passkey
+      <p v-if="!masterPasswordVisible" class="sr-only" role="status">
+        Paso 2 de 2: elegí tu método de verificación
       </p>
 
       <p v-else class="sr-only" role="status">Desbloquea tu perfil con tu contraseña maestra</p>
-
-      <!-- Method selector -->
-      <ion-segment
-        v-if="authMethods.has_passkeys && !masterPasswordVisible"
-        :value="authMethod"
-        class="auth-methods"
-        aria-label="Método de inicio de sesión"
-        @ion-change="handleAuthMethodChange({ event: $event })"
-      >
-        <ion-segment-button value="password">
-          <ion-label>Contraseña</ion-label>
-        </ion-segment-button>
-
-        <ion-segment-button value="passkey">
-          <ion-label>Passkey</ion-label>
-        </ion-segment-button>
-      </ion-segment>
 
       <!-- Error -->
       <div
@@ -101,74 +113,104 @@
         <span>{{ error }}</span>
       </div>
 
-      <!-- Password method -->
-      <ion-item v-if="!masterPasswordVisible && usePasswordMethod" class="input-item" lines="none">
-        <ion-input
-          ref="passwordInput"
-          v-model="credentials.password"
-          label="Contraseña"
-          label-placement="floating"
-          type="password"
-          placeholder="Ingresa tu contraseña"
-          autocomplete="current-password"
-          enterkeyhint="go"
-          :aria-invalid="v$.password.$error ? true : undefined"
-          aria-describedby="login-password-error"
-          @ion-blur="v$.password.$touch()"
-        >
-          <ion-input-password-toggle slot="end" />
-        </ion-input>
-      </ion-item>
-
-      <div
-        v-if="!masterPasswordVisible && usePasswordMethod && v$.password.$error"
-        id="login-password-error"
-        class="auth-field-error"
-      >
-        {{ v$.password.$errors[0].$message }}
-      </div>
-
-      <!-- Passkey method (initial state) -->
-      <p v-if="!masterPasswordVisible && !usePasswordMethod" class="auth-hint">
-        Usá tu huella, rostro o llave de seguridad. Si este navegador no
-        tiene una, escaneá el QR con tu teléfono para aprobarla desde ahí
-        (Chrome y Safari; en Firefox usá la passkey local o tu contraseña).
-      </p>
-
-      <!-- Master-password unlock (sub-state of the passkey method) -->
-      <template v-if="masterPasswordVisible">
+      <!-- Passkey prompt (default 2FA when has_passkeys) -->
+      <template v-if="authMethods.has_passkeys && twoFactorView === 'passkey' && !masterPasswordVisible">
         <p class="auth-hint">
-          Tu perfil está protegido. Ingresá tu contraseña maestra para desbloquearlo.
+          Usá tu huella, rostro o llave de seguridad. Si este navegador no
+          tiene una, escaneá el QR con tu teléfono para aprobarla desde ahí
+          (Chrome y Safari; en Firefox usá la passkey local o elegí otro método).
         </p>
 
-        <ion-item class="input-item" lines="none">
-          <ion-input
-            ref="masterPasswordInput"
-            v-model="masterPassword"
-            label="Contraseña maestra"
-            label-placement="floating"
-            type="password"
-            placeholder="Contraseña para desbloquear tu perfil"
-            autocomplete="current-password"
-            enterkeyhint="go"
-            :aria-invalid="masterPasswordTouched && !masterPassword.trim() ? true : undefined"
-            aria-describedby="master-password-error"
-            @ion-blur="masterPasswordTouched = true"
+        <!-- LBDS-304: passkey and TOTP are presented as two equal-weight
+             buttons so the user sees both options at the same visual level
+             (instead of a dominant primary + an orphaned secondary link). -->
+        <div class="auth-method-buttons">
+          <ion-button
+            ref="passkeyButton"
+            type="button"
+            expand="block"
+            class="auth-submit gradient-btn auth-method-btn"
+            :disabled="loading || cryptoLoading || passkeyUnlocking"
+            @click.stop.prevent="handleUsePasskeyInstead($event)"
           >
-            <ion-input-password-toggle slot="end" />
-          </ion-input>
-        </ion-item>
+            <ion-spinner v-if="loading || cryptoLoading || passkeyUnlocking" name="lines"></ion-spinner>
 
-        <div
-          v-if="masterPasswordTouched && !masterPassword.trim()"
-          id="master-password-error"
-          class="auth-field-error"
-        >
-          La contraseña maestra es requerida
+            <span v-else>
+              <ion-icon slot="start" :icon="keyOutline" aria-hidden="true"></ion-icon>
+              Usar passkey
+            </span>
+          </ion-button>
+
+          <ion-button
+            v-if="totpToken"
+            type="button"
+            expand="block"
+            class="auth-submit auth-method-btn auth-method-btn--secondary"
+            :disabled="loading || cryptoLoading || passkeyUnlocking"
+            @click.stop.prevent="twoFactorView = 'totp'"
+          >
+            Usar otro método
+          </ion-button>
         </div>
       </template>
 
-      <!-- Remember me (single instance; hidden while unlocking — already honoured by the passkey ceremony) -->
+      <!-- TOTP prompt (shown when has_passkeys is false OR user clicks "Usar otro método") -->
+      <template v-else-if="twoFactorView === 'totp' && !masterPasswordVisible">
+        <p class="auth-hint">
+          Ingresá el código de 6 dígitos de tu app autenticadora.
+        </p>
+
+        <ion-item v-if="totpInputMode === 'code'" class="input-item" lines="none">
+          <ion-input
+            v-model="totpCode"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            :maxlength="totpDigits"
+            :placeholder="'0'.repeat(totpDigits)"
+            :disabled="totpSubmitting"
+          />
+        </ion-item>
+
+        <ion-item v-else class="input-item" lines="none">
+          <ion-input
+            v-model="totpBackupCode"
+            autocapitalize="characters"
+            placeholder="Código de respaldo"
+            :disabled="totpSubmitting"
+          />
+        </ion-item>
+
+        <div v-if="totpError" class="auth-field-error" role="alert">{{ totpError }}</div>
+
+        <div class="auth-method-buttons">
+          <ion-button
+            type="button"
+            expand="block"
+            class="auth-submit gradient-btn auth-method-btn"
+            :disabled="totpSubmitting || !canSubmitTotp"
+            @click.stop.prevent="submitTotpChallenge()"
+          >
+            <ion-spinner v-if="totpSubmitting" name="lines"></ion-spinner>
+
+            <span v-else>Verificar</span>
+          </ion-button>
+
+          <ion-button
+            v-if="pendingPasskeyToken"
+            type="button"
+            expand="block"
+            class="auth-submit auth-method-btn auth-method-btn--secondary"
+            :disabled="totpSubmitting"
+            @click.stop.prevent="twoFactorView = 'passkey'"
+          >
+            Usar passkey
+          </ion-button>
+        </div>
+      </template>
+
+      <!-- Remember me (LBDS-304): on step 2 the user has already entered
+           their identifier and password; remembering the session is the
+           only remaining toggle. -->
       <ion-item
         v-if="!masterPasswordVisible"
         class="auth-remember"
@@ -191,101 +233,29 @@
         Al activar esta opción, la sesión permanecerá abierta incluso después de cerrar el navegador
       </span>
 
-      <!-- Primary action -->
-      <ion-button
-        v-if="!masterPasswordVisible && usePasswordMethod"
-        type="submit"
-        expand="block"
-        class="auth-submit gradient-btn"
-        :disabled="loading || cryptoLoading"
-      >
-        <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
-
-        <span v-if="cryptoLoading">{{ cryptoLoadingMessage }}</span>
-
-        <span v-else-if="loading">Ingresando...</span>
-
-        <span v-else>Ingresar</span>
-      </ion-button>
-
-      <ion-button
-        v-else-if="!masterPasswordVisible"
-        ref="passkeyButton"
-        type="button"
-        expand="block"
-        class="auth-submit gradient-btn"
-        :disabled="loading || cryptoLoading"
-        @click="handlePasskeyLogin()"
-      >
-        <ion-spinner v-if="loading || cryptoLoading" name="lines"></ion-spinner>
-
-        <span v-else>
-          <ion-icon slot="start" :icon="keyOutline" aria-hidden="true"></ion-icon>
-          Iniciar con passkey
-        </span>
-      </ion-button>
-
-      <ion-button
-        v-else
-        type="button"
-        expand="block"
-        class="auth-submit gradient-btn"
-        :disabled="passkeyUnlocking"
-        @click="handleMasterPasswordUnlock()"
-      >
-        <ion-spinner v-if="passkeyUnlocking" name="lines"></ion-spinner>
-
-        <span v-else>Desbloquear</span>
-      </ion-button>
-
       <span role="status" aria-live="polite" class="sr-only">
         {{ loading || cryptoLoading ? 'Procesando tu ingreso…' : '' }}
       </span>
 
-      <!-- Secondary links -->
-      <div v-if="!masterPasswordVisible" class="auth-links">
+      <!-- LBDS-304: backup codes are a RECOVERY option, not a regular
+           choice. The link sits BELOW the toggle (where the footer
+           links used to be) so the recovery path is visually attached
+           to the form, not floating between the input and the CTAs. -->
+      <div v-if="twoFactorView === 'totp' && !masterPasswordVisible" class="auth-method-toggle-row">
         <ion-button
+          type="button"
           fill="clear"
           size="small"
-          class="subtle"
-          :disabled="loading || cryptoLoading"
-          @click="goToRecovery()"
+          class="subtle auth-method-toggle"
+          :disabled="totpSubmitting"
+          @click.stop.prevent="totpInputMode = totpInputMode === 'code' ? 'backup' : 'code'"
         >
-          ¿Olvidaste tu contraseña?
-        </ion-button>
-
-        <ion-button
-          fill="clear"
-          size="small"
-          class="subtle"
-          :disabled="loading || cryptoLoading"
-          @click="backToIdentifier()"
-        >
-          Usar otro usuario
+          {{ totpInputMode === 'code' ? 'Usar código de respaldo' : 'Usar código de la app' }}
         </ion-button>
       </div>
 
-      <div v-else class="auth-links">
-        <ion-button
-          fill="clear"
-          size="small"
-          class="subtle"
-          :disabled="passkeyUnlocking"
-          @click="cancelUnlock()"
-        >
-          Volver
-        </ion-button>
-
-        <ion-button
-          fill="clear"
-          size="small"
-          class="subtle"
-          :disabled="passkeyUnlocking"
-          @click="backToIdentifier()"
-        >
-          Usar otro usuario
-        </ion-button>
-      </div>
+      <!-- Secondary links live in the card footer below, not inside the
+           form itself. -->
     </form>
 
     <div class="auth-card-footer">
@@ -301,7 +271,7 @@
       </ion-button>
 
       <ion-button
-        v-if="step === 'identifier'"
+        v-if="step === 'credentials'"
         fill="clear"
         expand="block"
         :disabled="loading || cryptoLoading"
@@ -312,69 +282,37 @@
         Volver
       </ion-button>
     </div>
-  </AuthCard>
 
-  <!-- TOTP challenge modal (LBDS-8): shown after password when the
-       account has TOTP enabled. Closes on success (caller redirects)
-       or on cancel (returns to the password form). -->
-  <ion-modal :is-open="totpRequired" @did-dismiss="cancelTotpChallenge">
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Código TOTP</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="cancelTotpChallenge">Cancelar</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-    <ion-content class="ion-padding">
-      <p class="totp-intro">
-        Ingresá el código de {{ totpDigits }} dígitos de tu app autenticadora.
-        Si no tenés acceso al dispositivo, ingresá uno de los códigos de respaldo.
-      </p>
-
-      <ion-segment v-model="totpInputMode" mode="ios">
-        <ion-segment-button value="code">
-          <ion-label>Código</ion-label>
-        </ion-segment-button>
-        <ion-segment-button value="backup">
-          <ion-label>De respaldo</ion-label>
-        </ion-segment-button>
-      </ion-segment>
-
-      <ion-item v-if="totpInputMode === 'code'">
-        <ion-label position="stacked">Código TOTP</ion-label>
-        <ion-input
-          ref="totpCodeInput"
-          v-model="totpCode"
-          inputmode="numeric"
-          pattern="[0-9]*"
-          :maxlength="totpDigits"
-          :placeholder="'0'.repeat(totpDigits)"
-          :disabled="totpSubmitting"
-        />
-      </ion-item>
-
-      <ion-item v-else>
-        <ion-label position="stacked">Código de respaldo</ion-label>
-        <ion-input
-          ref="totpBackupInput"
-          v-model="totpBackupCode"
-          autocapitalize="characters"
-          :disabled="totpSubmitting"
-        />
-      </ion-item>
-
-      <div v-if="totpError" class="auth-field-error" role="alert">{{ totpError }}</div>
+    <!-- Secondary links: rendered right BELOW the card (outside the glass
+         box), attached to its bottom edge. -->
+    <template #below>
+      <ion-button
+        v-if="!props.isPublic"
+        fill="clear"
+        size="small"
+        class="subtle"
+        @click.stop.prevent="changeUser"
+      >
+        <ion-icon slot="start" :icon="arrowBack" aria-hidden="true"></ion-icon>
+        Cambiar de usuario
+      </ion-button>
 
       <ion-button
-        expand="block"
-        :disabled="totpSubmitting || !canSubmitTotp"
-        @click="submitTotpChallenge"
+        v-if="!props.isPublic"
+        fill="clear"
+        size="small"
+        class="subtle"
+        @click="goToRecovery"
       >
-        Verificar
+        ¿Olvidaste tu contraseña?
       </ion-button>
-    </ion-content>
-  </ion-modal>
+    </template>
+  </AuthCard>
+
+  <!-- (LBDS-304): the TOTP / 2FA choice used to live in a separate modal
+       after the password step. With the redesigned 2-step flow
+       (credentials on step 1, second factor on step 2) the TOTP prompt
+       is part of step 2 itself, so no modal is needed. -->
 </template>
 
 <script setup lang="ts">
@@ -390,14 +328,6 @@ import {
   IonInputPasswordToggle,
   IonToggle,
   IonLabel,
-  IonSegment,
-  IonSegmentButton,
-  IonModal,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonContent,
 } from '@ionic/vue';
 import { arrowBack, alertCircle, keyOutline } from 'ionicons/icons';
 import useVuelidate from '@vuelidate/core';
@@ -455,8 +385,9 @@ const oauthParams = ref({
 const isOAuthFlow = ref(false);
 const rememberMe = ref(false);
 
-// Identifier-first flow state
-const step = ref<'identifier' | 'methods'>('identifier');
+// Two-step flow state (LBDS-304): step 1 = credentials (identifier + password),
+// step 2 = second factor (passkey primary, TOTP via "Usar otro método").
+const step = ref<'credentials' | 'twoFactor'>('credentials');
 const authMethods = ref<{
   encryption_level: 'basic' | 'advanced' | null;
   has_passkeys: boolean;
@@ -472,18 +403,12 @@ const masterPasswordTouched = ref(false);
 const passkeyUnlocking = ref(false);
 const activeLoginId = ref('');
 
-// Step 2 method selector: 'password' | 'passkey'. The last choice is
-// persisted in localStorage so it survives reloads and account switches.
-const AUTH_METHOD_STORAGE_KEY = 'sso_login_method';
-const getPersistedAuthMethod = (): 'password' | 'passkey' => {
-  try {
-    return localStorage.getItem(AUTH_METHOD_STORAGE_KEY) === 'passkey' ? 'passkey' : 'password';
-  } catch {
-    return 'password';
-  }
-};
-const authMethod = ref<'password' | 'passkey'>(getPersistedAuthMethod());
 const passkeyButton = ref<{ $el?: HTMLElement } | null>(null);
+
+// Pending passkey token from a PASSKEY_REQUIRED challenge. Stored so the
+// WebAuthn ceremony starts only when the user explicitly clicks the passkey
+// button on step 2, not automatically after the password step.
+const pendingPasskeyToken = ref('');
 
 // TOTP challenge (LBDS-8): set when the password step returns
 // TOTP_REQUIRED. The modal is open as long as `totpToken` is non-empty;
@@ -504,6 +429,10 @@ const totpRememberMe = ref(false);
 const totpCodeInput = ref<{ setFocus?: () => Promise<void> } | null>(null);
 const totpBackupInput = ref<{ setFocus?: () => Promise<void> } | null>(null);
 const totpRequired = computed(() => totpToken.value !== '');
+// LBDS-304: which 2FA view is active inside the modal. 'passkey' is the
+// 2FA choice view (passkey primary, TOTP via "Usar otro método"). 'totp'
+// is the code/backup view. null when the modal is not open.
+const twoFactorView = ref<'passkey' | 'totp' | null>(null);
 const canSubmitTotp = computed(() =>
   totpInputMode.value === 'code'
     ? totpCode.value.length === totpDigits.value
@@ -532,7 +461,9 @@ watch(totpInputMode, async () => {
 });
 
 // 7. Watch
-// (none)
+// (LBDS-304) The debounced identifier lookup for the interim
+// "Iniciar con passkey" button was removed — the passkey challenge
+// now comes from the backend after the password step.
 
 // 8. Computed
 const rules = computed(() => ({
@@ -542,11 +473,10 @@ const rules = computed(() => ({
 
 const v$ = useVuelidate(rules, credentials);
 
-// The password panel is the active method when the user picked it, or when
-// the account has no passkeys enrolled (segment hidden in that case).
-const usePasswordMethod = computed(
-  () => authMethod.value === 'password' || !authMethods.value.has_passkeys,
-);
+// (LBDS-304): the password is the first factor (typed on step 1) and the
+// 2FA is chosen on step 2. The previous "use password or passkey?" branch
+// on step 2 is gone — we always collect the password on step 1, then
+// either pass through directly or land on the second-factor step.
 
 // 9. OnMounted
 onMounted(async () => {
@@ -639,31 +569,27 @@ const handleOAuthResponse = async (params: {
   return true;
 };
 
-const focusPasskeyButton = (): void => {
-  passkeyButton.value?.$el?.focus();
-};
+// (LBDS-304: focusPasskeyButton was removed — passkey button is now
+// always visible on step 2 so auto-focus on the form is enough.)
 
-// IonSegment does not support v-model: sync the exposed :value through the
-// ionChange event (repo pattern, see ProfilePage) and persist the choice.
-const handleAuthMethodChange = (params: { event: CustomEvent }): void => {
-  const { event } = params;
-  const value = (event.detail as { value?: string } | undefined)?.value;
-  if (value !== 'password' && value !== 'passkey') return;
-  authMethod.value = value;
-  try {
-    localStorage.setItem(AUTH_METHOD_STORAGE_KEY, value);
-  } catch {
-    // Persistence is best-effort (private mode); the in-memory choice stands.
-  }
-};
+// (LBDS-304): the auth-method toggle is gone — step 2 is the second
+// factor (passkey or TOTP), not a password/passkey selector.
 
-// Step 1: resolve the identifier and discover the supported auth methods.
+// LBDS-304: step 1 — validate identifier + password, discover supported
+// methods, then attempt the password login. If the backend returns
+// TOTP_REQUIRED, advance to step 2 (second factor). Otherwise, the
+// controller's `login` / `loginAdvanced` handles the redirect.
 const handleContinue = async (): Promise<void> => {
   if (loading.value) return;
   v$.value.identifier.$touch();
-  if (v$.value.identifier.$error) {
+  v$.value.password.$touch();
+  if (v$.value.identifier.$error || v$.value.password.$error) {
     await nextTick();
-    await identifierInput.value?.setFocus?.();
+    if (v$.value.identifier.$error) {
+      await identifierInput.value?.setFocus?.();
+    } else {
+      await passwordInput.value?.setFocus?.();
+    }
     return;
   }
 
@@ -685,26 +611,20 @@ const handleContinue = async (): Promise<void> => {
       encryption_level: methods.encryption_level,
       has_passkeys: methods.has_passkeys,
     };
-    // Server-resolved login_id (advanced accounts only): the identifier is
-    // username-only, so this is always the HMAC-derived login_id the server
-    // matched — the password and passkey flows use it directly without
-    // recomputing anything client-side.
     resolvedLoginId.value = methods.login_id ?? '';
 
-    step.value = 'methods';
-    await nextTick();
-    // Focus follows the active method: the password input is not mounted
-    // when passkey is active, so focus the passkey CTA instead.
-    if (usePasswordMethod.value) {
-      await passwordInput.value?.setFocus?.();
+    // Attempt the password login directly. handleBasicLogin /
+    // handleAdvancedLogin catch TOTP_REQUIRED and route to step 2.
+    if (authMethods.value.encryption_level === 'advanced') {
+      await handleAdvancedLogin({ loginId: resolvedLoginId.value });
     } else {
-      focusPasskeyButton();
+      await handleBasicLogin({ identifier: credentials.value.identifier.trim() });
     }
   } catch (err) {
     // Step 1 stays enumeration-safe: every lookup failure shows the same
     // message instead of leaking the server error detail.
-    console.error('[AuthLoginForm] fetchAuthMethods failed', err);
-    error.value = 'No encontramos una cuenta con ese usuario.';
+    console.error('[AuthLoginForm] handleContinue failed', err);
+    error.value = 'No pudimos validar tus credenciales. Intentá de nuevo.';
     await nextTick();
     loginError.value?.focus();
   } finally {
@@ -712,9 +632,15 @@ const handleContinue = async (): Promise<void> => {
   }
 };
 
-const backToIdentifier = async (): Promise<void> => {
-  step.value = 'identifier';
+// "← Cambiar de usuario": start over with a different account.
+// Clears the typed identifier and the password, drops the resolved
+// account state and returns to the credentials step, so the user can
+// type another identifier. The "remember me" toggle stays as set.
+const changeUser = async (event?: Event): Promise<void> => {
+  event?.preventDefault();
+  step.value = 'credentials';
   error.value = '';
+  credentials.value.identifier = '';
   credentials.value.password = '';
   authMethods.value = { encryption_level: null, has_passkeys: false };
   resolvedLoginId.value = '';
@@ -722,62 +648,49 @@ const backToIdentifier = async (): Promise<void> => {
   masterPasswordVisible.value = false;
   masterPasswordTouched.value = false;
   activeLoginId.value = '';
-  // Reset the method so the choice does not leak into the next account;
-  // the persisted preference (if any) is restored instead of 'password'.
-  authMethod.value = getPersistedAuthMethod();
+  twoFactorView.value = null;
+  pendingPasskeyToken.value = '';
+  // F3: Reset all TOTP challenge state (matching cancelTotpChallenge + missing fields)
+  totpToken.value = '';
+  totpCode.value = '';
+  totpBackupCode.value = '';
+  totpError.value = '';
+  totpInputMode.value = 'code';
+  totpSubmitting.value = false;
+  totpRememberMe.value = false;
+  totpDigits.value = 6;
   v$.value.$reset();
   await nextTick();
   await identifierInput.value?.setFocus?.();
 };
 
-// Step 2 submit router: Enter inside the form follows the active method.
-// Unlock mode keeps the master-password unlock; passkey mode starts the
-// passkey ceremony (the passkey CTA is type="button" so it needs this).
+// The "← Cambiar de usuario" button in the card footer calls this to
+// reset the form back to the credentials step.
+// "¿Olvidaste tu contraseña?" opens the recovery flow.
+const goToRecovery = (): void => {
+  router.push({ name: 'recovery' });
+};
+
+// Step 2 submit router: when the user presses Enter inside the form, fall
+// through to whichever primary action is visible. The passkey CTA and the
+// TOTP "Verificar" CTA are type="button", so they don't actually fire this
+// handler — it exists to keep the form semantically valid.
 const handleStep2Submit = async (): Promise<void> => {
   if (masterPasswordVisible.value) {
     await handleMasterPasswordUnlock();
     return;
   }
-  if (usePasswordMethod.value) {
-    await handlePasswordLogin();
+  if (authMethods.value.has_passkeys && twoFactorView.value !== 'totp') {
+    await handlePasskeyLogin();
     return;
   }
-  await handlePasskeyLogin();
+  await submitTotpChallenge();
 };
 
-// Leave unlock mode keeping the resolved account (step 2 stays mounted).
-const cancelUnlock = async (): Promise<void> => {
-  masterPasswordVisible.value = false;
-  masterPassword.value = '';
-  masterPasswordTouched.value = false;
-  activeLoginId.value = '';
-  error.value = '';
-  await nextTick();
-  // The password input is not mounted when passkey is active.
-  if (usePasswordMethod.value) {
-    await passwordInput.value?.setFocus?.();
-  } else {
-    focusPasskeyButton();
-  }
-};
-
-// Step 2 (password method): route to the basic or advanced flow according to
-// the encryption_level reported by the backend.
-const handlePasswordLogin = async (): Promise<void> => {
-  if (loading.value || cryptoLoading.value) return;
-  v$.value.password.$touch();
-  if (v$.value.password.$error) {
-    await nextTick();
-    await passwordInput.value?.setFocus?.();
-    return;
-  }
-
-  if (authMethods.value.encryption_level === 'advanced') {
-    await handleAdvancedLogin({ loginId: resolvedLoginId.value });
-    return;
-  }
-  await handleBasicLogin({ identifier: credentials.value.identifier.trim() });
-};
+// (LBDS-304: cancelUnlock was removed — the master-password unlock
+// flow is exited by going back to step 1 via changeUser, not
+// via a local "cancel" button. The function was only called from
+// the auth-links div that we removed.)
 
 // Post-login redirect shared by the password and passkey flows: OAuth apps
 // go through oauthAuthorize, direct logins land on the dashboard.
@@ -840,6 +753,21 @@ function cancelTotpChallenge(): void {
   totpBackupCode.value = '';
   totpError.value = '';
   totpInputMode.value = 'code';
+  twoFactorView.value = null;
+}
+
+// LBDS-304: escape hatch from the TOTP modal. Closes the TOTP challenge
+// and triggers the passkey ceremony using the same identifier that the
+// password step already resolved, so the user does not have to backtrack
+// to step 2 to switch methods.
+async function handleUsePasskeyInstead(event?: Event): Promise<void> {
+  event?.preventDefault();
+  // LBDS-304: keep step 2 mounted but switch its 2FA view to passkey and
+  // start the ceremony. The TOTP challenge state is cleared so a stray
+  // submission of the TOTP view cannot race the passkey flow.
+  cancelTotpChallenge();
+  twoFactorView.value = 'passkey';
+  await handlePasskeyLogin({ passkeyToken: pendingPasskeyToken.value });
 }
 
 const runPostLoginRedirect = async (): Promise<void> => {
@@ -899,7 +827,7 @@ const handleMasterPasswordUnlock = async (): Promise<void> => {
 // Step 2 (passkey method): user-scoped ceremony. The server restricts
 // allowCredentials to the resolved account (username for basic, login_id for
 // advanced), so no resident-key discovery is needed.
-const handlePasskeyLogin = async (): Promise<void> => {
+const handlePasskeyLogin = async (params: { passkeyToken?: string } = {}): Promise<void> => {
   loading.value = true;
   error.value = '';
   try {
@@ -911,6 +839,7 @@ const handlePasskeyLogin = async (): Promise<void> => {
           : credentials.value.identifier.trim(),
       login_id:
         authMethods.value.encryption_level === 'advanced' ? resolvedLoginId.value : undefined,
+      passkeyToken: params.passkeyToken,
     });
 
     if (result.profile) {
@@ -965,16 +894,32 @@ const handleBasicLogin = async (params: { identifier: string }): Promise<void> =
       totpToken?: string;
       digits?: number;
       period?: number;
+      passkeyToken?: string;
     };
     if (apiError.code === 'TOTP_REQUIRED') {
-      // Hand the password step's result to the TOTP challenge modal.
+      // Hand the password step's result to step 2 (second factor).
       totpRememberMe.value = rememberMe.value;
       totpDigits.value = apiError.digits ?? 6;
       totpToken.value = apiError.totpToken ?? '';
+      // F1: Capture passkey_token when backend issues it for accounts with both TOTP and passkeys
+      pendingPasskeyToken.value = apiError.passkeyToken ?? '';
       totpCode.value = '';
       totpBackupCode.value = '';
       totpError.value = '';
       totpInputMode.value = 'code';
+      // LBDS-304: step 2 default is passkey when available, TOTP otherwise.
+      twoFactorView.value = authMethods.value.has_passkeys ? 'passkey' : 'totp';
+      step.value = 'twoFactor';
+      return;
+    }
+    if (apiError.code === 'PASSKEY_REQUIRED') {
+      // Password valid, account has passkeys but no TOTP — advance to step 2
+      // with the passkey view. Store the passkey_token so the ceremony starts
+      // only when the user explicitly clicks the passkey button.
+      totpRememberMe.value = rememberMe.value;
+      pendingPasskeyToken.value = apiError.passkeyToken ?? '';
+      twoFactorView.value = 'passkey';
+      step.value = 'twoFactor';
       return;
     }
     if (apiError.code === 'EMAIL_NOT_VERIFIED') {
@@ -1025,15 +970,31 @@ const handleAdvancedLogin = async (params: { loginId: string }): Promise<void> =
       totpToken?: string;
       digits?: number;
       period?: number;
+      passkeyToken?: string;
     };
     if (apiError.code === 'TOTP_REQUIRED') {
       totpRememberMe.value = rememberMe.value;
       totpDigits.value = apiError.digits ?? 6;
       totpToken.value = apiError.totpToken ?? '';
+      // F1: Capture passkey_token when backend issues it for accounts with both TOTP and passkeys
+      pendingPasskeyToken.value = apiError.passkeyToken ?? '';
       totpCode.value = '';
       totpBackupCode.value = '';
       totpError.value = '';
       totpInputMode.value = 'code';
+      // LBDS-304: see handleBasicLogin above.
+      twoFactorView.value = authMethods.value.has_passkeys ? 'passkey' : 'totp';
+      step.value = 'twoFactor';
+      return;
+    }
+    if (apiError.code === 'PASSKEY_REQUIRED') {
+      // Password valid, account has passkeys but no TOTP — advance to step 2
+      // with the passkey view. Store the passkey_token so the ceremony starts
+      // only when the user explicitly clicks the passkey button.
+      totpRememberMe.value = rememberMe.value;
+      pendingPasskeyToken.value = apiError.passkeyToken ?? '';
+      twoFactorView.value = 'passkey';
+      step.value = 'twoFactor';
       return;
     }
     if (apiError.code === 'EMAIL_NOT_VERIFIED') {
@@ -1080,9 +1041,8 @@ const goBack = (): void => {
   }
 };
 
-const goToRecovery = (): void => {
-  router.push({ name: 'recovery' });
-};
+// (the "¿Olvidaste tu contraseña?" link is rendered in the card footer,
+// right under the form, and navigates to the recovery route.)
 </script>
 
 <style scoped>
@@ -1099,9 +1059,35 @@ const goToRecovery = (): void => {
   margin-bottom: 0;
 }
 
-/* Method selector sits slightly closer to the first field below it. */
-.auth-methods {
-  margin-bottom: calc(var(--space-2) * -1);
+/* LBDS-304: the two 2FA method buttons (passkey + alternative) sit
+   side by side at the same visual level. They stack on narrow viewports
+   so each button keeps a tappable hit area. */
+.auth-method-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-3);
+}
+
+.auth-method-btn {
+  flex: 1 1 0;
+  margin: 0;
+}
+
+/* Secondary button: outlined, same height as the gradient primary. */
+.auth-method-btn--secondary {
+  --background: transparent;
+  --background-hover: var(--glass-bg, rgba(255, 255, 255, 0.08));
+  --border-color: var(--glass-border, rgba(255, 255, 255, 0.18));
+  --color: var(--text-primary);
+  --border-width: 1.5px;
+  --border-style: solid;
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .auth-method-buttons {
+    flex-direction: column;
+  }
 }
 
 .auth-hint {
@@ -1135,6 +1121,7 @@ const goToRecovery = (): void => {
 }
 
 /* Mirrors the .input-item box so the toggle aligns with the fields above */
+/* Mirrors the .input-item box so the toggle aligns with the fields above */
 .auth-remember {
   --background: var(--glass-bg);
   --padding-start: var(--space-4);
@@ -1164,8 +1151,8 @@ const goToRecovery = (): void => {
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0 var(--space-2);
-  margin-top: calc(var(--space-3) * -1);
+  gap: 0 var(--space-3);
+  margin-top: var(--space-2);
 }
 
 .auth-card-footer {

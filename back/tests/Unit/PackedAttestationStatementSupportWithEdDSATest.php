@@ -8,17 +8,17 @@ namespace Tests\Unit;
 
 use App\Webauthn\PackedAttestationStatementSupportWithEdDSA;
 use Cose\Algorithm\Manager as CoseAlgorithmManager;
-use Cose\Algorithm\Signature\EdDSA\EdDSA;
 use Cose\Algorithm\Signature\ECDSA\ES256;
+use Cose\Algorithm\Signature\EdDSA\EdDSA;
 use Cose\Algorithm\Signature\RSA\RS256;
 use PHPUnit\Framework\TestCase as PHPUnitTestCase;
 use RuntimeException;
 use Symfony\Component\Uid\Uuid;
 use Webauthn\AttestationStatement\AttestationStatement;
-use Webauthn\AttestationStatement\AttestationStatementSupport;
 use Webauthn\AttestationStatement\PackedAttestationStatementSupport;
 use Webauthn\AttestedCredentialData;
 use Webauthn\AuthenticatorData;
+use Webauthn\Exception\AttestationStatementVerificationException;
 use Webauthn\TrustPath\CertificateTrustPath;
 use Webauthn\TrustPath\EmptyTrustPath;
 
@@ -228,7 +228,7 @@ PEM;
         try {
             $wrapper->isValid($clientDataJSONHash, $attestation, $authenticatorData);
             $this->fail('Wrapper should have thrown for a corrupt cert.');
-        } catch (\Webauthn\Exception\AttestationStatementVerificationException $e) {
+        } catch (AttestationStatementVerificationException $e) {
             $this->assertSame(
                 'Unable to extract Ed25519 public key from attestation certificate.',
                 $e->getMessage(),
@@ -448,7 +448,7 @@ PEM;
 
         $wrapper = $this->makeWrapper();
 
-        $this->expectException(\Webauthn\Exception\AttestationStatementVerificationException::class);
+        $this->expectException(AttestationStatementVerificationException::class);
         $this->expectExceptionMessage('does not match with the certificate extension');
         $wrapper->isValid($clientDataJSONHash, $attestation, $authenticatorData);
     }
@@ -531,7 +531,7 @@ PEM;
      * the `AuthenticatorData` object's `attestedCredentialData->aaguid`
      * property. This helper keeps both representations consistent.
      *
-     * @param array{clientDataJSONHash?: string, aaguid: string} $params
+     * @param  array{clientDataJSONHash?: string, aaguid: string}  $params
      */
     private function makeAuthenticatorData(array $params): AuthenticatorData
     {
@@ -582,7 +582,7 @@ PEM;
         }
         @unlink($configPath);
         $configPath .= '.cnf';
-        $config = <<<EOT
+        $config = <<<'EOT'
 [req]
 distinguished_name = req_dn
 x509_extensions = v3_req

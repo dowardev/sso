@@ -122,6 +122,10 @@ class AuthController extends Controller
      * for 5 minutes; the second step (/api/totp/login) consumes it via
      * {@see self::purgeTotpPending()} (single-use, so a parallel replay
      * cannot piggy-back on a successful challenge).
+     *
+     * When the user ALSO has passkeys, a passkey_token is issued alongside
+     * the totp_token so the frontend can offer both 2FA methods as equal
+     * choices on step 2 (F1 fix).
      */
     private function startTotpChallenge(User $user, Request $request, bool $rememberMe, ?string $dpopPublicKey): ?JsonResponse
     {
@@ -146,7 +150,7 @@ class AuthController extends Controller
             'algorithm' => $credential->algorithm,
         ], 300);
 
-        return response()->json([
+        $response = [
             'code' => 'TOTP_REQUIRED',
             'message' => 'Necesitás tu código TOTP (o un código de respaldo) para continuar.',
             'totp_token' => $token,
@@ -154,6 +158,59 @@ class AuthController extends Controller
             // correctly (6 digits, 30s period) without hardcoding it.
             'digits' => $credential->digits,
             'period' => $credential->period,
+        ];
+
+        // F1: When user has BOTH TOTP and passkeys, also issue a passkey_token
+        // so the frontend can offer passkey as an alternative 2FA method.
+        if ($user->passkeyCredentials()->exists()) {
+            $passkeyToken = Str::random(64);
+            Cache::put("passkey_pending:{$passkeyToken}", [
+                'user_id' => $user->id,
+                'remember_me' => $rememberMe,
+                'dpop_public_key' => $dpopPublicKey,
+                'user_agent' => $request->userAgent(),
+                'ip_address' => $request->ip(),
+            ], 300);
+            $response['passkey_token'] = $passkeyToken;
+        }
+
+        return response()->json($response, 200);
+    }
+
+    /**
+     * If the user has passkeys but no TOTP, return a "challenge
+     * pending" response with a one-time token instead of issuing the JWT
+     * straight away. Returns null when the user has no passkeys or has
+     * TOTP (in which case TOTP takes precedence as the mandated 2FA).
+     *
+     * The pending token is a high-entropy opaque string stored in cache
+     * for 5 minutes; the passkey authentication finish endpoint consumes
+     * it via Cache::pull (single-use, so a parallel replay cannot
+     * piggy-back on a successful challenge).
+     */
+    private function startPasskeyChallenge(User $user, Request $request, bool $rememberMe, ?string $dpopPublicKey): ?JsonResponse
+    {
+        // Passkey challenge only applies when user has passkeys AND no TOTP.
+        // If TOTP is enabled, startTotpChallenge takes precedence AND issues
+        // the passkey_token alongside the totp_token (F1 fix).
+        if (! $user->passkeyCredentials()->exists() || $user->activeTotpCredential()->exists()) {
+            return null;
+        }
+
+        $token = Str::random(64);
+
+        Cache::put("passkey_pending:{$token}", [
+            'user_id' => $user->id,
+            'remember_me' => $rememberMe,
+            'dpop_public_key' => $dpopPublicKey,
+            'user_agent' => $request->userAgent(),
+            'ip_address' => $request->ip(),
+        ], 300);
+
+        return response()->json([
+            'code' => 'PASSKEY_REQUIRED',
+            'message' => 'Usá tu passkey para completar el inicio de sesión.',
+            'passkey_token' => $token,
         ], 200);
     }
 
@@ -215,8 +272,19 @@ class AuthController extends Controller
 
         // TOTP gate (LBDS-8): when the user has an active TOTP credential,
         // password alone is not enough — the second step is /api/totp/login.
+        // F1: If user also has passkeys, startTotpChallenge now issues a
+        // passkey_token alongside the totp_token so the frontend can offer
+        // both methods on step 2.
         if ($totpResponse = $this->startTotpChallenge($user, $request, $rememberMe, $dpopPublicKey)) {
             return $totpResponse;
+        }
+
+        // Passkey gate (LBDS-304): when the user has passkeys but NO TOTP,
+        // the passkey becomes the required second factor. The password step
+        // returns PASSKEY_REQUIRED with a passkey_token; the client then
+        // completes the WebAuthn ceremony via the existing passkey endpoints.
+        if ($passkeyResponse = $this->startPasskeyChallenge($user, $request, $rememberMe, $dpopPublicKey)) {
+            return $passkeyResponse;
         }
 
         $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
@@ -325,8 +393,18 @@ class AuthController extends Controller
         // TOTP gate (LBDS-8): advanced (ZKE) users can also opt-in to
         // TOTP as a fallback to their passkey — the challenge path is
         // identical to the basic login flow above.
+        // F1: If user also has passkeys, startTotpChallenge now issues a
+        // passkey_token alongside the totp_token so the frontend can offer
+        // both methods on step 2.
         if ($totpResponse = $this->startTotpChallenge($user, $request, $rememberMe, $dpopPublicKey)) {
             return $totpResponse;
+        }
+
+        // Passkey gate (LBDS-304): same as basic login — when the advanced
+        // user has passkeys but no TOTP, the passkey is the required
+        // second factor after the auth_proof step.
+        if ($passkeyResponse = $this->startPasskeyChallenge($user, $request, $rememberMe, $dpopPublicKey)) {
+            return $passkeyResponse;
         }
 
         $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
@@ -1193,10 +1271,39 @@ class AuthController extends Controller
                 ], 403);
             }
 
+            // If this passkey authentication is completing a password+passkey
+            // login (LBDS-304), the request carries a passkey_token that was
+            // issued by the password step. Verify and consume it (single-use).
+            // F4 FIX: Verify the WebAuthn assertion FIRST, then consume the token
+            // on success. This prevents burning the token when the user cancels
+            // the browser prompt or provides a bad signature.
+            $passkeyToken = $request->input('passkey_token');
+            $pending = null;
+            if ($passkeyToken) {
+                // Read without consuming first to verify the token is valid
+                $pending = Cache::get("passkey_pending:{$passkeyToken}");
+                if (! $pending || ! isset($pending['user_id']) || $pending['user_id'] !== $user->id) {
+                    return response()->json([
+                        'message' => 'La sesión passkey expiró o ya fue usada. Iniciá sesión de nuevo.',
+                    ], 401);
+                }
+                // Now atomically consume the token (single-use)
+                $consumed = Cache::pull("passkey_pending:{$passkeyToken}");
+                if (! $consumed) {
+                    // Token was already consumed by a concurrent request
+                    return response()->json([
+                        'message' => 'La sesión passkey ya fue usada. Iniciá sesión de nuevo.',
+                    ], 401);
+                }
+                $pending = $consumed;
+            }
+
             $user->load('roles');
 
-            $dpopPublicKey = $request->input('dpop_public_key');
-            $rememberMe = $request->boolean('remember_me');
+            // Use cached values from the passkey_token if present; otherwise
+            // fall back to request values (for standalone passkey login).
+            $dpopPublicKey = $pending['dpop_public_key'] ?? $request->input('dpop_public_key');
+            $rememberMe = $pending['remember_me'] ?? $request->boolean('remember_me');
 
             $tokenData = $this->authService->generateTokens($user, $request, $rememberMe, $dpopPublicKey);
 
@@ -1217,11 +1324,12 @@ class AuthController extends Controller
                 'credential_id' => $credentialId,
             ];
 
+            $loginMethod = $passkeyToken ? 'password_passkey' : 'passkey';
             $this->activityLogService->logFromRequest(
                 $user,
                 UserActivityLog::ACTION_LOGIN,
-                'Inicio de sesión (passkey)',
-                ['login_method' => 'passkey'],
+                $passkeyToken ? 'Inicio de sesión (contraseña + passkey)' : 'Inicio de sesión (passkey)',
+                ['login_method' => $loginMethod, 'remember_me' => $rememberMe],
                 $request,
             );
 

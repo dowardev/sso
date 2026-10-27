@@ -348,7 +348,7 @@ NEVER create git commits unless the user explicitly requests it. This overrides 
 
 ## Ticket / Issue Policy
 
-NEVER create or edit Linear tickets (or any external issue/ticket) without the user explicitly asking for it. Creating a ticket is a mutation an agent must never do on its own initiative — even when a finding, follow-up, or proposal seems obvious. If you think a ticket is warranted, propose it in the conversation and ask the user first; only create it after an explicit request. This also covers branch names derived from tickets: do not branch off a ticket that was not requested.
+NEVER create or edit GitLab issues (or any external issue/ticket) without the user explicitly asking for it. Creating an issue is a mutation an agent must never do on its own initiative — even when a finding, follow-up, or proposal seems obvious. If you think an issue is warranted, propose it in the conversation and ask the user first; only create it after an explicit request. This also covers branch names derived from issues: do not branch off an issue that was not requested.
 
 This rule exists because tickets (unlike code) are project-planning artifacts the user owns: content, priority, and even whether an item deserves a ticket are the user's decisions, not the agent's. The same applies to changelog/package edits that imply a release decision — propose, don't act.
 

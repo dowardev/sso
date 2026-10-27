@@ -42,6 +42,15 @@ class PasskeyDeleteAdvancedTest extends TestCase
             'encrypted_seed_verification' => 'v',
         ]);
 
+        // Login FIRST (without passkey) to get a valid token
+        $login = $this->postJson('/api/login/advanced/verify', [
+            'login_id' => $user->login_id,
+            'auth_proof' => $authProof,
+        ]);
+        $login->assertOk();
+        $token = $login->json('token');
+
+        // Now add a passkey via the service (bypassing registration ceremony)
         $service = app(PasskeyService::class);
         $record = CredentialRecord::create(
             random_bytes(16),
@@ -56,14 +65,6 @@ class PasskeyDeleteAdvancedTest extends TestCase
         );
         $service->storeCredential($user, $record, []);
         $credentialId = $service->getCredentialIds($user)[0];
-
-        // Login as advanced and get a token
-        $login = $this->postJson('/api/login/advanced/verify', [
-            'login_id' => $user->login_id,
-            'auth_proof' => $authProof,
-        ]);
-        $login->assertOk();
-        $token = $login->json('token');
 
         // Delete the passkey with auth_proof re-auth
         $delete = $this->withToken($token)->deleteJson('/api/passkey', [
