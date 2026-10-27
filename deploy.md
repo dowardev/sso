@@ -6,6 +6,20 @@
 
 ## Deploy Log
 
+### v0.37.2 — 2026-10-25
+
+- **Environment**: production
+- **Source tag**: `v0.37.2`
+- **Status**: shipped
+- **Per-package versions**:
+  - root: 0.37.0 → **0.37.2**
+  - `front`: 0.27.0 → **0.27.2**
+  - `back`: 0.3.0 → **0.3.2** (`composer.json` has no `version` field; git tag is the source of truth)
+  - `@dowardev/sso-client`: 0.4.0 (unchanged)
+  - `dowardev/sso-server`: 0.2.0 (unchanged)
+- **Migration notes**: none — this release adds no schema change. The passkey second factor needs no migration, and the CI-unblocking fixes (portable DPoP replay insert, testing APP_URL, Pint formatting) touch no runtime behaviour in MySQL.
+- **Rollback notes**: rolling back to v0.37.0 removes the `PASSKEY_REQUIRED` challenge (accounts with a passkey and no authenticator app go back to password-only login); no data impact; the `passkey_pending` cache entries expire on their own after 5 minutes.
+
 ### v0.37.0 — 2026-10-25
 
 - **Environment**: production

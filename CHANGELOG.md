@@ -17,11 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Login with a second factor is now one step instead of a chooser (LBDS-304)**: when an account has both a passkey and an authenticator app, the second step of the login offers the passkey straight away and keeps the code-based challenge behind a "use another method" link, instead of asking which method to use first. Accounts without a passkey go directly to the code prompt, and the "Olvidaste tu contraseña?" and "Cambiar de usuario" links now sit right below the login card instead of inside it.
 
-## [Unreleased]
+## [v0.37.2] - 2026-10-25
 
 ### Fixed
 
 - **Passkey now works as a second factor for accounts without an authenticator app**: an account that has a passkey but no TOTP can no longer log in with just the password — the backend issues a `PASSKEY_REQUIRED` challenge (with a single-use, 5-minute pending token) that the client completes with a WebAuthn assertion. The login step 2 is now an explicit user choice (passkey or code) instead of firing the passkey ceremony automatically.
+
+## [Unreleased]
 
 ## [0.36.0] - 2026-10-11
 
