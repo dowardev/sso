@@ -8,6 +8,7 @@
         </ion-buttons>
         <ion-title>Roles</ion-title>
         <ion-buttons slot="end">
+          <UserMenu />
             <ion-button aria-label="Crear rol" @click="openCreateModal({})">
               <ion-icon slot="icon-only" :icon="add" aria-hidden="true"></ion-icon>
             </ion-button>
@@ -164,6 +165,7 @@ import {
   IonRefresherContent,
   IonAlert,
 } from '@ionic/vue'
+  import UserMenu from '@/components/user/UserMenu.vue';
 import { add, create, trash, shieldOutline, closeOutline, saveOutline } from 'ionicons/icons'
 
 // 2. Controllers / Composables

@@ -1,16 +1,3 @@
-# REGLA DURA — pregunta del usuario (máxima prioridad, leer primero)
-
-Cuando el usuario haga una PREGUNTA:
-1. Respondo SOLO la pregunta.
-2. Paro.
-3. Espero instrucción explícita.
-
-PROHIBIDO actuar por cuenta propia ante una pregunta: no editar archivos, no
-commitear, no crear tickets, no correr comandos con efectos. Esta regla está
-POR ENCIMA de cualquier skill, flujo o impulso de "aprovechar" el turno.
-Pregunta = responder y parar. Sin excepciones.
-
----
 # AGENTS.md - SSO Server
 
 ## Project Structure
@@ -81,6 +68,7 @@ php artisan migrate
 php artisan db:seed --class=RoleSeeder
 php artisan db:seed --class=SettingSeeder
 php artisan serve --port=8001
+```
 
 > **First admin:** created via the frontend setup wizard at `/setup` on first access (blocked by `EnsureSetupNotCompleted` middleware once any user exists). `AdminUserSeeder` is intentionally omitted — use it only for manual dev seeding.
 
@@ -280,8 +268,6 @@ Determines when to use a **controller** vs a **composable**:
 **General rule:** If you need `ref`, `computed`, `watch`, or `onMounted` → **composable**.
 If you only need pure functions or data access → **controller**.
 
----
-
 ### Frontend (Vue Components): Ionic Imports
 
 All Vue components that use Ionic components in their template **must explicitly import** those components in **section 1** (`// 1. Imports (ionic/vue/ionicons)`) of the script.
@@ -351,21 +337,6 @@ NEVER create git commits unless the user explicitly requests it. This overrides 
 NEVER create or edit GitLab issues (or any external issue/ticket) without the user explicitly asking for it. Creating an issue is a mutation an agent must never do on its own initiative — even when a finding, follow-up, or proposal seems obvious. If you think an issue is warranted, propose it in the conversation and ask the user first; only create it after an explicit request. This also covers branch names derived from issues: do not branch off an issue that was not requested.
 
 This rule exists because tickets (unlike code) are project-planning artifacts the user owns: content, priority, and even whether an item deserves a ticket are the user's decisions, not the agent's. The same applies to changelog/package edits that imply a release decision — propose, don't act.
-
-## Pi lifecycle command guard (gentle-ai)
-
-`git commit` / `git push` / `glab mr ...` desde el bash tool se bloquean si el
-comando tiene `&&`, `;`, `|`, backtick o `$(` (reporte: "Compound or wrapped
-lifecycle command ... must fail closed"). NO tiene que ver con RDD; RDD off no
-bloquea. El guard es stateless: cada comando se evalúa de forma aislada, no queda
-"trabado" tras un bloqueo.
-
-Fix: un solo comando directo, sin `&&` ni `cd`, preferiblemente
-`git -C <ruta-absoluta> <subcommand> -m "mensaje de una sola linea"`.
-IMPORTANTE: el mensaje del `-m` debe ser UNA sola linea (sin saltos de linea);
-un cuerpo multilinea introduce un `\n` sin comillar que dispara el mismo bloqueo.
-Si un comando "simple" sigue bloqueando, no es estado persistido: tiene algun
-control-char sin comillar (`;`, `|`, `&`, backtick, `$(` o `\n`) en la linea.
 
 ## Formato HTML / Vue / Ionic (legibilidad para review)
 

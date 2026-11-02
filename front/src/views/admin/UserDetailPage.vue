@@ -8,6 +8,7 @@
         </ion-buttons>
         <ion-title>Detalle de Usuario</ion-title>
         <ion-buttons slot="end">
+          <UserMenu />
           <ion-button color="primary" aria-label="Editar usuario" @click="openEditModal">
             <ion-icon slot="icon-only" :icon="create"></ion-icon>
           </ion-button>
@@ -316,6 +317,7 @@
     IonCol,
     IonChip,
   } from '@ionic/vue';
+  import UserMenu from '@/components/user/UserMenu.vue';
   import {
     create,
     keyOutline,

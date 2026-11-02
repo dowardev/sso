@@ -7,6 +7,9 @@
           <ion-menu-button></ion-menu-button>
         </ion-buttons>
         <ion-title>Configuración</ion-title>
+        <ion-buttons slot="end">
+          <UserMenu />
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
@@ -94,6 +97,7 @@ import {
   IonIcon,
   IonLabel,
 } from '@ionic/vue'
+  import UserMenu from '@/components/user/UserMenu.vue';
 import {
   colorPalette,
   chevronForward,

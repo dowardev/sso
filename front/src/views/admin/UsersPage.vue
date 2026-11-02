@@ -7,6 +7,9 @@
           <ion-menu-button aria-label="Menú de navegación"></ion-menu-button>
         </ion-buttons>
         <ion-title>Usuarios</ion-title>
+        <ion-buttons slot="end">
+          <UserMenu />
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
@@ -148,6 +151,7 @@ import {
   IonRefresherContent,
   IonAlert,
 } from '@ionic/vue'
+  import UserMenu from '@/components/user/UserMenu.vue';
 import { personRemove, removeCircle, addCircle, trash } from 'ionicons/icons'
 
 // 2. Controllers / Composables

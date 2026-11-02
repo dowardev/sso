@@ -8,6 +8,7 @@
         </ion-buttons>
         <ion-title>Detalle de Cliente</ion-title>
         <ion-buttons slot="end">
+          <UserMenu />
           <ion-button color="primary" aria-label="Editar cliente" @click="openEditModal">
             <ion-icon slot="icon-only" :icon="create"></ion-icon>
           </ion-button>
@@ -250,6 +251,7 @@
     IonCol,
     IonSpinner,
   } from '@ionic/vue';
+  import UserMenu from '@/components/user/UserMenu.vue';
   import {
     create,
     desktopOutline,

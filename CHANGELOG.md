@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The account page is now reachable from the UI (GL #6)**: `/account` existed as a route but no screen linked to it, so the TOTP / passkey management UI was only reachable by typing the URL. The sidebar now has a **Mi Cuenta** entry available to every authenticated user (not only admins), and on mobile the header avatar opens a menu with **Mi Cuenta**, **Seguridad** (deep-links to the security tab) and **Cerrar Sesión**. The account page itself also gained the navigation menu button, so it is no longer a dead end on phones.
+
 ## [0.36.0] - 2026-10-11
 
 ### Added

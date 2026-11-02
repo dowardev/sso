@@ -9,6 +9,9 @@
           ></ion-back-button>
         </ion-buttons>
         <ion-title>Seguridad</ion-title>
+        <ion-buttons slot="end">
+          <UserMenu />
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
@@ -158,6 +161,7 @@ import {
   IonModal,
   alertController,
 } from '@ionic/vue'
+  import UserMenu from '@/components/user/UserMenu.vue';
 import {
   lockClosed,
   lockClosedOutline,
