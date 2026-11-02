@@ -94,8 +94,8 @@
               </ion-menu-toggle>
             </ion-list>
 
-            <ion-list-header class="nav-section-label">Cuenta</ion-list-header>
-            <ion-list class="nav-list" role="navigation" aria-label="Menú de cuenta">
+            <ion-list-header class="nav-section-label">Administraci&oacute;n</ion-list-header>
+            <ion-list class="nav-list" role="navigation" aria-label="Menú de administración">
               <ion-menu-toggle :auto-hide="false">
                 <ion-item
                   button
@@ -124,6 +124,23 @@
               </ion-menu-toggle>
             </ion-list>
           </template>
+
+          <ion-list-header class="nav-section-label">Cuenta</ion-list-header>
+          <ion-list class="nav-list" role="navigation" aria-label="Menú de cuenta">
+            <ion-menu-toggle :auto-hide="false">
+              <ion-item
+                button
+                lines="none"
+                :class="{ 'active-item': isActiveRoute({ path: '/account' }) }"
+                @click="navigateTo({ url: '/account' })"
+              >
+                <div slot="start" class="nav-icon-wrapper" :class="{ 'active-icon': isActiveRoute({ path: '/account' }) }">
+                  <ion-icon :icon="personOutline" aria-hidden="true"></ion-icon>
+                </div>
+                <ion-label>Mi Cuenta</ion-label>
+              </ion-item>
+            </ion-menu-toggle>
+          </ion-list>
 
           <div class="logout-section">
             <ion-button expand="block" fill="outline" class="logout-btn" @click="showLogoutAlert = true">
@@ -179,6 +196,7 @@
     logOutOutline,
     settingsOutline,
     pulseOutline,
+    personOutline,
   } from 'ionicons/icons';
 
 import { ref, computed, onMounted, onUnmounted } from 'vue';

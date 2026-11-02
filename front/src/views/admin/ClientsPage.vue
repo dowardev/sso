@@ -8,6 +8,7 @@
         </ion-buttons>
         <ion-title>Clientes SSO</ion-title>
         <ion-buttons slot="end">
+          <UserMenu />
             <ion-button aria-label="Crear cliente" @click="openCreateModal">
               <ion-icon slot="icon-only" :icon="add" aria-hidden="true"></ion-icon>
             </ion-button>
@@ -296,6 +297,7 @@
     IonRefresherContent,
     IonAlert,
   } from '@ionic/vue';
+  import UserMenu from '@/components/user/UserMenu.vue';
   import { add, desktopOutline, trash, close, keyOutline, copyOutline, warningOutline, create, closeOutline, saveOutline } from 'ionicons/icons';
   import { useFormValidation } from '@/composables/useFormValidation';
   import { useValidation, validators } from '@/composables/useValidation';

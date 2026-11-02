@@ -7,6 +7,9 @@
           <ion-back-button default-href="/admin/config"></ion-back-button>
         </ion-buttons>
         <ion-title>Personalización</ion-title>
+        <ion-buttons slot="end">
+          <UserMenu />
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
@@ -260,6 +263,7 @@ import {
   IonSpinner,
   popoverController,
 } from '@ionic/vue'
+  import UserMenu from '@/components/user/UserMenu.vue';
 import {
   colorPalette,
   chevronDown,

@@ -6,9 +6,12 @@
         <ion-buttons v-if="!embedMode && !hideBackButton" slot="start">
           <ion-back-button default-href="/" aria-label="Volver al inicio" />
         </ion-buttons>
+        <ion-buttons v-if="!embedMode && hideBackButton" slot="start">
+          <ion-menu-button aria-label="Menú de navegación"></ion-menu-button>
+        </ion-buttons>
         <ion-title>{{ title }}</ion-title>
-        <ion-buttons v-if="externalRedirect && !embedMode" slot="end">
-          <!-- For external links, we might want to show different buttons -->
+        <ion-buttons v-if="!embedMode" slot="end">
+          <UserMenu />
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -171,7 +174,7 @@
 
 <script setup lang="ts">
   // 1. Imports (ionic/vue/ionicons)
-  import { ref, onMounted, onUnmounted, computed } from 'vue';
+  import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
   import {
     IonPage,
     IonHeader,
@@ -185,6 +188,7 @@
     IonSegmentButton,
     IonAvatar,
     IonBadge,
+    IonMenuButton,
   } from '@ionic/vue';
   import {
     personOutline,
@@ -196,6 +200,7 @@
   } from 'ionicons/icons';
   import { useValidation } from '@/composables/useValidation';
   import { useToast } from '@/composables/useToast';
+  import { useRoute } from 'vue-router';
 
   const { handleApiError } = useValidation();
   const { showSuccess, showError } = useToast();
@@ -206,6 +211,7 @@
   const authController = useAuthController();
 
   // 3. Components
+  import UserMenu from '@/components/user/UserMenu.vue';
   import ProfileForm from '@/components/user/ProfileForm.vue';
   import AuthorizationsList from '@/components/user/AuthorizationsList.vue';
   import SessionsList from '@/components/user/SessionsList.vue';
@@ -262,6 +268,7 @@
   }>();
 
   // 6. Vars and const
+  const route = useRoute();
   const user = ref<UserProfileResponse | null>(null);
   const authorizations = ref<UserAuthorization[]>([]);
   const sessions = ref<UserSession[]>([]);
@@ -278,7 +285,12 @@
   const defaultTabs = ['profile', 'applications', 'sessions', 'security', 'notifications', 'privacy'];
 
   // 7. Watch
-  // (data loaded on mount + per segment, no watcher needed)
+  watch(
+    () => route.query.tab,
+    (tab) => {
+      applyTabFromQuery({ tab });
+    }
+  );
 
   // 8. Computed
   const showTabs = computed(() => {
@@ -327,6 +339,7 @@
   // 9. OnMounted
   onMounted(async () => {
     await loadProfileOnly();
+    applyTabFromQuery({ tab: route.query.tab });
   });
 
   onUnmounted(() => {
@@ -465,7 +478,13 @@
     if (activeSegment.value === newValue) return;
     activeSegment.value = newValue;
 
-    switch (activeSegment.value) {
+    loadSegmentData({ segment: activeSegment.value });
+  };
+
+  const loadSegmentData = (params: { segment: string }): void => {
+    const { segment } = params;
+
+    switch (segment) {
       case 'applications':
         loadAuthorizations();
         break;
@@ -478,6 +497,18 @@
       default:
         break;
     }
+  };
+
+  // Permite abrir una pestaña concreta desde la URL (?tab=security), que es
+  // lo que usa el enlace "Seguridad" del menú de usuario.
+  const applyTabFromQuery = (params: { tab: unknown }): void => {
+    const { tab } = params;
+    if (typeof tab !== 'string') return;
+    if (!defaultTabs.includes(tab)) return;
+    if (activeSegment.value === tab) return;
+
+    activeSegment.value = tab;
+    loadSegmentData({ segment: tab });
   };
 </script>
 

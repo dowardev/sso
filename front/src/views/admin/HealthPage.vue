@@ -7,6 +7,9 @@
           <ion-menu-button></ion-menu-button>
         </ion-buttons>
         <ion-title>Salud del Sistema</ion-title>
+        <ion-buttons slot="end">
+          <UserMenu />
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
@@ -204,6 +207,7 @@ import {
   IonBadge,
   IonChip,
 } from '@ionic/vue'
+  import UserMenu from '@/components/user/UserMenu.vue';
 import {
   pulseOutline,
   peopleOutline,

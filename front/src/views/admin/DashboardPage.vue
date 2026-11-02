@@ -7,6 +7,9 @@
           <ion-menu-button aria-label="Menú de navegación"></ion-menu-button>
         </ion-buttons>
         <ion-title>Dashboard SSO</ion-title>
+        <ion-buttons slot="end">
+          <UserMenu />
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
@@ -160,6 +163,7 @@
     IonRow,
     IonCol,
   } from '@ionic/vue';
+  import UserMenu from '@/components/user/UserMenu.vue';
   import { desktopOutline } from 'ionicons/icons';
 
   // 2. Controllers
