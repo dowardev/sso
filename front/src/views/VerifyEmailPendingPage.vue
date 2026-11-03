@@ -7,40 +7,34 @@
       </ion-toolbar>
     </ion-header>
     <ion-content :fullscreen="true">
-      <ion-grid class="ion-justify-content-center">
-        <ion-row class="ion-justify-content-center">
-          <ion-col size="12" size-md="6">
-            <AuthCard title="Revisa tu email" subtitle="Completa tu registro">
-              <div class="ion-padding-top">
-                <p class="pending-text">
-                  Te enviamos un enlace de verificación a <strong>{{ email }}</strong>.
-                  Revisa tu bandeja de entrada y haz clic en el botón para confirmar tu
-                  dirección de email. El enlace es válido por 30 minutos.
-                </p>
-                <div v-if="error" class="error-message" role="alert" aria-live="assertive">
-                  {{ error }}
-                </div>
-                <div class="ion-padding-top">
-                  <ion-button
-                    expand="block"
-                    class="gradient-btn"
-                    :disabled="loading"
-                    @click="handleResend()"
-                  >
-                    <ion-spinner v-if="loading" name="lines"></ion-spinner>
-                    <span v-else>Reenviar enlace</span>
-                  </ion-button>
-                </div>
-                <div class="auth-card-footer">
-                  <ion-button fill="clear" expand="block" class="subtle" @click="goToLogin()">
-                    Ya verifiqué mi email — Iniciar sesión
-                  </ion-button>
-                </div>
-              </div>
-            </AuthCard>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
+      <AuthCard title="Revisa tu email" subtitle="Completa tu registro">
+        <div class="ion-padding-top">
+          <p class="pending-text">
+            Te enviamos un enlace de verificación a <strong>{{ email }}</strong>.
+            Revisa tu bandeja de entrada y haz clic en el botón para confirmar tu
+            dirección de email. El enlace es válido por 30 minutos.
+          </p>
+          <div v-if="error" class="error-message" role="alert" aria-live="assertive">
+            {{ error }}
+          </div>
+          <div class="ion-padding-top">
+            <ion-button
+              expand="block"
+              class="gradient-btn"
+              :disabled="loading"
+              @click="handleResend()"
+            >
+              <ion-spinner v-if="loading" name="lines"></ion-spinner>
+              <span v-else>Reenviar enlace</span>
+            </ion-button>
+          </div>
+          <div class="auth-card-footer">
+            <ion-button fill="clear" expand="block" class="subtle" @click="goToLogin()">
+              Ya verifiqué mi email — Iniciar sesión
+            </ion-button>
+          </div>
+        </div>
+      </AuthCard>
     </ion-content>
   </ion-page>
 </template>
@@ -49,7 +43,7 @@
 // 1. Imports (ionic/vue/ionicons)
 import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonGrid, IonRow, IonCol, IonButton, IonSpinner } from '@ionic/vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonSpinner } from '@ionic/vue';
 
 // 2. Controllers / Composables
 import { api } from '@/services/api';

@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The email-verification pages now center the card like the rest of the auth flow**: `VerifyEmailPage` and `VerifyEmailPendingPage` wrapped `AuthCard` in an `ion-grid` / `ion-row` / `ion-col`; the column did not fill the viewport, so the card rendered inside a half-width column with its background clipped and the glass box off-center. Both pages now mount `AuthCard` directly inside `ion-content`, matching the login and register screens.
+    - `views/VerifyEmailPage.vue`, `views/VerifyEmailPendingPage.vue` — the grid wrapper and its `IonGrid` / `IonRow` / `IonCol` imports are gone.
+- **The OAuth consent screen renders its header through `AuthCard`, so the branding has a single owner**: the page overrode the whole `#header` slot and duplicated the logo markup and styles, which made the branding (custom logo) depend on a second, copy-pasted implementation.
+    - `components/AuthCard.vue` — new `#subtitle` slot: a host can replace the static subtitle with rich content (e.g. the client app name) without replacing the whole header, so `AuthCard` keeps rendering the logo.
+    - `views/OAuthAuthorizationPage.vue` — the `#header` override, the duplicated `useBranding` call and the duplicated logo CSS are gone; the client name is now passed through the `#subtitle` slot.
+- **The frontend test suite now runs on the LTS node**: Node >= 24 exposes a global `localStorage` that is unavailable unless the runtime starts with `--localstorage-file`, which broke 20 tests in 4 files on the `lts` node. The suite installs a working storage in its setup file, so `pnpm run test:unit` passes on the `node = "lts"` toolchain with no extra flags.
+    - `tests/unit/setup.ts` (new) — Vitest setup file: reuses the jsdom storage when it is usable and falls back to a minimal in-memory `Storage`.
+    - `vite.config.ts` — `test.setupFiles` points at that setup file.
+
 ## [v0.37.0] - 2026-10-25
 
 ### Changed
