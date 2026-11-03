@@ -8,27 +8,9 @@
     </ion-header>
     <ion-content :fullscreen="true">
       <AuthCard title="Autorización Requerida" subtitle="">
-        <template #header>
-          <div class="auth-card-header">
-            <div
-              class="auth-logo-circle"
-              :class="{ 'auth-logo-circle--plain': logoUrl }"
-            >
-              <img
-                :src="logoUrl || lambdaLogo"
-                :class="[
-                  'auth-logo',
-                  logoUrl ? 'auth-logo--custom' : 'auth-logo--filtered',
-                ]"
-                alt="Logo SSO Server"
-              />
-            </div>
-            <h2>Autorización Requerida</h2>
-            <p>
-              La aplicación <strong>{{ clientName }}</strong> solicita acceder a tu
-              información
-            </p>
-          </div>
+        <template #subtitle>
+          La aplicación <strong>{{ clientName }}</strong> solicita acceder a tu
+          información
         </template>
 
           <div v-if="!approved" class="data-access-section">
@@ -103,15 +85,12 @@ import {
   IonIcon,
 } from '@ionic/vue'
 import { checkmarkCircle, alertCircle } from 'ionicons/icons'
-import lambdaLogo from '@/assets/images/lambda_v1.svg'
 
 // 2. Controllers / Composables
 import { useAuthController } from '@/controllers/authController'
 import { useValidation } from '@/composables/useValidation'
-import { useBranding } from '@/composables/useBranding'
 const authController = useAuthController()
 const { handleApiError } = useValidation()
-const { logoUrl, loadBranding } = useBranding()
 
 // 3. Components
 import AuthCard from '@/components/AuthCard.vue'
@@ -145,8 +124,6 @@ const oauthParams = ref({
 
 // 9. OnMounted
 onMounted(async () => {
-  void loadBranding()
-
   const {
     client_id,
     redirect_uri,
@@ -238,59 +215,6 @@ const handleDeny = async (_params: object = {}): Promise<void> => {
 </script>
 
 <style scoped>
-.auth-card-header {
-  text-align: center;
-  margin-bottom: clamp(20px, 4vw, 24px);
-}
-
-.auth-logo-circle {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--gradient-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  box-shadow: 0 4px 20px rgba(var(--gradient-primary-rgb), 0.3);
-}
-
-.auth-logo-circle--plain {
-  width: auto;
-  height: auto;
-  background: transparent;
-  box-shadow: none;
-}
-
-.auth-logo {
-  max-width: 32px;
-  height: auto;
-}
-
-.auth-logo--custom {
-  max-width: 96px;
-  max-height: 96px;
-}
-
-.auth-logo--filtered {
-  filter: brightness(0) invert(1);
-}
-
-.auth-card-header h2 {
-  font-family: var(--font-heading);
-  font-size: clamp(22px, 5vw, 24px);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 8px 0;
-}
-
-.auth-card-header p {
-  font-size: clamp(13px, 3vw, 14px);
-  color: var(--text-tertiary);
-  margin: 0;
-  line-height: 1.5;
-}
-
 .data-access-section {
   margin: 16px 0;
 }

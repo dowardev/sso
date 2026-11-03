@@ -21,7 +21,10 @@
               />
             </div>
             <h2>{{ title }}</h2>
-            <p>{{ subtitle }}</p>
+            <p v-if="hasSubtitleSlot">
+              <slot name="subtitle" />
+            </p>
+            <p v-else>{{ subtitle }}</p>
           </div>
         </slot>
 
@@ -72,6 +75,11 @@ const props = withDefaults(
 // the slot opt out explicitly (e.g. a public route that renders nothing).
 const slots = useSlots();
 const hasBelow = computed(() => props.below ?? Boolean(slots.below));
+
+// A host can replace the static subtitle with rich content (e.g. the OAuth
+// consent screen naming the client app) without overriding the whole header,
+// so the branding (logo) keeps being rendered by this component.
+const hasSubtitleSlot = computed(() => Boolean(slots.subtitle));
 
 // 6. Vars and const
 

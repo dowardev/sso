@@ -7,25 +7,19 @@
       </ion-toolbar>
     </ion-header>
     <ion-content :fullscreen="true">
-      <ion-grid class="ion-justify-content-center">
-        <ion-row class="ion-justify-content-center">
-          <ion-col size="12" size-md="6">
-            <AuthCard title="Verificando tu email" subtitle="Un momento...">
-              <div class="ion-padding-top ion-text-center">
-                <ion-spinner v-if="loading" name="lines"></ion-spinner>
-                <div v-if="error" class="error-message" role="alert" aria-live="assertive">
-                  {{ error }}
-                </div>
-                <div v-if="error" class="ion-padding-top">
-                  <ion-button fill="clear" expand="block" class="subtle" @click="goToLogin()">
-                    Ir a iniciar sesión
-                  </ion-button>
-                </div>
-              </div>
-            </AuthCard>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
+      <AuthCard title="Verificando tu email" subtitle="Un momento...">
+        <div class="ion-padding-top ion-text-center">
+          <ion-spinner v-if="loading" name="lines"></ion-spinner>
+          <div v-if="error" class="error-message" role="alert" aria-live="assertive">
+            {{ error }}
+          </div>
+          <div v-if="error" class="ion-padding-top">
+            <ion-button fill="clear" expand="block" class="subtle" @click="goToLogin()">
+              Ir a iniciar sesión
+            </ion-button>
+          </div>
+        </div>
+      </AuthCard>
     </ion-content>
   </ion-page>
 </template>
@@ -34,7 +28,7 @@
 // 1. Imports (ionic/vue/ionicons)
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonGrid, IonRow, IonCol, IonButton, IonSpinner } from '@ionic/vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonSpinner } from '@ionic/vue';
 
 // 2. Controllers / Composables
 import { api } from '@/services/api';
