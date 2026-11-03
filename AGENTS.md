@@ -338,6 +338,12 @@ NEVER create or edit GitLab issues (or any external issue/ticket) without the us
 
 This rule exists because tickets (unlike code) are project-planning artifacts the user owns: content, priority, and even whether an item deserves a ticket are the user's decisions, not the agent's. The same applies to changelog/package edits that imply a release decision — propose, don't act.
 
+Before creating anything, search for open duplicates first (the gitlab-issue-create skill owns that search: host, project and auth):
+  GET https://gitlab.com/api/v4/projects/<url-encoded-project-path>/issues?state=opened&search=QUERY&per_page=20
+If a clear duplicate exists, do NOT create a second one: comment on the existing
+issue and ask the user (comment on the existing / create anyway).
+
+
 ## Formato HTML / Vue / Ionic (legibilidad para review)
 
 - Dejá UNA línea en blanco entre cada par de elementos hermanos, en TODOS los niveles de anidación (no solo primer nivel).
