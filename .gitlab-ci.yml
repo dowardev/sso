@@ -24,6 +24,13 @@ cache:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-(alpha|beta|rc|dryrun)\.\d+)?$/'
 
+# Jobs de validacion (lint, test, build): corren en tags de release y en merge requests.
+# Deploy y rollback siguen siendo solo-tag (usan .tag_rules).
+.pipeline_rules:
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-(alpha|beta|rc|dryrun)\.\d+)?$/'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
 # Setup SSH comun: usa SSH_KNOWN_HOSTS (CI var masked) en vez de ssh-keyscan
 .ssh_setup:
   before_script:
@@ -41,7 +48,7 @@ cache:
 # pnpm sale de package.json (packageManager). Requiere imagen glibc (debian), no alpine.
 .mise_setup:
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates bash
+    - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates bash libatomic1 libstdc++6
     - curl -fsSL https://mise.run | sh
     - export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
     - mise trust --all
@@ -65,12 +72,14 @@ cache:
 # Frontend Ionic Vue jobs
 .frontend_setup:
   before_script:
+    - !reference [.mise_setup, before_script]
     - cd front
     - pnpm install --frozen-lockfile
 
 # sso-client package jobs
 .client_setup:
   before_script:
+    - !reference [.mise_setup, before_script]
     - pnpm install --frozen-lockfile --filter @dowardev/sso-client...
 
 # sso-server package jobs
@@ -89,21 +98,21 @@ backend_lint:
   image:
     name: composer:2.8
     entrypoint: [""]
-  extends: [.tag_rules, .backend_setup]
+  extends: [.pipeline_rules, .backend_setup]
   script:
     - vendor/bin/pint --test
 
 frontend_lint:
   stage: lint
   image: debian:bookworm-slim
-  extends: [.tag_rules, .mise_setup, .frontend_setup]
+  extends: [.pipeline_rules, .frontend_setup]
   script:
     - pnpm run lint
 
 client_lint:
   stage: lint
   image: debian:bookworm-slim
-  extends: [.tag_rules, .mise_setup, .client_setup]
+  extends: [.pipeline_rules, .client_setup]
   script:
     - pnpm --filter @dowardev/sso-client run typecheck
 
@@ -112,7 +121,7 @@ server_lint:
   image:
     name: composer:2.8
     entrypoint: [""]
-  extends: [.tag_rules, .server_setup]
+  extends: [.pipeline_rules, .server_setup]
   script:
     - vendor/bin/pint --test
 
@@ -125,7 +134,7 @@ backend_test:
   image:
     name: composer:2.8
     entrypoint: [""]
-  extends: [.tag_rules, .backend_setup]
+  extends: [.pipeline_rules, .backend_setup]
   variables:
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
@@ -145,9 +154,9 @@ backend_test:
 frontend_test_unit:
   stage: test
   image: debian:bookworm-slim
-  extends: [.tag_rules, .mise_setup, .frontend_setup]
+  extends: [.pipeline_rules, .frontend_setup]
   script:
-    - pnpm run test:unit
+    - pnpm exec vitest run
 
 # client_test: sso-client no tiene tests (no tests/ dir). Solo typecheck en lint.
 
@@ -156,7 +165,7 @@ server_test:
   image:
     name: composer:2.8
     entrypoint: [""]
-  extends: [.tag_rules, .server_setup]
+  extends: [.pipeline_rules, .server_setup]
   script:
     - php vendor/bin/phpunit
 
@@ -169,7 +178,7 @@ backend_build:
   image:
     name: composer:2.8
     entrypoint: [""]
-  extends: [.tag_rules, .backend_setup]
+  extends: [.pipeline_rules, .backend_setup]
   needs:
     - backend_assets_build
   script:
@@ -184,7 +193,7 @@ backend_build:
 backend_assets_build:
   stage: build
   image: debian:bookworm-slim
-  extends: [.tag_rules, .mise_setup]
+  extends: [.pipeline_rules, .mise_setup]
   script:
     - cd back
     - pnpm install --frozen-lockfile
@@ -197,9 +206,11 @@ backend_assets_build:
 frontend_build:
   stage: build
   image: debian:bookworm-slim
-  extends: [.tag_rules, .mise_setup, .frontend_setup]
+  extends: [.pipeline_rules, .frontend_setup]
   script:
-    - cp "$FRONTEND_ENV_FILE" .env.production
+    # FRONTEND_ENV_FILE es una variable protegida: solo existe en pipelines de tags.
+    # En merge requests se compila con el .env de ejemplo (el artefacto no se despliega).
+    - if [ -n "$FRONTEND_ENV_FILE" ]; then cp "$FRONTEND_ENV_FILE" .env.production; else cp .env.production.example .env.production; fi
     - pnpm run build
   artifacts:
     paths:
@@ -209,7 +220,7 @@ frontend_build:
 client_build:
   stage: build
   image: debian:bookworm-slim
-  extends: [.tag_rules, .mise_setup, .client_setup]
+  extends: [.pipeline_rules, .client_setup]
   script:
     - pnpm --filter @dowardev/sso-client run build
   artifacts:
@@ -222,7 +233,7 @@ server_build:
   image:
     name: composer:2.8
     entrypoint: [""]
-  extends: [.tag_rules, .server_setup]
+  extends: [.pipeline_rules, .server_setup]
   script:
     - composer install --no-dev --optimize-autoloader --no-interaction
   artifacts:
@@ -334,9 +345,10 @@ rollback_backend:
 rollback_frontend:
   stage: rollback
   image: debian:bookworm-slim
-  extends: [.ssh_setup, .tag_rules, .mise_setup]
+  extends: [.ssh_setup, .tag_rules]
   when: manual
   before_script:
+    - !reference [.mise_setup, before_script]
     - !reference [.ssh_setup, before_script]
     - if command -v apk >/dev/null 2>&1; then apk add --no-cache git; else apt-get update && apt-get install -y --no-install-recommends git; fi
   script:
