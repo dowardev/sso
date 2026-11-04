@@ -5,6 +5,9 @@ All notable changes to the backend (`back/`, Laravel 12) will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+
 ## [v0.37.2] - 2026-10-25
 
 ### Fixed
@@ -12,7 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`startTotpChallenge()` now issues a `passkey_token` alongside `totp_token` when the user has both TOTP and passkeys**, enabling the frontend to offer both 2FA methods on step 2. `passkeyAuthenticateFinish()` verifies the WebAuthn assertion before consuming the pending token (single-use), preventing token burn on cancelled or failed ceremonies.
     - `app/Http/Controllers/AuthController.php` — `startTotpChallenge()` adds `passkey_token` for dual-factor accounts; `passkeyAuthenticateFinish()` reads then atomically pulls the token on success.
 
-## [Unreleased]
+## [v0.37.3] - 2026-11-04
+
+### Changed
+
+- No backend changes in this release: it covers the frontend layout and branding fixes plus the CI work.
 
 ## [v0.37.0] - 2026-10-25
 

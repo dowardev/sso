@@ -5,6 +5,9 @@ All notable changes to the frontend (`front/`, Ionic Vue 8) will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+
 ## [v0.37.2] - 2026-10-25
 
 ### Fixed
@@ -12,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Step 2 of login now captures `passkey_token` from the backend when the account has both TOTP and passkeys, and offers both methods as equal choices**. The passkey ceremony is bound to the password step via the single-use pending token.
     - `components/AuthLoginForm.vue` — captures `passkey_token` from the `TOTP_REQUIRED` response, renders the passkey button when `pendingPasskeyToken` exists, and resets TOTP challenge state on user change.
 
-## [Unreleased]
+## [v0.37.3] - 2026-11-04
 
 ### Fixed
 
