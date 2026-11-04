@@ -6,6 +6,20 @@
 
 ## Deploy Log
 
+### v0.37.3 — 2026-11-04
+
+- **Environment**: production
+- **Source tag**: `v0.37.3`
+- **Status**: shipped
+- **Per-package versions**:
+  - root: 0.37.2 → **0.37.3**
+  - `front`: 0.27.2 → **0.27.3**
+  - `back`: 0.3.2 (unchanged) (`composer.json` has no `version` field; git tag is the source of truth)
+  - `@dowardev/sso-client`: 0.4.0 (unchanged)
+  - `dowardev/sso-server`: 0.2.0 (unchanged; its `0.2.1` changelog entry documents the P-256 coordinate fix that already shipped in v0.37.2)
+- **Migration notes**: none — this release adds no schema change. It carries the frontend layout and branding fixes plus the CI work: the merge-request gate, the node toolchain resolved through mise and the protected deploy variables.
+- **Rollback notes**: rolling back to v0.37.2 brings back the email-verification card inside the half-width grid column and the duplicated branding header on the OAuth consent screen; no data impact and no API change. The CI changes roll back with it: the pipeline goes back to `node:24.4-alpine` and the deploy variables lose their protected flag.
+
 ### v0.37.2 — 2026-10-25
 
 - **Environment**: production

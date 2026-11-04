@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+
 ## [v0.37.0] - 2026-10-25
 
 ### Added
@@ -23,7 +26,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Passkey now works as a second factor for accounts without an authenticator app**: an account that has a passkey but no TOTP can no longer log in with just the password — the backend issues a `PASSKEY_REQUIRED` challenge (with a single-use, 5-minute pending token) that the client completes with a WebAuthn assertion. The login step 2 is now an explicit user choice (passkey or code) instead of firing the passkey ceremony automatically.
 
-## [Unreleased]
+## [v0.37.3] - 2026-11-04
+
+### Changed
+
+- **The pipeline now validates merge requests**: the lint, test and build jobs run on merge requests as well as on release tags, while deploy and rollback stay tag-only.
+    - `.gitlab-ci.yml` — new `.pipeline_rules` anchor; `frontend_build` falls back to `.env.production.example` when the production env variable is not exposed to the pipeline.
+- **The node toolchain is resolved through mise instead of a pinned image**: the CI installs mise and resolves node from `mise.toml` (`node = "lts"`), and pnpm from `package.json` (`packageManager`), so the versions have a single source of truth.
+    - `.gitlab-ci.yml` — new `.mise_setup` anchor; the node jobs run on `debian:bookworm-slim` because the official node builds need glibc.
+
+### Security
+
+- **The deploy CI variables are protected**: `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS`, `SSH_HOST`, `SSH_PORT`, `SSH_USER`, `DEPLOY_PATH_BACKEND`, `DEPLOY_PATH_FRONTEND`, `HEALTHCHECK_URL_BACKEND`, `HEALTHCHECK_URL_FRONTEND` and `FRONTEND_ENV_FILE` are now only exposed to protected refs, and the `v*` tag pattern is protected. Before this, a merge-request pipeline would have received the deploy key in its environment.
 
 ### Fixed
 
