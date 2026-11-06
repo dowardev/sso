@@ -8,13 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
-## [v0.37.2] - 2026-10-25
-
-### Fixed
-
-- **Step 2 of login now captures `passkey_token` from the backend when the account has both TOTP and passkeys, and offers both methods as equal choices**. The passkey ceremony is bound to the password step via the single-use pending token.
-    - `components/AuthLoginForm.vue` — captures `passkey_token` from the `TOTP_REQUIRED` response, renders the passkey button when `pendingPasskeyToken` exists, and resets TOTP challenge state on user change.
-
 ## [v0.37.3] - 2026-11-04
 
 ### Fixed
@@ -27,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The frontend test suite now runs on the LTS node**: Node >= 24 exposes a global `localStorage` that is unavailable unless the runtime starts with `--localstorage-file`, which broke 20 tests in 4 files on the `lts` node. The suite installs a working storage in its setup file, so `pnpm run test:unit` passes on the `node = "lts"` toolchain with no extra flags.
     - `tests/unit/setup.ts` (new) — Vitest setup file: reuses the jsdom storage when it is usable and falls back to a minimal in-memory `Storage`.
     - `vite.config.ts` — `test.setupFiles` points at that setup file.
+
+## [v0.37.2] - 2026-10-25
+
+### Fixed
+
+- **Step 2 of login now captures `passkey_token` from the backend when the account has both TOTP and passkeys, and offers both methods as equal choices**. The passkey ceremony is bound to the password step via the single-use pending token.
+    - `components/AuthLoginForm.vue` — captures `passkey_token` from the `TOTP_REQUIRED` response, renders the passkey button when `pendingPasskeyToken` exists, and resets TOTP challenge state on user change.
 
 ## [v0.37.0] - 2026-10-25
 

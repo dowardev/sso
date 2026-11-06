@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [v0.37.4] - 2026-11-04
+
 ### Fixed
 
 - **ES256 DPoP proofs whose JWK omits the leading zero byte of a coordinate are accepted again**: a P-256 coordinate is a fixed-length 32-byte value (RFC 7518 §3.4), but a client that encodes it as a minimal big-endian integer drops the leading `0x00` byte when the most significant byte of the coordinate is zero — roughly 1 key in 256, and PHP's `openssl_pkey_get_details` does exactly that. The verifier rejected those proofs with a `401` instead of restoring the padding, which also made the backend test suite fail at random (~1 run in 128) and blocked the `v0.37.3` release pipeline until it was retried.
@@ -16,18 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [v0.37.3] - 2026-11-04
+
+### Changed
+
+- No backend changes in this release: it covers the frontend layout and branding fixes plus the CI work.
+
 ## [v0.37.2] - 2026-10-25
 
 ### Fixed
 
 - **`startTotpChallenge()` now issues a `passkey_token` alongside `totp_token` when the user has both TOTP and passkeys**, enabling the frontend to offer both 2FA methods on step 2. `passkeyAuthenticateFinish()` verifies the WebAuthn assertion before consuming the pending token (single-use), preventing token burn on cancelled or failed ceremonies.
     - `app/Http/Controllers/AuthController.php` — `startTotpChallenge()` adds `passkey_token` for dual-factor accounts; `passkeyAuthenticateFinish()` reads then atomically pulls the token on success.
-
-## [v0.37.3] - 2026-11-04
-
-### Changed
-
-- No backend changes in this release: it covers the frontend layout and branding fixes plus the CI work.
 
 ## [v0.37.0] - 2026-10-25
 
