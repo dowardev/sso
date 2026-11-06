@@ -518,13 +518,15 @@ class VerifyDpopProof
         $xBin = $this->base64UrlDecode($jwk['x']);
         $yBin = $this->base64UrlDecode($jwk['y']);
 
-        // Validate coordinate length up front. OpenSSL would reject a
-        // wrong-length point at import time but with a generic error;
-        // this fails fast with a clear message.
+        // Normalize and validate coordinate lengths. A valid P-256 coordinate
+        // is always 32 bytes. A 31-byte value means the leading 0x00 byte was
+        // stripped when the client encoded the JWK (roughly 1 key in 256, and
+        // PHP's openssl_pkey_get_details does exactly that). Restoring the
+        // padding keeps those proofs verifiable instead of rejecting them,
+        // and matches how dowardev/sso-server normalizes the same coordinates.
         $expectedLength = self::EC_COORDINATE_LENGTHS[$crv];
-        if (strlen($xBin) !== $expectedLength || strlen($yBin) !== $expectedLength) {
-            throw new \Exception("Coordenadas EC para {$crv} deben ser exactamente {$expectedLength} bytes; se recibió x=".strlen($xBin).', y='.strlen($yBin));
-        }
+        $xBin = $this->normalizeEcCoordinate($xBin, $expectedLength);
+        $yBin = $this->normalizeEcCoordinate($yBin, $expectedLength);
 
         // Uncompressed EC point format: 0x04 || x || y.
         $point = "\x04".$xBin.$yBin;
@@ -543,6 +545,29 @@ class VerifyDpopProof
         return "-----BEGIN PUBLIC KEY-----\n".
             wordwrap(base64_encode($asn1), 64, "\n", true).
             "\n-----END PUBLIC KEY-----";
+    }
+
+    /**
+     * Normalize an EC coordinate to the expected length.
+     *
+     * A valid P-256 coordinate is always 32 bytes. A 31-byte value means the
+     * leading 0x00 byte was stripped during the base64url encoding (it
+     * happens when the most significant byte of the coordinate is 0x00), so
+     * the padding is restored here. Any other length is invalid.
+     */
+    private function normalizeEcCoordinate(string $coordinate, int $expectedLength): string
+    {
+        $length = strlen($coordinate);
+
+        if ($length === $expectedLength) {
+            return $coordinate;
+        }
+
+        if ($length === $expectedLength - 1) {
+            return "\x00".$coordinate;
+        }
+
+        throw new \Exception("Coordenadas EC para P-256 deben ser exactamente {$expectedLength} bytes; se recibió ".$length);
     }
 
     private function encodeASN1Integer(string $value): string
