@@ -3,7 +3,7 @@
     "description": "Server-side SSO authentication library for Laravel with DPoP verification",
     "type": "library",
     "license": "AGPL-3.0-only",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "require": {
         "php": "^8.2",
         "laravel/framework": "^11.0 || ^12.0 || ^13.0",
