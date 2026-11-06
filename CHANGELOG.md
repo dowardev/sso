@@ -10,21 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
-## [v0.37.0] - 2026-10-25
-
-### Added
-
-- **The SSO is now a standards-compliant OpenID Connect identity provider (LBDS-303)**: external apps can configure themselves against the SSO the same way they configure against Auth0 / Keycloak / Okta. The new surface covers OIDC Discovery (`/.well-known/openid-configuration`), the `userinfo` endpoint (Bearer access token, scope-filtered claim set), an OIDC-shaped `id_token` issued alongside the access token when the `openid` scope is granted (10-minute lifetime, `aud=client_id`, `nonce` echoed back, scope-driven claim groups), RP-initiated logout at `end_session_endpoint` (id_token_hint-anchored, open-redirect protected, every refresh token and session row for the user revoked), and per-client claim injection so an RP can ask for the exact claim shape it expects. PKCE is required for public clients and optional for confidential ones (RFC 7636 §1). Integration is documented end-to-end in `back/docs/oidc-idp.md` with a copy-paste curl run.
-
-### Changed
-
-- **Login with a second factor is now one step instead of a chooser (LBDS-304)**: when an account has both a passkey and an authenticator app, the second step of the login offers the passkey straight away and keeps the code-based challenge behind a "use another method" link, instead of asking which method to use first. Accounts without a passkey go directly to the code prompt, and the "Olvidaste tu contraseña?" and "Cambiar de usuario" links now sit right below the login card instead of inside it.
-
-## [v0.37.2] - 2026-10-25
+## [v0.37.4] - 2026-11-04
 
 ### Fixed
 
-- **Passkey now works as a second factor for accounts without an authenticator app**: an account that has a passkey but no TOTP can no longer log in with just the password — the backend issues a `PASSKEY_REQUIRED` challenge (with a single-use, 5-minute pending token) that the client completes with a WebAuthn assertion. The login step 2 is now an explicit user choice (passkey or code) instead of firing the passkey ceremony automatically.
+- **ES256 DPoP proofs whose JWK drops a coordinate's leading zero byte are accepted again**: a P-256 coordinate is a fixed-length 32-byte value, but a client that encodes it as a minimal big-endian integer drops the leading `0x00` byte when the coordinate's most significant byte is zero — roughly 1 key in 256. The verifier rejected those proofs with a `401` instead of restoring the padding, so an affected client could not refresh its token. The coordinates are now normalized (the leading zero is restored) rather than rejected, matching how the `sso-server` package reads the same coordinates.
+
 
 ## [v0.37.3] - 2026-11-04
 
@@ -42,6 +33,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **The account page is now reachable from the UI (GL #6)**: `/account` existed as a route but no screen linked to it, so the TOTP / passkey management UI was only reachable by typing the URL. The sidebar now has a **Mi Cuenta** entry available to every authenticated user (not only admins), and on mobile the header avatar opens a menu with **Mi Cuenta**, **Seguridad** (deep-links to the security tab) and **Cerrar Sesión**. The account page itself also gained the navigation menu button, so it is no longer a dead end on phones.
+
+## [v0.37.2] - 2026-10-25
+
+### Fixed
+
+- **Passkey now works as a second factor for accounts without an authenticator app**: an account that has a passkey but no TOTP can no longer log in with just the password — the backend issues a `PASSKEY_REQUIRED` challenge (with a single-use, 5-minute pending token) that the client completes with a WebAuthn assertion. The login step 2 is now an explicit user choice (passkey or code) instead of firing the passkey ceremony automatically.
+
+## [v0.37.0] - 2026-10-25
+
+### Added
+
+- **The SSO is now a standards-compliant OpenID Connect identity provider (LBDS-303)**: external apps can configure themselves against the SSO the same way they configure against Auth0 / Keycloak / Okta. The new surface covers OIDC Discovery (`/.well-known/openid-configuration`), the `userinfo` endpoint (Bearer access token, scope-filtered claim set), an OIDC-shaped `id_token` issued alongside the access token when the `openid` scope is granted (10-minute lifetime, `aud=client_id`, `nonce` echoed back, scope-driven claim groups), RP-initiated logout at `end_session_endpoint` (id_token_hint-anchored, open-redirect protected, every refresh token and session row for the user revoked), and per-client claim injection so an RP can ask for the exact claim shape it expects. PKCE is required for public clients and optional for confidential ones (RFC 7636 §1). Integration is documented end-to-end in `back/docs/oidc-idp.md` with a copy-paste curl run.
+
+### Changed
+
+- **Login with a second factor is now one step instead of a chooser (LBDS-304)**: when an account has both a passkey and an authenticator app, the second step of the login offers the passkey straight away and keeps the code-based challenge behind a "use another method" link, instead of asking which method to use first. Accounts without a passkey go directly to the code prompt, and the "Olvidaste tu contraseña?" and "Cambiar de usuario" links now sit right below the login card instead of inside it.
 
 ## [0.36.0] - 2026-10-11
 

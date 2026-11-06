@@ -6,6 +6,20 @@
 
 ## Deploy Log
 
+### v0.37.4 — 2026-11-04
+
+- **Environment**: production
+- **Source tag**: `v0.37.4`
+- **Status**: shipped
+- **Per-package versions**:
+  - root: 0.37.3 → **0.37.4**
+  - `front`: 0.27.3 (unchanged) — no frontend change in this release
+  - `back`: 0.3.2 → **0.3.3** (`composer.json` has no `version` field; git tag is the source of truth)
+  - `@dowardev/sso-client`: 0.4.0 (unchanged)
+  - `dowardev/sso-server`: 0.2.0 (unchanged; its `0.2.1` changelog entry documents the P-256 coordinate fix that already shipped in v0.37.2)
+- **Migration notes**: none — this release adds no schema change. It carries the ES256 DPoP coordinate normalization that unblocked the `v0.37.3` release pipeline.
+- **Rollback notes**: rolling back to v0.37.3 restores the strict coordinate check, which rejects ES256 DPoP proofs whose JWK omits a coordinate's leading zero byte (about 1 key in 256) with a `401`; no data impact and no API change.
+
 ### v0.37.3 — 2026-11-04
 
 - **Environment**: production
