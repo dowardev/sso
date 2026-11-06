@@ -84,10 +84,67 @@ class DpopProofBuilder
             [
                 'kty' => 'EC',
                 'crv' => 'P-256',
-                'x' => self::base64UrlEncode($details['ec']['x']),
-                'y' => self::base64UrlEncode($details['ec']['y']),
+                // RFC 7518 §3.4: the coordinates are fixed-length (32 bytes for
+                // P-256). PHP's openssl_pkey_get_details drops the leading 0x00
+                // byte when the most significant byte of the coordinate is
+                // zero (~1 key in 256), so the padding is restored here: a JWK
+                // that is not fixed-length is not what a conformant client
+                // sends, and the server has to guess how to read it.
+                'x' => self::base64UrlEncode(self::padCoordinate($details['ec']['x'])),
+                'y' => self::base64UrlEncode(self::padCoordinate($details['ec']['y'])),
             ],
         );
+    }
+
+    /**
+     * Builds a builder around an existing private key, so a test can pin a
+     * known keypair (e.g. one whose coordinate has the leading zero byte).
+     */
+    public static function fromPrivateKeyPem(string $privateKeyPem): self
+    {
+        $resource = openssl_pkey_get_private($privateKeyPem);
+
+        if ($resource === false) {
+            throw new \RuntimeException('Unable to load the given private key for DPoP tests');
+        }
+
+        $details = openssl_pkey_get_details($resource);
+
+        if (($details['type'] ?? null) !== OPENSSL_KEYTYPE_EC) {
+            throw new \RuntimeException('The given private key is not an EC key');
+        }
+
+        return new self(
+            $privateKeyPem,
+            'ES256',
+            'EC',
+            [
+                'kty' => 'EC',
+                'crv' => 'P-256',
+                'x' => self::base64UrlEncode(self::padCoordinate($details['ec']['x'])),
+                'y' => self::base64UrlEncode(self::padCoordinate($details['ec']['y'])),
+            ],
+        );
+    }
+
+    /**
+     * Returns a copy of this builder that publishes a different JWK, used to
+     * simulate a client that sends a coordinate without its leading zero byte.
+     */
+    public function withPublicJwk(array $jwk): self
+    {
+        $clone = clone $this;
+        $clone->publicJwkFields = $jwk;
+
+        return $clone;
+    }
+
+    /**
+     * Left-pads an EC coordinate to the fixed length RFC 7518 requires.
+     */
+    private static function padCoordinate(string $coordinate): string
+    {
+        return str_pad($coordinate, self::P256_POINT_LENGTH, "\0", STR_PAD_LEFT);
     }
 
     /**

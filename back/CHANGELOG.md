@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **ES256 DPoP proofs whose JWK omits the leading zero byte of a coordinate are accepted again**: a P-256 coordinate is a fixed-length 32-byte value (RFC 7518 §3.4), but a client that encodes it as a minimal big-endian integer drops the leading `0x00` byte when the most significant byte of the coordinate is zero — roughly 1 key in 256, and PHP's `openssl_pkey_get_details` does exactly that. The verifier rejected those proofs with a `401` instead of restoring the padding, which also made the backend test suite fail at random (~1 run in 128) and blocked the `v0.37.3` release pipeline until it was retried.
+    - `app/Http/Middleware/VerifyDpopProof.php` — `ecJwkToPem()` normalizes each coordinate to the curve length (restoring a stripped leading `0x00`) instead of rejecting the proof; any other length is still invalid. Mirrors the behaviour of `dowardev/sso-server`'s `JwkToPemConverter`.
+    - `tests/Support/DpopProofBuilder.php` — `generateEc()` publishes fixed-length coordinates, and `fromPrivateKeyPem()` / `withPublicJwk()` let a test pin a known keypair and publish a non-conformant JWK.
+    - `tests/Feature/DpopEcCoordinateTest.php` (new) — pins the case with a fixture key whose `y` coordinate is 31 bytes: the proof is accepted with the short JWK and with the padded one, and the builder always publishes 32-byte coordinates.
+
+
 
 ## [v0.37.2] - 2026-10-25
 
