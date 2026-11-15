@@ -3,62 +3,48 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Roles became global-only: a user holds a role once, regardless of the
+     * SSO client it was granted for.
+     *
+     * The `sso_client_id` pivot column itself is intentionally kept: the
+     * backend still reads and writes it (`Role::users()` declares it in
+     * `withPivot()`, `UserService::updateUserRoles()` attaches it and
+     * `UserRoleResource` exposes it), and it is still backed by a foreign
+     * key to `sso_clients`. Dropping it is therefore out of scope here.
+     *
+     * The previous version of this migration tried to drop the column with a
+     * bare `ALTER TABLE ... DROP COLUMN` wrapped in a try/catch. On MySQL
+     * that statement fails because the column is referenced by the
+     * `user_roles_sso_client_id_foreign` constraint, and the failure was
+     * swallowed, so the column silently survived while the migration was
+     * still recorded as applied. Its `down()` then re-added the column and
+     * aborted the whole rollback with "duplicate column name".
+     */
     public function up(): void
     {
-        // Get actual column names from the table
-        $columns = Schema::getColumnListing('user_roles');
-
-        if (in_array('sso_client_id', $columns)) {
-            // First drop foreign key if exists (but we know it doesn't exist based on earlier check)
-            try {
-                DB::statement('ALTER TABLE user_roles DROP COLUMN sso_client_id');
-            } catch (Exception $e) {
-                // Column might not exist or other error - continue
-            }
-        }
-
-        // Drop the unique constraint that includes sso_client_id
-        try {
-            $indexes = DB::select("SHOW INDEX FROM user_roles WHERE Key_name LIKE '%user_roles%'");
-            foreach ($indexes as $idx) {
-                if (strpos($idx->Key_name, 'sso_client_id') !== false) {
-                    DB::statement("ALTER TABLE user_roles DROP INDEX `{$idx->Key_name}`");
-                }
-            }
-        } catch (Exception $e) {
-            // Index might not exist
-        }
-
-        // Add unique constraint on just user_id + role_id
-        try {
-            DB::statement('ALTER TABLE user_roles ADD UNIQUE INDEX user_id_role_id_unique (user_id, role_id)');
-        } catch (Exception $e) {
-            // Might already exist or other error
+        // A role is granted once per user. The legacy
+        // `user_roles_user_id_role_id_sso_client_id_unique` index stays in
+        // place because it is the only index covering `user_id` for the
+        // `user_roles_user_id_foreign` constraint.
+        if (! Schema::hasIndex('user_roles', 'user_id_role_id_unique')) {
+            Schema::table('user_roles', function (Blueprint $table) {
+                $table->unique(['user_id', 'role_id'], 'user_id_role_id_unique');
+            });
         }
     }
 
     public function down(): void
     {
-        // Remove the simplified unique index
-        try {
-            DB::statement('ALTER TABLE user_roles DROP INDEX user_id_role_id_unique');
-        } catch (Exception $e) {
-            // Might not exist
-        }
-
-        // Add column back
-        DB::statement('ALTER TABLE user_roles ADD COLUMN sso_client_id BIGINT UNSIGNED NULL');
-
-        // Add back original unique constraint
-        try {
-            DB::statement('ALTER TABLE user_roles ADD UNIQUE INDEX user_id_role_id_sso_client_id_unique (user_id, role_id, sso_client_id)');
-        } catch (Exception $e) {
-            // Ignore
+        if (Schema::hasIndex('user_roles', 'user_id_role_id_unique')) {
+            Schema::table('user_roles', function (Blueprint $table) {
+                $table->dropUnique('user_id_role_id_unique');
+            });
         }
     }
 };
