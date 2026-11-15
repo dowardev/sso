@@ -71,7 +71,19 @@ return new class extends Migration
             $table->string('user')->nullable(false)->change();
             $table->string('email')->nullable(false)->change();
             $table->string('password')->nullable(false)->change();
+        });
 
+        // SQLite refuses to drop a column that a unique index still covers
+        // ("error in index users_login_id_unique after drop column"), while
+        // MySQL drops that index implicitly along with the column. Dropping
+        // the index explicitly keeps the rollback working on both drivers.
+        if (Schema::hasIndex('users', 'users_login_id_unique')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropUnique('users_login_id_unique');
+            });
+        }
+
+        Schema::table('users', function (Blueprint $table) {
             $table->dropColumn([
                 'login_id',
                 'encryption_level',
