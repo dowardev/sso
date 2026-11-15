@@ -27,11 +27,6 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 const pendingRequests = new Map<string, Promise<unknown>>();
 
-const getCookie = (name: string): string | null => {
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
-  return match ? decodeURIComponent(match[2]) : null
-}
-
 const getHeaders = () => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -43,10 +38,17 @@ const getHeaders = () => {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const xsrfToken = getCookie('XSRF-TOKEN')
-  if (xsrfToken) {
-    headers['X-XSRF-TOKEN'] = xsrfToken
-  }
+  // No `X-XSRF-TOKEN` here on purpose.
+  //
+  // The backend never validates a CSRF token: the API routes run without
+  // `VerifyCsrfToken` and without Sanctum's stateful middleware, so the
+  // header was dead weight. Worse, it was harmful: the Laravel web route
+  // `/` sets an `XSRF-TOKEN` cookie, and cookies are scoped by host+path
+  // (not by port), so the frontend on `localhost:8101` picked up the cookie
+  // set by the backend on `localhost:8001` and started sending the header.
+  // That header is not in the CORS allow-list (`back/config/cors.php`), so
+  // the preflight failed and the browser blocked every request with
+  // `TypeError: Failed to fetch` — surfacing as a generic login error.
 
   return headers;
 };
