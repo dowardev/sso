@@ -18,6 +18,7 @@
                 placeholder="Ej: Juan Pérez"
                 autocomplete="name"
                 aria-describedby="setup-name-error"
+                :class="ionicValidationClasses(v$.name)"
                 @ion-blur="v$.name.$touch()"
               />
             </ion-item>
@@ -34,6 +35,7 @@
                 placeholder="Ej: juanperez"
                 autocomplete="username"
                 aria-describedby="setup-user-error"
+                :class="ionicValidationClasses(v$.user)"
                 @ion-blur="v$.user.$touch()"
               />
             </ion-item>
@@ -50,6 +52,7 @@
                 placeholder="Ej: juan@ejemplo.com"
                 autocomplete="email"
                 aria-describedby="setup-email-error"
+                :class="ionicValidationClasses(v$.email)"
                 @ion-blur="v$.email.$touch()"
               />
             </ion-item>
@@ -65,12 +68,16 @@
                 type="password"
                 placeholder="Mínimo 10 caracteres"
                 autocomplete="new-password"
-                aria-describedby="setup-password-error"
+                aria-describedby="setup-password-checklist setup-password-error"
+                :class="ionicValidationClasses(v$.password)"
                 @ion-blur="v$.password.$touch()"
               >
                 <ion-input-password-toggle slot="end" />
               </ion-input>
             </ion-item>
+            <div v-if="v$.password.$error" id="setup-password-error" class="field-error">
+              {{ v$.password.$errors[0].$message }}
+            </div>
             <div v-if="form.password.length > 0 || v$.password.$dirty" id="setup-password-checklist" class="password-checklist" aria-live="polite">
               <div class="check-item" :class="{ valid: passwordChecks.minLength }">
                 <span class="check-icon">
@@ -113,6 +120,7 @@
                 placeholder="Repite la contraseña"
                 autocomplete="new-password"
                 aria-describedby="setup-password-confirm-error"
+                :class="ionicValidationClasses(v$.password_confirmation)"
                 @ion-blur="v$.password_confirmation.$touch()"
               >
                 <ion-input-password-toggle slot="end" />
@@ -146,6 +154,7 @@
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
+import { ionicValidationClasses } from '@/utils/ionicValidation';
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { alertCircle, checkmarkCircleOutline, closeCircleOutline } from 'ionicons/icons'

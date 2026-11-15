@@ -24,9 +24,10 @@
             </div>
           </div>
 
+          <nav class="sidebar-nav" aria-label="Menú principal">
           <template v-if="currentUser?.is_admin">
-            <ion-list-header class="nav-section-label">Navegaci&oacute;n</ion-list-header>
-            <ion-list class="nav-list" role="navigation" aria-label="Menú de navegación principal">
+            <ion-list class="nav-list">
+              <ion-list-header class="nav-section-label">Navegaci&oacute;n</ion-list-header>
               <ion-menu-toggle :auto-hide="false">
                 <ion-item
                   button
@@ -94,8 +95,8 @@
               </ion-menu-toggle>
             </ion-list>
 
-            <ion-list-header class="nav-section-label">Administraci&oacute;n</ion-list-header>
-            <ion-list class="nav-list" role="navigation" aria-label="Menú de administración">
+            <ion-list class="nav-list">
+              <ion-list-header class="nav-section-label">Administraci&oacute;n</ion-list-header>
               <ion-menu-toggle :auto-hide="false">
                 <ion-item
                   button
@@ -125,8 +126,8 @@
             </ion-list>
           </template>
 
-          <ion-list-header class="nav-section-label">Cuenta</ion-list-header>
-          <ion-list class="nav-list" role="navigation" aria-label="Menú de cuenta">
+          <ion-list class="nav-list">
+            <ion-list-header class="nav-section-label">Cuenta</ion-list-header>
             <ion-menu-toggle :auto-hide="false">
               <ion-item
                 button
@@ -141,6 +142,7 @@
               </ion-item>
             </ion-menu-toggle>
           </ion-list>
+          </nav>
 
           <div class="logout-section">
             <ion-button expand="block" fill="outline" class="logout-btn" @click="showLogoutAlert = true">
@@ -310,7 +312,7 @@ ion-split-pane {
     font-family: var(--font-heading);
     font-size: 18px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--ion-color-primary-contrast);
   }
 
 .user-info {
@@ -332,7 +334,7 @@ ion-split-pane {
     justify-content: center;
     font-weight: 600;
     font-size: 16px;
-    color: white;
+    color: var(--ion-color-primary-contrast);
     flex-shrink: 0;
   }
 
@@ -424,7 +426,7 @@ ion-split-pane {
 }
 
 .nav-icon-wrapper.active-icon ion-icon {
-  color: #ffffff;
+  color: var(--ion-color-primary-contrast);
 }
 
   @media (prefers-reduced-motion: reduce) {

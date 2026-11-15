@@ -27,7 +27,7 @@
             v-model="form.name"
             autocomplete="name"
             aria-describedby="prof-name-error"
-            :aria-invalid="v$.name.$dirty ? v$.name.$invalid : undefined"
+            :class="ionicValidationClasses(v$.name)"
             @ion-blur="v$.name.$touch()"
           />
         </ion-item>
@@ -41,7 +41,7 @@
             v-model="form.user"
             autocomplete="username"
             aria-describedby="prof-user-error"
-            :aria-invalid="v$.user.$dirty ? v$.user.$invalid : undefined"
+            :class="ionicValidationClasses(v$.user)"
             @ion-blur="v$.user.$touch()"
           />
         </ion-item>
@@ -56,7 +56,7 @@
             type="email"
             autocomplete="email"
             aria-describedby="prof-email-error"
-            :aria-invalid="v$.email.$dirty ? v$.email.$invalid : undefined"
+            :class="ionicValidationClasses(v$.email)"
             @ion-blur="v$.email.$touch()"
           />
         </ion-item>
@@ -229,7 +229,7 @@
             type="password"
             autocomplete="current-password"
             aria-describedby="prof-current-password-error"
-            :aria-invalid="v$Password.current_password.$dirty ? v$Password.current_password.$invalid : undefined"
+            :class="ionicValidationClasses(v$Password.current_password)"
             @ion-blur="v$Password.current_password.$touch()"
           >
             <ion-input-password-toggle slot="end" />
@@ -246,7 +246,7 @@
             type="password"
             autocomplete="new-password"
             aria-describedby="prof-new-password-error"
-            :aria-invalid="v$Password.new_password.$dirty ? v$Password.new_password.$invalid : undefined"
+            :class="ionicValidationClasses(v$Password.new_password)"
             @ion-blur="v$Password.new_password.$touch()"
           >
             <ion-input-password-toggle slot="end" />
@@ -263,7 +263,7 @@
             type="password"
             autocomplete="new-password"
             aria-describedby="prof-new-password-confirm-error"
-            :aria-invalid="v$Password.new_password_confirmation.$dirty ? v$Password.new_password_confirmation.$invalid : undefined"
+            :class="ionicValidationClasses(v$Password.new_password_confirmation)"
             @ion-blur="v$Password.new_password_confirmation.$touch()"
           >
             <ion-input-password-toggle slot="end" />
@@ -407,6 +407,7 @@
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
+import { ionicValidationClasses } from '@/utils/ionicValidation';
 import { ref, computed, onMounted } from 'vue';
 import {
   IonCard,

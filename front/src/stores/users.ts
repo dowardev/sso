@@ -15,7 +15,8 @@ export const useUsersStore = defineStore('users', () => {
   const selectedUser = ref<UserDetail | null>(null);
   const userRoles = ref<UserRole[]>([]);
   const roleAssignments = ref<RoleAssignment[]>([]);
-  const loading = ref(false);
+  const pending = ref(0);
+  const loading = computed(() => pending.value > 0);
   const search = ref('');
 
   const pagination = ref({
@@ -35,7 +36,7 @@ export const useUsersStore = defineStore('users', () => {
     search?: string;
     sso_client_id?: string | number;
   }) {
-    loading.value = true;
+    pending.value++;
     try {
       const queryParams = new URLSearchParams();
       if (params?.page) queryParams.set('page', String(params.page));
@@ -65,12 +66,12 @@ export const useUsersStore = defineStore('users', () => {
       users.value = [];
       throw error;
     } finally {
-      loading.value = false;
+      pending.value--;
     }
   }
 
   async function fetchUser(id: number) {
-    loading.value = true;
+    pending.value++;
     try {
       const response = await api.get<UserDetail>({
         endpoint: `/admin/users/${id}`,
@@ -78,7 +79,7 @@ export const useUsersStore = defineStore('users', () => {
       selectedUser.value = response;
       return response;
     } finally {
-      loading.value = false;
+      pending.value--;
     }
   }
 
@@ -87,7 +88,7 @@ export const useUsersStore = defineStore('users', () => {
     data: { name: string; user: string; email: string; password?: string };
   }) {
     const { id, data } = params;
-    loading.value = true;
+    pending.value++;
     try {
       const response = await api.put<UserDetail>({
         endpoint: `/admin/users/${id}`,
@@ -100,13 +101,13 @@ export const useUsersStore = defineStore('users', () => {
       }
       return response;
     } finally {
-      loading.value = false;
+      pending.value--;
     }
   }
 
   async function toggleAdmin(params: { id: number; action: string }) {
     const { id, action } = params;
-    loading.value = true;
+    pending.value++;
     try {
       const response = await api.post<{ is_admin: boolean }>({
         endpoint: `/admin/users/${id}/toggle`,
@@ -121,12 +122,12 @@ export const useUsersStore = defineStore('users', () => {
       }
       return response;
     } finally {
-      loading.value = false;
+      pending.value--;
     }
   }
 
   async function deleteUser(id: number) {
-    loading.value = true;
+    pending.value++;
     try {
       await api.delete({ endpoint: `/admin/users/${id}` });
       users.value = users.value.filter((u) => u.id !== id);
@@ -134,12 +135,12 @@ export const useUsersStore = defineStore('users', () => {
         selectedUser.value = null;
       }
     } finally {
-      loading.value = false;
+      pending.value--;
     }
   }
 
   async function fetchUserRoles(id: number) {
-    loading.value = true;
+    pending.value++;
     try {
       const response = await api.get<UserRole[]>({
         endpoint: `/admin/users/${id}/roles`,
@@ -152,7 +153,7 @@ export const useUsersStore = defineStore('users', () => {
       }));
       return response;
     } finally {
-      loading.value = false;
+      pending.value--;
     }
   }
 
@@ -161,7 +162,7 @@ export const useUsersStore = defineStore('users', () => {
     assignments: { role_id: number }[];
   }) {
     const { id, assignments } = params;
-    loading.value = true;
+    pending.value++;
     try {
       const response = await api.put<UserRole[]>({
         endpoint: `/admin/users/${id}/roles`,
@@ -175,12 +176,12 @@ export const useUsersStore = defineStore('users', () => {
       }));
       return response;
     } finally {
-      loading.value = false;
+      pending.value--;
     }
   }
 
   async function revokeUserSessions(id: number) {
-    loading.value = true;
+    pending.value++;
     try {
       await api.delete({ endpoint: `/admin/users/${id}/sessions` });
       if (selectedUser.value) {
@@ -188,7 +189,7 @@ export const useUsersStore = defineStore('users', () => {
         selectedUser.value.active_tokens_count = 0;
       }
     } finally {
-      loading.value = false;
+      pending.value--;
     }
   }
 

@@ -46,27 +46,42 @@
                   {{ role.description || 'Sin descripción' }}
                 </p>
               </ion-label>
-              <div slot="end" class="role-badges">
-                <ion-badge v-if="role.is_protected" color="warning"
-                  >Protegido</ion-badge
-                >
-                <ion-badge color="medium"
-                  >{{ role.users_count || 0 }} usuarios</ion-badge
-                >
+              <!-- A single element in the `end` slot: `ion-item` has one `end`
+                   slot, so badges and actions share one container. -->
+              <div slot="end" class="role-end">
+                <div class="role-badges">
+                  <ion-badge v-if="role.is_protected" color="warning"
+                    >Protegido</ion-badge
+                  >
+                  <ion-badge color="medium"
+                    >{{ role.users_count || 0 }} usuarios</ion-badge
+                  >
+                </div>
+
+                <!-- `ion-buttons` is a toolbar container; inside it the buttons
+                     resolve their default fill as toolbar buttons. -->
+                <div class="role-actions">
+                  <ion-button
+                    fill="clear"
+                    size="small"
+                    color="primary"
+                    aria-label="Editar rol"
+                    @click="openEditModal({ role })"
+                  >
+                    <ion-icon slot="icon-only" :icon="create" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                  <ion-button
+                    v-if="!role.is_protected"
+                    fill="clear"
+                    size="small"
+                    color="danger"
+                    aria-label="Eliminar rol"
+                    @click="confirmDelete({ role })"
+                  >
+                    <ion-icon slot="icon-only" :icon="trash" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                </div>
               </div>
-              <ion-buttons slot="end">
-                <ion-button color="primary" aria-label="Editar rol" @click="openEditModal({ role })">
-                  <ion-icon slot="icon-only" :icon="create" aria-hidden="true"></ion-icon>
-                </ion-button>
-                <ion-button
-                  v-if="!role.is_protected"
-                  color="danger"
-                  aria-label="Eliminar rol"
-                  @click="confirmDelete({ role })"
-                >
-                  <ion-icon slot="icon-only" :icon="trash" aria-hidden="true"></ion-icon>
-                </ion-button>
-              </ion-buttons>
             </ion-item>
           </ion-list>
         </div>
@@ -95,7 +110,7 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre *</ion-label>
-                <ion-input v-model="form.name" aria-describedby="role-name-error" :aria-invalid="roleV$.name.$dirty ? roleV$.name.$invalid : undefined" @ion-blur="roleV$.name.$touch()"></ion-input>
+                <ion-input v-model="form.name" aria-describedby="role-name-error" :class="ionicValidationClasses(roleV$.name)" @ion-blur="roleV$.name.$touch()"></ion-input>
               </ion-item>
               <div v-if="roleV$.name.$error" id="role-name-error" class="field-error">{{ roleV$.name.$errors[0].$message }}</div>
               <ion-item v-if="!editingRole">
@@ -104,7 +119,7 @@
                   v-model="form.slug"
                   placeholder="ej: editor"
                   aria-describedby="role-slug-error"
-                  :aria-invalid="roleV$.slug.$dirty ? roleV$.slug.$invalid : undefined"
+                  :class="ionicValidationClasses(roleV$.slug)"
                   @ion-blur="roleV$.slug.$touch()"
                 ></ion-input>
               </ion-item>
@@ -115,7 +130,7 @@
                   v-model="form.description"
                   placeholder="Máx 500 caracteres"
                   aria-describedby="role-desc-error"
-                  :aria-invalid="roleV$.description.$dirty ? roleV$.description.$invalid : undefined"
+                  :class="ionicValidationClasses(roleV$.description)"
                   @ion-blur="roleV$.description.$touch()"
                 ></ion-textarea>
               </ion-item>
@@ -143,6 +158,7 @@
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
+import { ionicValidationClasses } from '@/utils/ionicValidation';
 import { ref, onMounted, computed } from 'vue'
 import {
   IonPage,
@@ -365,10 +381,21 @@ const handleRefresh = async (params: { event: CustomEvent }): Promise<void> => {
 
 .role-badges {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 4px;
   align-items: flex-end;
   margin-right: 8px;
+}
+
+/* Single container for the `end` slot of the role item. */
+.role-end {
+  display: flex;
+  align-items: center;
+}
+
+.role-actions {
+  display: flex;
+  align-items: center;
 }
 
 .modal-form {

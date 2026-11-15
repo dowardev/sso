@@ -158,13 +158,13 @@ const navigateToSecurity = async (_params: object = {}): Promise<void> => {
 }
 
 .config-list ion-item.active-item {
-  --background: rgba(139, 92, 246, 0.1);
-  border-color: rgba(139, 92, 246, 0.2);
+  --background: rgba(var(--ion-color-primary-rgb), 0.1);
+  border-color: rgba(var(--ion-color-primary-rgb), 0.2);
 }
 
 .config-list ion-item.active-item ion-label {
   font-weight: 600;
-  color: #A78BFA;
+  color: var(--ion-color-primary-tint);
 }
 
 .config-list ion-item[disabled] {
@@ -184,7 +184,7 @@ const navigateToSecurity = async (_params: object = {}): Promise<void> => {
 
 .config-icon-wrapper ion-icon {
   font-size: 18px;
-  color: #ffffff;
+  color: var(--ion-color-primary-contrast);
 }
 
 .config-list ion-label {

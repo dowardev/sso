@@ -121,7 +121,7 @@ function goToLogin(_params: object = {}): void {
 
 <style scoped>
 .pending-text {
-  color: #444444;
+  color: var(--text-secondary);
   font-size: 15px;
   line-height: 1.6;
   margin: 0;
@@ -130,7 +130,7 @@ function goToLogin(_params: object = {}): void {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #b00020;
+  color: var(--ion-color-danger);
   font-size: 14px;
   margin-top: 12px;
 }

@@ -113,7 +113,7 @@ function goToLogin(_params: object = {}): void {
 
 <style scoped>
 .error-message {
-  color: #b00020;
+  color: var(--ion-color-danger);
   font-size: 14px;
 }
 </style>

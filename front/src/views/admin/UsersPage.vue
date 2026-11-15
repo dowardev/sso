@@ -332,7 +332,7 @@ const navigateToUserDetail = (params: { userId: number }): void => {
   height: clamp(36px, 8vw, 40px);
   border-radius: 50%;
   background: var(--gradient-primary);
-  color: white;
+  color: var(--ion-color-primary-contrast);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -359,7 +359,7 @@ const navigateToUserDetail = (params: { userId: number }): void => {
 
 .user-badges {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 4px;
   align-items: flex-end;
 }

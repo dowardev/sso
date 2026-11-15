@@ -22,6 +22,7 @@
           <ion-item lines="none">
             <ion-label>Solo activas</ion-label>
             <ion-toggle
+              slot="end"
               v-model="onlyActive"
               aria-label="Filtrar solo sesiones activas"
               @ion-change="handleFilterChange({})"
@@ -285,8 +286,8 @@ const handleRefresh = async (params: { event: CustomEvent }): Promise<void> => {
 
 .session-end {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
   gap: 4px;
 }
 

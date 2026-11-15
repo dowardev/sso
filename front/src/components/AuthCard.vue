@@ -104,7 +104,7 @@ onMounted(() => {
   justify-content: center;
   position: relative;
   overflow: hidden;
-  background: var(--ion-background-color, #0a0f1d);
+  background: var(--ion-background-color);
   padding: 24px;
 }
 
@@ -173,8 +173,8 @@ onMounted(() => {
   flex: 0 0 auto;
   min-height: min-content;
   padding: clamp(28px, 6vw, 44px) clamp(20px, 5vw, 36px);
-  background: var(--glass-bg, rgba(255, 255, 255, 0.08));
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   backdrop-filter: var(--glass-blur, blur(24px));
   -webkit-backdrop-filter: var(--glass-blur, blur(24px));

@@ -512,12 +512,12 @@
     padding: 24px;
   }
   .error-banner {
-    background: rgba(220, 53, 69, 0.1);
-    border: 1px solid rgba(220, 53, 69, 0.3);
+    background: rgba(var(--ion-color-danger-rgb), 0.1);
+    border: 1px solid rgba(var(--ion-color-danger-rgb), 0.3);
     border-radius: 6px;
     padding: 12px;
     margin: 12px 0;
-    color: #dc3545;
+    color: var(--ion-color-danger);
   }
   .info-card {
     margin: 12px 0;
@@ -547,7 +547,7 @@
     display: flex;
     justify-content: center;
     padding: 16px;
-    background: #ffffff;
+    background: var(--qr-background);
     border-radius: 8px;
     margin: 12px 0;
   }
@@ -561,7 +561,7 @@
   }
   .secret-code {
     display: inline-block;
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--ion-color-light);
     padding: 4px 8px;
     border-radius: 4px;
     font-family: monospace;
@@ -593,7 +593,7 @@
   }
   .code-item code {
     display: block;
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--ion-color-light);
     padding: 8px;
     border-radius: 4px;
     font-family: monospace;
