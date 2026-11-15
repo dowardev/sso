@@ -46,22 +46,24 @@
             Última actualización: {{ formatDate({ dateStr: auth.updated_at }) }}
           </p>
         </ion-label>
-        <ion-badge
-          slot="end"
-          :color="getStatusColor({ status: auth.status })"
-        >
-          {{ getStatusLabel({ status: auth.status }) }}
-        </ion-badge>
-        <ion-button
-          v-if="auth.status === 'authorized'"
-          slot="end"
-          fill="clear"
-          color="danger"
-          size="small"
-          @click="revoke(auth.id)"
-        >
-          <ion-icon slot="icon-only" :icon="trash" />
-        </ion-button>
+        <!-- A single element in the `end` slot: `ion-item` has one `end` slot. -->
+        <div slot="end" class="authorization-actions">
+          <ion-badge
+            :color="getStatusColor({ status: auth.status })"
+          >
+            {{ getStatusLabel({ status: auth.status }) }}
+          </ion-badge>
+
+          <ion-button
+            v-if="auth.status === 'authorized'"
+            fill="clear"
+            color="danger"
+            size="small"
+            @click="revoke(auth.id)"
+          >
+            <ion-icon slot="icon-only" :icon="trash" />
+          </ion-button>
+        </div>
       </ion-item>
     </ion-list>
   </div>
@@ -257,6 +259,13 @@
 
 .detail-list ion-item:last-child {
   border-bottom: none;
+}
+
+/* Single container for the `end` slot of the authorization item. */
+.authorization-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .item-title {

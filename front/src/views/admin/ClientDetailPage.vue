@@ -104,12 +104,12 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre *</ion-label>
-                <ion-input v-model="clientForm.name" :aria-invalid="clientV$.name.$dirty ? clientV$.name.$invalid : undefined" @ion-blur="clientV$.name.$touch()"></ion-input>
+                <ion-input v-model="clientForm.name" :class="ionicValidationClasses(clientV$.name)" @ion-blur="clientV$.name.$touch()"></ion-input>
               </ion-item>
               <div v-if="clientV$.name.$error" class="field-error">{{ clientV$.name.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Client ID *</ion-label>
-                <ion-input v-model="clientForm.client_id" :aria-invalid="clientV$.client_id.$dirty ? clientV$.client_id.$invalid : undefined" @ion-blur="clientV$.client_id.$touch()"></ion-input>
+                <ion-input v-model="clientForm.client_id" :class="ionicValidationClasses(clientV$.client_id)" @ion-blur="clientV$.client_id.$touch()"></ion-input>
               </ion-item>
               <div v-if="clientV$.client_id.$error" class="field-error">{{ clientV$.client_id.$errors[0].$message }}</div>
               <ion-item>
@@ -119,7 +119,7 @@
                     v-model="clientForm.client_secret"
                     placeholder="Opcional"
                     type="password"
-                    :aria-invalid="clientV$.client_secret.$dirty ? clientV$.client_secret.$invalid : undefined"
+                    :class="ionicValidationClasses(clientV$.client_secret)"
                     @ion-blur="clientV$.client_secret.$touch()"
                   >
                     <ion-input-password-toggle slot="end" />
@@ -149,7 +149,7 @@
                     v-model="clientForm.redirect_url"
                     type="url"
                     placeholder="https://"
-                    :aria-invalid="clientV$.redirect_url.$dirty ? clientV$.redirect_url.$invalid : undefined"
+                    :class="ionicValidationClasses(clientV$.redirect_url)"
                     @ion-blur="clientV$.redirect_url.$touch()"
                   ></ion-input>
                   <ion-note
@@ -193,6 +193,7 @@
           <ion-item>
             <ion-label>Activo</ion-label>
             <ion-toggle
+              slot="end"
               :checked="clientForm.active"
               @ion-change="clientForm.active = !clientForm.active"
             ></ion-toggle>
@@ -203,6 +204,7 @@
           <ion-item>
             <ion-label>authorization_code</ion-label>
             <ion-toggle
+              slot="end"
               :checked="clientForm.grant_types.includes('authorization_code')"
               @ion-change="toggleGrantType('authorization_code')"
             ></ion-toggle>
@@ -210,6 +212,7 @@
           <ion-item>
             <ion-label>client_credentials</ion-label>
             <ion-toggle
+              slot="end"
               :checked="clientForm.grant_types.includes('client_credentials')"
               @ion-change="toggleGrantType('client_credentials')"
             ></ion-toggle>
@@ -224,6 +227,7 @@
 
 <script setup lang="ts">
   // 1. Imports (ionic/vue/ionicons)
+  import { ionicValidationClasses } from '@/utils/ionicValidation';
   import { ref, onMounted, computed } from 'vue';
   import { useRoute } from 'vue-router';
   import {
@@ -536,7 +540,7 @@
   flex-direction: column;
   align-items: center;
   padding: clamp(16px, 4vw, 24px);
-  background: linear-gradient(135deg, #8B5CF6, #06B6D4);
+  background: var(--gradient-primary);
   color: white;
   position: relative;
   z-index: 1;

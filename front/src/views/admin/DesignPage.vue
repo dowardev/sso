@@ -522,7 +522,7 @@ const removeEmailLogo = async (): Promise<void> => {
   background: linear-gradient(
     135deg,
     var(--ion-color-primary) 50%,
-    var(--ion-color-secondary, #4d91ff) 50%
+    var(--ion-color-secondary) 50%
   );
 }
 

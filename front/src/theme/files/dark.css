@@ -124,6 +124,8 @@ body.dark {
   --welcome-section-bg: linear-gradient(135deg, #8B5CF6, #06B6D4);
   --welcome-section-text: #ffffff;
   --system-status-bg: #141A2E;
+  /* QR codes must stay dark-on-light to remain scannable in both themes. */
+  --qr-background: #ffffff;
 
   --glass-bg: rgba(255, 255, 255, 0.08);
   --glass-bg-hover: rgba(255, 255, 255, 0.12);

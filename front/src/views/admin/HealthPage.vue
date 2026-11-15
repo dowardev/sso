@@ -109,14 +109,21 @@
         </ion-list>
 
         <!-- 3. CSP Reports -->
-        <ion-list class="health-list">
-          <ion-list-header class="section-header">
-            Reportes CSP
-            <ion-chip slot="end" size="small" @click="activeTab = activeTab === 'csp' ? '' : 'csp'">
-              <ion-label>{{ activeTab === 'csp' ? 'Ocultar' : 'Ver todo' }}</ion-label>
-            </ion-chip>
-          </ion-list-header>
+        <!-- The toggle lives outside the list: `ion-list-header` only exposes the
+             default slot, so a slotted chip inside it was never rendered. -->
+        <div class="section-header csp-section-header">
+          <span>Reportes CSP</span>
 
+          <ion-button
+            fill="clear"
+            size="small"
+            @click="activeTab = activeTab === 'csp' ? '' : 'csp'"
+          >
+            {{ activeTab === 'csp' ? 'Ocultar' : 'Ver todo' }}
+          </ion-button>
+        </div>
+
+        <ion-list class="health-list">
           <template v-if="activeTab === 'csp'">
             <ion-item v-if="cspReports.length === 0">
               <ion-label class="ion-text-center">
@@ -160,9 +167,13 @@
             </ion-item>
 
             <ion-item v-if="cspPagination.lastPage > 1">
-              <ion-buttons slot="end">
+              <!-- `ion-buttons` is a toolbar container: inside it the buttons
+                   resolve their default fill as toolbar buttons. A plain
+                   container keeps the explicit fill below. -->
+              <div slot="end" class="pagination-actions">
                 <ion-button
                   size="small"
+                  fill="clear"
                   :disabled="cspPagination.currentPage <= 1"
                   @click="changeCspPage(cspPagination.currentPage - 1)"
                 >
@@ -173,12 +184,13 @@
                 </ion-label>
                 <ion-button
                   size="small"
+                  fill="clear"
                   :disabled="cspPagination.currentPage >= cspPagination.lastPage"
                   @click="changeCspPage(cspPagination.currentPage + 1)"
                 >
                   <ion-icon :icon="chevronForwardOutline"></ion-icon>
                 </ion-button>
-              </ion-buttons>
+              </div>
             </ion-item>
           </template>
         </ion-list>
@@ -333,6 +345,27 @@ async function allowScriptFromReport(report: CspReportItem) {
   padding-left: 0;
 }
 
+/* Section header with an action on the trailing edge. */
+.csp-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+}
+
+.csp-section-header ion-button {
+  --padding-start: 8px;
+  --padding-end: 8px;
+  text-transform: none;
+}
+
+/* Action container inside a list item (replaces the toolbar-only `ion-buttons`). */
+.pagination-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+}
+
 .health-list ion-item {
   --border-radius: 4px;
   --background: var(--background-contrast);
@@ -361,22 +394,22 @@ async function allowScriptFromReport(report: CspReportItem) {
   --min-height: 80px;
 }
 
-.report-meta {
-  font-size: 11px !important;
-  color: var(--text-secondary) !important;
+.health-list ion-label p.report-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.report-date {
-  font-size: 10px !important;
-  color: var(--text-tertiary) !important;
-  margin-top: 0 !important;
+.health-list ion-label p.report-date {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-top: 0;
 }
 
 .script-sample {
-  background: var(--background-rgb, #f5f5f5);
+  background: var(--ion-background-color-step-50);
   border-radius: 4px;
   padding: 6px 8px;
   margin-top: 4px;

@@ -172,12 +172,12 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre *</ion-label>
-                <ion-input v-model="editForm.name" :aria-invalid="userV$.name.$dirty ? userV$.name.$invalid : undefined" @ion-blur="userV$.name.$touch()"></ion-input>
+                <ion-input v-model="editForm.name" :class="ionicValidationClasses(userV$.name)" @ion-blur="userV$.name.$touch()"></ion-input>
               </ion-item>
               <div v-if="userV$.name.$error" class="field-error">{{ userV$.name.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Usuario *</ion-label>
-                <ion-input v-model="editForm.user" :aria-invalid="userV$.user.$dirty ? userV$.user.$invalid : undefined" @ion-blur="userV$.user.$touch()"></ion-input>
+                <ion-input v-model="editForm.user" :class="ionicValidationClasses(userV$.user)" @ion-blur="userV$.user.$touch()"></ion-input>
               </ion-item>
               <div v-if="userV$.user.$error" class="field-error">{{ userV$.user.$errors[0].$message }}</div>
               <ion-item>
@@ -185,7 +185,7 @@
                 <ion-input
                   v-model="editForm.email"
                   type="email"
-                  :aria-invalid="userV$.email.$dirty ? userV$.email.$invalid : undefined"
+                  :class="ionicValidationClasses(userV$.email)"
                   @ion-blur="userV$.email.$touch()"
                 ></ion-input>
               </ion-item>
@@ -196,7 +196,7 @@
                   v-model="editForm.password"
                   type="password"
                   placeholder="Dejar vacío para mantener"
-                  :aria-invalid="userV$.password.$dirty ? userV$.password.$invalid : undefined"
+                  :class="ionicValidationClasses(userV$.password)"
                   @ion-blur="userV$.password.$touch()"
                 ></ion-input>
               </ion-item>
@@ -287,6 +287,7 @@
 
 <script setup lang="ts">
   // 1. Imports (ionic/vue/ionicons)
+  import { ionicValidationClasses } from '@/utils/ionicValidation';
   import { ref, onMounted, computed } from 'vue';
   import { useRoute } from 'vue-router';
   import {
@@ -438,7 +439,13 @@ const authStore = useAuthStore();
   // 10. Functions
   const loadUser = async (): Promise<void> => {
     try {
-      const response = await usersController.fetchUser(userId);
+      const [response] = await Promise.all([
+        usersController.fetchUser(userId),
+        // The roles card renders `userRoles`, which was only populated when the
+        // roles modal opened. Load them with the user so the card reflects the
+        // assigned roles instead of always showing the empty state.
+        usersController.fetchUserRoles(userId),
+      ]);
       editForm.value = {
         name: response.name,
         user: response.user,
@@ -629,7 +636,7 @@ const authStore = useAuthStore();
   .header-bg-circle {
     position: absolute;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(var(--ion-color-primary-contrast-rgb), 0.1);
   }
 
   .hc-1 {
@@ -652,7 +659,7 @@ const authStore = useAuthStore();
   align-items: center;
   padding: 24px;
   background: var(--gradient-primary);
-  color: white;
+  color: var(--ion-color-primary-contrast);
   position: relative;
   z-index: 1;
 }
@@ -667,8 +674,8 @@ const authStore = useAuthStore();
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
+    background: rgba(var(--ion-color-primary-contrast-rgb), 0.2);
+    color: var(--ion-color-primary-contrast);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -680,7 +687,7 @@ const authStore = useAuthStore();
     margin: 0;
     font-size: 22px;
     font-weight: 700;
-    color: white;
+    color: var(--ion-color-primary-contrast);
   }
 
   .user-username {

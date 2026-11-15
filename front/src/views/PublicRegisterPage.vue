@@ -18,6 +18,7 @@
                 placeholder="Ingresa tu nombre"
                 autocomplete="name"
                 aria-describedby="pub-name-error"
+                :class="ionicValidationClasses(v$.name)"
                 @ion-blur="v$.name.$touch()"
               />
             </ion-item>
@@ -32,6 +33,7 @@
                 placeholder="Ingresa tu usuario"
                 autocomplete="username"
                 aria-describedby="pub-user-error"
+                :class="ionicValidationClasses(v$.user)"
                 @ion-blur="v$.user.$touch()"
               />
             </ion-item>
@@ -46,6 +48,7 @@
                 placeholder="Ingresa tu email"
                 autocomplete="email"
                 aria-describedby="pub-email-error"
+                :class="ionicValidationClasses(v$.email)"
                 @ion-blur="v$.email.$touch()"
               />
             </ion-item>
@@ -60,6 +63,7 @@
                 placeholder="Ingresa tu contraseña"
                 autocomplete="new-password"
                 aria-describedby="pub-password-error"
+                :class="ionicValidationClasses(v$.password)"
                 @ion-blur="v$.password.$touch()"
               >
                 <ion-input-password-toggle slot="end" />
@@ -90,6 +94,7 @@
                 placeholder="Confirma tu contraseña"
                 autocomplete="new-password"
                 aria-describedby="pub-password-confirm-error"
+                :class="ionicValidationClasses(v$.password_confirmation)"
                 @ion-blur="v$.password_confirmation.$touch()"
               />
             </ion-item>
@@ -129,6 +134,7 @@
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
+import { ionicValidationClasses } from '@/utils/ionicValidation';
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {

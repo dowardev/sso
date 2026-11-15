@@ -46,54 +46,60 @@
           <ion-segment-button 
             v-if="showTabs.includes('profile')" 
             value="profile"
+            layout="icon-top"
           >
             <ion-label>Perfil</ion-label>
-            <ion-icon slot="icon-only" :icon="personOutline" />
+            <ion-icon :icon="personOutline" />
           </ion-segment-button>
 
           <!-- Applications tab -->
           <ion-segment-button 
             v-if="showTabs.includes('applications')" 
             value="applications"
+            layout="icon-top"
           >
             <ion-label>Aplicaciones</ion-label>
-            <ion-icon slot="icon-only" :icon="appsOutline" />
+            <ion-icon :icon="appsOutline" />
           </ion-segment-button>
 
           <!-- Sessions tab -->
           <ion-segment-button 
             v-if="showTabs.includes('sessions')" 
             value="sessions"
+            layout="icon-top"
           >
             <ion-label>Sesiones</ion-label>
-            <ion-icon slot="icon-only" :icon="keyOutline" />
+            <ion-icon :icon="keyOutline" />
           </ion-segment-button>
 
           <!-- Security tab -->
           <ion-segment-button 
             v-if="showTabs.includes('security')" 
             value="security"
+            layout="icon-top"
           >
             <ion-label>Seguridad</ion-label>
-            <ion-icon slot="icon-only" :icon="shieldOutline" />
+            <ion-icon :icon="shieldOutline" />
           </ion-segment-button>
 
           <!-- Notifications tab -->
           <ion-segment-button 
             v-if="showTabs.includes('notifications')" 
             value="notifications"
+            layout="icon-top"
           >
             <ion-label>Notificaciones</ion-label>
-            <ion-icon slot="icon-only" :icon="notificationsOutline" />
+            <ion-icon :icon="notificationsOutline" />
           </ion-segment-button>
 
           <!-- Privacy tab -->
           <ion-segment-button 
             v-if="showTabs.includes('privacy')" 
             value="privacy"
+            layout="icon-top"
           >
             <ion-label>Privacidad</ion-label>
-            <ion-icon slot="icon-only" :icon="lockClosedOutline" />
+            <ion-icon :icon="lockClosedOutline" />
           </ion-segment-button>
         </ion-segment>
 
@@ -534,8 +540,8 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: linear-gradient(135deg, #8B5CF6, #06B6D4);
-  color: white;
+  background: var(--gradient-primary);
+  color: var(--ion-color-primary-contrast);
   display: flex;
   align-items: center;
   justify-content: center;

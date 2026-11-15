@@ -178,7 +178,7 @@
     height: 100%;
     border-radius: 50%;
     background: var(--gradient-primary);
-    color: #ffffff;
+    color: var(--ion-color-primary-contrast);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -188,7 +188,7 @@
 
   .user-menu-list {
     --min-width: 220px;
-    background: var(--ion-background-color, #ffffff);
+    background: var(--ion-background-color);
   }
 
   .user-menu-header {

@@ -124,12 +124,12 @@
             <ion-list>
               <ion-item>
                 <ion-label position="stacked">Nombre *</ion-label>
-                <ion-input v-model="clientForm.name" aria-describedby="client-name-error" :aria-invalid="clientV$.name.$dirty ? clientV$.name.$invalid : undefined" @ion-blur="clientV$.name.$touch()"></ion-input>
+                <ion-input v-model="clientForm.name" aria-describedby="client-name-error" :class="ionicValidationClasses(clientV$.name)" @ion-blur="clientV$.name.$touch()"></ion-input>
               </ion-item>
               <div v-if="clientV$.name.$error" id="client-name-error" class="field-error">{{ clientV$.name.$errors[0].$message }}</div>
               <ion-item>
                 <ion-label position="stacked">Client ID *</ion-label>
-                <ion-input v-model="clientForm.client_id" aria-describedby="client-client-id-error" :aria-invalid="clientV$.client_id.$dirty ? clientV$.client_id.$invalid : undefined" @ion-blur="clientV$.client_id.$touch()"></ion-input>
+                <ion-input v-model="clientForm.client_id" aria-describedby="client-client-id-error" :class="ionicValidationClasses(clientV$.client_id)" @ion-blur="clientV$.client_id.$touch()"></ion-input>
               </ion-item>
               <div v-if="clientV$.client_id.$error" id="client-client-id-error" class="field-error">{{ clientV$.client_id.$errors[0].$message }}</div>
           <ion-item>
@@ -140,7 +140,7 @@
                 placeholder="Opcional"
                 type="password"
                 aria-describedby="client-secret-error"
-                :aria-invalid="clientV$.client_secret.$dirty ? clientV$.client_secret.$invalid : undefined"
+                :class="ionicValidationClasses(clientV$.client_secret)"
                 @ion-blur="clientV$.client_secret.$touch()"
               >
                 <ion-input-password-toggle slot="end" />
@@ -171,7 +171,7 @@
                     type="url"
                     placeholder="https://"
                     aria-describedby="client-redirect-error"
-                    :aria-invalid="clientV$.redirect_url.$dirty ? clientV$.redirect_url.$invalid : undefined"
+                    :class="ionicValidationClasses(clientV$.redirect_url)"
                     @ion-blur="clientV$.redirect_url.$touch()"
                   ></ion-input>
                   <ion-note
@@ -220,6 +220,7 @@
           <ion-item>
             <ion-label>Activo</ion-label>
             <ion-toggle
+              slot="end"
               :checked="clientForm.active"
               @ion-change="clientForm.active = !clientForm.active"
             ></ion-toggle>
@@ -232,6 +233,7 @@
               <ion-item lines="none" class="grant-type-item">
                 <ion-label>authorization_code</ion-label>
                 <ion-toggle
+                  slot="end"
                   :checked="clientForm.grant_types.includes('authorization_code')"
                   @ion-change="toggleGrantType('authorization_code')"
                 ></ion-toggle>
@@ -239,6 +241,7 @@
               <ion-item lines="none" class="grant-type-item">
                 <ion-label>client_credentials</ion-label>
                 <ion-toggle
+                  slot="end"
                   :checked="clientForm.grant_types.includes('client_credentials')"
                   @ion-change="toggleGrantType('client_credentials')"
                 ></ion-toggle>
@@ -268,6 +271,7 @@
 
 <script setup lang="ts">
   // 1. Imports (ionic/vue/ionicons)
+  import { ionicValidationClasses } from '@/utils/ionicValidation';
   import { ref, onMounted, computed } from 'vue';
   import { useRouter } from 'vue-router';
   import {

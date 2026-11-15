@@ -118,7 +118,7 @@
                 <ion-input
                   v-model="exclusionForm.host"
                   placeholder="ej: mi-servidor.local, 192.168.1.50"
-                  :aria-invalid="exclusionV$.host.$dirty ? exclusionV$.host.$invalid : undefined"
+                  :class="ionicValidationClasses(exclusionV$.host)"
                   @ion-blur="exclusionV$.host.$touch()"
                 ></ion-input>
               </ion-item>
@@ -140,6 +140,7 @@
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
+import { ionicValidationClasses } from '@/utils/ionicValidation';
 import { ref, onMounted, computed } from 'vue'
 import {
   IonPage,

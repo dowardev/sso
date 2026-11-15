@@ -27,7 +27,12 @@
     </div>
 
     <ion-list v-else class="detail-list">
-      <ion-item v-for="session in sessions" :key="session.id" button :detail="false" @click="toggleExpand({ sessionId: session.id })">
+      <!-- The item is not a `button`: a clickable item renders a native <button>,
+           and nesting the revoke button inside it would produce invalid markup
+           and broken keyboard semantics. The expand toggle and the revoke
+           button are the interactive controls; the item click is a mouse
+           convenience. -->
+      <ion-item v-for="session in sessions" :key="session.id" :detail="false" @click="toggleExpand({ sessionId: session.id })">
         <ion-icon
           slot="start"
           :icon="getDeviceIcon({ session })"
@@ -56,21 +61,36 @@
             <span>Creada: {{ formatDate({ dateStr: session.created_at }) }}</span>
           </div>
         </div>
-        <ion-badge
-          slot="end"
-          :color="session.token_active ? 'success' : 'medium'"
-        >
-          {{ session.token_active ? 'Activa' : 'Inactiva' }}
-        </ion-badge>
-        <ion-button
-          slot="end"
-          fill="clear"
-          color="danger"
-          size="small"
-          @click.stop="revoke(session.id)"
-        >
-          <ion-icon slot="icon-only" :icon="trash" />
-        </ion-button>
+        <!-- A single element in the `end` slot: `ion-item` has one `end` slot. -->
+        <div slot="end" class="session-actions">
+          <ion-badge
+            :color="session.token_active ? 'success' : 'medium'"
+          >
+            {{ session.token_active ? 'Activa' : 'Inactiva' }}
+          </ion-badge>
+
+          <ion-button
+            fill="clear"
+            size="small"
+            :aria-expanded="expandedSessions.has(session.id)"
+            :aria-label="expandedSessions.has(session.id) ? 'Ocultar detalles de la sesión' : 'Ver detalles de la sesión'"
+            @click.stop="toggleExpand({ sessionId: session.id })"
+          >
+            <ion-icon
+              slot="icon-only"
+              :icon="expandedSessions.has(session.id) ? chevronUpOutline : chevronDownOutline"
+            />
+          </ion-button>
+
+          <ion-button
+            fill="clear"
+            color="danger"
+            size="small"
+            @click.stop="revoke(session.id)"
+          >
+            <ion-icon slot="icon-only" :icon="trash" />
+          </ion-button>
+        </div>
       </ion-item>
     </ion-list>
 </template>
@@ -94,6 +114,8 @@
     globeOutline,
     laptopOutline,
     calendarOutline,
+    chevronDownOutline,
+    chevronUpOutline,
     phonePortraitOutline,
     tabletPortraitOutline,
     logoChrome,
@@ -352,6 +374,13 @@
   margin: 0 16px 8px;
   background: rgba(var(--ion-color-primary-rgb), 0.05);
   border-radius: 4px;
+}
+
+/* Single container for the `end` slot of the session item. */
+.session-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .detail-row {

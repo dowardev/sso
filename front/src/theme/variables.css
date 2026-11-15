@@ -130,16 +130,19 @@ ion-list-header {
 .container-lg { max-width: 1200px; margin-inline: auto; }
 
 /* ion-card */
+/* ion-card, ion-badge, ion-button use shadow encapsulation. In CSS scoping,
+   the outer tree wins for normal declarations over the shadow tree's :host
+   rules, so host-level overrides apply without the flag. */
 ion-card.shadow1 {
   box-shadow:
     var(--card-shadow-light) 0px 1px 3px 0px,
     var(--card-shadow-heavy) 0px 0px 0px 1px;
-  background: var(--background-contrast) !important;
+  --background: var(--background-contrast);
 }
 
 ion-card.shadow2 {
   box-shadow: var(--card-shadow-subtle) 0px 0px 0px 1px;
-  background: var(--background-contrast) !important;
+  --background: var(--background-contrast);
 }
 
 ion-card.no-shadow {
@@ -162,17 +165,12 @@ ion-list.transparent {
   background: transparent;
 }
 
-ion-list > div.list-content {
-  border: 1px solid var(--ion-background-color-step-300);
-  border-radius: 4px;
-  margin: 10px;
-  background: var(--background-contrast) ;
-}
 /* ion list */
 
 /* ion button */
+/* ion-button uses shadow encapsulation; outer tree wins over :host rules. */
 ion-button.no-shadow {
-  --box-shadow: none !important;
+  --box-shadow: none;
 }
 /* end ion button */
 
@@ -203,22 +201,25 @@ hr {
 }
 
 /* ion-badge pill */
+/* ion-badge uses shadow encapsulation; outer tree wins over :host rules. */
 ion-badge {
   --padding-top: 4px;
   --padding-bottom: 4px;
   --padding-start: 10px;
   --padding-end: 10px;
-  border-radius: 999px !important;
+  border-radius: 999px;
   font-weight: 500;
   font-size: 11px;
   letter-spacing: 0.3px;
 }
 
 /* ion-searchbar */
-ion-searchbar {
-  --border-radius: 999px !important;
-  --box-shadow: none !important;
-  --background: var(--glass-bg) !important;
+/* ion-searchbar is NOT shadow-encapsulated; its scoped rules outrank a plain
+   element selector, so :root prefix is required for the override to apply. */
+:root ion-searchbar {
+  --border-radius: 999px;
+  --box-shadow: none;
+  --background: var(--glass-bg);
   padding: 0;
   border: 1px solid var(--glass-border);
 }
@@ -297,10 +298,10 @@ ion-item.input-item.item-has-focus {
   box-shadow: 0 0 0 3px rgba(var(--ion-color-primary-rgb), 0.15);
 }
 
-ion-item.input-item ion-label {
-  font-weight: 500;
-  color: var(--text-secondary) !important;
-}
+/*
+ * The label of an `ion-input` lives inside the component, so there is no
+ * `ion-label` element to restyle here. Ionic owns that typography.
+ */
 
 /* page header pattern */
 .page-container {

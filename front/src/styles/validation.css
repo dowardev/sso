@@ -17,13 +17,29 @@
   flex-shrink: 0;
 }
 
-/* Input border highlighting based on Vuelidate error state */
-ion-input[aria-invalid="true"],
-ion-textarea[aria-invalid="true"] {
+/*
+ * Invalid state driven by Ionic's native validation classes.
+ *
+ * `ion-touched` + `ion-invalid` are applied to the host by
+ * `ionicValidationClasses()` (see utils/ionicValidation.ts). Ionic recomputes
+ * its invalid state from those classes, sets `aria-invalid` on the native
+ * input and applies the invalid highlight itself.
+ *
+ * `aria-invalid` must NOT be bound on the host: Ionic inherits ARIA attributes
+ * into the native input and removes them from the host, which makes the value
+ * stale and the host selector unreliable.
+ */
+ion-input.ion-touched.ion-invalid,
+ion-textarea.ion-touched.ion-invalid {
   --border-color: var(--ion-color-danger);
+  --highlight-color: var(--ion-color-danger);
 }
 
-ion-input[aria-invalid="false"],
-ion-textarea[aria-invalid="false"] {
-  --border-color: var(--ion-color-success);
+/*
+ * The field frame is the glass `ion-item` wrapper, not the input itself, so
+ * the invalid state is reflected on the wrapper that the user sees.
+ */
+ion-item.input-item:has(ion-input.ion-touched.ion-invalid),
+ion-item.input-item:has(ion-textarea.ion-touched.ion-invalid) {
+  border-color: var(--ion-color-danger);
 }

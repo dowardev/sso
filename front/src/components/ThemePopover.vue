@@ -164,12 +164,12 @@
     height: 24px;
     border-radius: 50%;
     flex-shrink: 0;
-    border: 2px solid rgba(0, 0, 0, 0.1);
+    border: 2px solid rgba(var(--ion-color-medium-rgb), 0.35);
   }
 
   .theme-color.dual-color {
-    background: linear-gradient(135deg, #0054e9 50%, #4d91ff 50%);
-    border: 2px solid rgba(0, 0, 0, 0.15);
+    background: linear-gradient(135deg, var(--ion-color-primary) 50%, var(--ion-color-secondary) 50%);
+    border: 2px solid rgba(var(--ion-color-medium-rgb), 0.5);
   }
 
   .theme-label {

@@ -27,7 +27,7 @@
           autocapitalize="none"
           autocorrect="off"
           :spellcheck="false"
-          :aria-invalid="v$.identifier.$error ? true : undefined"
+          :class="ionicValidationClasses(v$.identifier)"
           aria-describedby="login-identifier-error"
           @ion-blur="v$.identifier.$touch()"
         />
@@ -47,7 +47,7 @@
           placeholder="Ingresa tu contraseña"
           autocomplete="current-password"
           enterkeyhint="go"
-          :aria-invalid="v$.password.$error ? true : undefined"
+          :class="ionicValidationClasses(v$.password)"
           aria-describedby="login-password-error"
           @ion-blur="v$.password.$touch()"
         >
@@ -135,10 +135,9 @@
           >
             <ion-spinner v-if="loading || cryptoLoading || passkeyUnlocking" name="lines"></ion-spinner>
 
-            <span v-else>
-              <ion-icon slot="start" :icon="keyOutline" aria-hidden="true"></ion-icon>
-              Usar passkey
-            </span>
+            <ion-icon v-else slot="start" :icon="keyOutline" aria-hidden="true"></ion-icon>
+
+            <span v-if="!(loading || cryptoLoading || passkeyUnlocking)">Usar passkey</span>
           </ion-button>
 
           <ion-button
@@ -163,6 +162,8 @@
         <ion-item v-if="totpInputMode === 'code'" class="input-item" lines="none">
           <ion-input
             v-model="totpCode"
+            label="Código de verificación"
+            label-placement="floating"
             inputmode="numeric"
             pattern="[0-9]*"
             :maxlength="totpDigits"
@@ -174,6 +175,8 @@
         <ion-item v-else class="input-item" lines="none">
           <ion-input
             v-model="totpBackupCode"
+            label="Código de respaldo"
+            label-placement="floating"
             autocapitalize="characters"
             placeholder="Código de respaldo"
             :disabled="totpSubmitting"
@@ -211,11 +214,14 @@
       <!-- Remember me (LBDS-304): on step 2 the user has already entered
            their identifier and password; remembering the session is the
            only remaining toggle. -->
+      <!-- The item is not a `button`: a clickable item renders a native <button>,
+           and nesting the toggle's own <input type="checkbox"> inside it would
+           produce invalid markup and broken keyboard semantics. The toggle is
+           the only interactive control; the item click is a mouse convenience. -->
       <ion-item
         v-if="!masterPasswordVisible"
         class="auth-remember"
         lines="none"
-        button
         @click="rememberMe = !rememberMe"
       >
         <ion-toggle
@@ -317,6 +323,7 @@
 
 <script setup lang="ts">
 // 1. Imports (ionic/vue/ionicons)
+import { ionicValidationClasses } from '@/utils/ionicValidation';
 import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import {
@@ -1076,8 +1083,8 @@ const goBack = (): void => {
 /* Secondary button: outlined, same height as the gradient primary. */
 .auth-method-btn--secondary {
   --background: transparent;
-  --background-hover: var(--glass-bg, rgba(255, 255, 255, 0.08));
-  --border-color: var(--glass-border, rgba(255, 255, 255, 0.18));
+  --background-hover: var(--glass-bg);
+  --border-color: var(--glass-border);
   --color: var(--text-primary);
   --border-width: 1.5px;
   --border-style: solid;
