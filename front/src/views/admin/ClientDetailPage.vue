@@ -41,39 +41,67 @@
             </ion-col>
 
             <ion-col size="12" size-md="6">
-              <div class="info-card">
-                <h3 class="section-title">Información</h3>
-                <div class="info-item">
-                  <ion-icon :icon="linkOutline" class="info-icon"></ion-icon>
-                  <span class="value">{{ client.redirect_url || 'No configurado' }}</span>
-                </div>
-                <div class="info-item">
-                  <ion-icon :icon="calendarOutline" class="info-icon"></ion-icon>
-                  <span class="value">{{ formatDate({ dateStr: client.created_at }) }}</span>
-                </div>
-                <div class="info-item">
-                  <ion-icon :icon="keyOutline" class="info-icon"></ion-icon>
-                  <span class="value">{{ client.grant_types.join(', ') }}</span>
-                </div>
-                <div v-if="client.allowed_origins && client.allowed_origins.length > 0" class="info-item">
-                  <ion-icon :icon="globeOutline" class="info-icon"></ion-icon>
-                  <div class="origins-list">
-                    <span v-for="(origin, index) in client.allowed_origins" :key="index" class="origin-tag">
-                      {{ origin }}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <ion-card class="info-card">
+                <ion-card-header class="info-card-header">
+                  <ion-card-title class="section-title">Información</ion-card-title>
+                </ion-card-header>
+
+                <ion-list class="info-list">
+                  <ion-item
+                    class="info-item"
+                  >
+                    <ion-icon slot="start" :icon="linkOutline" class="info-icon" aria-hidden="true"></ion-icon>
+                    <ion-label class="value">{{ client.redirect_url || 'No configurado' }}</ion-label>
+                  </ion-item>
+
+                  <ion-item
+                    class="info-item"
+                  >
+                    <ion-icon slot="start" :icon="calendarOutline" class="info-icon" aria-hidden="true"></ion-icon>
+                    <ion-label class="value">{{ formatDate({ dateStr: client.created_at }) }}</ion-label>
+                  </ion-item>
+
+                  <ion-item
+                    class="info-item"
+                  >
+                    <ion-icon slot="start" :icon="keyOutline" class="info-icon" aria-hidden="true"></ion-icon>
+                    <ion-label class="value">{{ client.grant_types.join(', ') }}</ion-label>
+                  </ion-item>
+
+                  <ion-item
+                    v-if="client.allowed_origins && client.allowed_origins.length > 0"
+                    class="info-item"
+                  >
+                    <ion-icon slot="start" :icon="globeOutline" class="info-icon" aria-hidden="true"></ion-icon>
+                    <div class="origins-list">
+                      <ion-chip
+                        v-for="(origin, index) in client.allowed_origins"
+                        :key="index"
+                        class="origin-tag"
+                      >
+                        {{ origin }}
+                      </ion-chip>
+                    </div>
+                  </ion-item>
+                </ion-list>
+              </ion-card>
             </ion-col>
 
             <ion-col size="12" size-md="6">
-              <div class="stats-card">
-                <h3 class="section-title">Estadísticas</h3>
-                <div class="info-item">
-                  <ion-icon :icon="peopleOutline" class="info-icon"></ion-icon>
-                  <span class="value">{{ client.sessions_count || 0 }} sesiones</span>
-                </div>
-              </div>
+              <ion-card class="stats-card">
+                <ion-card-header class="info-card-header">
+                  <ion-card-title class="section-title">Estadísticas</ion-card-title>
+                </ion-card-header>
+
+                <ion-list class="info-list">
+                  <ion-item
+                    class="info-item"
+                  >
+                    <ion-icon slot="start" :icon="peopleOutline" class="info-icon" aria-hidden="true"></ion-icon>
+                    <ion-label class="value">{{ client.sessions_count || 0 }} sesiones</ion-label>
+                  </ion-item>
+                </ion-list>
+              </ion-card>
             </ion-col>
 
             <ion-col size="12">
@@ -254,6 +282,9 @@
     IonRow,
     IonCol,
     IonSpinner,
+    IonCard,
+    IonCardHeader,
+    IonCardTitle,
   } from '@ionic/vue';
   import UserMenu from '@/components/user/UserMenu.vue';
   import {
@@ -581,8 +612,22 @@
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   border-radius: var(--card-border-radius);
+  box-shadow: none;
+  margin: 0;
   padding: clamp(12px, 3vw, 16px);
   height: 100%;
+}
+
+.info-card-header {
+  padding: 0;
+}
+
+/* The list sits on the glass card surface: no opaque native background. */
+.info-list {
+  --ion-item-background: transparent;
+  background: transparent;
+  margin: 0;
+  padding: 0;
 }
 
 .section-title {
@@ -595,11 +640,24 @@
 }
 
 .info-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 0;
+  --border-width: 0;
+  --inner-border-width: 0;
+  --background: transparent;
+  --ion-item-background: transparent;
+  --min-height: 44px;
+  --inner-padding-top: 8px;
+  --inner-padding-bottom: 8px;
+  --inner-padding-start: 10px;
+  --inner-padding-end: 0;
+  --padding-start: 0;
+  --padding-end: 0;
   border-bottom: 1px solid var(--glass-border);
+}
+
+.info-item ion-label {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
 }
 
 .info-item:last-child {
@@ -625,11 +683,15 @@
 }
 
 .origin-tag {
+  --background: var(--ion-color-light);
+  --color: var(--text-secondary);
   font-size: 12px;
-  background: var(--ion-color-light);
-  padding: 2px 8px;
+  height: 20px;
+  --padding-top: 2px;
+  --padding-bottom: 2px;
+  --padding-start: 8px;
+  --padding-end: 8px;
   border-radius: 4px;
-  color: var(--text-secondary);
 }
 
 @media (min-width: 768px) {

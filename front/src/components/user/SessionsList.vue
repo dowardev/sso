@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 <template>
-  <div class="section-header">
-      <h3 class="section-title">Historial de Sesiones</h3>
+  <ion-list-header class="section-header">
+      <ion-label class="section-title"><h3>Historial de Sesiones</h3></ion-label>
       <ion-button
         v-if="sessions.length > 0"
         size="small"
@@ -13,7 +13,7 @@
         <ion-icon slot="start" :icon="trash" />
         Revocar Todas
       </ion-button>
-    </div>
+    </ion-list-header>
 
     <div v-if="loading" class="loading-container" role="status" aria-live="polite">
       <ion-spinner name="lines"></ion-spinner>
@@ -26,81 +26,94 @@
       <span class="empty-hint">No hay sesiones registradas actualmente</span>
     </div>
 
-    <ion-list v-else class="detail-list">
+    <ion-accordion-group
+      v-else
+      class="detail-list session-accordion"
+      :multiple="true"
+      :value="expandedAccordionValues"
+      @ion-change="handleAccordionChange"
+    >
       <!-- The item is not a `button`: a clickable item renders a native <button>,
            and nesting the revoke button inside it would produce invalid markup
            and broken keyboard semantics. The expand toggle and the revoke
            button are the interactive controls; the item click is a mouse
            convenience. -->
-      <ion-item v-for="session in sessions" :key="session.id" :detail="false" @click="toggleExpand({ sessionId: session.id })">
-        <ion-icon
-          slot="start"
-          :icon="getDeviceIcon({ session })"
-          :color="session.token_active ? 'success' : 'medium'"
-        ></ion-icon>
-        <ion-label>
-          <h3 class="item-title">
-            {{ session.client?.name || getDeviceName({ session }) || 'Cliente Desconocido' }}
-          </h3>
-          <p class="item-subtitle">{{ getDeviceDetail({ session }) }}</p>
-          <p class="session-date">
-            Último uso: {{ formatDate({ dateStr: session.last_used_at }) }}
-          </p>
-        </ion-label>
-        <div v-if="expandedSessions.has(session.id)" class="session-details">
-          <div class="detail-row">
-            <ion-icon :icon="globeOutline" size="small" />
-            <span>IP: {{ session.ip_address }}</span>
-          </div>
-          <div class="detail-row">
-            <ion-icon :icon="laptopOutline" size="small" />
-            <span>{{ getDeviceType({ session }) }}</span>
-          </div>
-          <div class="detail-row">
-            <ion-icon :icon="calendarOutline" size="small" />
-            <span>Creada: {{ formatDate({ dateStr: session.created_at }) }}</span>
-          </div>
-        </div>
-        <!-- A single element in the `end` slot: `ion-item` has one `end` slot. -->
-        <div slot="end" class="session-actions">
-          <ion-badge
+      <ion-accordion v-for="session in sessions" :key="session.id" :value="String(session.id)">
+        <ion-item slot="header" :detail="false" @click="toggleExpand({ sessionId: session.id })">
+          <ion-icon
+            slot="start"
+            :icon="getDeviceIcon({ session })"
             :color="session.token_active ? 'success' : 'medium'"
-          >
-            {{ session.token_active ? 'Activa' : 'Inactiva' }}
-          </ion-badge>
+          ></ion-icon>
+          <ion-label>
+            <h3 class="item-title">
+              {{ session.client?.name || getDeviceName({ session }) || 'Cliente Desconocido' }}
+            </h3>
+            <p class="item-subtitle">{{ getDeviceDetail({ session }) }}</p>
+            <p class="session-date">
+              Último uso: {{ formatDate({ dateStr: session.last_used_at }) }}
+            </p>
+          </ion-label>
+          <!-- A single element in the `end` slot: `ion-item` has one `end` slot. -->
+          <div slot="end" class="session-actions">
+            <ion-badge
+              :color="session.token_active ? 'success' : 'medium'"
+            >
+              {{ session.token_active ? 'Activa' : 'Inactiva' }}
+            </ion-badge>
 
-          <ion-button
-            fill="clear"
-            size="small"
-            :aria-expanded="expandedSessions.has(session.id)"
-            :aria-label="expandedSessions.has(session.id) ? 'Ocultar detalles de la sesión' : 'Ver detalles de la sesión'"
-            @click.stop="toggleExpand({ sessionId: session.id })"
-          >
-            <ion-icon
-              slot="icon-only"
-              :icon="expandedSessions.has(session.id) ? chevronUpOutline : chevronDownOutline"
-            />
-          </ion-button>
+            <ion-button
+              fill="clear"
+              size="small"
+              :aria-expanded="expandedSessions.has(session.id)"
+              :aria-label="expandedSessions.has(session.id) ? 'Ocultar detalles de la sesión' : 'Ver detalles de la sesión'"
+              @click.stop="toggleExpand({ sessionId: session.id })"
+            >
+              <ion-icon
+                slot="icon-only"
+                :icon="expandedSessions.has(session.id) ? chevronUpOutline : chevronDownOutline"
+              />
+            </ion-button>
 
-          <ion-button
-            fill="clear"
-            color="danger"
-            size="small"
-            @click.stop="revoke(session.id)"
-          >
-            <ion-icon slot="icon-only" :icon="trash" />
-          </ion-button>
-        </div>
-      </ion-item>
-    </ion-list>
+            <ion-button
+              fill="clear"
+              color="danger"
+              size="small"
+              @click.stop="revoke(session.id)"
+            >
+              <ion-icon slot="icon-only" :icon="trash" />
+            </ion-button>
+          </div>
+        </ion-item>
+
+        <ion-item slot="content" class="session-details" lines="none">
+          <div class="detail-rows">
+            <div class="detail-row">
+              <ion-icon :icon="globeOutline" size="small" />
+              <span>IP: {{ session.ip_address }}</span>
+            </div>
+            <div class="detail-row">
+              <ion-icon :icon="laptopOutline" size="small" />
+              <span>{{ getDeviceType({ session }) }}</span>
+            </div>
+            <div class="detail-row">
+              <ion-icon :icon="calendarOutline" size="small" />
+              <span>Creada: {{ formatDate({ dateStr: session.created_at }) }}</span>
+            </div>
+          </div>
+        </ion-item>
+      </ion-accordion>
+    </ion-accordion-group>
 </template>
 
 <script setup lang="ts">
   // 1. Imports (ionic/vue/ionicons)
-  import { ref, onMounted, watch } from 'vue';
+  import { ref, computed, onMounted, watch } from 'vue';
   import { UAParser } from 'ua-parser-js';
   import {
-    IonList,
+    IonAccordion,
+    IonAccordionGroup,
+    IonListHeader,
     IonItem,
     IonLabel,
     IonIcon,
@@ -160,7 +173,11 @@
   );
 
   // 8. Computed
-  // (none)
+  // The accordion group is driven by the same expanded set, so the expansion
+  // state stays the single source of truth.
+  const expandedAccordionValues = computed(() =>
+    Array.from(expandedSessions.value).map((sessionId) => String(sessionId))
+  );
 
   // 9. OnMounted
   onMounted(() => {
@@ -177,6 +194,16 @@
       set.add(sessionId);
     }
     expandedSessions.value = set;
+  };
+
+  const handleAccordionChange = (event: CustomEvent<{ value: string | string[] }>): void => {
+    const values = Array.isArray(event.detail.value) ? event.detail.value : [event.detail.value];
+    // The accordion only emits the ids of the sessions, but a value that is
+    // not a number would become NaN in the set and never match a session.
+    const sessionIds = values
+      .map((value) => Number(value))
+      .filter((sessionId) => Number.isFinite(sessionId));
+    expandedSessions.value = new Set(sessionIds);
   };
 
   const parseUA = (userAgent: string): UAParser.IResult | null => {
@@ -349,6 +376,19 @@
   border-bottom: none;
 }
 
+/* Accordion header item - reduce min-height to match baseline */
+.detail-list ion-accordion > ion-item[slot="header"] {
+  --min-height: 56px;
+  --inner-padding-top: 8px;
+  --inner-padding-bottom: 8px;
+}
+
+.detail-list ion-accordion > ion-item[slot="header"] ion-label {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
+}
+
 .item-title {
   color: var(--text-primary);
   font-weight: 600;
@@ -367,6 +407,18 @@
 }
 
 .session-details {
+  --background: transparent;
+  --ion-item-background: transparent;
+  --min-height: auto;
+  --inner-padding-top: 0;
+  --inner-padding-bottom: 0;
+  --inner-padding-start: 0;
+  --inner-padding-end: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+}
+
+.detail-rows {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -374,6 +426,11 @@
   margin: 0 16px 8px;
   background: rgba(var(--ion-color-primary-rgb), 0.05);
   border-radius: 4px;
+}
+
+/* Ensure the accordion content has no extra spacing from ion-item */
+ion-accordion::part(content) {
+  padding: 0;
 }
 
 /* Single container for the `end` slot of the session item. */

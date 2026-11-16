@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 <template>
-  <div class="section-header">
-      <h3 class="section-title">Registro de Actividad</h3>
+  <ion-list-header class="section-header">
+      <ion-label class="section-title"><h3>Registro de Actividad</h3></ion-label>
       <ion-button
         size="small"
         fill="outline"
@@ -11,7 +11,7 @@
         <ion-icon slot="start" :icon="refreshOutline" />
         Actualizar
       </ion-button>
-    </div>
+    </ion-list-header>
 
     <div v-if="loading" class="loading-container" role="status" aria-live="polite">
       <ion-spinner name="lines"></ion-spinner>
@@ -50,6 +50,7 @@
   import { ref, computed, watch } from 'vue';
   import {
     IonList,
+    IonListHeader,
     IonItem,
     IonLabel,
     IonIcon,
@@ -217,8 +218,17 @@
   --padding-start: 16px;
   --padding-end: 16px;
   --background: transparent;
+  --min-height: 48px;
+  --inner-padding-top: 8px;
+  --inner-padding-bottom: 8px;
   border-bottom: 1px solid var(--glass-border);
   transition: background 0.2s ease;
+}
+
+.detail-list ion-item ion-label {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
 }
 
 .detail-list ion-item:hover {

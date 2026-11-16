@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: MIT -->
 <template>
   <div class="authorizations-container">
-    <div class="section-header">
-      <h3 class="section-title">Aplicaciones con Acceso</h3>
+    <ion-list-header class="section-header">
+      <ion-label class="section-title"><h3>Aplicaciones con Acceso</h3></ion-label>
       <ion-button
         size="small"
         fill="outline"
@@ -12,7 +12,7 @@
         <ion-icon slot="start" :icon="refreshOutline" />
         Actualizar
       </ion-button>
-    </div>
+    </ion-list-header>
 
     <div v-if="loading" class="loading-container" role="status" aria-live="polite">
       <ion-spinner name="lines"></ion-spinner>
@@ -46,14 +46,10 @@
             Última actualización: {{ formatDate({ dateStr: auth.updated_at }) }}
           </p>
         </ion-label>
-        <!-- A single element in the `end` slot: `ion-item` has one `end` slot. -->
+        <!-- A single element in the `end` slot: `ion-item` has one `end` slot.
+             The status badge lives in the label; repeating it here showed the
+             same label twice in every row. -->
         <div slot="end" class="authorization-actions">
-          <ion-badge
-            :color="getStatusColor({ status: auth.status })"
-          >
-            {{ getStatusLabel({ status: auth.status }) }}
-          </ion-badge>
-
           <ion-button
             v-if="auth.status === 'authorized'"
             fill="clear"
@@ -74,6 +70,7 @@
   import { ref, computed, watch } from 'vue';
   import {
     IonList,
+    IonListHeader,
     IonItem,
     IonLabel,
     IonIcon,
@@ -249,8 +246,17 @@
   --padding-start: 16px;
   --padding-end: 16px;
   --background: transparent;
+  --min-height: 48px;
+  --inner-padding-top: 8px;
+  --inner-padding-bottom: 8px;
   border-bottom: 1px solid var(--glass-border);
   transition: background 0.2s ease;
+}
+
+.detail-list ion-item ion-label {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
 }
 
 .detail-list ion-item:hover {

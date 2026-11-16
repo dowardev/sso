@@ -3,7 +3,7 @@
   <ion-page>
     <ion-content :fullscreen="true">
       <div class="home-container">
-        <div class="home-card">
+        <ion-card class="home-card">
           <div class="logo-section">
             <img
               alt="SSO Logo"
@@ -14,24 +14,26 @@
             <p class="home-subtitle">Sistema de Autenticación Única</p>
           </div>
 
-          <div class="features-section">
-            <div class="feature-item">
+          <ion-list class="features-section">
+            <ion-item class="feature-item" lines="none">
               <ion-icon
                 :icon="shieldCheckmarkOutline"
                 class="feature-icon"
                 aria-hidden="true"
               ></ion-icon>
-              <span>Seguridad avanzada</span>
-            </div>
-            <div class="feature-item">
+              <ion-label>Seguridad avanzada</ion-label>
+            </ion-item>
+
+            <ion-item class="feature-item" lines="none">
               <ion-icon :icon="keyOutline" class="feature-icon" aria-hidden="true"></ion-icon>
-              <span>Una sola contraseña</span>
-            </div>
-            <div class="feature-item">
+              <ion-label>Una sola contraseña</ion-label>
+            </ion-item>
+
+            <ion-item class="feature-item" lines="none">
               <ion-icon :icon="globeOutline" class="feature-icon" aria-hidden="true"></ion-icon>
-              <span>Múltiples aplicaciones</span>
-            </div>
-          </div>
+              <ion-label>Múltiples aplicaciones</ion-label>
+            </ion-item>
+          </ion-list>
 
           <div class="action-buttons">
             <ion-button
@@ -50,7 +52,7 @@
               Crear Cuenta
             </ion-button>
           </div>
-        </div>
+        </ion-card>
       </div>
     </ion-content>
   </ion-page>
@@ -58,7 +60,7 @@
 
 <script setup lang="ts">
   import { useRouter } from 'vue-router';
-  import { IonContent, IonPage, IonButton, IonIcon } from '@ionic/vue';
+  import { IonContent, IonPage, IonButton, IonIcon, IonCard, IonList, IonItem, IonLabel } from '@ionic/vue';
   import {
     shieldCheckmarkOutline,
     keyOutline,
@@ -95,6 +97,7 @@
     box-shadow:
       var(--card-shadow-light) 0px 8px 24px 0px,
       var(--card-shadow-heavy) 0px 0px 0px 1px;
+    margin: 0;
     padding: 32px 24px;
     text-align: center;
   }
@@ -123,9 +126,8 @@
   }
 
   .features-section {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    --ion-item-background: transparent;
+    background: transparent;
     margin-bottom: 32px;
     padding: 16px 0;
     border-top: 1px solid var(--ion-background-color-step-200);
@@ -133,17 +135,55 @@
   }
 
   .feature-item {
-    display: flex;
-    align-items: center;
+    --background: transparent;
+    --ion-item-background: transparent;
+    /* The item sets its own minimum height, so the baseline height needs the
+       important flag: the rules of the shadow tree win over the rules of the
+       outer tree for the same property. */
+    --min-height: 20px !important;
+    --inner-padding-top: 0;
+    --inner-padding-bottom: 0;
+    --inner-padding-start: 0;
+    --inner-padding-end: 0;
+    --padding-start: 0;
+    --padding-end: 0;
     justify-content: center;
-    gap: 8px;
+  }
+
+  /* The baseline spaced the feature rows with a 12px gap. */
+  .feature-item + .feature-item {
+    margin-top: 12px;
+  }
+
+  /* The row keeps the centred icon and label of the baseline: the item native
+     part is the flex row that holds the label, and the inner part hugs its
+     content, so the pair is centred together instead of sticking to the edge.
+     The parts need the important flag because the rules of the shadow tree
+     win over the rules of the outer tree for the same property. */
+  .feature-item::part(native) {
+    justify-content: center !important;
+  }
+
+  .feature-item::part(inner) {
+    flex: 0 0 auto !important;
+    height: 20px !important;
+  }
+
+  .feature-item ion-label {
     color: var(--text-secondary);
     font-size: 14px;
+    --padding-start: 0;
+    --padding-end: 0;
+    padding: 0;
+    white-space: nowrap;
   }
 
   .feature-icon {
     font-size: 20px;
     color: var(--ion-color-primary);
+    flex-shrink: 0;
+    /* The baseline spaced the icon and the label. */
+    margin-inline-end: 8px;
   }
 
   .action-buttons {

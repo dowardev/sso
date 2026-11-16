@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: MIT -->
 <template>
-  <div class="section-header">
-    <h3 class="section-title">Verificación en dos pasos (TOTP)</h3>
-  </div>
+  <ion-list-header class="section-header">
+    <ion-label class="section-title"><h3>Verificación en dos pasos (TOTP)</h3></ion-label>
+  </ion-list-header>
 
   <div v-if="loading" class="loading-container" role="status" aria-live="polite">
     <ion-spinner name="lines"></ion-spinner>
@@ -143,11 +143,11 @@
           <p>
             Cada código se usa una sola vez. Si perdés tu dispositivo TOTP, podés usar uno de estos códigos para iniciar sesión.
           </p>
-          <ul class="codes-list">
-            <li v-for="code in enrollment.backupCodes.value" :key="code" class="code-item">
+          <div class="codes-list">
+            <ion-chip v-for="code in enrollment.backupCodes.value" :key="code" class="code-item">
               <code>{{ code }}</code>
-            </li>
-          </ul>
+            </ion-chip>
+          </div>
           <p class="danger-warning">
             <ion-icon :icon="eyeOffOutline" />
             Esta es la ÚNICA vez que vamos a mostrarte estos códigos en texto plano. Anotalos o descargá el archivo antes de cerrar.
@@ -224,8 +224,10 @@
   import {
     IonCard,
     IonCardContent,
+    IonChip,
     IonIcon,
     IonButton,
+    IonListHeader,
     IonItem,
     IonLabel,
     IonInput,
@@ -584,20 +586,19 @@
     font-size: 1rem;
   }
   .codes-list {
-    list-style: none;
-    padding: 0;
-    margin: 12px 0;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
+    margin: 12px 0;
   }
-  .code-item code {
-    display: block;
-    background: var(--ion-color-light);
+  .code-item {
+    --background: var(--ion-color-light);
+    --color: var(--text-primary);
+    font-family: monospace;
+    font-size: 13px;
+    height: auto;
     padding: 8px;
     border-radius: 4px;
-    font-family: monospace;
-    text-align: center;
   }
   .danger-warning {
     display: flex;

@@ -537,10 +537,19 @@ const removeEmailLogo = async (): Promise<void> => {
 }
 
 .preview-title {
-  margin: 0 0 16px 0;
-  font-size: 14px;
+  /* The preview title is the header of the right column: it uses the same box
+     and the same typography as the section titles of the left column, so both
+     columns start at the same level. The list adds 8px of padding before its
+     header and the header of a list is a 36px box with the text centered. */
+  display: flex;
+  align-items: center;
+  height: 36px;
+  margin: 8px 0 0 0;
+  font-size: clamp(12px, 2.5vw, 13px);
   font-weight: 600;
-  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
 }
 
 .preview-card {

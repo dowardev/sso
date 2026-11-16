@@ -160,6 +160,21 @@ ion-item.border-rounded {
 }
 /* end ion-item */
 
+/* section titles
+   The title of a section is a label with a heading inside: the label is the
+   content model of the list header and the heading keeps the section in the
+   outline of the document for the screen readers. The heading inherits the
+   typography of the label. */
+.section-title h3 {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
+
 /* ion list */
 ion-list.transparent {
   background: transparent;

@@ -111,8 +111,8 @@
         <!-- 3. CSP Reports -->
         <!-- The toggle lives outside the list: `ion-list-header` only exposes the
              default slot, so a slotted chip inside it was never rendered. -->
-        <div class="section-header csp-section-header">
-          <span>Reportes CSP</span>
+        <ion-list-header class="section-header csp-section-header">
+          <ion-label>Reportes CSP</ion-label>
 
           <ion-button
             fill="clear"
@@ -121,7 +121,7 @@
           >
             {{ activeTab === 'csp' ? 'Ocultar' : 'Ver todo' }}
           </ion-button>
-        </div>
+        </ion-list-header>
 
         <ion-list class="health-list">
           <template v-if="activeTab === 'csp'">

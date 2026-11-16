@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: MIT -->
 <template>
-  <div class="authorizations-card">
-    <div class="section-header">
-      <h3 class="section-title">Aplicaciones Autorizadas</h3>
+  <ion-card class="authorizations-card">
+    <ion-list-header class="section-header">
+      <ion-label class="section-title"><h3>Aplicaciones Autorizadas</h3></ion-label>
       <ion-button
         size="small"
         fill="outline"
@@ -12,7 +12,7 @@
         <ion-icon slot="start" :icon="refreshOutline" />
         Actualizar
       </ion-button>
-    </div>
+    </ion-list-header>
 
     <div v-if="loading" class="loading-container" role="status" aria-live="polite">
       <ion-spinner name="lines"></ion-spinner>
@@ -46,12 +46,10 @@
             Última actualización: {{ formatDate({ dateStr: auth.updated_at }) }}
           </p>
         </ion-label>
-        <!-- A single element in the `end` slot: `ion-item` has one `end` slot. -->
+        <!-- A single element in the `end` slot: `ion-item` has one `end` slot.
+             The status badge lives in the label; repeating it here showed the
+             same label twice in every row. -->
         <div slot="end" class="authorization-actions">
-          <ion-badge :color="getStatusColor({ status: auth.status })">
-            {{ getStatusLabel({ status: auth.status }) }}
-          </ion-badge>
-
           <ion-button
             v-if="auth.status === 'authorized'"
             fill="clear"
@@ -64,14 +62,16 @@
         </div>
       </ion-item>
     </ion-list>
-  </div>
+  </ion-card>
 </template>
 
 <script setup lang="ts">
   // 1. Imports (ionic/vue/ionicons)
   import { ref, onMounted } from 'vue';
   import {
+    IonCard,
     IonList,
+    IonListHeader,
     IonItem,
     IonLabel,
     IonIcon,
@@ -200,6 +200,33 @@
 </script>
 
 <style scoped>
+/* The card is only a structural wrapper: the page background must show
+   through, so the native card surface is neutralised. */
+.authorizations-card {
+  background: transparent;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 0 16px;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-tertiary);
+}
+
 .loading-container {
   display: flex;
   flex-direction: column;
@@ -249,8 +276,17 @@
   --padding-start: 16px;
   --padding-end: 16px;
   --background: transparent;
+  --min-height: 48px;
+  --inner-padding-top: 8px;
+  --inner-padding-bottom: 8px;
   border-bottom: 1px solid var(--glass-border);
   transition: background 0.2s ease;
+}
+
+.detail-list ion-item ion-label {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
 }
 
 .detail-list ion-item:hover {

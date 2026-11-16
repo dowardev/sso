@@ -46,7 +46,7 @@
 
             <ion-col size="12" size-md="6">
               <div class="info-card">
-                <h3 class="section-title">Información</h3>
+                <ion-label class="section-title"><h3>Información</h3></ion-label>
                 <div class="info-item">
                   <ion-icon :icon="mailOutline" class="info-icon" aria-hidden="true"></ion-icon>
                   <span class="value">{{ displayEmail }}</span>
@@ -64,12 +64,12 @@
 
             <ion-col size="12" size-md="6">
               <div class="roles-card">
-                <div class="section-header">
-                  <h3 class="section-title">Roles</h3>
+                <ion-list-header class="section-header">
+                  <ion-label class="section-title"><h3>Roles</h3></ion-label>
                   <ion-button size="small" aria-label="Editar roles" @click="openRolesModal">
                     <ion-icon slot="icon-only" :icon="create"></ion-icon>
                   </ion-button>
-                </div>
+                </ion-list-header>
 
                 <div v-if="userRoles.length === 0" class="empty-state">
                   <ion-icon :icon="shieldOutline" size="large" aria-hidden="true"></ion-icon>
@@ -88,8 +88,8 @@
 
             <ion-col size="12">
               <div class="sessions-card">
-                <div class="section-header">
-                  <h3 class="section-title">Sesiones</h3>
+                <ion-list-header class="section-header">
+                  <ion-label class="section-title"><h3>Sesiones</h3></ion-label>
                   <ion-button
                     v-if="sessions.length > 0"
                     size="small"
@@ -99,7 +99,7 @@
                   >
                     Revocar Todas
                   </ion-button>
-                </div>
+                </ion-list-header>
 
                 <div v-if="sessions.length === 0" class="empty-state">
                   <ion-icon :icon="keyOutline" size="large" aria-hidden="true"></ion-icon>
@@ -303,6 +303,7 @@
     IonAvatar,
     IonBadge,
     IonList,
+    IonListHeader,
     IonItem,
     IonLabel,
     IonModal,
@@ -801,8 +802,17 @@ const authStore = useAuthStore();
   --padding-start: 16px;
   --padding-end: 16px;
   --background: transparent;
+  --min-height: 48px;
+  --inner-padding-top: 8px;
+  --inner-padding-bottom: 8px;
   border-bottom: 1px solid var(--glass-border);
   transition: background 0.2s ease;
+}
+
+.detail-list ion-item ion-label {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
 }
 
 .detail-list ion-item:hover {

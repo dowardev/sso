@@ -55,87 +55,114 @@
           <ion-row>
             <ion-col size="12" size-md="6">
               <div class="col-stack">
-                <div class="card">
-                  <div class="card-header">
-                    <span class="card-title">Últimas Sesiones</span>
+                <ion-card class="card">
+                  <ion-card-header class="card-header">
+                    <ion-card-title class="card-title">Últimas Sesiones</ion-card-title>
                     <button class="card-link" aria-label="Ver todas las sesiones" @click="router.push({ name: 'AdminSessions' })">Ver todas →</button>
-                  </div>
-                  <div v-if="recentSessions.length === 0" class="card-empty">No hay sesiones activas</div>
-                  <div v-for="session in recentSessions" v-else :key="session.id" class="session-row">
-                    <div class="session-avatar">{{ getInitials({ name: session.user?.name || '?' }) }}</div>
-                    <div class="session-info">
-                      <div class="session-user">{{ session.user?.name || 'Desconocido' }}</div>
-                      <div class="session-client">{{ session.client?.name || 'Cliente desconocido' }}</div>
-                    </div>
-                    <div class="session-meta">
-                      <span class="session-badge" :class="session.token_active ? 'badge-active' : 'badge-inactive'">
-                        {{ session.token_active ? 'Activa' : 'Inactiva' }}
-                      </span>
-                      <span class="session-time">{{ timeAgo({ date: session.last_used_at }) }}</span>
-                    </div>
-                  </div>
-                </div>
+                  </ion-card-header>
 
-                <div class="card">
-                  <div class="card-header">
-                    <span class="card-title">Clientes SSO</span>
+                  <div v-if="recentSessions.length === 0" class="card-empty">No hay sesiones activas</div>
+
+                  <ion-list v-else class="panel-list">
+                    <ion-item v-for="session in recentSessions" :key="session.id" class="session-row">
+                      <div slot="start" class="session-avatar">{{ getInitials({ name: session.user?.name || '?' }) }}</div>
+                      <ion-label class="session-info">
+                        <h3 class="session-user">{{ session.user?.name || 'Desconocido' }}</h3>
+                        <p class="session-client">{{ session.client?.name || 'Cliente desconocido' }}</p>
+                      </ion-label>
+                      <div slot="end" class="session-meta">
+                        <div class="session-status">
+                          <span class="session-badge" :class="session.token_active ? 'badge-active' : 'badge-inactive'">
+                            {{ session.token_active ? 'Activa' : 'Inactiva' }}
+                          </span>
+                          <span class="session-time">{{ timeAgo({ date: session.last_used_at }) }}</span>
+                        </div>
+                      </div>
+                    </ion-item>
+                  </ion-list>
+                </ion-card>
+
+                <ion-card class="card">
+                  <ion-card-header class="card-header">
+                    <ion-card-title class="card-title">Clientes SSO</ion-card-title>
                     <button class="card-link" aria-label="Ver todos los clientes" @click="router.push({ name: 'AdminClients' })">Ver todos →</button>
-                  </div>
+                  </ion-card-header>
+
                   <div v-if="clients.length === 0" class="card-empty">No hay clientes registrados</div>
-                  <div v-for="client in clients.slice(0, 6)" v-else :key="client.id" class="client-row">
-                    <div class="client-icon-wrapper">
-                      <ion-icon :icon="desktopOutline" aria-hidden="true"></ion-icon>
-                    </div>
-                    <div class="client-info-col">
-                      <div class="client-name">{{ client.name }}</div>
-                      <div class="client-id-text">{{ client.client_id }}</div>
-                    </div>
-                    <div class="client-dot" :class="client.active ? 'dot-active' : 'dot-inactive'"></div>
-                  </div>
-                </div>
+
+                  <ion-list v-else class="panel-list">
+                    <ion-item v-for="client in clients.slice(0, 6)" :key="client.id" class="client-row">
+                      <div slot="start" class="client-icon-wrapper">
+                        <ion-icon :icon="desktopOutline" aria-hidden="true"></ion-icon>
+                      </div>
+                      <ion-label class="client-info-col">
+                        <h3 class="client-name">{{ client.name }}</h3>
+                        <p class="client-id-text">{{ client.client_id }}</p>
+                      </ion-label>
+                      <div slot="end" class="client-dot" :class="client.active ? 'dot-active' : 'dot-inactive'"></div>
+                    </ion-item>
+                  </ion-list>
+                </ion-card>
               </div>
             </ion-col>
 
             <ion-col size="12" size-md="6">
               <div class="col-stack">
-                <div class="card">
-                  <div class="card-header">
-                    <span class="card-title">Usuarios por Rol</span>
+                <ion-card class="card">
+                  <ion-card-header class="card-header">
+                    <ion-card-title class="card-title">Usuarios por Rol</ion-card-title>
                     <button class="card-link" aria-label="Ver todos los roles" @click="router.push({ name: 'AdminRoles' })">Ver roles →</button>
-                  </div>
-                  <div v-if="rolesWithCount.length === 0" class="card-empty">No hay roles configurados</div>
-                  <div v-for="(role, index) in rolesWithCount" v-else :key="role.id" class="bar-row">
-                    <span class="bar-label">{{ role.name }}</span>
-                    <div class="bar-track">
-                      <div class="bar-fill" :style="{ width: barWidth({ count: role.users_count || 0 }) }" :class="barColorClass({ index })"></div>
-                    </div>
-                    <span class="bar-count">{{ role.users_count || 0 }}</span>
-                  </div>
-                </div>
+                  </ion-card-header>
 
-                <div class="card">
-                  <div class="card-header">
-                    <span class="card-title">Estado del Sistema</span>
-                  </div>
-                  <div class="system-row">
-                    <div class="system-dot system-dot-online"></div>
-                    <span class="system-name">API</span>
-                    <span class="system-detail">~12ms</span>
-                    <span class="system-badge-ok">OK</span>
-                  </div>
-                  <div class="system-row">
-                    <div class="system-dot system-dot-online"></div>
-                    <span class="system-name">Base de Datos</span>
-                    <span class="system-detail">Conexión estable</span>
-                    <span class="system-badge-ok">OK</span>
-                  </div>
-                  <div class="system-row">
-                    <div class="system-dot system-dot-online"></div>
-                    <span class="system-name">Autenticación</span>
-                    <span class="system-detail">JWT RS256</span>
-                    <span class="system-badge-ok">OK</span>
-                  </div>
-                </div>
+                  <div v-if="rolesWithCount.length === 0" class="card-empty">No hay roles configurados</div>
+
+                  <ion-list v-else class="panel-list">
+                    <ion-item v-for="(role, index) in rolesWithCount" :key="role.id" class="bar-row">
+                      <ion-label class="bar-label">{{ role.name }}</ion-label>
+                      <ion-progress-bar
+                        class="bar-track"
+                        :value="roleRatio({ count: role.users_count || 0 })"
+                        :style="barStyle({ index })"
+                      ></ion-progress-bar>
+                      <span slot="end" class="bar-count">{{ role.users_count || 0 }}</span>
+                    </ion-item>
+                  </ion-list>
+                </ion-card>
+
+                <ion-card class="card">
+                  <ion-card-header class="card-header">
+                    <ion-card-title class="card-title">Estado del Sistema</ion-card-title>
+                  </ion-card-header>
+
+                  <ion-list class="panel-list">
+                    <ion-item class="system-row">
+                      <ion-icon slot="start" :icon="checkmarkCircle" color="success" aria-hidden="true" class="system-icon"></ion-icon>
+                      <ion-label class="system-name">API</ion-label>
+                      <div slot="end" class="system-meta">
+                        <span class="system-detail">~12ms</span>
+                        <ion-badge color="success" class="system-badge-ok">OK</ion-badge>
+                      </div>
+                    </ion-item>
+
+                    <ion-item class="system-row">
+                      <ion-icon slot="start" :icon="checkmarkCircle" color="success" aria-hidden="true" class="system-icon"></ion-icon>
+                      <ion-label class="system-name">Base de Datos</ion-label>
+                      <div slot="end" class="system-meta">
+                        <span class="system-detail">Conexión estable</span>
+                        <ion-badge color="success" class="system-badge-ok">OK</ion-badge>
+                      </div>
+                    </ion-item>
+
+                    <ion-item class="system-row">
+                      <ion-icon slot="start" :icon="checkmarkCircle" color="success" aria-hidden="true" class="system-icon"></ion-icon>
+                      <ion-label class="system-name">Autenticación</ion-label>
+                      <div slot="end" class="system-meta">
+                        <span class="system-detail">JWT RS256</span>
+                        <ion-badge color="success" class="system-badge-ok">OK</ion-badge>
+                      </div>
+                    </ion-item>
+                  </ion-list>
+                </ion-card>
               </div>
             </ion-col>
           </ion-row>
@@ -162,9 +189,16 @@
     IonGrid,
     IonRow,
     IonCol,
+    IonCard,
+    IonCardHeader,
+    IonCardTitle,
+    IonList,
+    IonItem,
+    IonLabel,
+    IonBadge,
   } from '@ionic/vue';
   import UserMenu from '@/components/user/UserMenu.vue';
-  import { desktopOutline } from 'ionicons/icons';
+  import { desktopOutline, checkmarkCircle } from 'ionicons/icons';
 
   // 2. Controllers
   import { useUsersController } from '@/controllers/usersController';
@@ -230,16 +264,22 @@
   });
 
   // 10. Functions
-  const barWidth = (params: { count: number }): string => {
+  const roleRatio = (params: { count: number }): number => {
     const { count } = params;
-    return `${(count / maxRoleCount.value) * 100}%`;
+    return Math.min(count / maxRoleCount.value, 1);
   };
 
-  const barColors = ['fill-purple', 'fill-cyan', 'fill-green', 'fill-amber', 'fill-rose'];
+  const barGradients = [
+    'linear-gradient(90deg, var(--ion-color-primary), var(--ion-color-primary-tint))',
+    'linear-gradient(90deg, var(--ion-color-secondary), var(--ion-color-secondary-tint))',
+    'linear-gradient(90deg, var(--ion-color-success), var(--ion-color-success-tint))',
+    'linear-gradient(90deg, var(--ion-color-tertiary), var(--ion-color-tertiary-tint))',
+    'linear-gradient(90deg, var(--ion-color-danger), var(--ion-color-danger-tint))',
+  ];
 
-  const barColorClass = (params: { index: number }): string => {
+  const barStyle = (params: { index: number }): Record<string, string> => {
     const { index } = params;
-    return barColors[index % barColors.length];
+    return { '--progress-background': barGradients[index % barGradients.length] };
   };
 
   const timeAgo = (params: { date: string }): string => {
@@ -368,14 +408,38 @@
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   border-radius: 4px;
+  box-shadow: none;
+  margin: 0;
   padding: clamp(14px, 3vw, 20px);
 }
 
 .card-header {
   display: flex;
+  /* The card header stacks its content by column, so the row of the baseline
+     needs the important flag: the rules of the shadow tree win over the rules
+     of the outer tree for the same property. */
+  flex-direction: row !important;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  padding: 0;
+}
+
+/* The native label adds its own horizontal padding: the baseline rows had
+   the text flush with the icon. */
+.panel-list ion-label {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
+}
+
+/* The lists sit on the glass card surface: the native list and item
+   backgrounds must not paint an opaque white panel over it. */
+.panel-list {
+  --ion-item-background: transparent;
+  background: transparent;
+  margin: 0;
+  padding: 0;
 }
 
 .card-title {
@@ -410,11 +474,24 @@
 }
 
 .session-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 0;
+  --border-width: 0;
+  --inner-border-width: 0;
+  --background: transparent;
+  --ion-item-background: transparent;
+  --min-height: 44px;
+  --inner-padding-top: 6px;
+  --inner-padding-bottom: 6px;
+  --inner-padding-start: 10px;
+  --inner-padding-end: 0;
+  --padding-start: 0;
+  --padding-end: 0;
   border-bottom: 1px solid rgba(var(--ion-color-primary-contrast-rgb), 0.04);
+}
+
+.session-row ion-label {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
 }
 
 .session-row:last-child {
@@ -441,6 +518,7 @@
 }
 
 .session-user {
+  margin: 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
@@ -450,6 +528,7 @@
 }
 
 .session-client {
+  margin: 0;
   font-size: 11px;
   color: var(--text-tertiary);
   white-space: nowrap;
@@ -459,10 +538,17 @@
 
 .session-meta {
   display: flex;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+/* The badge and the timestamp keep their stacked layout inside a single
+   element of the `end` slot. */
+.session-status {
+  display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
-  flex-shrink: 0;
 }
 
 .session-badge {
@@ -490,51 +576,40 @@
 }
 
 .bar-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
+  --border-width: 0;
+  --inner-border-width: 0;
+  --background: transparent;
+  --ion-item-background: transparent;
+  --min-height: 36px;
+  --inner-padding-top: 4px;
+  --inner-padding-bottom: 4px;
+  --inner-padding-start: 0;
+  --inner-padding-end: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+}
+
+.bar-row ion-label {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
 }
 
 .bar-label {
+  flex: 0 0 auto;
+  min-width: 65px;
+  margin-right: 10px;
   font-size: 12px;
   font-weight: 500;
-  min-width: 65px;
   color: var(--text-secondary);
 }
 
 .bar-track {
   flex: 1;
-  height: 6px;
+  min-width: 0;
+  --background: rgba(var(--ion-color-primary-contrast-rgb), 0.06);
   border-radius: 3px;
-  background: rgba(var(--ion-color-primary-contrast-rgb), 0.06);
   overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.6s ease;
-}
-
-.fill-purple {
-  background: linear-gradient(90deg, var(--ion-color-primary), var(--ion-color-primary-tint));
-}
-
-.fill-cyan {
-  background: linear-gradient(90deg, var(--ion-color-secondary), var(--ion-color-secondary-tint));
-}
-
-.fill-green {
-  background: linear-gradient(90deg, var(--ion-color-success), var(--ion-color-success-tint));
-}
-
-.fill-amber {
-  background: linear-gradient(90deg, var(--ion-color-tertiary), var(--ion-color-tertiary-tint));
-}
-
-.fill-rose {
-  background: linear-gradient(90deg, var(--ion-color-danger), var(--ion-color-danger-tint));
 }
 
 .bar-count {
@@ -543,14 +618,28 @@
   color: var(--text-primary);
   min-width: 20px;
   text-align: right;
+  flex-shrink: 0;
 }
 
 .client-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 0;
+  --border-width: 0;
+  --inner-border-width: 0;
+  --background: transparent;
+  --ion-item-background: transparent;
+  --min-height: 44px;
+  --inner-padding-top: 6px;
+  --inner-padding-bottom: 6px;
+  --inner-padding-start: 10px;
+  --inner-padding-end: 0;
+  --padding-start: 0;
+  --padding-end: 0;
   border-bottom: 1px solid rgba(var(--ion-color-primary-contrast-rgb), 0.04);
+}
+
+.client-row ion-label {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
 }
 
 .client-row:last-child {
@@ -576,6 +665,7 @@
 }
 
 .client-name {
+  margin: 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
@@ -585,6 +675,7 @@
 }
 
 .client-id-text {
+  margin: 0;
   font-size: 11px;
   color: var(--text-tertiary);
   font-family: 'SF Mono', 'Fira Code', monospace;
@@ -610,27 +701,36 @@
 }
 
 .system-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 0;
+  --border-width: 0;
+  --inner-border-width: 0;
+  --background: transparent;
+  --ion-item-background: transparent;
+  --min-height: 44px;
+  --inner-padding-top: 6px;
+  --inner-padding-bottom: 6px;
+  --inner-padding-start: 10px;
+  --inner-padding-end: 0;
+  --padding-start: 0;
+  --padding-end: 0;
   border-bottom: 1px solid rgba(var(--ion-color-primary-contrast-rgb), 0.04);
+}
+
+.system-row ion-label {
+  --padding-start: 0;
+  --padding-end: 0;
+  padding: 0;
+}
+
+.system-icon {
+  font-size: 8px;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  --ionicon-font-size: 8px;
 }
 
 .system-row:last-child {
   border-bottom: none;
-}
-
-.system-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.system-dot-online {
-  background: var(--ion-color-success);
-  box-shadow: 0 0 6px rgba(var(--ion-color-success-rgb), 0.5);
 }
 
 .system-name {
@@ -640,23 +740,33 @@
   flex: 1;
 }
 
+.system-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .system-detail {
   font-size: 11px;
   color: var(--text-tertiary);
 }
 
 .system-badge-ok {
+  --background: rgba(var(--ion-color-success-rgb), 0.1);
+  --color: var(--ion-color-success);
+  --padding-top: 2px;
+  --padding-bottom: 2px;
+  --padding-start: 7px;
+  --padding-end: 7px;
   font-size: 10px;
   font-weight: 600;
-  color: var(--ion-color-success);
-  background: rgba(var(--ion-color-success-rgb), 0.1);
   border: 1px solid rgba(var(--ion-color-success-rgb), 0.2);
-  padding: 2px 7px;
   border-radius: 999px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bar-fill {
+  .bar-track {
     transition: none;
   }
 }

@@ -78,38 +78,62 @@
             <div v-if="v$.password.$error" id="setup-password-error" class="field-error">
               {{ v$.password.$errors[0].$message }}
             </div>
-            <div v-if="form.password.length > 0 || v$.password.$dirty" id="setup-password-checklist" class="password-checklist" aria-live="polite">
-              <div class="check-item" :class="{ valid: passwordChecks.minLength }">
-                <span class="check-icon">
-                  <ion-icon :icon="passwordChecks.minLength ? checkmarkCircleOutline : closeCircleOutline" />
-                </span>
-                <span>Al menos 10 caracteres</span>
-              </div>
-              <div class="check-item" :class="{ valid: passwordChecks.hasUpperCase }">
-                <span class="check-icon">
-                  <ion-icon :icon="passwordChecks.hasUpperCase ? checkmarkCircleOutline : closeCircleOutline" />
-                </span>
-                <span>Al menos una mayúscula</span>
-              </div>
-              <div class="check-item" :class="{ valid: passwordChecks.hasLowerCase }">
-                <span class="check-icon">
-                  <ion-icon :icon="passwordChecks.hasLowerCase ? checkmarkCircleOutline : closeCircleOutline" />
-                </span>
-                <span>Al menos una minúscula</span>
-              </div>
-              <div class="check-item" :class="{ valid: passwordChecks.hasNumber }">
-                <span class="check-icon">
-                  <ion-icon :icon="passwordChecks.hasNumber ? checkmarkCircleOutline : closeCircleOutline" />
-                </span>
-                <span>Al menos un número</span>
-              </div>
-              <div class="check-item" :class="{ valid: passwordChecks.hasSymbol }">
-                <span class="check-icon">
-                  <ion-icon :icon="passwordChecks.hasSymbol ? checkmarkCircleOutline : closeCircleOutline" />
-                </span>
-                <span>Al menos un símbolo especial (@ $ ! % * ? &)</span>
-              </div>
-            </div>
+            <ion-list
+              v-if="form.password.length > 0 || v$.password.$dirty"
+              id="setup-password-checklist"
+              class="password-checklist"
+              aria-live="polite"
+            >
+              <ion-item class="check-item" :class="{ valid: passwordChecks.minLength }" lines="none">
+                <ion-icon
+                  slot="start"
+                  :icon="passwordChecks.minLength ? checkmarkCircleOutline : closeCircleOutline"
+                  class="check-icon"
+                  aria-hidden="true"
+                ></ion-icon>
+                <ion-label>Al menos 10 caracteres</ion-label>
+              </ion-item>
+
+              <ion-item class="check-item" :class="{ valid: passwordChecks.hasUpperCase }" lines="none">
+                <ion-icon
+                  slot="start"
+                  :icon="passwordChecks.hasUpperCase ? checkmarkCircleOutline : closeCircleOutline"
+                  class="check-icon"
+                  aria-hidden="true"
+                ></ion-icon>
+                <ion-label>Al menos una mayúscula</ion-label>
+              </ion-item>
+
+              <ion-item class="check-item" :class="{ valid: passwordChecks.hasLowerCase }" lines="none">
+                <ion-icon
+                  slot="start"
+                  :icon="passwordChecks.hasLowerCase ? checkmarkCircleOutline : closeCircleOutline"
+                  class="check-icon"
+                  aria-hidden="true"
+                ></ion-icon>
+                <ion-label>Al menos una minúscula</ion-label>
+              </ion-item>
+
+              <ion-item class="check-item" :class="{ valid: passwordChecks.hasNumber }" lines="none">
+                <ion-icon
+                  slot="start"
+                  :icon="passwordChecks.hasNumber ? checkmarkCircleOutline : closeCircleOutline"
+                  class="check-icon"
+                  aria-hidden="true"
+                ></ion-icon>
+                <ion-label>Al menos un número</ion-label>
+              </ion-item>
+
+              <ion-item class="check-item" :class="{ valid: passwordChecks.hasSymbol }" lines="none">
+                <ion-icon
+                  slot="start"
+                  :icon="passwordChecks.hasSymbol ? checkmarkCircleOutline : closeCircleOutline"
+                  class="check-icon"
+                  aria-hidden="true"
+                ></ion-icon>
+                <ion-label>Al menos un símbolo especial (@ $ ! % * ? &)</ion-label>
+              </ion-item>
+            </ion-list>
 
             <ion-item class="input-item" lines="none">
               <ion-input
@@ -165,6 +189,8 @@ import {
   IonTitle,
   IonContent,
   IonItem,
+  IonLabel,
+  IonList,
   IonInput,
   IonButton,
   IonSpinner,
@@ -272,10 +298,12 @@ const handleSetup = async (_params: object = {}): Promise<void> => {
 }
 
 .check-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 0;
+  --background: transparent;
+  --ion-item-background: transparent;
+  --inner-padding-top: 2px;
+  --inner-padding-bottom: 2px;
+  --inner-padding-start: 0;
+  --inner-padding-end: 0;
   color: var(--ion-color-medium);
   transition: color 0.15s ease;
 }
