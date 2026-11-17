@@ -56,7 +56,7 @@ env:
   COMPOSER_HOME: ${{ github.workspace }}/back/.composer
   # GitLab: la version de node sale de mise.toml (node = "lts").
   # GitHub: setup-node acepta el alias 'lts' con la misma semantica.
-  NODE_VERSION: lts
+  NODE_VERSION: '24'
   PNPM_VERSION: '11.3.0'
 
 jobs:
@@ -94,7 +94,7 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           coverage: none
           tools: composer:v2
 
@@ -170,7 +170,7 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           coverage: none
           tools: composer:v2
 
@@ -210,7 +210,7 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           coverage: none
           tools: composer:v2
 
@@ -273,7 +273,7 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           coverage: none
           tools: composer:v2
 
@@ -340,7 +340,7 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           coverage: none
           tools: composer:v2
 
@@ -448,7 +448,7 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           coverage: none
           tools: composer:v2
 
