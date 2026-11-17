@@ -28,7 +28,7 @@ on:
   pull_request:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       rollback_target:
@@ -64,6 +64,26 @@ jobs:
   # STAGE: lint
   # Corre en tags de release y en merge requests (.pipeline_rules).
   # ============================================================
+
+  # Gate de tag semver: las expresiones de GitHub Actions no tienen regex
+  # (no existe `matches()`), asi que el filtro exacto de las tag rules de
+  # GitLab (^vX.Y.Z con prerelease opcional) se evalua aqui en bash.
+  # Salida `release`: 'true' solo para tags semver validas.
+  release_gate:
+    name: release_gate
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - id: check
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc|dryrun)\.[0-9]+)?$ ]]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
 
   backend_lint:
     name: backend_lint
@@ -450,8 +470,8 @@ jobs:
   backend_deploy:
     name: backend_deploy
     runs-on: ubuntu-latest
-    needs: [backend_lint, backend_test, backend_build]
-    if: startsWith(github.ref, 'refs/tags/v') && matches(github.ref_name, /^v\d+\.\d+\.\d+(-(alpha|beta|rc|dryrun)\.\d+)?$/)
+    needs: [release_gate, backend_lint, backend_test, backend_build]
+    if: startsWith(github.ref, 'refs/tags/v') && needs.release_gate.outputs.release == 'true'
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -509,8 +529,8 @@ jobs:
   frontend_deploy:
     name: frontend_deploy
     runs-on: ubuntu-latest
-    needs: [frontend_lint, frontend_test_unit, frontend_build]
-    if: startsWith(github.ref, 'refs/tags/v') && matches(github.ref_name, /^v\d+\.\d+\.\d+(-(alpha|beta|rc|dryrun)\.\d+)?$/)
+    needs: [release_gate, frontend_lint, frontend_test_unit, frontend_build]
+    if: startsWith(github.ref, 'refs/tags/v') && needs.release_gate.outputs.release == 'true'
     environment: production
     steps:
       - uses: actions/checkout@v4
