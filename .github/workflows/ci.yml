@@ -211,7 +211,7 @@ jobs:
           composer install --prefer-dist --no-progress --no-interaction
           php artisan key:generate --force
           mkdir -p keys
-          php artisan jwt:generate-keys || true
+          php artisan jwt:generate-keys || echo "jwt:generate-keys did not complete (keys may already exist)"
           php artisan config:clear
 
       - name: Run Laravel tests
