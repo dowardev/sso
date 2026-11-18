@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The frontend sections are built with the native Ionic components**: the hand-rolled `div`, `span` and `ul` markup of the admin and profile sections was replaced by `ion-card`, `ion-list`, `ion-item`, `ion-list-header`, `ion-chip`, `ion-accordion` and `ion-progress-bar`, keeping the same behaviour and the same visual language. The section titles keep their heading semantics, so the sections remain in the document outline that screen readers walk.
+
+### Fixed
+
+- **The authorization rows no longer show the status badge twice**: every row rendered the status in its label and again in a badge of its own.
+- **The preview title of the design page is aligned with the section titles**: it used a text line where the section titles use the 36 px header box of a list, which left the two columns of the page 17,6 px apart.
+- **The session accordion ignores the values that are not session ids**: the expansion values were mapped with `Number()` without validating them, so a value that is not a number could end up in the set of expanded sessions.
 
 ## [v0.37.4] - 2026-11-04
 
