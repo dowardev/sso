@@ -484,15 +484,19 @@ jobs:
           name: backend-build
           path: back
 
+      # GitLab hacia el setup a mano: id_rsa + known_hosts + ~/.ssh/config con
+      # los algoritmos RSA legacy. Se replica igual: la accion
+      # webfactory/ssh-agent no tiene input para known_hosts.
       - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.8
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          ssh-known-hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
-
-      - name: Configure legacy RSA host keys
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          eval $(ssh-agent -s) && ssh-add ~/.ssh/id_rsa
+          printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
           printf 'Host *\n  HostKeyAlgorithms +ssh-rsa\n  PubkeyAcceptedAlgorithms +ssh-rsa\n' > ~/.ssh/config
 
       - name: Deploy backend
@@ -541,15 +545,19 @@ jobs:
           name: frontend-build
           path: front/dist
 
+      # GitLab hacia el setup a mano: id_rsa + known_hosts + ~/.ssh/config con
+      # los algoritmos RSA legacy. Se replica igual: la accion
+      # webfactory/ssh-agent no tiene input para known_hosts.
       - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.8
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          ssh-known-hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
-
-      - name: Configure legacy RSA host keys
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          eval $(ssh-agent -s) && ssh-add ~/.ssh/id_rsa
+          printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
           printf 'Host *\n  HostKeyAlgorithms +ssh-rsa\n  PubkeyAcceptedAlgorithms +ssh-rsa\n' > ~/.ssh/config
 
       - name: Deploy frontend
@@ -582,15 +590,19 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      # GitLab hacia el setup a mano: id_rsa + known_hosts + ~/.ssh/config con
+      # los algoritmos RSA legacy. Se replica igual: la accion
+      # webfactory/ssh-agent no tiene input para known_hosts.
       - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.8
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          ssh-known-hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
-
-      - name: Configure legacy RSA host keys
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          eval $(ssh-agent -s) && ssh-add ~/.ssh/id_rsa
+          printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
           printf 'Host *\n  HostKeyAlgorithms +ssh-rsa\n  PubkeyAcceptedAlgorithms +ssh-rsa\n' > ~/.ssh/config
 
       - name: Roll back backend
@@ -653,15 +665,19 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
+      # GitLab hacia el setup a mano: id_rsa + known_hosts + ~/.ssh/config con
+      # los algoritmos RSA legacy. Se replica igual: la accion
+      # webfactory/ssh-agent no tiene input para known_hosts.
       - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.8
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          ssh-known-hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
-
-      - name: Configure legacy RSA host keys
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          eval $(ssh-agent -s) && ssh-add ~/.ssh/id_rsa
+          printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
           printf 'Host *\n  HostKeyAlgorithms +ssh-rsa\n  PubkeyAcceptedAlgorithms +ssh-rsa\n' > ~/.ssh/config
 
       - name: Roll back frontend
