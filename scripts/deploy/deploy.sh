@@ -205,6 +205,19 @@ esac
 # ============================================================
 # SSH Setup — mirrors .gitlab-ci.yml .ssh_setup exactly
 # ============================================================
+# The private key can arrive in two shapes: as the content of the
+# variable, or as the path to a file (a GitLab file variable holds the
+# content in a file and puts the path in the variable).
+write_private_key() {
+    local destination="$1" source_value="$2"
+    if [ -f "$source_value" ]; then
+        cp "$source_value" "$destination"
+    else
+        printf '%s\n' "$source_value" > "$destination"
+    fi
+    chmod 600 "$destination"
+}
+
 setup_ssh() {
   local ssh_dir="$HOME/.ssh"
 
@@ -224,8 +237,7 @@ setup_ssh() {
       USE_KEY_FILE=true
       KEY_SOURCE="existing-file"
     else
-      echo "$SSH_PRIVATE_KEY" > "$ssh_dir/id_rsa"
-      chmod 600 "$ssh_dir/id_rsa"
+      write_private_key "$ssh_dir/id_rsa" "$SSH_PRIVATE_KEY"
       log_info "SSH auth: SSH_PRIVATE_KEY (GitLab CI style)"
       USE_KEY_FILE=true
       KEY_SOURCE="SSH_PRIVATE_KEY"
