@@ -709,3 +709,140 @@ jobs:
             tar -xzf /tmp/frontend-rollback.tar.gz -C $DEPLOY_PATH_FRONTEND &&
             rm /tmp/frontend-rollback.tar.gz
           "
+
+  # ============================================================
+  # STAGE: publish
+  # Publica los paquetes del monorepo. En GitLab NO habia jobs de
+  # publish: la publicacion era manual, desde una maquina local. Esto
+  # la automatiza con el mismo criterio que el deploy (solo tags de
+  # release validas).
+  #
+  # - Reutiliza el build ya testeado (artifact), no recompila.
+  # - No publica si esa version ya esta en el registro.
+  # - Sin el secret NPM_TOKEN no publica: lo omite con un warning, para
+  #   no dejar en rojo la corrida de release.
+  # ============================================================
+  publish_npm:
+    name: publish:npm
+    runs-on: ubuntu-latest
+    needs: [release_gate, client_build]
+    if: startsWith(github.ref, 'refs/tags/') && needs.release_gate.outputs.release == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download the tested client build
+        uses: actions/download-artifact@v4
+        with:
+          name: client-build
+          path: packages/sso-client/dist
+
+      - name: Check the version against the npm registry
+        id: version
+        env:
+          PACKAGE_DIR: packages/sso-client
+        run: |
+          set -euo pipefail
+          name=$(node -p "require('./$PACKAGE_DIR/package.json').name")
+          version=$(node -p "require('./$PACKAGE_DIR/package.json').version")
+          echo "package=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          published=$( { npm view "$name" versions --json 2>/dev/null || true; } | node -e '
+            let raw = "";
+            process.stdin.on("data", (chunk) => (raw += chunk));
+            process.stdin.on("end", () => {
+              try {
+                const parsed = JSON.parse(raw);
+                console.log(Array.isArray(parsed) ? parsed.join(" ") : String(parsed));
+              } catch (error) {
+                console.log("");
+              }
+            });
+          ' )
+          if [[ " $published " == *" $version "* ]]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "La version $version de $name ya esta publicada: se omite." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        if: steps.version.outputs.publish == 'true'
+        working-directory: packages/sso-client
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then
+            echo "::warning::Falta el secret NPM_TOKEN: se omite la publicacion a npm"
+            echo "Publicacion a npm omitida: falta el secret NPM_TOKEN" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          npm publish --provenance --access public
+
+  # Publica el paquete de composer (dowardev/sso-server) a Packagist.
+  #
+  # Packagist no se publica con un token: lee el codigo del repositorio.
+  # Para un monorepo se usa un "subtree split": la subcarpeta del paquete
+  # se sube a la rama `subtree-split` con un tag `<version>-subtree-split`
+  # y Packagist la detecta sola. Como el paquete vive en este mismo repo,
+  # el push usa el GITHUB_TOKEN del workflow (sin credenciales extra).
+  publish_composer:
+    name: publish:composer
+    runs-on: ubuntu-latest
+    needs: [release_gate]
+    if: startsWith(github.ref, 'refs/tags/') && needs.release_gate.outputs.release == 'true'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the version against Packagist
+        id: version
+        env:
+          PACKAGE_DIR: packages/sso-server
+          PACKAGE_NAME: dowardev/sso-server
+        run: |
+          set -euo pipefail
+          version=$(grep -m1 '"version"' "$PACKAGE_DIR/composer.json" | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+          if [[ -z "$version" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          published=$( { curl -sS "https://repo.packagist.org/p2/$PACKAGE_NAME.json" 2>/dev/null || true; } | grep -o '"version":"[^"]*"' | cut -d '"' -f 4 | tr '\n' ' ' )
+          if [[ " $published " == *" $version "* ]]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "La version $version de $PACKAGE_NAME ya esta publicada: se omite." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish the subtree split to Packagist
+        if: steps.version.outputs.publish == 'true'
+        env:
+          PACKAGE_DIR: packages/sso-server
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git subtree split --prefix="$PACKAGE_DIR" -b subtree-split
+          git push origin subtree-split
+          # Se crean los dos tags (con y sin "v") porque Packagist normaliza
+          # el prefijo de forma segun la version del tag.
+          git tag "$PACKAGE_VERSION-subtree-split" subtree-split
+          git tag "v$PACKAGE_VERSION-subtree-split" subtree-split
+          git push origin "$PACKAGE_VERSION-subtree-split" "v$PACKAGE_VERSION-subtree-split"
