@@ -788,11 +788,13 @@ jobs:
           PACKAGE_VERSION: ${{ steps.version.outputs.version }}
         run: |
           if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then
-            echo "::error::Falta el secret NPM_TOKEN: no se puede publicar $PACKAGE_NAME@$PACKAGE_VERSION"
-            echo "Publicacion fallida: falta el secret NPM_TOKEN para $PACKAGE_NAME@$PACKAGE_VERSION" >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::No hay secret NPM_TOKEN: se intenta con trusted publishing (OIDC). Si no esta configurado en npmjs.com, la publicacion falla."
+          fi
+          if ! npm publish --provenance --access public; then
+            echo "::error::No se pudo publicar $PACKAGE_NAME@$PACKAGE_VERSION: falta la credencial (secret NPM_TOKEN o trusted publishing de npm en npmjs.com)"
+            echo "Publicacion fallida: falta la credencial para $PACKAGE_NAME@$PACKAGE_VERSION" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          npm publish --provenance --access public
 
   # Publica el paquete de composer (dowardev/sso-server) a Packagist.
   #
