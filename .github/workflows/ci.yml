@@ -798,56 +798,69 @@ jobs:
 
   # Publica el paquete de composer (dowardev/sso-server) a Packagist.
   #
-  # Packagist no se publica con un token: lee el codigo del repositorio.
-  # Para un monorepo se usa un "subtree split": la subcarpeta del paquete
-  # se sube a la rama `subtree-split` con un tag `<version>-subtree-split`
-  # y Packagist la detecta sola. Como el paquete vive en este mismo repo,
-  # el push usa el GITHUB_TOKEN del workflow (sin credenciales extra).
+  # Packagist no se publica con un token: lee el codigo del repositorio al
+  # que apunta y busca el composer.json en la rama por defecto. Por eso el
+  # paquete no puede publicarse desde el monorepo (no hay composer.json en
+  # su raiz): se publica en un repositorio propio (dowardev/sso-server),
+  # que contiene el subtree del paquete en la raiz y al que Packagist
+  # apunta.
+  #
+  # El push usa una deploy key de ese repositorio (secret
+  # COMPOSER_SPLIT_SSH_KEY), no el GITHUB_TOKEN: son repos distintos.
   publish_composer:
     name: publish:composer
     runs-on: ubuntu-latest
     needs: [release_gate]
     if: startsWith(github.ref, 'refs/tags/') && needs.release_gate.outputs.release == 'true'
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Check the version against Packagist
+      - name: Set up SSH for the split repository
+        env:
+          COMPOSER_SPLIT_SSH_KEY: ${{ secrets.COMPOSER_SPLIT_SSH_KEY }}
+          COMPOSER_SPLIT_KNOWN_HOSTS: ${{ vars.COMPOSER_SPLIT_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$COMPOSER_SPLIT_SSH_KEY" > ~/.ssh/id_composer_split
+          chmod 600 ~/.ssh/id_composer_split
+          printf '%s\n' "$COMPOSER_SPLIT_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          git config core.sshCommand "ssh -i ~/.ssh/id_composer_split -o IdentitiesOnly=yes"
+
+      - name: Check the version against the split repository
         id: version
         env:
           PACKAGE_DIR: packages/sso-server
-          PACKAGE_NAME: dowardev/sso-server
+          SPLIT_REPOSITORY: git@github.com:dowardev/sso-server.git
         run: |
           set -euo pipefail
-          version=$(grep -m1 '"version"' "$PACKAGE_DIR/composer.json" | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+          version=$(grep -m1 '"version"' "$PACKAGE_DIR/composer.json" 2>/dev/null | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)
           if [[ -z "$version" ]]; then
             version="${GITHUB_REF_NAME#v}"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          published=$( { curl -sS "https://repo.packagist.org/p2/$PACKAGE_NAME.json" 2>/dev/null || true; } | grep -o '"version":"[^"]*"' | cut -d '"' -f 4 | tr '\n' ' ' )
-          if [[ " $published " == *" $version "* ]]; then
+          if [[ -n "$(git ls-remote --tags "$SPLIT_REPOSITORY" "v$version")" ]]; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "La version $version de $PACKAGE_NAME ya esta publicada: se omite." >> "$GITHUB_STEP_SUMMARY"
+            echo "La version $version ya esta publicada en el repositorio split: se omite." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Publish the subtree split to Packagist
+      - name: Publish the subtree split
         if: steps.version.outputs.publish == 'true'
         env:
           PACKAGE_DIR: packages/sso-server
+          SPLIT_REPOSITORY: git@github.com:dowardev/sso-server.git
           PACKAGE_VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git subtree split --prefix="$PACKAGE_DIR" -b subtree-split
-          git push origin subtree-split
-          # Se crean los dos tags (con y sin "v") porque Packagist normaliza
-          # el prefijo de forma segun la version del tag.
-          git tag "$PACKAGE_VERSION-subtree-split" subtree-split
-          git tag "v$PACKAGE_VERSION-subtree-split" subtree-split
-          git push origin "$PACKAGE_VERSION-subtree-split" "v$PACKAGE_VERSION-subtree-split"
+          git push --force "$SPLIT_REPOSITORY" subtree-split:main
+          git tag "v$PACKAGE_VERSION" subtree-split
+          git push "$SPLIT_REPOSITORY" "v$PACKAGE_VERSION"
