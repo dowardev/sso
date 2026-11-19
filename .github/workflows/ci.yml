@@ -719,8 +719,9 @@ jobs:
   #
   # - Reutiliza el build ya testeado (artifact), no recompila.
   # - No publica si esa version ya esta en el registro.
-  # - Sin el secret NPM_TOKEN no publica: lo omite con un warning, para
-  #   no dejar en rojo la corrida de release.
+  # - Sin el secret NPM_TOKEN el job FALLA (no omite en silencio): si hay
+  #   algo que publicar y no hay credencial, el release tiene que quedar en
+  #   rojo. Si no hay nada que publicar, el job se omite igual.
   # ============================================================
   publish_npm:
     name: publish:npm
@@ -783,11 +784,13 @@ jobs:
         working-directory: packages/sso-client
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PACKAGE_NAME: ${{ steps.version.outputs.package }}
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
         run: |
           if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then
-            echo "::warning::Falta el secret NPM_TOKEN: se omite la publicacion a npm"
-            echo "Publicacion a npm omitida: falta el secret NPM_TOKEN" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+            echo "::error::Falta el secret NPM_TOKEN: no se puede publicar $PACKAGE_NAME@$PACKAGE_VERSION"
+            echo "Publicacion fallida: falta el secret NPM_TOKEN para $PACKAGE_NAME@$PACKAGE_VERSION" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
           npm publish --provenance --access public
 
