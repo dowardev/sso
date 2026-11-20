@@ -129,7 +129,7 @@ class JwtServiceKidTest extends TestCase
 
     /**
      * Back-compat: a token whose header carries no kid must still validate
-     * against the primary key (D4 fallback in odd/tasks/lbds-256-kid-header-jwts.md).
+     * against the primary key (D4 fallback from the LBDS-256 design review).
      *
      * Implementation note: we have to bypass JwtService to construct the
      * "no kid" token because every builder now writes the kid header. We

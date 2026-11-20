@@ -78,7 +78,7 @@ Passkeys**.
 | --- | --- | --- |
 | DPoP proof on `/api/oauth/token` (authorization_code) | Shipped | `VerifyDpopProof::verify()` |
 | DPoP proof on `/api/oauth/token` (refresh_token) | Shipped | `LBDS-253` |
-| DPoP binding preserved across `/api/refresh-token` rotation | Shipped (binding, not proof enforcement) | Rotation inherits the `dpop_jkt` from the previous row. By design, `VerifyDpopProof` does **not** validate a proof on this endpoint: `odd/tasks/lbds-253-dpop-refresh-token.md` §"Por qué `/refresh-token` no cambia" documents that the cookie-based web flow does not send a DPoP header; binding-inheritance is what makes the proof mismatch detectable (see `DpopRefreshTokenTest`). |
+| DPoP binding preserved across `/api/refresh-token` rotation | Shipped (binding, not proof enforcement) | Rotation inherits the `dpop_jkt` from the previous row. By design, `VerifyDpopProof` does **not** validate a proof on this endpoint: the LBDS-253 design review (internal notes, not tracked in this repository) documents that the cookie-based web flow does not send a DPoP header; binding-inheritance is what makes the proof mismatch detectable (see `DpopRefreshTokenTest`). |
 | Refresh-token binding persisted (`user_refresh_tokens.dpop_jkt`) | Shipped | Migration `database/migrations/2026_09_19_000000_add_dpop_jkt_to_user_refresh_tokens_table.php` (nullable indexed `char(64)` column). A bound refresh token can only be rotated with a matching proof. |
 | Access token carries `cnf.jkt` claim | Shipped | `JwtService::generateTokenForJkt()` |
 | Replay protection (`dpop_jti`) | Shipped, atomic across instances | `LBDS-255` |
@@ -98,7 +98,7 @@ Passkeys**.
 | Short access-token lifetime | `JWT_TOKEN_EXPIRATION=3600` | Configurable via `.env` |
 | Refresh-token rotation on every use | Shipped | Old refresh is revoked atomically; replay triggers full session theft revocation. |
 | Refresh-token `dpop_jkt` binding | Shipped | See §3. |
-| RFC 7009 revocation endpoint (`/oauth/revoke`) | Not implemented | Follow-up is described in `odd/tasks/lbds-254-jti-unico-access-tokens.md` (§"Out of scope"): persists `jti ↔ session_id` on `user_sessions` and exposes `POST /oauth/revoke`. No Linear ticket yet — to be filed when work begins. The `jti` mapping foundation is in place since `LBDS-254` shipped. |
+| RFC 7009 revocation endpoint (`/oauth/revoke`) | Not implemented | Follow-up (out of scope in LBDS-254): persists `jti ↔ session_id` on `user_sessions` and exposes `POST /oauth/revoke`. No Linear ticket yet — to be filed when work begins. The `jti` mapping foundation is in place since `LBDS-254` shipped. |
 
 ## 5. Rate limits
 
