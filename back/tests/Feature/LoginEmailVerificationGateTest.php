@@ -25,7 +25,7 @@ class LoginEmailVerificationGateTest extends TestCase
         ])
             ->assertStatus(403)
             ->assertJson([
-                'code' => 'EMAIL_NOT_VERIFIED',
+                'code' => 'auth.email_not_verified',
                 'message' => 'Verifica tu email antes de iniciar sesión.',
                 'email' => 'unverified@example.com',
             ])

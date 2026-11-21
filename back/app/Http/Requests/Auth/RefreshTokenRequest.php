@@ -21,10 +21,6 @@ class RefreshTokenRequest extends FormRequest
         ];
     }
 
-    public function messages(): array
-    {
-        return [
-            'client_id.exists' => 'The application ":value" is not registered in SSO. Please contact the system administrator.',
-        ];
-    }
+    // No custom messages: the machine-readable code (`client.not_registered`)
+    // carries the user-facing copy (see odd/tasks/api-error-contract-codes.md).
 }

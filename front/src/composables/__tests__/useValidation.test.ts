@@ -172,6 +172,20 @@ describe('userFriendlyErrors catalog', () => {
     )
   })
 
+  it('maps the Spanish client_id.exists message to the app-not-registered copy', () => {
+    // El backend responde en español cuando el client_id no existe en
+    // sso_clients. Sin esta entrada el catálogo no matchea y la UI cae en el
+    // error genérico, ocultando la causa real.
+    const Q = String.fromCharCode(34)
+    const message = 'La aplicación ' + Q + ':value' + Q + ' no está registrada en el SSO. Por favor, contacta al administrador del sistema.'
+
+    expect(getFriendlyMessage({ message, locale: 'es' })).toBe('La aplicación no está registrada en el SSO.')
+    expect(getFriendlyMessage({ message, locale: 'en' })).toBe('The application is not registered in the SSO.')
+    expect(
+      getFieldFriendlyMessage({ field: 'client_id', message, locale: 'es', fieldLabels: { client_id: 'ID del cliente' } }),
+    ).toBe('La aplicación no está registrada en el SSO.')
+  })
+
   it('does not map an allowed_origins field validation error to the app-config copy', () => {
     expect(getFriendlyMessage({ message: 'The allowed_origins.0 field must be a valid URL.', locale: 'es' })).toBe(
       'Ocurrió un error inesperado. Inténtalo de nuevo.',
@@ -219,5 +233,75 @@ describe('useValidation handleApiError', () => {
     expect(translateServerError('email', 'The email must be a valid email.')).toBe(
       'El campo Email debe ser un email válido.',
     )
+  })
+})
+
+describe('useValidation handleApiError with stable error codes', () => {
+  it('resolves validation errors by code from error_details', () => {
+    const err = Object.assign(new Error('The given data was invalid.'), {
+      status: 422,
+      errors: { client_id: ['The selected client id is invalid.'] },
+      error_details: {
+        client_id: [
+          {
+            code: 'client.not_registered',
+            field: 'client_id',
+            message: 'La aplicación "x" no está registrada en el SSO.',
+          },
+        ],
+      },
+    })
+    const result = handleApiError(err)
+    expect(result).toBe('El campo ID del cliente: La aplicación no está registrada en el SSO.')
+    expect(result).not.toContain('selected client id is invalid')
+    expect(result).not.toContain('"x"')
+  })
+
+  it('resolves a field validation error by code and interpolates rule params', () => {
+    const err = Object.assign(new Error('The given data was invalid.'), {
+      status: 422,
+      error_details: {
+        password: [
+          {
+            code: 'validation.min',
+            field: 'password',
+            message: 'The password must be at least 12 characters.',
+            params: { min: 12 },
+          },
+        ],
+      },
+    })
+    const result = handleApiError(err)
+    expect(result).toBe('El campo Contraseña debe tener al menos 12 caracteres.')
+    expect(result).not.toContain('at least 12 characters')
+  })
+
+  it('resolves a top-level error by code', () => {
+    const err = Object.assign(new Error('No autenticado'), {
+      status: 401,
+      code: 'auth.unauthenticated',
+    })
+    const result = handleApiError(err)
+    expect(result).toBe('Necesitás iniciar sesión para continuar.')
+    expect(result).not.toContain('No autenticado')
+  })
+
+  it('does not leak raw prose when the code is unknown', () => {
+    const err = Object.assign(new Error('Texto crudo del backend'), {
+      status: 422,
+      code: 'unknown.code',
+    })
+    const result = handleApiError(err)
+    expect(result).toBe('Ocurrió un error inesperado. Inténtalo de nuevo.')
+    expect(result).not.toContain('Texto crudo del backend')
+  })
+
+  it('keeps the legacy prose fallback for responses without a code', () => {
+    const err = Object.assign(new Error('The given data was invalid.'), {
+      status: 422,
+      errors: { email: ['The email must be a valid email.'] },
+    })
+    const result = handleApiError(err)
+    expect(result).toBe('El campo Email debe ser un email válido.')
   })
 })

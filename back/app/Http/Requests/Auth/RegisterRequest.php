@@ -43,7 +43,8 @@ class RegisterRequest extends FormRequest
         return [
             'user.regex' => 'The user may only contain letters, numbers, underscores, and hyphens.',
             'password.regex' => 'The password must be at least 8 characters and include at least one uppercase letter, one number, and one special character.',
-            'client_id.exists' => 'The application ":value" is not registered in SSO. Please contact the system administrator.',
+            // client_id.exists message removed: the code "client.not_registered" + frontend copy
+            // are now the user-facing channel. No hardcoded Spanish in requests.
         ];
     }
 }

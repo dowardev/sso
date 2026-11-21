@@ -865,7 +865,7 @@ const handlePasskeyLogin = async (params: { passkeyToken?: string } = {}): Promi
       await masterPasswordInput.value?.setFocus?.();
       return;
     }
-    if (apiError.code === 'EMAIL_NOT_VERIFIED') {
+    if (apiError.code === 'auth.email_not_verified') {
       router.replace({
         name: 'VerifyEmailPending',
         query: { email: apiError.email || '' },
@@ -929,7 +929,7 @@ const handleBasicLogin = async (params: { identifier: string }): Promise<void> =
       step.value = 'twoFactor';
       return;
     }
-    if (apiError.code === 'EMAIL_NOT_VERIFIED') {
+    if (apiError.code === 'auth.email_not_verified') {
       router.replace({
         name: 'VerifyEmailPending',
         query: { email: apiError.email || identifier },
@@ -1004,7 +1004,7 @@ const handleAdvancedLogin = async (params: { loginId: string }): Promise<void> =
       step.value = 'twoFactor';
       return;
     }
-    if (apiError.code === 'EMAIL_NOT_VERIFIED') {
+    if (apiError.code === 'auth.email_not_verified') {
       router.replace({
         name: 'VerifyEmailPending',
         query: { email: apiError.email || '' },

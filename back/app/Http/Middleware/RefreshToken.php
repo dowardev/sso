@@ -4,6 +4,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ApiError;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,9 +18,10 @@ class RefreshToken
             ?? $request->cookie('refresh_token');
 
         if (! $refreshToken) {
-            return response()->json([
-                'message' => 'Refresh token no proporcionado',
-            ], 401);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_TOKEN_MISSING, 'Refresh token no proporcionado'),
+                401
+            );
         }
 
         $request->merge(['refresh_token_value' => $refreshToken]);

@@ -55,7 +55,10 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
             ]);
 
         $response->assertStatus(400)
-            ->assertJson(['message' => 'redirect_uri no permitida']);
+            ->assertJson([
+                'message' => 'redirect_uri no permitida',
+                'code' => 'client.redirect_uri_not_allowed',
+            ]);
     }
 
     public function test_authorize_accepts_registered_redirect_uri(): void
@@ -275,7 +278,10 @@ class OAuth2RedirectUrlProtectionTest extends TestCase
             ]);
 
         $response->assertStatus(400)
-            ->assertJson(['message' => 'redirect_uri no permitida']);
+            ->assertJson([
+                'message' => 'redirect_uri no permitida',
+                'code' => 'client.redirect_uri_not_allowed',
+            ]);
     }
 
     public function test_approve_accepts_registered_redirect_uri(): void

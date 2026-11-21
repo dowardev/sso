@@ -4,6 +4,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ApiError;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -29,6 +30,7 @@ class ThrottleLoginAttempts
                 return response()->json([
                     'message' => 'Demasiados intentos. Cuenta bloqueada temporalmente.',
                     'locked_until' => $attempt->locked_until,
+                    'code' => ApiError::AUTH_TOO_MANY_ATTEMPTS,
                 ], 429);
             }
         }

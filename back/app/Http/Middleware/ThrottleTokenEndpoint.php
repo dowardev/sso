@@ -4,6 +4,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ApiError;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -174,6 +175,7 @@ class ThrottleTokenEndpoint
         return response()->json([
             'message' => 'Demasiadas solicitudes al endpoint de token. Intenta más tarde.',
             'retry_after' => $retryAfter,
+            'code' => ApiError::AUTH_TOO_MANY_ATTEMPTS,
         ], 429, [
             'Retry-After' => (string) $retryAfter,
             'X-RateLimit-Limit' => (string) $limit,

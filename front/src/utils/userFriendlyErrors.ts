@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: MIT
 // Frontend-only catalog that maps raw backend/validator messages to friendly
 // user-facing copy. Raw backend text must never reach the UI.
+//
+// Resolution order (see odd/tasks/api-error-contract-codes.md):
+//   1. `code` present and mapped in `errorCodeCatalog` -> localized copy.
+//   2. `code` present but unmapped -> generic copy + the raw code is logged.
+//   3. No `code` -> LEGACY FALLBACK: prose substring matching below. This path
+//      only exists for responses that predate the error-code contract and is
+//      deprecated; do not add new prose patterns to it.
+
+import { getErrorCodeEntry, interpolateErrorCopy } from '@/utils/apiErrorCodes'
+
+export { fieldLabelsEn } from '@/utils/fieldLabels'
 
 export type SupportedLocale = 'es' | 'en'
 
@@ -37,6 +48,19 @@ export const friendlyErrorCatalog: FriendlyErrorEntry[] = [
   { match: 'may only contain', es: 'Este campo contiene caracteres no válidos.', en: 'This field contains invalid characters.' },
   {
     match: 'not registered in sso',
+    es: 'La aplicación no está registrada en el SSO.',
+    en: 'The application is not registered in the SSO.',
+  },
+  {
+    // Spanish variant emitted by the backend for the client_id.exists rule.
+    // Without it the raw text misses the catalog and the UI falls back to
+    // the generic "unexpected error", hiding the actionable reason.
+    match: 'no esta registrada en el sso',
+    es: 'La aplicación no está registrada en el SSO.',
+    en: 'The application is not registered in the SSO.',
+  },
+  {
+    match: 'the selected client id is invalid',
     es: 'La aplicación no está registrada en el SSO.',
     en: 'The application is not registered in the SSO.',
   },
@@ -110,26 +134,6 @@ const genericSubject: Record<SupportedLocale, string> = {
   en: 'this field',
 }
 
-export const fieldLabelsEn: Record<string, string> = {
-  name: 'Name',
-  user: 'Username',
-  email: 'Email',
-  password: 'Password',
-  password_confirmation: 'Password confirmation',
-  client_id: 'Client ID',
-  client_secret: 'Client secret',
-  redirect_url: 'Redirect URL',
-  allowed_origins: 'Allowed origins',
-  grant_types: 'Grant types',
-  description: 'Description',
-  slug: 'Slug',
-  role_id: 'Role ID',
-  action: 'Action',
-  token: 'Token',
-  code: 'Code',
-  remember_me: 'Remember me',
-}
-
 export function detectLocale(params?: { fallback?: SupportedLocale }): SupportedLocale {
   const { fallback = 'es' } = params ?? {}
   const language =
@@ -173,9 +177,26 @@ function applyMinCount(params: { text: string; raw: string; locale: SupportedLoc
   return text.replace('{min}', min).replace(/\s{2,}/g, ' ')
 }
 
-export function getFriendlyMessage(params: { message: string; locale?: SupportedLocale }): string {
-  const { message, locale: requestedLocale } = params
+export function getFriendlyMessage(params: {
+  message: string
+  code?: string
+  params?: Record<string, string | number>
+  locale?: SupportedLocale
+}): string {
+  const { message, code, params: values, locale: requestedLocale } = params
   const locale = resolveLocale({ locale: requestedLocale })
+
+  if (code) {
+    const entry = getErrorCodeEntry({ code })
+    if (!entry) {
+      // Missing mapping: detectable instead of silent.
+      console.warn('[API Error] unmapped code', code)
+      return genericFallback[locale]
+    }
+    return interpolateErrorCopy({ copy: entry[locale], code, params: values })
+  }
+
+  // Legacy fallback: response without a code.
   const entry = findEntry({ message })
   if (!entry) return genericFallback[locale]
   const withSubject = entry[locale].replace('{field}', genericSubject[locale])
@@ -185,13 +206,33 @@ export function getFriendlyMessage(params: { message: string; locale?: Supported
 export function getFieldFriendlyMessage(params: {
   field: string
   message: string
+  code?: string
+  params?: Record<string, string | number>
   locale?: SupportedLocale
   fieldLabels?: Record<string, string>,
   fieldLabelsEn?: Record<string, string>
 }): string {
-  const { field, message, locale: requestedLocale, fieldLabels = {}, fieldLabelsEn = {} } = params
+  const { field, message, code, params: values, locale: requestedLocale, fieldLabels = {}, fieldLabelsEn = {} } = params
   const locale = resolveLocale({ locale: requestedLocale })
   const label = locale === 'en' ? (fieldLabelsEn[field] ?? fieldLabels[field] ?? field) : (fieldLabels[field] ?? field)
+
+  if (code) {
+    const entry = getErrorCodeEntry({ code })
+    if (!entry) {
+      console.warn('[API Error] unmapped code', code)
+      const unmapped = genericFallback[locale]
+      return locale === 'en' ? `The ${label} field: ${unmapped}` : `El campo ${label}: ${unmapped}`
+    }
+    const copy = interpolateErrorCopy({ copy: entry[locale], code, params: values })
+    if (locale === 'en') {
+      if (copy.includes('This field')) return copy.replace('This field', `The ${label} field`)
+      return `The ${label} field: ${copy}`
+    }
+    if (copy.includes('Este campo')) return copy.replace('Este campo', `El campo ${label}`)
+    return `El campo ${label}: ${copy}`
+  }
+
+  // Legacy fallback: response without a code.
   const entry = findEntry({ message })
   if (!entry) {
     const fallback = genericFallback[locale]
