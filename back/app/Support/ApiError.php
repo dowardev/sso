@@ -4,6 +4,8 @@
 
 namespace App\Support;
 
+use Illuminate\Validation\Validator;
+
 /**
  * Centralised error codes and response helpers for the auth/OAuth API surface.
  *
@@ -20,53 +22,92 @@ class ApiError
 {
     // Auth codes
     public const AUTH_UNAUTHENTICATED = 'auth.unauthenticated';
+
     public const AUTH_FORBIDDEN = 'auth.forbidden';
+
     public const AUTH_TOKEN_MISSING = 'auth.token_missing';
+
     public const AUTH_USER_NOT_FOUND = 'auth.user_not_found';
+
     public const AUTH_INVALID_CREDENTIALS = 'auth.invalid_credentials';
+
     public const AUTH_CREDENTIALS_NOT_FOUND = 'auth.credentials_not_found';
+
     public const AUTH_CURRENT_PASSWORD_INVALID = 'auth.current_password_invalid';
+
     public const AUTH_PASSKEYS_NOT_REGISTERED = 'auth.passkeys_not_registered';
+
     public const AUTH_REGISTRATION_SESSION_EXPIRED = 'auth.registration_session_expired';
+
     public const AUTH_AUTHENTICATION_SESSION_EXPIRED = 'auth.authentication_session_expired';
+
     public const AUTH_SESSION_NOT_FOUND = 'auth.session_not_found';
+
     public const AUTH_TOO_MANY_ATTEMPTS = 'auth.too_many_attempts';
+
     public const AUTH_EMAIL_NOT_VERIFIED = 'auth.email_not_verified';
+
     public const AUTH_SEED_PHRASE_INVALID = 'auth.seed_phrase_invalid';
+
     public const AUTH_UNKNOWN = 'auth.unknown';
 
     // SSO client codes
     public const CLIENT_NOT_REGISTERED = 'client.not_registered';
+
     public const CLIENT_DISABLED = 'client.disabled';
+
     public const CLIENT_REDIRECT_URI_NOT_ALLOWED = 'client.redirect_uri_not_allowed';
+
     public const CLIENT_MISCONFIGURED = 'client.misconfigured';
+
     public const CLIENT_INVALID_CREDENTIALS = 'client.invalid_credentials';
 
     // DPoP codes
     public const DPOP_INCOMPLETE_JWK = 'dpop.incomplete_jwk';
+
     public const DPOP_UNSUPPORTED_JWK = 'dpop.unsupported_jwk';
 
     // Validation codes (field-scoped)
     public const VALIDATION_REQUIRED = 'validation.required';
+
     public const VALIDATION_STRING = 'validation.string';
+
     public const VALIDATION_MIN = 'validation.min';
+
     public const VALIDATION_MAX = 'validation.max';
+
     public const VALIDATION_EMAIL = 'validation.email';
+
     public const VALIDATION_UNIQUE = 'validation.unique';
+
     public const VALIDATION_EXISTS = 'validation.exists';
+
     public const VALIDATION_CONFIRMED = 'validation.confirmed';
+
     public const VALIDATION_REGEX = 'validation.regex';
+
     public const VALIDATION_JSON = 'validation.json';
+
     public const VALIDATION_BOOLEAN = 'validation.boolean';
+
     public const VALIDATION_IN = 'validation.in';
+
     public const VALIDATION_ARRAY = 'validation.array';
+
     public const VALIDATION_INTEGER = 'validation.integer';
+
     public const VALIDATION_NUMERIC = 'validation.numeric';
+
     public const VALIDATION_URL = 'validation.url';
+
     public const VALIDATION_DATE = 'validation.date';
+
     public const VALIDATION_AFTER_OR_EQUAL = 'validation.after_or_equal';
+
     public const VALIDATION_IMAGE = 'validation.image';
+
     public const VALIDATION_PASSWORD_COMPLEX = 'validation.password_complex';
+
     public const VALIDATION_UNKNOWN = 'validation.unknown';
 
     /**
@@ -131,10 +172,9 @@ class ApiError
     /**
      * Build the error_details array for a failed validation.
      *
-     * @param  \Illuminate\Validation\Validator  $validator
      * @return array<string, array<array{code: string, field: string, message: string, params?: array}>>
      */
-    public static function buildErrorDetails(\Illuminate\Validation\Validator $validator): array
+    public static function buildErrorDetails(Validator $validator): array
     {
         $failed = $validator->failed();
         $rules = $validator->getRules();
@@ -251,9 +291,6 @@ class ApiError
     /**
      * Map a prose message (from the existing backend) to its code constant.
      * Used for retrofitting existing error responses without changing the prose.
-     *
-     * @param  string  $prose
-     * @return string
      */
     public static function codeFromProse(string $prose): string
     {

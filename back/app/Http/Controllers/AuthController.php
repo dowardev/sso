@@ -574,6 +574,7 @@ class AuthController extends Controller
             ]);
         } catch (\Exception $e) {
             $code = ApiError::codeFromProse($e->getMessage());
+
             return response()->json(
                 ApiError::topLevel($code, $e->getMessage()),
                 404
