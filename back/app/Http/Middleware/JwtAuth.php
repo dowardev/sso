@@ -5,6 +5,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Support\ApiError;
 use Closure;
 use Illuminate\Http\Request;
 use Lcobucci\Clock\SystemClock;
@@ -34,9 +35,10 @@ class JwtAuth
         $token = $request->bearerToken();
 
         if (! $token) {
-            return response()->json([
-                'message' => 'Token no proporcionado',
-            ], 401);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_TOKEN_MISSING, 'Token no proporcionado'),
+                401
+            );
         }
 
         try {
@@ -52,18 +54,20 @@ class JwtAuth
 
             $validation = $this->jwtConfig->validator();
             if (! $validation->validate($parsedToken, ...$constraints)) {
-                return response()->json([
-                    'message' => 'Token inválido',
-                ], 401);
+                return response()->json(
+                    ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Token inválido'),
+                    401
+                );
             }
 
             $cnf = $parsedToken->claims()->get('cnf');
             if ($cnf !== null && isset($cnf['jkt'])) {
                 $dpopHeader = $request->header('DPoP');
                 if (! $dpopHeader) {
-                    return response()->json([
-                        'message' => 'DPoP proof requerido para este token',
-                    ], 401);
+                    return response()->json(
+                        ApiError::topLevel(ApiError::DPOP_INCOMPLETE_JWK, 'DPoP proof requerido para este token'),
+                        401
+                    );
                 }
 
                 $verifyDpop = new VerifyDpopProof;
@@ -96,9 +100,10 @@ class JwtAuth
             }
 
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Token inválido: '.$e->getMessage(),
-            ], 401);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Token inválido: '.$e->getMessage()),
+                401
+            );
         }
 
         return $next($request);

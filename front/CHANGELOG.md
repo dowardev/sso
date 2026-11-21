@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `views/user/ProfilePage.vue` — `<TotpSettings />` mounted in the Security tab.
     - `package.json` + `pnpm-lock.yaml` — new dep `qrcode` (and `@types/qrcode` in dev) for the enrollment QR.
 - **TOTP tests** (11): `composables/__tests__/useTotpEnrollment.test.ts` covers start/confirm/reset, error paths, non-Error throws, the re-entrancy guard, and the `setBackupCodes` setter.
-- **Documentation: hardening snapshot at `v0.35.0` (LBDS-249)**: new `docs/architecture/security.md` documents the security posture of the stack — authentication, transport hardening, token binding (DPoP), JWT hardening, rate limits, validation, observability — with explicit deferral decisions for LBDS-258 (DPoP ECDSA P-256), LBDS-257 (Ed25519 Passkeys), and LBDS-259 (mTLS, regulatory-only). Internal tracking at `odd/tasks/lbds-249-epic-close-decision.md`.
+- **Documentation: hardening snapshot at `v0.35.0` (LBDS-249)**: new `docs/architecture/security.md` documents the security posture of the stack — authentication, transport hardening, token binding (DPoP), JWT hardening, rate limits, validation, observability — with explicit deferral decisions for LBDS-258 (DPoP ECDSA P-256), LBDS-257 (Ed25519 Passkeys), and LBDS-259 (mTLS, regulatory-only). Internal tracking notes for LBDS-249 are not part of this repository.
 
 ### Fixed
 

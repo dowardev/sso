@@ -3,27 +3,12 @@ import { helpers, required, email, minLength, maxLength, sameAs, url as urlValid
 import type { ValidationRule } from '@vuelidate/core'
 import type { ComputedRef } from 'vue'
 
-import { fieldLabelsEn, getFieldFriendlyMessage, getFriendlyMessage } from '@/utils/userFriendlyErrors'
+import { fieldLabelsEn, fieldLabelsEs } from '@/utils/fieldLabels'
+import { getFieldFriendlyMessage, getFriendlyMessage } from '@/utils/userFriendlyErrors'
+import type { ApiErrorDetail } from '@/utils/apiErrorCodes'
 
-const fieldLabels: Record<string, string> = {
-  name: 'Nombre',
-  user: 'Usuario',
-  email: 'Email',
-  password: 'Contraseña',
-  password_confirmation: 'Confirmación de contraseña',
-  client_id: 'ID del cliente',
-  client_secret: 'Secreto del cliente',
-  redirect_url: 'URL de redirección',
-  allowed_origins: 'Orígenes permitidos',
-  grant_types: 'Tipos de concesión',
-  description: 'Descripción',
-  slug: 'Slug',
-  role_id: 'ID del rol',
-  action: 'Acción',
-  token: 'Token',
-  code: 'Código',
-  remember_me: 'Recordar sesión',
-}
+// Single source of truth for field labels (front/src/utils/fieldLabels.ts).
+const fieldLabels: Record<string, string> = fieldLabelsEs
 
 export function withMsg(message: string, rule: ValidationRule): ValidationRule {
   return helpers.withMessage(message, rule)
@@ -61,6 +46,50 @@ function getValidationErrors(params: { err: unknown }): Record<string, string[]>
  *   the helper used to toast on its own. The wrapper is now the only channel
  *   firing; dropping it would silence the screen entirely.
  */
+/**
+ * Extracts the machine-readable error details (`error_details`) carried by an
+ * API error. The backend sends one entry per field with its stable `code`
+ * (see odd/tasks/api-error-contract-codes.md).
+ */
+function getApiErrorDetails(params: { err: unknown }): ApiErrorDetail[] {
+  const { err } = params
+  if (typeof err !== 'object' || err === null) return []
+  const details = (err as { error_details?: unknown }).error_details
+  if (typeof details !== 'object' || details === null || Array.isArray(details)) return []
+
+  const result: ApiErrorDetail[] = []
+  for (const [field, value] of Object.entries(details as Record<string, unknown>)) {
+    const entries = Array.isArray(value) ? value : [value]
+    for (const entry of entries) {
+      if (typeof entry === 'string') {
+        // Legacy response without codes.
+        result.push({ field, message: entry })
+        continue
+      }
+      if (typeof entry !== 'object' || entry === null) continue
+      const record = entry as Record<string, unknown>
+      const paramsValue = record.params
+      result.push({
+        code: typeof record.code === 'string' ? record.code : undefined,
+        field: typeof record.field === 'string' ? record.field : field,
+        message: typeof record.message === 'string' ? record.message : '',
+        params:
+          typeof paramsValue === 'object' && paramsValue !== null
+            ? (paramsValue as Record<string, string | number>)
+            : undefined,
+      })
+    }
+  }
+  return result
+}
+
+function getErrorCode(params: { err: unknown }): string | undefined {
+  const { err } = params
+  if (typeof err !== 'object' || err === null) return undefined
+  const code = (err as { code?: unknown }).code
+  return typeof code === 'string' && code ? code : undefined
+}
+
 export function useValidation() {
   function handleApiError(err: unknown): string {
     // Raw backend detail always goes to the console; the returned string is
@@ -68,21 +97,46 @@ export function useValidation() {
     console.error('[API Error]', err)
     const messages: string[] = []
 
-    const validationErrors = getValidationErrors({ err })
-    if (validationErrors) {
-      console.error('[API Validation Errors]', validationErrors)
+    // 1. Machine-readable channel: resolve by stable code.
+    const details = getApiErrorDetails({ err })
+    if (details.length > 0) {
+      console.error('[API Validation Errors]', details)
 
-      for (const [field, fieldErrors] of Object.entries(validationErrors)) {
-        for (const msg of fieldErrors) {
-          messages.push(getFieldFriendlyMessage({ field, message: msg, fieldLabels, fieldLabelsEn }))
-        }
+      for (const detail of details) {
+        messages.push(
+          getFieldFriendlyMessage({
+            field: detail.field ?? '',
+            message: detail.message ?? '',
+            code: detail.code,
+            params: detail.params,
+            fieldLabels,
+            fieldLabelsEn,
+          }),
+        )
       }
-    } else if (err instanceof Error) {
-      messages.push(getFriendlyMessage({ message: err.message }))
-    } else if (typeof err === 'string' && err) {
-      messages.push(getFriendlyMessage({ message: err }))
+    } else if (getErrorCode({ err })) {
+      // Top-level error with a stable code.
+      messages.push(
+        getFriendlyMessage({ message: err instanceof Error ? err.message : '', code: getErrorCode({ err }) }),
+      )
     } else {
-      messages.push(getFriendlyMessage({ message: '' }))
+      // 2. Legacy fallback: response without a code.
+      const validationErrors = getValidationErrors({ err })
+      if (validationErrors) {
+        console.error('[API Validation Errors]', validationErrors)
+
+        for (const [field, fieldErrors] of Object.entries(validationErrors)) {
+          for (const msg of fieldErrors) {
+            messages.push(getFieldFriendlyMessage({ field, message: msg, fieldLabels, fieldLabelsEn }))
+          }
+        }
+      } else if (err instanceof Error) {
+        messages.push(getFriendlyMessage({ message: err.message }))
+      } else if (typeof err === 'string' && err) {
+        messages.push(getFriendlyMessage({ message: err }))
+      } else {
+        messages.push(getFriendlyMessage({ message: '' }))
+      }
     }
 
     const cleaned = messages.map((item) => item.trim().replace(/[.\s]+$/, '')).filter((item) => item.length > 0)
@@ -90,8 +144,8 @@ export function useValidation() {
     return joined
   }
 
-  function translateServerError(field: string, message: string): string {
-    return getFieldFriendlyMessage({ field, message, fieldLabels, fieldLabelsEn })
+  function translateServerError(field: string, message: string, code?: string): string {
+    return getFieldFriendlyMessage({ field, message, code, fieldLabels, fieldLabelsEn })
   }
 
   return { handleApiError, translateServerError, withMsg, fieldLabels }

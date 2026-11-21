@@ -87,7 +87,7 @@ class AdvancedEncryptionTest extends TestCase
             'auth_proof' => 'auth-proof-secret',
         ])
             ->assertStatus(403)
-            ->assertJson(['code' => 'EMAIL_NOT_VERIFIED']);
+            ->assertJson(['code' => 'auth.email_not_verified']);
     }
 
     public function test_recovery_verify_rejects_wrong_seed_verification(): void

@@ -25,10 +25,6 @@ class LoginRequest extends FormRequest
         ];
     }
 
-    public function messages(): array
-    {
-        return [
-            'client_id.exists' => 'La aplicación ":value" no está registrada en el SSO. Por favor, contacta al administrador del sistema.',
-        ];
-    }
+    // No custom messages: the machine-readable code (`client.not_registered`)
+    // carries the user-facing copy (see odd/tasks/api-error-contract-codes.md).
 }

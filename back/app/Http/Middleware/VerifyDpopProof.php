@@ -4,6 +4,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ApiError;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -126,15 +127,17 @@ class VerifyDpopProof
         $this->lastSeenAlg = null;
 
         if (! $accessToken) {
-            return response()->json([
-                'message' => 'Token de acceso requerido',
-            ], 401);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_TOKEN_MISSING, 'Token de acceso requerido'),
+                401
+            );
         }
 
         if (! $dpopHeader) {
-            return response()->json([
-                'message' => 'DPoP proof requerido para tokens vinculados',
-            ], 401);
+            return response()->json(
+                ApiError::topLevel(ApiError::DPOP_INCOMPLETE_JWK, 'DPoP proof requerido para tokens vinculados'),
+                401
+            );
         }
 
         try {
@@ -142,9 +145,10 @@ class VerifyDpopProof
             $cnf = $parsedAccessToken->claims()->get('cnf');
 
             if (! $cnf || ! isset($cnf['jkt'])) {
-                return response()->json([
-                    'message' => 'El token no está vinculado a una clave DPoP',
-                ], 401);
+                return response()->json(
+                    ApiError::topLevel(ApiError::DPOP_INCOMPLETE_JWK, 'El token no está vinculado a una clave DPoP'),
+                    401
+                );
             }
 
             $expectedJkt = $cnf['jkt'];
@@ -179,9 +183,10 @@ class VerifyDpopProof
                 ]);
             }
 
-            return response()->json([
-                'message' => 'DPoP proof inválido: '.$e->getMessage(),
-            ], 401);
+            return response()->json(
+                ApiError::topLevel(ApiError::DPOP_UNSUPPORTED_JWK, 'DPoP proof inválido: '.$e->getMessage()),
+                401
+            );
         }
 
         return null;
@@ -202,9 +207,10 @@ class VerifyDpopProof
         $this->lastSeenAlg = null;
 
         if (! $dpopHeader) {
-            return response()->json([
-                'message' => 'DPoP proof requerido para tokens vinculados',
-            ], 401);
+            return response()->json(
+                ApiError::topLevel(ApiError::DPOP_INCOMPLETE_JWK, 'DPoP proof requerido para tokens vinculados'),
+                401
+            );
         }
 
         try {
@@ -225,9 +231,10 @@ class VerifyDpopProof
                 ]);
             }
 
-            return response()->json([
-                'message' => 'DPoP proof inválido: '.$e->getMessage(),
-            ], 401);
+            return response()->json(
+                ApiError::topLevel(ApiError::DPOP_UNSUPPORTED_JWK, 'DPoP proof inválido: '.$e->getMessage()),
+                401
+            );
         }
 
         return null;

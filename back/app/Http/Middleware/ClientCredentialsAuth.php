@@ -4,6 +4,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ApiError;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,9 +16,10 @@ class ClientCredentialsAuth
         $grantType = $request->get('sso_grant_type');
 
         if ($grantType !== 'client_credentials') {
-            return response()->json([
-                'message' => 'Se requiere token de client_credentials',
-            ], 403);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_FORBIDDEN, 'Se requiere token de client_credentials'),
+                403
+            );
         }
 
         return $next($request);

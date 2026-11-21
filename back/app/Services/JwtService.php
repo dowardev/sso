@@ -547,7 +547,8 @@ class JwtService
 
             // LBDS-256: resolve the verification key by the kid claim in the
             // protected header. Tokens issued before this change don't carry a
-            // kid; per D4 in odd/tasks/lbds-256-kid-header-jwts.md we fall
+            // kid; per the D4 fallback decision from the LBDS-256 design
+            // review we fall
             // back to the primary key for back-compat. An unknown kid is a
             // hard error (matches the existing validation-failure contract:
             // returns null, no exception leaking).

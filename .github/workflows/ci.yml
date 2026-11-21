@@ -1,6 +1,6 @@
 # ============================================================
 # sso — GitHub Actions
-# Traducido desde .gitlab-ci.yml (ver odd/tasks/github-migration-translation.md)
+# Traducido desde el .gitlab-ci.yml original
 #
 # DESVIACIÓN DOCUMENTADA (guía, sección 0.1): en GitLab los jobs de deploy
 # consumen los artifacts de los jobs `build` del mismo pipeline. En GitHub los

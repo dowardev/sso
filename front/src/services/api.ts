@@ -10,6 +10,8 @@ import type {
   UserRole,
 } from '@/types';
 
+import type { ApiErrorDetail } from '@/utils/apiErrorCodes';
+
 export type {
   User,
   UserDetail,
@@ -138,9 +140,32 @@ async function fetchApi<T>(params: {
         status?: number;
         email?: string;
             errors?: Record<string, string[]>;
+        error_details?: Record<string, ApiErrorDetail[]>;
       };
       if (error.code) apiError.code = error.code;
       if (error.email) apiError.email = error.email;
+      // Machine-readable channel (odd/tasks/api-error-contract-codes.md):
+      // `error_details` carries the stable code per field. The legacy `errors`
+      // map below keeps working for responses without codes.
+      if (error.error_details && typeof error.error_details === 'object' && !Array.isArray(error.error_details)) {
+        const details: Record<string, ApiErrorDetail[]> = {};
+        for (const [field, value] of Object.entries(error.error_details as Record<string, unknown>)) {
+          const entries = Array.isArray(value) ? value : [value];
+          const shaped = entries
+            .filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null)
+            .map((entry) => ({
+              code: typeof entry.code === 'string' ? entry.code : undefined,
+              field: typeof entry.field === 'string' ? entry.field : field,
+              message: typeof entry.message === 'string' ? entry.message : '',
+              params:
+                typeof entry.params === 'object' && entry.params !== null
+                  ? (entry.params as Record<string, string | number>)
+                  : undefined,
+            }));
+          if (shaped.length > 0) details[field] = shaped;
+        }
+        if (Object.keys(details).length > 0) apiError.error_details = details;
+      }
           if (error.errors && typeof error.errors === 'object' && !Array.isArray(error.errors)) {
             const shaped: Record<string, string[]> = {}
             for (const [key, value] of Object.entries(error.errors)) {
