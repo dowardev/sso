@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateRoleRequest;
 use App\Http\Resources\RoleResource;
 use App\Models\Role;
 use App\Services\RoleService;
+use App\Support\ApiError;
 use Illuminate\Http\JsonResponse;
 
 class RoleController extends Controller
@@ -43,8 +44,7 @@ class RoleController extends Controller
     {
         $role = $this->roleService->create($request->validated());
 
-        return response()->json([
-            'message' => 'Rol creado correctamente',
+        return response()->json(ApiError::success(ApiError::SUCCESS_ROLE_CREATED, 'Role created successfully.') + [
             'role' => new RoleResource($role),
         ], 201);
     }
@@ -52,15 +52,15 @@ class RoleController extends Controller
     public function update(UpdateRoleRequest $request, Role $role): JsonResponse
     {
         if ($this->roleService->isProtected($role)) {
-            return response()->json([
-                'message' => 'No puedes modificar un rol protegido',
-            ], 422);
+            return response()->json(
+                ApiError::topLevel(ApiError::ROLE_PROTECTED_UPDATE, 'You cannot modify a protected role.'),
+                422
+            );
         }
 
         $role = $this->roleService->update($role, $request->validated());
 
-        return response()->json([
-            'message' => 'Rol actualizado correctamente',
+        return response()->json(ApiError::success(ApiError::SUCCESS_ROLE_UPDATED, 'Role updated successfully.') + [
             'role' => new RoleResource($role),
         ]);
     }
@@ -68,21 +68,21 @@ class RoleController extends Controller
     public function destroy(Role $role): JsonResponse
     {
         if ($this->roleService->isProtected($role)) {
-            return response()->json([
-                'message' => 'No puedes eliminar un rol protegido',
-            ], 422);
+            return response()->json(
+                ApiError::topLevel(ApiError::ROLE_PROTECTED_DELETE, 'You cannot delete a protected role.'),
+                422
+            );
         }
 
         if ($this->roleService->hasUsers($role)) {
-            return response()->json([
-                'message' => 'No puedes eliminar un rol que tiene usuarios asignados',
-            ], 422);
+            return response()->json(
+                ApiError::topLevel(ApiError::ROLE_IN_USE, 'You cannot delete a role that has users assigned.'),
+                422
+            );
         }
 
         $this->roleService->delete($role);
 
-        return response()->json([
-            'message' => 'Rol eliminado correctamente',
-        ]);
+        return response()->json(ApiError::success(ApiError::SUCCESS_ROLE_DELETED, 'Role deleted successfully.'));
     }
 }

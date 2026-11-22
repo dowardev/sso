@@ -27,15 +27,15 @@ class SetupAdminRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'El nombre es obligatorio.',
-            'user.required' => 'El nombre de usuario es obligatorio.',
-            'user.unique' => 'El nombre de usuario ya está en uso.',
-            'email.required' => 'El correo electrónico es obligatorio.',
-            'email.email' => 'Ingrese un correo electrónico válido.',
-            'email.unique' => 'El correo electrónico ya está registrado.',
-            'password.required' => 'La contraseña es obligatoria.',
-            'password.min' => 'La contraseña debe tener al menos 12 caracteres.',
-            'password.confirmed' => 'Las contraseñas no coinciden.',
+            'name.required' => 'The name is required.',
+            'user.required' => 'The username is required.',
+            'user.unique' => 'The username is already in use.',
+            'email.required' => 'The email address is required.',
+            'email.email' => 'Enter a valid email address.',
+            'email.unique' => 'The email address is already registered.',
+            'password.required' => 'The password is required.',
+            'password.min' => 'The password must be at least 12 characters long.',
+            'password.confirmed' => 'The passwords do not match.',
         ];
     }
 
@@ -45,16 +45,16 @@ class SetupAdminRequest extends FormRequest
             $password = $this->input('password') ?? '';
 
             if (! preg_match('/[A-Z]/', $password)) {
-                $validator->errors()->add('password', 'Debe contener al menos una letra mayúscula.');
+                $validator->errors()->add('password', 'It must contain at least one uppercase letter.');
             }
             if (! preg_match('/[a-z]/', $password)) {
-                $validator->errors()->add('password', 'Debe contener al menos una letra minúscula.');
+                $validator->errors()->add('password', 'It must contain at least one lowercase letter.');
             }
             if (! preg_match('/[0-9]/', $password)) {
-                $validator->errors()->add('password', 'Debe contener al menos un número.');
+                $validator->errors()->add('password', 'It must contain at least one number.');
             }
             if (! preg_match('/[@$!%*?&]/', $password)) {
-                $validator->errors()->add('password', 'Debe contener al menos un símbolo especial (@ $ ! % * ? &).');
+                $validator->errors()->add('password', 'It must contain at least one special character (@ $ ! % * ? &).');
             }
         });
     }

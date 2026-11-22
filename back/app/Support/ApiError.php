@@ -51,6 +51,19 @@ class ApiError
 
     public const AUTH_UNKNOWN = 'auth.unknown';
 
+    // New auth codes (single-language API)
+    public const AUTH_TOTP_REQUIRED = 'auth.totp_required';
+
+    public const AUTH_PASSKEY_REQUIRED = 'auth.passkey_required';
+
+    public const AUTH_PASSKEY_SESSION_EXPIRED = 'auth.passkey_session_expired';
+
+    public const AUTH_PASSKEY_SESSION_USED = 'auth.passkey_session_used';
+
+    public const AUTH_TOTP_NOT_ENABLED = 'auth.totp_not_enabled';
+
+    public const AUTH_ADVANCED_ENCRYPTION_ALREADY_SET = 'auth.advanced_encryption_already_set';
+
     // SSO client codes
     public const CLIENT_NOT_REGISTERED = 'client.not_registered';
 
@@ -66,6 +79,107 @@ class ApiError
     public const DPOP_INCOMPLETE_JWK = 'dpop.incomplete_jwk';
 
     public const DPOP_UNSUPPORTED_JWK = 'dpop.unsupported_jwk';
+
+    // Role codes
+    public const ROLE_PROTECTED_UPDATE = 'role.protected_update';
+
+    public const ROLE_PROTECTED_DELETE = 'role.protected_delete';
+
+    public const ROLE_IN_USE = 'role.in_use';
+
+    // Setting codes
+    public const SETTING_IMAGE_REQUIRED = 'setting.image_required';
+
+    // Setup codes
+    public const SETUP_ALREADY_COMPLETED = 'setup.already_completed';
+
+    // User codes
+    public const USER_SELF_DELETE_FORBIDDEN = 'user.self_delete_forbidden';
+
+    // Session codes
+    public const SESSION_SELF_REVOKE_FORBIDDEN = 'session.self_revoke_forbidden';
+
+    // Profile codes
+    public const PROFILE_ENCRYPTED_PROFILE_REQUIRED = 'profile.encrypted_profile_required';
+
+    // CSP codes
+    public const CSP_HASH_ALREADY_ALLOWED = 'csp.hash_already_allowed';
+
+    // Email verification codes
+    public const EMAIL_VERIFICATION_INVALID_LINK = 'email_verification.invalid_link';
+
+    // Success codes
+    public const SUCCESS_CSP_HASH_ADDED = 'success.csp_hash_added';
+
+    public const SUCCESS_EMAIL_VERIFIED = 'success.email_verified';
+
+    public const SUCCESS_VERIFICATION_EMAIL_SENT = 'success.verification_email_sent';
+
+    public const SUCCESS_VERIFICATION_EMAIL_RESENT = 'success.verification_email_resent';
+
+    public const SUCCESS_ROLE_CREATED = 'success.role_created';
+
+    public const SUCCESS_ROLE_UPDATED = 'success.role_updated';
+
+    public const SUCCESS_ROLE_DELETED = 'success.role_deleted';
+
+    public const SUCCESS_SETTING_UPDATED = 'success.setting_updated';
+
+    public const SUCCESS_LOGO_UPDATED = 'success.logo_updated';
+
+    public const SUCCESS_LOGO_DELETED = 'success.logo_deleted';
+
+    public const SUCCESS_EMAIL_LOGO_UPDATED = 'success.email_logo_updated';
+
+    public const SUCCESS_EMAIL_LOGO_DELETED = 'success.email_logo_deleted';
+
+    public const SUCCESS_ADMIN_CREATED = 'success.admin_created';
+
+    public const SUCCESS_CLIENT_CREATED = 'success.client_created';
+
+    public const SUCCESS_CLIENT_UPDATED = 'success.client_updated';
+
+    public const SUCCESS_CLIENT_DELETED = 'success.client_deleted';
+
+    public const SUCCESS_USER_UPDATED = 'success.user_updated';
+
+    public const SUCCESS_USER_DELETED = 'success.user_deleted';
+
+    public const SUCCESS_USER_ROLES_UPDATED = 'success.user_roles_updated';
+
+    public const SUCCESS_SESSION_REVOKED = 'success.session_revoked';
+
+    public const SUCCESS_USER_SESSIONS_REVOKED = 'success.user_sessions_revoked';
+
+    public const SUCCESS_SESSIONS_REVOKED = 'success.sessions_revoked';
+
+    public const SUCCESS_ACCOUNT_RECOVERED = 'success.account_recovered';
+
+    public const SUCCESS_PASSWORD_UPDATED = 'success.password_updated';
+
+    public const SUCCESS_PASSWORD_UPDATED_SESSIONS_REVOKED = 'success.password_updated_sessions_revoked';
+
+    public const SUCCESS_UPGRADE_TO_ADVANCED = 'success.upgrade_to_advanced';
+
+    public const SUCCESS_LOGOUT = 'success.logout';
+
+    public const SUCCESS_PROFILE_UPDATED = 'success.profile_updated';
+
+    public const SUCCESS_PASSKEY_REGISTERED = 'success.passkey_registered';
+
+    public const SUCCESS_PASSKEY_DELETED = 'success.passkey_deleted';
+
+    public const SUCCESS_TOTP_ENABLED = 'success.totp_enabled';
+
+    public const SUCCESS_TOTP_DISABLED = 'success.totp_disabled';
+
+    public const SUCCESS_BACKUP_CODES_REGENERATED = 'success.backup_codes_regenerated';
+
+    public const SUCCESS_ACCOUNT_DELETED = 'success.account_deleted';
+
+    public const SUCCESS_AUTHORIZATION_DENIED = 'success.authorization_denied';
+
+    public const SUCCESS_ACCESS_REVOKED = 'success.access_revoked';
 
     // Validation codes (field-scoped)
     public const VALIDATION_REQUIRED = 'validation.required';
@@ -136,6 +250,9 @@ class ApiError
         'Date' => self::VALIDATION_DATE,
         'AfterOrEqual' => self::VALIDATION_AFTER_OR_EQUAL,
         'Image' => self::VALIDATION_IMAGE,
+        // A missing file fails as a required field; the attribute exception below
+        // refines it for the logo upload.
+        'File' => self::VALIDATION_REQUIRED,
     ];
 
     /**
@@ -147,6 +264,10 @@ class ApiError
     private static array $attributeRuleExceptions = [
         'client_id' => [
             'Exists' => self::CLIENT_NOT_REGISTERED,
+        ],
+        'image' => [
+            'File' => self::SETTING_IMAGE_REQUIRED,
+            'Required' => self::SETTING_IMAGE_REQUIRED,
         ],
         'password' => [
             'Regex' => self::VALIDATION_PASSWORD_COMPLEX,
@@ -247,29 +368,45 @@ class ApiError
     private static function defaultMessageForCode(string $code): string
     {
         return match ($code) {
-            self::VALIDATION_REQUIRED => 'Este campo es requerido.',
-            self::VALIDATION_STRING => 'Este campo debe ser texto.',
-            self::VALIDATION_MIN => 'Este campo debe tener al menos {min} caracteres.',
-            self::VALIDATION_MAX => 'Este campo no puede superar los {max} caracteres.',
-            self::VALIDATION_EMAIL => 'Este campo debe ser un email válido.',
-            self::VALIDATION_UNIQUE => 'Este campo ya está en uso.',
-            self::VALIDATION_EXISTS => 'El valor de este campo no existe.',
-            self::VALIDATION_CONFIRMED => 'La confirmación de este campo no coincide.',
-            self::VALIDATION_REGEX => 'Este campo no tiene un formato válido.',
-            self::VALIDATION_JSON => 'Este campo debe ser JSON válido.',
-            self::VALIDATION_BOOLEAN => 'Este campo debe ser verdadero o falso.',
-            self::VALIDATION_IN => 'El valor de este campo no es válido.',
-            self::VALIDATION_ARRAY => 'Este campo debe ser una lista.',
-            self::VALIDATION_INTEGER => 'Este campo debe ser un número entero.',
-            self::VALIDATION_NUMERIC => 'Este campo debe ser un número.',
-            self::VALIDATION_URL => 'Este campo debe ser una URL válida.',
-            self::VALIDATION_DATE => 'Este campo debe ser una fecha válida.',
-            self::VALIDATION_AFTER_OR_EQUAL => 'Este campo debe ser una fecha posterior o igual a {date}.',
-            self::VALIDATION_IMAGE => 'Este campo debe ser una imagen válida.',
-            self::VALIDATION_PASSWORD_COMPLEX => 'La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.',
-            self::VALIDATION_UNKNOWN => 'Error de validación. Revisa los datos e inténtalo de nuevo.',
-            self::CLIENT_NOT_REGISTERED => 'La aplicación no está registrada en el SSO.',
-            default => 'Error de validación.',
+            self::VALIDATION_REQUIRED => 'This field is required.',
+            self::VALIDATION_STRING => 'This field must be text.',
+            self::VALIDATION_MIN => 'This field must have at least {min} characters.',
+            self::VALIDATION_MAX => 'This field cannot exceed {max} characters.',
+            self::VALIDATION_EMAIL => 'This field must be a valid email.',
+            self::VALIDATION_UNIQUE => 'This field is already in use.',
+            self::VALIDATION_EXISTS => 'The value of this field does not exist.',
+            self::VALIDATION_CONFIRMED => 'The confirmation of this field does not match.',
+            self::VALIDATION_REGEX => 'This field does not have a valid format.',
+            self::VALIDATION_JSON => 'This field must be valid JSON.',
+            self::VALIDATION_BOOLEAN => 'This field must be true or false.',
+            self::VALIDATION_IN => 'The value of this field is not valid.',
+            self::VALIDATION_ARRAY => 'This field must be a list.',
+            self::VALIDATION_INTEGER => 'This field must be an integer.',
+            self::VALIDATION_NUMERIC => 'This field must be a number.',
+            self::VALIDATION_URL => 'This field must be a valid URL.',
+            self::VALIDATION_DATE => 'This field must be a valid date.',
+            self::VALIDATION_AFTER_OR_EQUAL => 'This field must be a date after or equal to {date}.',
+            self::VALIDATION_IMAGE => 'This field must be a valid image.',
+            self::VALIDATION_PASSWORD_COMPLEX => 'The password must have at least 8 characters, an uppercase letter, a number, and a special character.',
+            self::VALIDATION_UNKNOWN => 'Validation error. Check the data and try again.',
+            self::CLIENT_NOT_REGISTERED => 'The application is not registered in the SSO.',
+            self::CSP_HASH_ALREADY_ALLOWED => 'The hash is already in the allowed list.',
+            self::EMAIL_VERIFICATION_INVALID_LINK => 'The verification link is invalid or expired.',
+            self::ROLE_PROTECTED_UPDATE => 'You cannot modify a protected role.',
+            self::ROLE_PROTECTED_DELETE => 'You cannot delete a protected role.',
+            self::ROLE_IN_USE => 'You cannot delete a role that has users assigned.',
+            self::SETTING_IMAGE_REQUIRED => 'An image is required.',
+            self::SETUP_ALREADY_COMPLETED => 'There are already registered users in the system.',
+            self::USER_SELF_DELETE_FORBIDDEN => 'You cannot delete your own user.',
+            self::SESSION_SELF_REVOKE_FORBIDDEN => 'You cannot revoke your own sessions from the admin panel.',
+            self::PROFILE_ENCRYPTED_PROFILE_REQUIRED => 'encrypted_profile is required for advanced users.',
+            self::AUTH_TOTP_REQUIRED => 'You need your TOTP code (or a backup code) to continue.',
+            self::AUTH_PASSKEY_REQUIRED => 'Use your passkey to complete sign-in.',
+            self::AUTH_PASSKEY_SESSION_EXPIRED => 'The passkey session expired or was already used. Please sign in again.',
+            self::AUTH_PASSKEY_SESSION_USED => 'The passkey session was already used. Please sign in again.',
+            self::AUTH_TOTP_NOT_ENABLED => 'TOTP is not enabled. Enable TOTP before generating backup codes.',
+            self::AUTH_ADVANCED_ENCRYPTION_ALREADY_SET => 'The user already has advanced encryption enabled.',
+            default => 'Validation error.',
         };
     }
 
@@ -289,6 +426,21 @@ class ApiError
     }
 
     /**
+     * Create a top-level success response array.
+     *
+     * @param  string  $code  One of the SUCCESS_* constants
+     * @param  string  $message  English prose for the success
+     * @return array{code: string, message: string}
+     */
+    public static function success(string $code, string $message): array
+    {
+        return [
+            'code' => $code,
+            'message' => $message,
+        ];
+    }
+
+    /**
      * Map a prose message (from the existing backend) to its code constant.
      * Used for retrofitting existing error responses without changing the prose.
      */
@@ -296,28 +448,33 @@ class ApiError
     {
         return match (true) {
             // Auth
-            str_contains($prose, 'No autenticado') => self::AUTH_UNAUTHENTICATED,
-            str_contains($prose, 'Unauthorized') => self::AUTH_UNAUTHENTICATED,
+            str_contains($prose, 'Unauthenticated') || str_contains($prose, 'Unauthorized') => self::AUTH_UNAUTHENTICATED,
             str_contains($prose, 'Forbidden - admin role required') => self::AUTH_FORBIDDEN,
-            str_contains($prose, 'Token no proporcionado') => self::AUTH_TOKEN_MISSING,
-            str_contains($prose, 'Usuario no encontrado') || str_contains($prose, 'User not found') => self::AUTH_USER_NOT_FOUND,
-            str_contains($prose, 'Credenciales inválidas') => self::AUTH_INVALID_CREDENTIALS,
-            str_contains($prose, 'Credencial no encontrada') => self::AUTH_CREDENTIALS_NOT_FOUND,
-            str_contains($prose, 'Contraseña actual incorrecta') => self::AUTH_CURRENT_PASSWORD_INVALID,
-            str_contains($prose, 'passkeys registrados') => self::AUTH_PASSKEYS_NOT_REGISTERED,
-            str_contains($prose, 'Sesión de registro expirada') => self::AUTH_REGISTRATION_SESSION_EXPIRED,
-            str_contains($prose, 'Sesión de autenticación expirada') => self::AUTH_AUTHENTICATION_SESSION_EXPIRED,
-            str_contains($prose, 'Sesión no encontrada') => self::AUTH_SESSION_NOT_FOUND,
-            str_contains($prose, 'Demasiados intentos') => self::AUTH_TOO_MANY_ATTEMPTS,
-            str_contains($prose, 'Verifica tu email') => self::AUTH_EMAIL_NOT_VERIFIED,
-            str_contains($prose, 'Frase semilla incorrecta') => self::AUTH_SEED_PHRASE_INVALID,
+            str_contains($prose, 'token was not provided') => self::AUTH_TOKEN_MISSING,
+            str_contains($prose, 'User not found') => self::AUTH_USER_NOT_FOUND,
+            str_contains($prose, 'Invalid credentials') => self::AUTH_INVALID_CREDENTIALS,
+            str_contains($prose, 'Credential not found') => self::AUTH_CREDENTIALS_NOT_FOUND,
+            str_contains($prose, 'The current password is incorrect') => self::AUTH_CURRENT_PASSWORD_INVALID,
+            str_contains($prose, 'no registered passkeys') => self::AUTH_PASSKEYS_NOT_REGISTERED,
+            str_contains($prose, 'registration session') && str_contains($prose, 'expired') => self::AUTH_REGISTRATION_SESSION_EXPIRED,
+            str_contains($prose, 'authentication session') && str_contains($prose, 'expired') => self::AUTH_AUTHENTICATION_SESSION_EXPIRED,
+            str_contains($prose, 'Session not found') => self::AUTH_SESSION_NOT_FOUND,
+            str_contains($prose, 'Too many attempts') || str_contains($prose, 'Too many requests') => self::AUTH_TOO_MANY_ATTEMPTS,
+            str_contains($prose, 'Verify your email') => self::AUTH_EMAIL_NOT_VERIFIED,
+            str_contains($prose, 'The seed phrase is incorrect') => self::AUTH_SEED_PHRASE_INVALID,
+            str_contains($prose, 'TOTP code') => self::AUTH_TOTP_REQUIRED,
+            str_contains($prose, 'passkey to complete') => self::AUTH_PASSKEY_REQUIRED,
+            str_contains($prose, 'passkey session expired') => self::AUTH_PASSKEY_SESSION_EXPIRED,
+            str_contains($prose, 'passkey session was already used') => self::AUTH_PASSKEY_SESSION_USED,
+            str_contains($prose, 'TOTP is not enabled') => self::AUTH_TOTP_NOT_ENABLED,
+            str_contains($prose, 'already has advanced encryption enabled') => self::AUTH_ADVANCED_ENCRYPTION_ALREADY_SET,
 
             // Client
-            str_contains($prose, 'no está registrada en el SSO') => self::CLIENT_NOT_REGISTERED,
-            str_contains($prose, 'cliente desactivado') || str_contains($prose, 'El cliente SSO está desactivado') => self::CLIENT_DISABLED,
-            str_contains($prose, 'redirect_uri no permitida') => self::CLIENT_REDIRECT_URI_NOT_ALLOWED,
+            str_contains($prose, 'not registered in the SSO') => self::CLIENT_NOT_REGISTERED,
+            str_contains($prose, 'client is disabled') => self::CLIENT_DISABLED,
+            str_contains($prose, 'redirect_uri is not allowed') => self::CLIENT_REDIRECT_URI_NOT_ALLOWED,
             str_contains($prose, 'allowed_origins') && str_contains($prose, 'redirect_uri') => self::CLIENT_MISCONFIGURED,
-            str_contains($prose, 'credenciales del cliente no son válidas') => self::CLIENT_INVALID_CREDENTIALS,
+            str_contains($prose, 'client credentials are not valid') => self::CLIENT_INVALID_CREDENTIALS,
 
             // DPoP
             str_contains($prose, 'incomplete jwk') => self::DPOP_INCOMPLETE_JWK,

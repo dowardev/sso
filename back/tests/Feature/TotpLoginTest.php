@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 // Login-flow tests: when the user has TOTP enabled, /login must return
-// TOTP_REQUIRED and the second step (/api/totp/login) must accept a valid
+// auth.totp_required and the second step (/api/totp/login) must accept a valid
 // code (or backup code) and issue the JWT. Backup codes are single-use;
 // replaying a code, an unknown code, or an expired pending token MUST fail.
 
@@ -33,7 +33,7 @@ class TotpLoginTest extends TestCase
         ]);
 
         $response->assertOk()
-            ->assertJsonPath('code', 'TOTP_REQUIRED')
+            ->assertJsonPath('code', 'auth.totp_required')
             ->assertJsonStructure(['code', 'message', 'totp_token', 'digits', 'period']);
     }
 
@@ -74,7 +74,7 @@ class TotpLoginTest extends TestCase
             'email' => $user->email,
             'password' => 'correct-password',
         ]);
-        $login->assertOk()->assertJsonPath('code', 'TOTP_REQUIRED');
+        $login->assertOk()->assertJsonPath('code', 'auth.totp_required');
         $totpToken = $login->json('totp_token');
 
         $code = app(TotpService::class)->totpNow($secret);
@@ -287,10 +287,10 @@ class TotpLoginTest extends TestCase
             'password' => 'correct-password',
         ]);
 
-        // If TOTP is enrolled, this will return TOTP_REQUIRED instead of
+        // If TOTP is enrolled, this will return auth.totp_required instead of
         // a token. The disable-test in this file takes a different path
         // (no TOTP active), so loginAs works there.
-        if ($response->json('code') === 'TOTP_REQUIRED') {
+        if ($response->json('code') === 'auth.totp_required') {
             $this->fail('loginAs() called on a user with active TOTP — use a path that skips TOTP for setup.');
         }
 

@@ -8,6 +8,7 @@ use App\Http\Resources\UserSessionResource;
 use App\Models\User;
 use App\Models\UserSession;
 use App\Services\UserSessionService;
+use App\Support\ApiError;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -43,9 +44,7 @@ class UserSessionController extends Controller
     {
         $this->sessionService->destroy($session);
 
-        return response()->json([
-            'message' => 'Sesión revocada correctamente',
-        ]);
+        return response()->json(ApiError::success(ApiError::SUCCESS_SESSION_REVOKED, 'Session revoked successfully.'));
     }
 
     public function destroyUserSessions(User $user, Request $request): JsonResponse
@@ -53,15 +52,16 @@ class UserSessionController extends Controller
         $authUser = $request->user();
 
         if ($user->id === $authUser->id) {
-            return response()->json([
-                'message' => 'No puedes revocar tus propias sesiones desde admin',
-            ], 422);
+            return response()->json(
+                ApiError::topLevel(ApiError::SESSION_SELF_REVOKE_FORBIDDEN, 'You cannot revoke your own sessions from the admin panel.'),
+                422
+            );
         }
 
         $this->sessionService->destroyAllForUser($user);
 
-        return response()->json([
-            'message' => 'Todas las sesiones del usuario han sido revocadas',
-        ]);
+        return response()->json(
+            ApiError::success(ApiError::SUCCESS_USER_SESSIONS_REVOKED, "All the user's sessions have been revoked.")
+        );
     }
 }

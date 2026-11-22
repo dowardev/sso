@@ -702,7 +702,7 @@ class AuthService
             ->first();
 
         if (! $user) {
-            throw new \Exception('Usuario no encontrado');
+            throw new \Exception('User not found.');
         }
 
         // Update crypto blobs
@@ -733,7 +733,7 @@ class AuthService
             ->first();
 
         if (! $user) {
-            throw new \Exception('Usuario no encontrado');
+            throw new \Exception('User not found.');
         }
 
         // Update only Key_A related blobs (salt_a, wrapped_dek_a, auth_hash)
@@ -760,12 +760,12 @@ class AuthService
     {
         // Verify current password
         if (! Hash::check($data['current_password'], $user->password)) {
-            throw new \Exception('Contraseña actual incorrecta');
+            throw new \Exception('The current password is incorrect.');
         }
 
         // Verify user is basic
         if ($user->encryption_level !== 'basic') {
-            throw new \Exception('El usuario ya tiene cifrado avanzado');
+            throw new \Exception('The user already has advanced encryption enabled.');
         }
 
         // Hash the auth_proof for storage (password column)

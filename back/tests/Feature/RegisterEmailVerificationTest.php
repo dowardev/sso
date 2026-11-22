@@ -40,7 +40,7 @@ class RegisterEmailVerificationTest extends TestCase
 
         $response->assertStatus(201)
             ->assertJson([
-                'message' => 'Revisa tu email',
+                'message' => 'Check your email to verify your account.',
                 'user' => ['email' => 'new@example.com'],
             ])
             ->assertJsonMissing(['token']);

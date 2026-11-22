@@ -28,7 +28,7 @@ class ThrottleLoginAttempts
 
             if ($attempt && $attempt->locked_until && now()->lessThan($attempt->locked_until)) {
                 return response()->json([
-                    'message' => 'Demasiados intentos. Cuenta bloqueada temporalmente.',
+                    'message' => 'Too many attempts. The account is temporarily locked.',
                     'locked_until' => $attempt->locked_until,
                     'code' => ApiError::AUTH_TOO_MANY_ATTEMPTS,
                 ], 429);

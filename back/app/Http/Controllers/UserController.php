@@ -9,6 +9,7 @@ use App\Http\Resources\UserDetailResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\UserService;
+use App\Support\ApiError;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -53,8 +54,7 @@ class UserController extends Controller
     {
         $this->userService->update($user, $request->validated());
 
-        return response()->json([
-            'message' => 'Usuario actualizado correctamente',
+        return response()->json(ApiError::success(ApiError::SUCCESS_USER_UPDATED, 'User updated successfully.') + [
             'user' => new UserResource($user),
         ]);
     }
@@ -64,16 +64,15 @@ class UserController extends Controller
         $authUser = $request->user();
 
         if ($user->id === $authUser->id) {
-            return response()->json([
-                'message' => 'No puedes eliminar tu propio usuario',
-            ], 422);
+            return response()->json(
+                ApiError::topLevel(ApiError::USER_SELF_DELETE_FORBIDDEN, 'You cannot delete your own user.'),
+                422
+            );
         }
 
         $this->userService->delete($user);
 
-        return response()->json([
-            'message' => 'Usuario eliminado correctamente',
-        ]);
+        return response()->json(ApiError::success(ApiError::SUCCESS_USER_DELETED, 'User deleted successfully.'));
     }
 
     public function toggleAdmin(Request $request, int $id): JsonResponse
@@ -112,8 +111,7 @@ class UserController extends Controller
 
         $roles = $this->userService->updateUserRoles($user, $validated['roles']);
 
-        return response()->json([
-            'message' => 'Roles actualizados correctamente',
+        return response()->json(ApiError::success(ApiError::SUCCESS_USER_ROLES_UPDATED, 'Roles updated successfully.') + [
             'roles' => $roles,
         ]);
     }

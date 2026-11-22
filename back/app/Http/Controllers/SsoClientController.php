@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateSsoClientRequest;
 use App\Http\Resources\SsoClientResource;
 use App\Models\SsoClient;
 use App\Services\SsoClientService;
+use App\Support\ApiError;
 use Illuminate\Http\JsonResponse;
 
 class SsoClientController extends Controller
@@ -36,8 +37,7 @@ class SsoClientController extends Controller
     {
         $client = $this->clientService->create($request->validated());
 
-        return response()->json([
-            'message' => 'Cliente SSO creado correctamente',
+        return response()->json(ApiError::success(ApiError::SUCCESS_CLIENT_CREATED, 'SSO client created successfully.') + [
             'client' => new SsoClientResource($client),
         ], 201);
     }
@@ -46,8 +46,7 @@ class SsoClientController extends Controller
     {
         $client = $this->clientService->update($client, $request->validated());
 
-        return response()->json([
-            'message' => 'Cliente SSO actualizado correctamente',
+        return response()->json(ApiError::success(ApiError::SUCCESS_CLIENT_UPDATED, 'SSO client updated successfully.') + [
             'client' => new SsoClientResource($client),
         ]);
     }
@@ -56,8 +55,6 @@ class SsoClientController extends Controller
     {
         $this->clientService->delete($client);
 
-        return response()->json([
-            'message' => 'Cliente SSO eliminado correctamente',
-        ]);
+        return response()->json(ApiError::success(ApiError::SUCCESS_CLIENT_DELETED, 'SSO client deleted successfully.'));
     }
 }

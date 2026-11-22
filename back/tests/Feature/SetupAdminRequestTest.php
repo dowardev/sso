@@ -35,7 +35,7 @@ class SetupAdminRequestTest extends TestCase
 
         $response->assertStatus(201)
             ->assertJson([
-                'message' => 'Administrador creado correctamente.',
+                'message' => 'Administrator created successfully.',
                 'user' => ['email' => 'admin@example.com'],
             ]);
 
@@ -64,7 +64,7 @@ class SetupAdminRequestTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['password']);
-        $this->assertStringContainsString('mayúscula', $response->json('errors.password')[0]);
+        $this->assertStringContainsString('uppercase letter', $response->json('errors.password')[0]);
     }
 
     public function test_password_requires_lowercase(): void
@@ -76,7 +76,7 @@ class SetupAdminRequestTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['password']);
-        $this->assertStringContainsString('minúscula', $response->json('errors.password')[0]);
+        $this->assertStringContainsString('lowercase letter', $response->json('errors.password')[0]);
     }
 
     public function test_password_requires_number(): void
@@ -88,7 +88,7 @@ class SetupAdminRequestTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['password']);
-        $this->assertStringContainsString('número', $response->json('errors.password')[0]);
+        $this->assertStringContainsString('number', $response->json('errors.password')[0]);
     }
 
     public function test_password_requires_symbol(): void
@@ -100,7 +100,7 @@ class SetupAdminRequestTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['password']);
-        $this->assertStringContainsString('símbolo', $response->json('errors.password')[0]);
+        $this->assertStringContainsString('special character', $response->json('errors.password')[0]);
     }
 
     public function test_password_confirmation_must_match(): void

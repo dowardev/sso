@@ -55,7 +55,7 @@ class JwtAuth
             $validation = $this->jwtConfig->validator();
             if (! $validation->validate($parsedToken, ...$constraints)) {
                 return response()->json(
-                    ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Token inválido'),
+                    ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Invalid token'),
                     401
                 );
             }
@@ -101,7 +101,7 @@ class JwtAuth
 
         } catch (\Exception $e) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Token inválido: '.$e->getMessage()),
+                ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Invalid token: '.$e->getMessage()),
                 401
             );
         }

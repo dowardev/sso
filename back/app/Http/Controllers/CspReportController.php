@@ -5,6 +5,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CspReport;
+use App\Support\ApiError;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -47,9 +48,10 @@ class CspReportController extends Controller
         $hash = $validated['hash'];
 
         if (in_array($hash, $config['script_hashes'], true)) {
-            return response()->json([
-                'message' => 'El hash ya está en la lista de permitidos',
-            ], 409);
+            return response()->json(
+                ApiError::topLevel(ApiError::CSP_HASH_ALREADY_ALLOWED, 'The hash is already in the allowed list.'),
+                409
+            );
         }
 
         $config['script_hashes'][] = $hash;
@@ -65,9 +67,10 @@ class CspReportController extends Controller
             ]);
         }
 
-        return response()->json([
-            'message' => 'Hash agregado al CSP. Requiere deploy para producción.',
-            'hash' => $hash,
-        ]);
+        return response()->json(
+            ApiError::success(ApiError::SUCCESS_CSP_HASH_ADDED, 'Hash added to the CSP. A production deploy is required.') + [
+                'hash' => $hash,
+            ]
+        );
     }
 }

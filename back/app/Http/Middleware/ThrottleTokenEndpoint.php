@@ -173,7 +173,7 @@ class ThrottleTokenEndpoint
     private function tooManyRequests(int $limit, int $retryAfter): Response
     {
         return response()->json([
-            'message' => 'Demasiadas solicitudes al endpoint de token. Intenta más tarde.',
+            'message' => 'Too many requests to the token endpoint. Please try again later.',
             'retry_after' => $retryAfter,
             'code' => ApiError::AUTH_TOO_MANY_ATTEMPTS,
         ], 429, [

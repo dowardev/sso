@@ -151,9 +151,7 @@ class AuthController extends Controller
             'algorithm' => $credential->algorithm,
         ], 300);
 
-        $response = [
-            'code' => 'TOTP_REQUIRED',
-            'message' => 'Necesitás tu código TOTP (o un código de respaldo) para continuar.',
+        $response = ApiError::success(ApiError::AUTH_TOTP_REQUIRED, 'You need your TOTP code (or a backup code) to continue.') + [
             'totp_token' => $token,
             // Surface the policy so the client can label the input field
             // correctly (6 digits, 30s period) without hardcoding it.
@@ -208,9 +206,7 @@ class AuthController extends Controller
             'ip_address' => $request->ip(),
         ], 300);
 
-        return response()->json([
-            'code' => 'PASSKEY_REQUIRED',
-            'message' => 'Usá tu passkey para completar el inicio de sesión.',
+        return response()->json(ApiError::success(ApiError::AUTH_PASSKEY_REQUIRED, 'Use your passkey to complete sign-in.') + [
             'passkey_token' => $token,
         ], 200);
     }
@@ -228,13 +224,12 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_REGISTER,
-            'Registro de cuenta',
+            'Account registration',
             ['name' => $user->name, 'email' => $user->email],
             $request,
         );
 
-        return response()->json([
-            'message' => 'Revisa tu email',
+        return response()->json(ApiError::success(ApiError::SUCCESS_VERIFICATION_EMAIL_SENT, 'Check your email to verify your account.') + [
             'user' => $user,
         ], 201);
     }
@@ -245,9 +240,18 @@ class AuthController extends Controller
 
         if (! $loginField) {
             return response()->json([
-                'message' => 'Error de validación',
-                'errors' => ['email' => ['El email o usuario es requerido']],
+                'message' => 'Validation error.',
+                'errors' => ['email' => ['The email or username is required.']],
                 'code' => ApiError::AUTH_INVALID_CREDENTIALS,
+                'error_details' => [
+                    'email' => [
+                        [
+                            'code' => 'validation.required',
+                            'field' => 'email',
+                            'message' => 'The email or username is required.',
+                        ],
+                    ],
+                ],
             ], 422);
         }
 
@@ -255,7 +259,7 @@ class AuthController extends Controller
 
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Credenciales inválidas'),
+                ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Invalid credentials.'),
                 401
             );
         }
@@ -263,7 +267,7 @@ class AuthController extends Controller
         if ($user->email_verified_at === null) {
             return response()->json([
                 'code' => ApiError::AUTH_EMAIL_NOT_VERIFIED,
-                'message' => 'Verifica tu email antes de iniciar sesión.',
+                'message' => 'Verify your email before signing in.',
                 'email' => $user->email,
             ], 403);
         }
@@ -314,7 +318,7 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_LOGIN,
-            'Inicio de sesión',
+            'Sign in',
             ['login_method' => 'password', 'remember_me' => $rememberMe],
             $request,
         );
@@ -352,7 +356,7 @@ class AuthController extends Controller
 
         if (! $blobs) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'Usuario no encontrado'),
+                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'User not found.'),
                 404
             );
         }
@@ -377,7 +381,7 @@ class AuthController extends Controller
 
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Credenciales inválidas'),
+                ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Invalid credentials.'),
                 401
             );
         }
@@ -385,7 +389,7 @@ class AuthController extends Controller
         if ($user->email_verified_at === null) {
             return response()->json([
                 'code' => ApiError::AUTH_EMAIL_NOT_VERIFIED,
-                'message' => 'Verifica tu email antes de iniciar sesión.',
+                'message' => 'Verify your email before signing in.',
                 'email' => $user->email,
             ], 403);
         }
@@ -431,7 +435,7 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_LOGIN,
-            'Inicio de sesión (cifrado avanzado)',
+            'Sign in (advanced encryption)',
             ['login_method' => 'password_advanced', 'remember_me' => $rememberMe],
             $request,
         );
@@ -493,13 +497,12 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_REGISTER,
-            'Registro de cuenta (cifrado avanzado)',
+            'Account registration (advanced encryption)',
             ['encryption_level' => 'advanced'],
             $request,
         );
 
-        return response()->json([
-            'message' => 'Revisa tu email',
+        return response()->json(ApiError::success(ApiError::SUCCESS_VERIFICATION_EMAIL_SENT, 'Check your email to verify your account.') + [
             'user' => $user,
         ], 201);
     }
@@ -521,16 +524,18 @@ class AuthController extends Controller
         $user = $this->authService->recoveryVerify($request->login_id, '');
 
         if (! $user) {
-            return response()->json([
-                'message' => 'Usuario no encontrado',
-            ], 404);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'User not found.'),
+                404
+            );
         }
 
         // Verify the client's computed verification matches stored value
         if (! hash_equals($user->encrypted_seed_verification, $request->seed_verification)) {
-            return response()->json([
-                'message' => 'Frase semilla incorrecta',
-            ], 401);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_SEED_PHRASE_INVALID, 'The seed phrase is incorrect.'),
+                401
+            );
         }
 
         // Return crypto blobs needed for recovery (salt_r, wrapped_dek_r)
@@ -587,13 +592,12 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_PASSWORD_CHANGE,
-            'Recuperación de cuenta (cifrado avanzado)',
+            'Account recovery (advanced encryption)',
             ['recovery' => true],
             $request,
         );
 
-        return response()->json([
-            'message' => 'Cuenta recuperada correctamente. Inicia sesión con tu nueva contraseña.',
+        return response()->json(ApiError::success(ApiError::SUCCESS_ACCOUNT_RECOVERED, 'Account recovered successfully. Sign in with your new password.') + [
             'user' => $user,
         ]);
     }
@@ -623,9 +627,12 @@ class AuthController extends Controller
                 'wrapped_dek_a' => $request->wrapped_dek_a,
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 404);
+            $code = ApiError::codeFromProse($e->getMessage());
+
+            return response()->json(
+                ApiError::topLevel($code, $e->getMessage()),
+                404
+            );
         }
 
         $user = $result['user'];
@@ -634,13 +641,12 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_PASSWORD_CHANGE,
-            'Cambio de contraseña (cifrado avanzado)',
+            'Password change (advanced encryption)',
             ['dek_rotated' => false],
             $request,
         );
 
-        return response()->json([
-            'message' => 'Contraseña actualizada correctamente. Todas las sesiones han sido revocadas.',
+        return response()->json(ApiError::success(ApiError::SUCCESS_PASSWORD_UPDATED_SESSIONS_REVOKED, 'Password updated successfully. All sessions have been revoked.') + [
             'user' => $user,
         ]);
     }
@@ -656,7 +662,10 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if (! $user) {
-            return response()->json(['message' => 'No autenticado'], 401);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'Unauthenticated.'),
+                401
+            );
         }
 
         $request->validate([
@@ -690,9 +699,12 @@ class AuthController extends Controller
                 'passkey_credential_id' => $request->passkey_credential_id,
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 422);
+            $code = ApiError::codeFromProse($e->getMessage());
+
+            return response()->json(
+                ApiError::topLevel($code, $e->getMessage()),
+                422
+            );
         }
 
         $user = $result['user'];
@@ -701,13 +713,12 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_PASSWORD_CHANGE,
-            'Actualización a cifrado avanzado',
+            'Upgrade to advanced encryption',
             ['encryption_level' => 'advanced'],
             $request,
         );
 
-        return response()->json([
-            'message' => 'Cuenta actualizada a cifrado avanzado. Inicia sesión con tu nueva contraseña.',
+        return response()->json(ApiError::success(ApiError::SUCCESS_UPGRADE_TO_ADVANCED, 'Account upgraded to advanced encryption. Sign in with your new password.') + [
             'user' => $user,
             'seed_phrase' => $request->input('seed_phrase'), // Client should show this to user
         ]);
@@ -719,7 +730,7 @@ class AuthController extends Controller
 
         if (! $plainRefreshToken) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_TOKEN_MISSING, 'Refresh token no proporcionado'),
+                ApiError::topLevel(ApiError::AUTH_TOKEN_MISSING, 'The refresh token was not provided.'),
                 401
             );
         }
@@ -732,7 +743,7 @@ class AuthController extends Controller
             // On real theft the server already revoked the chain server-side,
             // so the stale cookie is inert; on expiry it is useless anyway.
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Refresh token inválido, expirado o revocado'),
+                ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Refresh token invalid, expired, or revoked.'),
                 401
             );
         }
@@ -753,7 +764,7 @@ class AuthController extends Controller
 
         if (! $tokenString) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_TOKEN_MISSING, 'Token no proporcionado'),
+                ApiError::topLevel(ApiError::AUTH_TOKEN_MISSING, 'Token not provided.'),
                 401
             );
         }
@@ -783,7 +794,7 @@ class AuthController extends Controller
             $this->sessionService->revokeSessionByToken($tokenString);
         } catch (\Exception $e) {
             return response()->json(
-                ApiError::topLevel('unknown', 'Error al cerrar sesión: '.$e->getMessage()),
+                ApiError::topLevel('unknown', 'Error logging out: '.$e->getMessage()),
                 500
             );
         }
@@ -792,16 +803,15 @@ class AuthController extends Controller
             $this->activityLogService->logFromRequest(
                 $user,
                 UserActivityLog::ACTION_LOGOUT,
-                'Cierre de sesión',
+                'Sign out',
                 null,
                 $request,
             );
         }
 
-        return response()->json([
-            'message' => 'Sesión cerrada correctamente',
-        ])
-            ->withCookie($this->refreshTokenForgetCookie());
+        return response()->json(
+            ApiError::success(ApiError::SUCCESS_LOGOUT, 'Signed out successfully.')
+        )->withCookie($this->refreshTokenForgetCookie());
     }
 
     public function me(Request $request): JsonResponse
@@ -867,7 +877,7 @@ class AuthController extends Controller
         $user = $request->user();
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'No autenticado'),
+                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'Unauthenticated.'),
                 401
             );
         }
@@ -919,7 +929,7 @@ class AuthController extends Controller
         $user = $request->user();
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'No autenticado'),
+                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'Unauthenticated.'),
                 401
             );
         }
@@ -929,9 +939,10 @@ class AuthController extends Controller
         // Handle advanced encryption: client sends encrypted_profile
         if ($user->encryption_level === 'advanced') {
             if (! isset($validated['encrypted_profile'])) {
-                return response()->json([
-                    'message' => 'encrypted_profile requerido para usuarios avanzados',
-                ], 422);
+                return response()->json(
+                    ApiError::topLevel(ApiError::PROFILE_ENCRYPTED_PROFILE_REQUIRED, 'encrypted_profile is required for advanced users.'),
+                    422
+                );
             }
 
             $oldEncryptedProfile = $user->encrypted_profile;
@@ -942,13 +953,12 @@ class AuthController extends Controller
             $this->activityLogService->logFromRequest(
                 $user,
                 UserActivityLog::ACTION_PROFILE_UPDATE,
-                'Actualización de perfil cifrado',
+                'Encrypted profile update',
                 ['changed_fields' => ['encrypted_profile']],
                 $request,
             );
 
-            return response()->json([
-                'message' => 'Perfil actualizado correctamente',
+            return response()->json(ApiError::success(ApiError::SUCCESS_PROFILE_UPDATED, 'Profile updated successfully.') + [
                 'user' => [
                     'id' => $user->id,
                     'name' => null,
@@ -977,13 +987,12 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_PROFILE_UPDATE,
-            'Actualización de perfil',
+            'Profile update',
             ['changed_fields' => $changedFields, 'old_values' => $oldValues],
             $request,
         );
 
-        return response()->json([
-            'message' => 'Perfil actualizado correctamente',
+        return response()->json(ApiError::success(ApiError::SUCCESS_PROFILE_UPDATED, 'Profile updated successfully.') + [
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -1001,7 +1010,7 @@ class AuthController extends Controller
         $user = $request->user();
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'No autenticado'),
+                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'Unauthenticated.'),
                 401
             );
         }
@@ -1010,8 +1019,8 @@ class AuthController extends Controller
 
         if (! Hash::check($validated['current_password'], $user->password)) {
             return response()->json([
-                'message' => 'Contraseña actual incorrecta',
-                'errors' => ['current_password' => ['La contraseña actual es incorrecta']],
+                'message' => 'The current password is incorrect.',
+                'errors' => ['current_password' => ['The current password is incorrect.']],
                 'code' => ApiError::AUTH_CURRENT_PASSWORD_INVALID,
             ], 422);
         }
@@ -1026,14 +1035,14 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_PASSWORD_CHANGE,
-            'Cambio de contraseña',
+            'Password change',
             ['sessions_revoked' => true, 'tokens_revoked' => true],
             $request,
         );
 
-        return response()->json([
-            'message' => 'Contraseña actualizada correctamente. Todas las sesiones han sido revocadas.',
-        ]);
+        return response()->json(
+            ApiError::success(ApiError::SUCCESS_PASSWORD_UPDATED_SESSIONS_REVOKED, 'Password updated successfully. All sessions have been revoked.')
+        );
     }
 
     // ─── Passkey / WebAuthn Endpoints ────────────────────────────────────────
@@ -1049,9 +1058,9 @@ class AuthController extends Controller
 
         $this->passwordResetService->sendResetLink($request->input('identifier'));
 
-        return response()->json([
-            'message' => 'Si la cuenta existe, te enviamos instrucciones.',
-        ]);
+        return response()->json(
+            ApiError::success(ApiError::SUCCESS_VERIFICATION_EMAIL_RESENT, 'If the account exists, we will send you instructions.')
+        );
     }
 
     /**
@@ -1074,14 +1083,14 @@ class AuthController extends Controller
 
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_CREDENTIALS_NOT_FOUND, 'Token inválido o expirado.'),
+                ApiError::topLevel(ApiError::AUTH_CREDENTIALS_NOT_FOUND, 'Invalid or expired token.'),
                 422
             );
         }
 
-        return response()->json([
-            'message' => 'Contraseña actualizada.',
-        ]);
+        return response()->json(
+            ApiError::success(ApiError::SUCCESS_PASSWORD_UPDATED, 'Password updated successfully.')
+        );
     }
 
     public function passkeyRegisterStart(Request $request): JsonResponse
@@ -1093,7 +1102,7 @@ class AuthController extends Controller
         $user = User::find($request->user_id);
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'Usuario no encontrado'),
+                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'User not found.'),
                 404
             );
         }
@@ -1126,7 +1135,7 @@ class AuthController extends Controller
 
         if (! $optionsData || ! $userId) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_REGISTRATION_SESSION_EXPIRED, 'Sesión de registro expirada'),
+                ApiError::topLevel(ApiError::AUTH_REGISTRATION_SESSION_EXPIRED, 'Registration session expired.'),
                 400
             );
         }
@@ -1134,7 +1143,7 @@ class AuthController extends Controller
         $user = User::find($userId);
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'Usuario no encontrado'),
+                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'User not found.'),
                 404
             );
         }
@@ -1152,18 +1161,18 @@ class AuthController extends Controller
             $this->activityLogService->logFromRequest(
                 $user,
                 UserActivityLog::ACTION_PASSWORD_CHANGE,
-                'Passkey registrado',
+                'Passkey registered',
                 ['credential_id' => base64_encode($credentialRecord->publicKeyCredentialId)],
                 $request,
             );
 
-            return response()->json([
-                'message' => 'Passkey registrado correctamente',
-                'credential_id' => base64_encode($credentialRecord->publicKeyCredentialId),
-            ]);
+            return response()->json(
+                ApiError::success(ApiError::SUCCESS_PASSKEY_REGISTERED, 'Passkey registered successfully.') +
+                ['credential_id' => base64_encode($credentialRecord->publicKeyCredentialId)]
+            );
         } catch (\Exception $e) {
             return response()->json(
-                ApiError::topLevel('unknown', 'Error al registrar passkey: '.$e->getMessage()),
+                ApiError::topLevel('unknown', 'Error registering passkey: '.$e->getMessage()),
                 400
             );
         }
@@ -1198,7 +1207,7 @@ class AuthController extends Controller
 
         if (! $user && ! $discoverable) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'Usuario no encontrado'),
+                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'User not found.'),
                 404
             );
         }
@@ -1210,7 +1219,7 @@ class AuthController extends Controller
             $allowCredentials = $this->passkeyService->getAuthenticationDescriptors($user);
             if (empty($allowCredentials)) {
                 return response()->json(
-                    ApiError::topLevel(ApiError::AUTH_PASSKEYS_NOT_REGISTERED, 'Usuario no tiene passkeys registrados'),
+                    ApiError::topLevel(ApiError::AUTH_PASSKEYS_NOT_REGISTERED, 'User has no passkeys registered.'),
                     400
                 );
             }
@@ -1247,7 +1256,10 @@ class AuthController extends Controller
         $userId = $request->session()->pull('passkey_auth_user_id');
 
         if (! $optionsData || ($scope !== 'discoverable' && ! $userId)) {
-            return response()->json(['message' => 'Sesión de autenticación expirada'], 400);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_AUTHENTICATION_SESSION_EXPIRED, 'The authentication session has expired.'),
+                400
+            );
         }
 
         if ($scope === 'discoverable') {
@@ -1266,7 +1278,7 @@ class AuthController extends Controller
 
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'Usuario no encontrado'),
+                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'User not found.'),
                 404
             );
         }
@@ -1274,7 +1286,7 @@ class AuthController extends Controller
         $records = $this->passkeyService->getUserCredentialRecords($user);
         if (empty($records)) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_PASSKEYS_NOT_REGISTERED, 'Usuario no tiene passkeys registrados'),
+                ApiError::topLevel(ApiError::AUTH_PASSKEYS_NOT_REGISTERED, 'The user has no registered passkeys'),
                 400
             );
         }
@@ -1301,7 +1313,7 @@ class AuthController extends Controller
 
         if (! $matchedRecord) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_CREDENTIALS_NOT_FOUND, 'Credencial no encontrada'),
+                ApiError::topLevel(ApiError::AUTH_CREDENTIALS_NOT_FOUND, 'Credential not found.'),
                 400
             );
         }
@@ -1322,7 +1334,7 @@ class AuthController extends Controller
             if ($user->encryption_level === 'advanced' && $user->email_verified_at === null) {
                 return response()->json([
                     'code' => ApiError::AUTH_EMAIL_NOT_VERIFIED,
-                    'message' => 'Verifica tu email antes de iniciar sesión.',
+                    'message' => 'Verify your email before signing in.',
                     'email' => $user->email,
                 ], 403);
             }
@@ -1339,17 +1351,19 @@ class AuthController extends Controller
                 // Read without consuming first to verify the token is valid
                 $pending = Cache::get("passkey_pending:{$passkeyToken}");
                 if (! $pending || ! isset($pending['user_id']) || $pending['user_id'] !== $user->id) {
-                    return response()->json([
-                        'message' => 'La sesión passkey expiró o ya fue usada. Iniciá sesión de nuevo.',
-                    ], 401);
+                    return response()->json(
+                        ApiError::topLevel(ApiError::AUTH_PASSKEY_SESSION_EXPIRED, 'The passkey session expired or was already used. Please sign in again.'),
+                        401
+                    );
                 }
                 // Now atomically consume the token (single-use)
                 $consumed = Cache::pull("passkey_pending:{$passkeyToken}");
                 if (! $consumed) {
                     // Token was already consumed by a concurrent request
-                    return response()->json([
-                        'message' => 'La sesión passkey ya fue usada. Iniciá sesión de nuevo.',
-                    ], 401);
+                    return response()->json(
+                        ApiError::topLevel(ApiError::AUTH_PASSKEY_SESSION_USED, 'The passkey session was already used. Please sign in again.'),
+                        401
+                    );
                 }
                 $pending = $consumed;
             }
@@ -1384,7 +1398,7 @@ class AuthController extends Controller
             $this->activityLogService->logFromRequest(
                 $user,
                 UserActivityLog::ACTION_LOGIN,
-                $passkeyToken ? 'Inicio de sesión (contraseña + passkey)' : 'Inicio de sesión (passkey)',
+                $passkeyToken ? 'Sign in (password + passkey)' : 'Sign in (passkey)',
                 ['login_method' => $loginMethod, 'remember_me' => $rememberMe],
                 $request,
             );
@@ -1400,7 +1414,7 @@ class AuthController extends Controller
             return $response;
         } catch (\Exception $e) {
             return response()->json(
-                ApiError::topLevel('unknown', 'Error en autenticación passkey: '.$e->getMessage()),
+                ApiError::topLevel('unknown', 'Error in passkey authentication: '.$e->getMessage()),
                 400
             );
         }
@@ -1417,7 +1431,7 @@ class AuthController extends Controller
         $user = $request->user();
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'No autenticado'),
+                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'Unauthenticated.'),
                 401
             );
         }
@@ -1435,7 +1449,7 @@ class AuthController extends Controller
         $user = $request->user();
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'No autenticado'),
+                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'Unauthenticated.'),
                 401
             );
         }
@@ -1451,7 +1465,10 @@ class AuthController extends Controller
 
         $owned = $this->passkeyService->getCredentialIds($user);
         if (! in_array($request->credential_id, $owned, true)) {
-            return response()->json(['message' => 'Credencial no encontrada'], 404);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_CREDENTIALS_NOT_FOUND, 'Credential not found.'),
+                404
+            );
         }
 
         // Re-authentication gate. Basic users prove the plaintext password;
@@ -1462,7 +1479,7 @@ class AuthController extends Controller
             : (string) $request->input('password');
         if (! Hash::check($reAuthSecret, $user->password)) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_CURRENT_PASSWORD_INVALID, 'Contraseña actual incorrecta'),
+                ApiError::topLevel(ApiError::AUTH_CURRENT_PASSWORD_INVALID, 'The current password is incorrect.'),
                 422
             );
         }
@@ -1472,12 +1489,14 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_PASSWORD_CHANGE,
-            'Passkey eliminado',
+            'Passkey deleted',
             null,
             $request,
         );
 
-        return response()->json(['message' => 'Passkey eliminado correctamente']);
+        return response()->json(
+            ApiError::success(ApiError::SUCCESS_PASSKEY_DELETED, 'Passkey deleted successfully.')
+        );
     }
 
     // ─── TOTP / RFC 6238 Endpoints ──────────────────────────────────────────
@@ -1501,7 +1520,10 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if (! $user) {
-            return response()->json(['message' => 'No autenticado'], 401);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'Unauthenticated.'),
+                401
+            );
         }
 
         $plainSecret = $this->totpService->generateSecret();
@@ -1564,7 +1586,7 @@ class AuthController extends Controller
         $credential = $user->totpCredential;
         if (! $credential) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_REGISTRATION_SESSION_EXPIRED, 'No hay enrollment TOTP en curso. Iniciá uno primero.'),
+                ApiError::topLevel(ApiError::AUTH_REGISTRATION_SESSION_EXPIRED, 'No TOTP enrollment in progress. Start one first.'),
                 400
             );
         }
@@ -1572,7 +1594,7 @@ class AuthController extends Controller
         $acceptedStep = $this->totpService->verifyAndConsume($credential, $request->code);
         if ($acceptedStep === null) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Código inválido. Verificá que tu app muestra la hora correcta.'),
+                ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Invalid code. Verify that your app shows the correct time.'),
                 422
             );
         }
@@ -1586,16 +1608,15 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_TOTP_ENROLLED,
-            'TOTP habilitado',
+            'TOTP enabled',
             ['digits' => $credential->digits, 'period' => $credential->period, 'algorithm' => $credential->algorithm],
             $request,
         );
 
-        return response()->json([
-            'message' => 'TOTP habilitado correctamente',
-            'backup_codes' => $backupCodes,
-            'backup_codes_count' => count($backupCodes),
-        ]);
+        return response()->json(
+            ApiError::success(ApiError::SUCCESS_TOTP_ENABLED, 'TOTP enabled successfully.') +
+            ['backup_codes' => $backupCodes, 'backup_codes_count' => count($backupCodes)]
+        );
     }
 
     /**
@@ -1611,7 +1632,10 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if (! $user) {
-            return response()->json(['message' => 'No autenticado'], 401);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'Unauthenticated.'),
+                401
+            );
         }
 
         $request->validate([
@@ -1624,7 +1648,7 @@ class AuthController extends Controller
             : (string) $request->input('password');
         if (! Hash::check($reAuthSecret, $user->password)) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_CURRENT_PASSWORD_INVALID, 'Contraseña actual incorrecta'),
+                ApiError::topLevel(ApiError::AUTH_CURRENT_PASSWORD_INVALID, 'The current password is incorrect.'),
                 422
             );
         }
@@ -1635,12 +1659,14 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_TOTP_DISABLED,
-            'TOTP deshabilitado',
+            'TOTP disabled',
             null,
             $request,
         );
 
-        return response()->json(['message' => 'TOTP deshabilitado correctamente']);
+        return response()->json(
+            ApiError::success(ApiError::SUCCESS_TOTP_DISABLED, 'TOTP disabled successfully.')
+        );
     }
 
     /**
@@ -1673,7 +1699,7 @@ class AuthController extends Controller
 
         if (! $pending || ! isset($pending['user_id'])) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_AUTHENTICATION_SESSION_EXPIRED, 'La sesión TOTP expiró o ya fue usada. Iniciá sesión de nuevo.'),
+                ApiError::topLevel(ApiError::AUTH_AUTHENTICATION_SESSION_EXPIRED, 'The TOTP session expired or was already used. Please sign in again.'),
                 401
             );
         }
@@ -1681,7 +1707,7 @@ class AuthController extends Controller
         $user = User::find($pending['user_id']);
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'Usuario no encontrado'),
+                ApiError::topLevel(ApiError::AUTH_USER_NOT_FOUND, 'User not found.'),
                 404
             );
         }
@@ -1692,7 +1718,7 @@ class AuthController extends Controller
             // login so the user does not silently end up logged in without
             // the second factor they configured.
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_PASSKEYS_NOT_REGISTERED, 'TOTP ya no está habilitado para esta cuenta. Iniciá sesión de nuevo.'),
+                ApiError::topLevel(ApiError::AUTH_PASSKEYS_NOT_REGISTERED, 'TOTP is no longer enabled for this account. Please sign in again.'),
                 422
             );
         }
@@ -1711,8 +1737,8 @@ class AuthController extends Controller
                 ApiError::topLevel(
                     ApiError::AUTH_INVALID_CREDENTIALS,
                     $usedBackupCode
-                        ? 'Código de respaldo inválido o ya usado.'
-                        : 'Código TOTP inválido. Verificá que tu app muestra la hora correcta.'
+                        ? 'Invalid or already used backup code.'
+                        : 'Invalid TOTP code. Verify that your app shows the correct time.'
                 ),
                 422
             );
@@ -1750,7 +1776,7 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_LOGIN,
-            $usedBackupCode ? 'Inicio de sesión (TOTP — código de respaldo)' : 'Inicio de sesión (TOTP)',
+            $usedBackupCode ? 'Sign in (TOTP - backup code)' : 'Sign in (TOTP)',
             ['login_method' => 'password_totp', 'remember_me' => $rememberMe, 'used_backup_code' => $usedBackupCode],
             $request,
         );
@@ -1772,7 +1798,7 @@ class AuthController extends Controller
         $user = $request->user();
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'No autenticado'),
+                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'Unauthenticated.'),
                 401
             );
         }
@@ -1820,16 +1846,17 @@ class AuthController extends Controller
             : (string) $request->input('password');
         if (! Hash::check($reAuthSecret, $user->password)) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_CURRENT_PASSWORD_INVALID, 'Contraseña actual incorrecta'),
+                ApiError::topLevel(ApiError::AUTH_CURRENT_PASSWORD_INVALID, 'The current password is incorrect.'),
                 422
             );
         }
 
         $credential = $user->activeTotpCredential()->first();
         if (! $credential) {
-            return response()->json([
-                'message' => 'No hay TOTP habilitado. Habilitá TOTP antes de generar códigos de respaldo.',
-            ], 422);
+            return response()->json(
+                ApiError::topLevel(ApiError::AUTH_TOTP_NOT_ENABLED, 'TOTP is not enabled. Enable TOTP before generating backup codes.'),
+                422
+            );
         }
 
         $this->totpService->deleteAllBackupCodes($user);
@@ -1838,16 +1865,15 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_TOTP_BACKUP_CODE_REGENERATED,
-            'Códigos de respaldo TOTP regenerados',
+            'TOTP backup codes regenerated',
             ['count' => count($newCodes)],
             $request,
         );
 
-        return response()->json([
-            'message' => 'Códigos de respaldo regenerados',
-            'backup_codes' => $newCodes,
-            'backup_codes_count' => count($newCodes),
-        ]);
+        return response()->json(
+            ApiError::success(ApiError::SUCCESS_BACKUP_CODES_REGENERATED, 'Backup codes regenerated.') +
+            ['backup_codes' => $newCodes, 'backup_codes_count' => count($newCodes)]
+        );
     }
 
     public function getUserSessions(Request $request): JsonResponse
@@ -1855,7 +1881,7 @@ class AuthController extends Controller
         $user = $request->user();
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'No autenticado'),
+                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'Unauthenticated.'),
                 401
             );
         }
@@ -1893,7 +1919,7 @@ class AuthController extends Controller
         $user = $request->user();
         if (! $user) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'No autenticado'),
+                ApiError::topLevel(ApiError::AUTH_UNAUTHENTICATED, 'Unauthenticated.'),
                 401
             );
         }
@@ -1901,7 +1927,7 @@ class AuthController extends Controller
         $session = $user->sessions()->find($sessionId);
         if (! $session) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_SESSION_NOT_FOUND, 'Sesión no encontrada'),
+                ApiError::topLevel(ApiError::AUTH_SESSION_NOT_FOUND, 'Session not found.'),
                 404
             );
         }
@@ -1914,13 +1940,13 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_SESSION_REVOKED,
-            'Sesión revocada',
+            'Session revoked',
             ['session_id' => $sessionId, 'ip' => $session->ip_address],
             $request,
         );
 
         return response()->json([
-            'message' => 'Sesión revocada correctamente',
+            'message' => 'Session revoked successfully.',
         ]);
     }
 
@@ -1944,13 +1970,13 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_SESSION_REVOKED,
-            'Todas las sesiones revocadas',
+            'All sessions revoked',
             null,
             $request,
         );
 
         return response()->json([
-            'message' => 'Todas las sesiones han sido revocadas correctamente',
+            'message' => 'All sessions have been revoked successfully.',
         ]);
     }
 
@@ -1971,7 +1997,7 @@ class AuthController extends Controller
 
         if (! Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
-                'password' => ['La contraseña es incorrecta'],
+                'password' => ['The password is incorrect'],
             ]);
         }
 
@@ -1991,7 +2017,7 @@ class AuthController extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_ACCOUNT_DELETED,
-            'Cuenta eliminada',
+            'Account deleted',
             null,
             $request,
         );
@@ -2000,7 +2026,7 @@ class AuthController extends Controller
         $user->delete();
 
         return response()->json([
-            'message' => 'Cuenta eliminada correctamente',
+            'message' => 'Account deleted successfully.',
         ]);
     }
 
