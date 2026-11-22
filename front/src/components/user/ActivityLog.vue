@@ -33,7 +33,7 @@
         ></ion-icon>
         <ion-label>
           <h3 class="item-title">{{ getActionLabel({ action: activity.action }) }}</h3>
-          <p class="item-subtitle">{{ activity.description }}</p>
+          <p class="item-subtitle">{{ getActivity({ description: activity.description }) }}</p>
           <p class="session-date">
             {{ formatDate({ dateStr: activity.created_at }) }}
           </p>
@@ -62,6 +62,8 @@
     shieldOutline,
     refreshOutline,
   } from 'ionicons/icons';
+
+  import { getActivityDescription } from '@/utils/activityDescriptions';
 
   // 2. Controllers
   // (none)
@@ -138,6 +140,14 @@
       case 'token_refreshed': return 'Sesión Renovada en App';
       default: return action;
     }
+  };
+
+  // Activity-log descriptions are stored text: rows created before #12 carry
+  // the Spanish description and newer rows the English one. The catalogue
+  // resolves both to the same localized copy.
+  const getActivity = (params: { description: string }): string => {
+    const { description } = params;
+    return getActivityDescription({ description });
   };
 
   const formatDate = (params: { dateStr: string }): string => {

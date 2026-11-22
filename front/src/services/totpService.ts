@@ -42,7 +42,7 @@ export interface TotpStatusResponse {
 }
 
 export interface TotpRequiredLoginResponse {
-  code: 'TOTP_REQUIRED';
+  code: 'auth.totp_required';
   message: string;
   totp_token: string;
   digits: number;

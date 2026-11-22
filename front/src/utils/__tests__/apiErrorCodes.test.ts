@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { errorCodeCatalog, type ErrorCodeCatalog } from '@/utils/apiErrorCodes'
-import { getFriendlyMessage, getFieldFriendlyMessage } from '@/utils/userFriendlyErrors'
+import { getFriendlyMessage, getFieldFriendlyMessage, getSuccessMessage } from '@/utils/userFriendlyErrors'
 
 const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
@@ -59,6 +59,58 @@ describe('apiErrorCodes catalogue', () => {
     { code: 'validation.image', es: 'Este campo debe ser una imagen válida.', en: 'This field must be a valid image.' },
     { code: 'validation.password_complex', es: 'La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial.', en: 'The password must be at least 8 characters long and include an uppercase letter, a number and a special character.' },
     { code: 'validation.unknown', es: 'Error de validación. Revisa los datos e inténtalo de nuevo.', en: 'Validation error. Please check your input and try again.' },
+    { code: 'csp.hash_already_allowed', es: 'El hash ya está en la lista de permitidos.', en: 'The hash is already in the allowed list.' },
+    { code: 'email_verification.invalid_link', es: 'El enlace de verificación es inválido o expiró.', en: 'The verification link is invalid or expired.' },
+    { code: 'role.protected_update', es: 'No podés modificar un rol protegido.', en: 'You cannot modify a protected role.' },
+    { code: 'role.protected_delete', es: 'No podés eliminar un rol protegido.', en: 'You cannot delete a protected role.' },
+    { code: 'role.in_use', es: 'No podés eliminar un rol que tiene usuarios asignados.', en: 'You cannot delete a role that has users assigned.' },
+    { code: 'setting.image_required', es: 'Se requiere una imagen.', en: 'An image is required.' },
+    { code: 'setup.already_completed', es: 'Ya hay usuarios registrados en el sistema.', en: 'There are already registered users in the system.' },
+    { code: 'user.self_delete_forbidden', es: 'No podés eliminar tu propio usuario.', en: 'You cannot delete your own user.' },
+    { code: 'session.self_revoke_forbidden', es: 'No podés revocar tus propias sesiones desde el admin.', en: 'You cannot revoke your own sessions from the admin panel.' },
+    { code: 'profile.encrypted_profile_required', es: 'Se requiere encrypted_profile para usuarios avanzados.', en: 'encrypted_profile is required for advanced users.' },
+    { code: 'auth.totp_required', es: 'Necesitás tu código TOTP (o un código de respaldo) para continuar.', en: 'You need your TOTP code (or a backup code) to continue.' },
+    { code: 'auth.passkey_required', es: 'Usá tu passkey para completar el inicio de sesión.', en: 'Use your passkey to complete sign-in.' },
+    { code: 'auth.passkey_session_expired', es: 'La sesión passkey expiró o ya fue usada. Iniciá sesión de nuevo.', en: 'The passkey session expired or was already used. Please sign in again.' },
+    { code: 'auth.passkey_session_used', es: 'La sesión passkey ya fue usada. Iniciá sesión de nuevo.', en: 'The passkey session was already used. Please sign in again.' },
+    { code: 'auth.totp_not_enabled', es: 'No hay TOTP habilitado. Habilitá TOTP antes de generar códigos de respaldo.', en: 'TOTP is not enabled. Enable TOTP before generating backup codes.' },
+    { code: 'auth.advanced_encryption_already_set', es: 'El usuario ya tiene cifrado avanzado habilitado.', en: 'The user already has advanced encryption enabled.' },
+    { code: 'success.csp_hash_added', es: 'Se agregó el hash al CSP. Requiere deploy a producción.', en: 'Hash added to the CSP. A production deploy is required.' },
+    { code: 'success.email_verified', es: 'Email verificado correctamente.', en: 'Email verified successfully.' },
+    { code: 'success.verification_email_sent', es: 'Revisa tu email para verificar tu cuenta.', en: 'Check your email to verify your account.' },
+    { code: 'success.verification_email_resent', es: 'Si el email existe, vas a recibir un enlace de verificación.', en: 'If the email exists, you will receive a verification link.' },
+    { code: 'success.role_created', es: 'Rol creado correctamente.', en: 'Role created successfully.' },
+    { code: 'success.role_updated', es: 'Rol actualizado correctamente.', en: 'Role updated successfully.' },
+    { code: 'success.role_deleted', es: 'Rol eliminado correctamente.', en: 'Role deleted successfully.' },
+    { code: 'success.setting_updated', es: 'Configuración actualizada correctamente.', en: 'Settings updated successfully.' },
+    { code: 'success.logo_updated', es: 'Logo actualizado correctamente.', en: 'Logo updated successfully.' },
+    { code: 'success.logo_deleted', es: 'Logo eliminado correctamente.', en: 'Logo deleted successfully.' },
+    { code: 'success.email_logo_updated', es: 'Logo del email actualizado correctamente.', en: 'Email logo updated successfully.' },
+    { code: 'success.email_logo_deleted', es: 'Logo del email eliminado correctamente.', en: 'Email logo deleted successfully.' },
+    { code: 'success.admin_created', es: 'Administrador creado correctamente.', en: 'Administrator created successfully.' },
+    { code: 'success.client_created', es: 'Cliente SSO creado correctamente.', en: 'SSO client created successfully.' },
+    { code: 'success.client_updated', es: 'Cliente SSO actualizado correctamente.', en: 'SSO client updated successfully.' },
+    { code: 'success.client_deleted', es: 'Cliente SSO eliminado correctamente.', en: 'SSO client deleted successfully.' },
+    { code: 'success.user_updated', es: 'Usuario actualizado correctamente.', en: 'User updated successfully.' },
+    { code: 'success.user_deleted', es: 'Usuario eliminado correctamente.', en: 'User deleted successfully.' },
+    { code: 'success.user_roles_updated', es: 'Roles actualizados correctamente.', en: 'Roles updated successfully.' },
+    { code: 'success.session_revoked', es: 'Sesión revocada correctamente.', en: 'Session revoked successfully.' },
+    { code: 'success.user_sessions_revoked', es: 'Todas las sesiones del usuario han sido revocadas.', en: 'All the user\'s sessions have been revoked.' },
+    { code: 'success.sessions_revoked', es: 'Todas las sesiones han sido revocadas correctamente.', en: 'All sessions have been revoked successfully.' },
+    { code: 'success.account_recovered', es: 'Cuenta recuperada correctamente. Iniciá sesión con tu nueva contraseña.', en: 'Account recovered successfully. Sign in with your new password.' },
+    { code: 'success.password_updated', es: 'Contraseña actualizada correctamente.', en: 'Password updated successfully.' },
+    { code: 'success.password_updated_sessions_revoked', es: 'Contraseña actualizada correctamente. Todas las sesiones han sido revocadas.', en: 'Password updated successfully. All sessions have been revoked.' },
+    { code: 'success.upgrade_to_advanced', es: 'Cuenta actualizada a cifrado avanzado. Iniciá sesión con tu nueva contraseña.', en: 'Account upgraded to advanced encryption. Sign in with your new password.' },
+    { code: 'success.logout', es: 'Sesión cerrada correctamente.', en: 'Signed out successfully.' },
+    { code: 'success.profile_updated', es: 'Perfil actualizado correctamente.', en: 'Profile updated successfully.' },
+    { code: 'success.passkey_registered', es: 'Passkey registrado correctamente.', en: 'Passkey registered successfully.' },
+    { code: 'success.passkey_deleted', es: 'Passkey eliminado correctamente.', en: 'Passkey deleted successfully.' },
+    { code: 'success.totp_enabled', es: 'TOTP habilitado correctamente.', en: 'TOTP enabled successfully.' },
+    { code: 'success.totp_disabled', es: 'TOTP deshabilitado correctamente.', en: 'TOTP disabled successfully.' },
+    { code: 'success.backup_codes_regenerated', es: 'Códigos de respaldo regenerados.', en: 'Backup codes regenerated.' },
+    { code: 'success.account_deleted', es: 'Cuenta eliminada correctamente.', en: 'Account deleted successfully.' },
+    { code: 'success.authorization_denied', es: 'Autorización denegada.', en: 'Authorization denied.' },
+    { code: 'success.access_revoked', es: 'Acceso revocado correctamente.', en: 'Access revoked successfully.' },
   ]
 
   for (const { code, es, en } of expectedCodes) {
@@ -201,6 +253,33 @@ describe('getFieldFriendlyMessage resolution by code', () => {
   it('raw backend prose never reaches UI when code is present', () => {
     const result = getFieldFriendlyMessage({ field: 'password', message: 'Raw backend prose', code: 'auth.current_password_invalid', fieldLabels: labels, locale: 'es' })
     expect(result).toBe('El campo Contraseña: La contraseña actual es incorrecta.')
+    expect(result).not.toContain('Raw backend prose')
+  })
+})
+
+describe('getSuccessMessage resolution by code', () => {
+  it('returns the localized copy for a mapped success code', () => {
+    const resultEs = getSuccessMessage({ code: 'success.role_created', message: 'Role created successfully.', locale: 'es' })
+    expect(resultEs).toBe('Rol creado correctamente.')
+
+    const resultEn = getSuccessMessage({ code: 'success.role_created', message: 'Role created successfully.', locale: 'en' })
+    expect(resultEn).toBe('Role created successfully.')
+  })
+
+  it('falls back to the english message and logs the raw code when the code is unknown', () => {
+    const result = getSuccessMessage({ code: 'success.not_mapped', message: 'Something happened.', locale: 'es' })
+    expect(result).toBe('Something happened.')
+    expect(consoleWarnSpy).toHaveBeenCalledWith('[API Error] unmapped code', 'success.not_mapped')
+  })
+
+  it('falls back to the english message when the response carries no code', () => {
+    const result = getSuccessMessage({ message: 'Something happened.', locale: 'es' })
+    expect(result).toBe('Something happened.')
+  })
+
+  it('never renders the backend prose when the code is mapped', () => {
+    const result = getSuccessMessage({ code: 'success.client_created', message: 'Raw backend prose', locale: 'es' })
+    expect(result).toBe('Cliente SSO creado correctamente.')
     expect(result).not.toContain('Raw backend prose')
   })
 })
