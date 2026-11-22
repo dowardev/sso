@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateSettingRequest;
 use App\Http\Requests\UploadLogoRequest;
 use App\Http\Resources\SettingResource;
 use App\Services\SettingService;
+use App\Support\ApiError;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 
@@ -31,8 +32,7 @@ class SettingController extends Controller
     {
         $setting = $this->settingService->update($key, $request->validated()['value']);
 
-        return response()->json([
-            'message' => 'Configuración actualizada correctamente',
+        return response()->json(ApiError::success(ApiError::SUCCESS_SETTING_UPDATED, 'Settings updated successfully.') + [
             'setting' => new SettingResource($setting),
         ]);
     }
@@ -49,13 +49,15 @@ class SettingController extends Controller
     {
         $file = $request->file('image');
         if (! $file instanceof UploadedFile) {
-            return response()->json(['message' => 'Imagen requerida'], 422);
+            return response()->json(
+                ApiError::topLevel(ApiError::SETTING_IMAGE_REQUIRED, 'An image is required.'),
+                422
+            );
         }
 
         $url = $this->settingService->uploadLogo($file);
 
-        return response()->json([
-            'message' => 'Logo actualizado correctamente',
+        return response()->json(ApiError::success(ApiError::SUCCESS_LOGO_UPDATED, 'Logo updated successfully.') + [
             'auth_logo_url' => $url,
         ]);
     }
@@ -64,8 +66,7 @@ class SettingController extends Controller
     {
         $this->settingService->clearLogo();
 
-        return response()->json([
-            'message' => 'Logo eliminado correctamente',
+        return response()->json(ApiError::success(ApiError::SUCCESS_LOGO_DELETED, 'Logo deleted successfully.') + [
             'auth_logo_url' => null,
         ]);
     }
@@ -82,13 +83,15 @@ class SettingController extends Controller
     {
         $file = $request->file('image');
         if (! $file instanceof UploadedFile) {
-            return response()->json(['message' => 'Imagen requerida'], 422);
+            return response()->json(
+                ApiError::topLevel(ApiError::SETTING_IMAGE_REQUIRED, 'An image is required.'),
+                422
+            );
         }
 
         $url = $this->settingService->uploadEmailLogo($file);
 
-        return response()->json([
-            'message' => 'Logo del email actualizado correctamente',
+        return response()->json(ApiError::success(ApiError::SUCCESS_EMAIL_LOGO_UPDATED, 'Email logo updated successfully.') + [
             'email_logo_url' => $url,
         ]);
     }
@@ -97,8 +100,7 @@ class SettingController extends Controller
     {
         $this->settingService->clearEmailLogo();
 
-        return response()->json([
-            'message' => 'Logo del email eliminado correctamente',
+        return response()->json(ApiError::success(ApiError::SUCCESS_EMAIL_LOGO_DELETED, 'Email logo deleted successfully.') + [
             'email_logo_url' => null,
         ]);
     }

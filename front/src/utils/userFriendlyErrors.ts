@@ -203,6 +203,35 @@ export function getFriendlyMessage(params: {
   return applyMinCount({ text: withSubject, raw: message, locale })
 }
 
+/**
+ * Resolves a success message by its stable code.
+ *
+ * The backend always answers in English (issue #12); the frontend owns the
+ * ES/EN copy. A mapped `success.*` code returns the localized copy. An
+ * unmapped code logs the raw code and falls back to the English message the
+ * backend sent; a response without a code falls back to that message too.
+ */
+export function getSuccessMessage(params: {
+  code?: string
+  message?: string
+  locale?: SupportedLocale
+}): string {
+  const { code, message = '', locale: requestedLocale } = params
+  const locale = resolveLocale({ locale: requestedLocale })
+
+  if (!code) {
+    return message
+  }
+
+  const entry = getErrorCodeEntry({ code })
+  if (!entry) {
+    console.warn('[API Error] unmapped code', code)
+    return message
+  }
+
+  return entry[locale]
+}
+
 export function getFieldFriendlyMessage(params: {
   field: string
   message: string

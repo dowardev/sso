@@ -37,7 +37,7 @@ class OAuth2Controller extends Controller
 
         if (! $client) {
             return response()->json(
-                ApiError::topLevel(ApiError::CLIENT_NOT_REGISTERED, 'Cliente desactivado o no encontrado'),
+                ApiError::topLevel(ApiError::CLIENT_NOT_REGISTERED, 'The client is disabled or not found'),
                 403
             );
         }
@@ -57,7 +57,7 @@ class OAuth2Controller extends Controller
         // behind.
         if ($request->code_challenge && ! $request->code_challenge_method) {
             return response()->json(
-                ApiError::topLevel(ApiError::CLIENT_MISCONFIGURED, 'code_challenge_method es obligatorio cuando se envía code_challenge.'),
+                ApiError::topLevel(ApiError::CLIENT_MISCONFIGURED, 'code_challenge_method is required when code_challenge is sent.'),
                 400
             );
         }
@@ -69,7 +69,7 @@ class OAuth2Controller extends Controller
         // own configuration, which the FormRequest cannot see.
         if ($client->isPublic() && ! $request->code_challenge) {
             return response()->json(
-                ApiError::topLevel(ApiError::CLIENT_MISCONFIGURED, 'PKCE es obligatorio para clientes públicos: incluí code_challenge + code_challenge_method (RFC 7636).'),
+                ApiError::topLevel(ApiError::CLIENT_MISCONFIGURED, 'PKCE is required for public clients: include code_challenge + code_challenge_method (RFC 7636).'),
                 400
             );
         }
@@ -92,7 +92,7 @@ class OAuth2Controller extends Controller
 
         if ($this->isSslRequiredViolation($client->redirect_url)) {
             return response()->json(
-                ApiError::topLevel(ApiError::CLIENT_MISCONFIGURED, 'El redirect_url del cliente debe usar HTTPS cuando la opción de requerir SSL está activa'),
+                ApiError::topLevel(ApiError::CLIENT_MISCONFIGURED, "The client's redirect_url must use HTTPS when the require-SSL option is enabled"),
                 400
             );
         }
@@ -165,7 +165,7 @@ class OAuth2Controller extends Controller
         $client = $this->oauth2Service->validateClientAndGet($request->client_id);
         if (! $client) {
             return response()->json(
-                ApiError::topLevel(ApiError::CLIENT_NOT_REGISTERED, 'Cliente no encontrado o inactivo'),
+                ApiError::topLevel(ApiError::CLIENT_NOT_REGISTERED, 'The client was not found or is inactive'),
                 404
             );
         }
@@ -179,14 +179,14 @@ class OAuth2Controller extends Controller
 
         if ($request->code_challenge && ! $request->code_challenge_method) {
             return response()->json(
-                ApiError::topLevel(ApiError::CLIENT_MISCONFIGURED, 'code_challenge_method es obligatorio cuando se envía code_challenge.'),
+                ApiError::topLevel(ApiError::CLIENT_MISCONFIGURED, 'code_challenge_method is required when code_challenge is sent.'),
                 400
             );
         }
 
         if ($client->isPublic() && ! $request->code_challenge) {
             return response()->json(
-                ApiError::topLevel(ApiError::CLIENT_MISCONFIGURED, 'PKCE es obligatorio para clientes públicos: incluí code_challenge + code_challenge_method (RFC 7636).'),
+                ApiError::topLevel(ApiError::CLIENT_MISCONFIGURED, 'PKCE is required for public clients: include code_challenge + code_challenge_method (RFC 7636).'),
                 400
             );
         }
@@ -224,7 +224,7 @@ class OAuth2Controller extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_AUTHORIZATION_GRANTED,
-            'Autorización concedida a '.$client->name,
+            'Authorization granted to '.$client->name,
             ['client_id' => $client->id, 'client_name' => $client->name],
             $request,
         );
@@ -256,7 +256,7 @@ class OAuth2Controller extends Controller
         $client = $this->oauth2Service->validateClientAndGet($request->client_id);
         if (! $client) {
             return response()->json(
-                ApiError::topLevel(ApiError::CLIENT_NOT_REGISTERED, 'Cliente no encontrado o inactivo'),
+                ApiError::topLevel(ApiError::CLIENT_NOT_REGISTERED, 'The client was not found or is inactive'),
                 404
             );
         }
@@ -269,14 +269,12 @@ class OAuth2Controller extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_AUTHORIZATION_DENIED,
-            'Autorización denegada a '.$client->name,
+            'Authorization denied to '.$client->name,
             ['client_id' => $client->id, 'client_name' => $client->name],
             $request,
         );
 
-        return response()->json([
-            'message' => 'Autorización denegada',
-        ]);
+        return response()->json(ApiError::success(ApiError::SUCCESS_AUTHORIZATION_DENIED, 'Authorization denied.'));
     }
 
     public function revokeAuthorization(Request $request): JsonResponse
@@ -296,7 +294,7 @@ class OAuth2Controller extends Controller
         $client = $this->oauth2Service->validateClientAndGet($request->client_id);
         if (! $client) {
             return response()->json(
-                ApiError::topLevel(ApiError::CLIENT_NOT_REGISTERED, 'Cliente no encontrado o inactivo'),
+                ApiError::topLevel(ApiError::CLIENT_NOT_REGISTERED, 'The client was not found or is inactive'),
                 404
             );
         }
@@ -307,7 +305,7 @@ class OAuth2Controller extends Controller
 
         if (! $deleted) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_CREDENTIALS_NOT_FOUND, 'No se encontró autorización para revocar'),
+                ApiError::topLevel(ApiError::AUTH_CREDENTIALS_NOT_FOUND, 'No authorization was found to revoke'),
                 404
             );
         }
@@ -315,14 +313,12 @@ class OAuth2Controller extends Controller
         $this->activityLogService->logFromRequest(
             $user,
             UserActivityLog::ACTION_AUTHORIZATION_REVOKED,
-            'Acceso revocado a '.$client->name,
+            'Access revoked to '.$client->name,
             ['client_id' => $client->id, 'client_name' => $client->name],
             $request,
         );
 
-        return response()->json([
-            'message' => 'Acceso revocado correctamente',
-        ]);
+        return response()->json(ApiError::success(ApiError::SUCCESS_ACCESS_REVOKED, 'Access revoked successfully.'));
     }
 
     public function userAuthorizations(Request $request): JsonResponse
@@ -409,7 +405,7 @@ class OAuth2Controller extends Controller
 
         if (! $client) {
             return response()->json(
-                ApiError::topLevel(ApiError::CLIENT_NOT_REGISTERED, 'Cliente desactivado o no encontrado'),
+                ApiError::topLevel(ApiError::CLIENT_NOT_REGISTERED, 'The client is disabled or not found'),
                 403
             );
         }
@@ -419,7 +415,7 @@ class OAuth2Controller extends Controller
 
             if (! $result) {
                 return response()->json(
-                    ApiError::topLevel(ApiError::CLIENT_INVALID_CREDENTIALS, 'client_credentials no permitido o credenciales inválidas'),
+                    ApiError::topLevel(ApiError::CLIENT_INVALID_CREDENTIALS, 'client_credentials is not allowed or the credentials are invalid'),
                     403
                 );
             }
@@ -432,7 +428,7 @@ class OAuth2Controller extends Controller
 
             if (! $result) {
                 return response()->json(
-                    ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'Refresh token inválido, expirado o revocado'),
+                    ApiError::topLevel(ApiError::AUTH_INVALID_CREDENTIALS, 'The refresh token is invalid, expired or revoked'),
                     401
                 );
             }
@@ -444,7 +440,7 @@ class OAuth2Controller extends Controller
 
         if (! $result) {
             return response()->json(
-                ApiError::topLevel(ApiError::AUTH_CREDENTIALS_NOT_FOUND, 'Código de autorización inválido o expirado'),
+                ApiError::topLevel(ApiError::AUTH_CREDENTIALS_NOT_FOUND, 'The authorization code is invalid or expired'),
                 400
             );
         }
@@ -457,7 +453,7 @@ class OAuth2Controller extends Controller
                 $this->activityLogService->logFromRequest(
                     $user,
                     UserActivityLog::ACTION_TOKEN_CREATED,
-                    'Acceso concedido a '.$client->name,
+                    'Access granted to '.$client->name,
                     ['client_id' => $client->id, 'client_name' => $client->name],
                     $request,
                 );
@@ -511,11 +507,11 @@ class OAuth2Controller extends Controller
 
         $allowed = implode(', ', OriginNormalizer::normalizeAll($allowedOrigins));
 
-        return "El redirect_uri del cliente '{$client->client_id}' no está dentro de sus allowed_origins, "
-            .'por lo que el navegador bloqueará el canje del token (CORS). '
-            ."Origen del redirect: {$redirectOrigin}. "
-            ."Orígenes permitidos: {$allowed}. "
-            .'Agregá ese origen a allowed_origins del cliente o corregí su redirect_url.';
+        return "The client's redirect_uri '{$client->client_id}' is not within its allowed_origins, "
+            .'so the browser will block the token exchange (CORS). '
+            ."Redirect origin: {$redirectOrigin}. "
+            ."Allowed origins: {$allowed}. "
+            .'Add that origin to the client allowed_origins or fix its redirect_url.';
     }
 
     private function isConfidentialClient(SsoClient $client): bool

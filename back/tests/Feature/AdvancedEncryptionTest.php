@@ -99,7 +99,7 @@ class AdvancedEncryptionTest extends TestCase
             'seed_verification' => 'wrong-seed-hash',
         ])
             ->assertStatus(401)
-            ->assertJson(['message' => 'Frase semilla incorrecta']);
+            ->assertJson(['message' => 'The seed phrase is incorrect.']);
     }
 
     public function test_recovery_verify_returns_blobs_on_correct_seed(): void
@@ -237,7 +237,7 @@ class AdvancedEncryptionTest extends TestCase
                 'password_length' => 12,
             ])
             ->assertStatus(422)
-            ->assertJson(['message' => 'Contraseña actual incorrecta']);
+            ->assertJson(['message' => 'The current password is incorrect.']);
 
         $user->refresh();
         $this->assertSame('basic', $user->encryption_level);

@@ -208,19 +208,19 @@ export const useAuthStore = defineStore('auth', () => {
 
     // TOTP gate (LBDS-8): when the password step succeeds but the
     // account has TOTP enabled, the backend returns 200 with
-    // { code: 'TOTP_REQUIRED', totp_token, ... } instead of issuing
+    // { code: 'auth.totp_required', totp_token, ... } instead of issuing
     // the JWT. The caller (AuthLoginForm) catches the typed error
     // below and shows the challenge modal that posts to /api/totp/login.
-    if (response.code === 'TOTP_REQUIRED') {
+    if (response.code === 'auth.totp_required') {
       const err = new Error(
         'Necesitás tu código TOTP para continuar.',
       ) as Error & {
-        code: 'TOTP_REQUIRED';
+        code: 'auth.totp_required';
         totpToken: string;
         digits: number;
         period: number;
       };
-      err.code = 'TOTP_REQUIRED';
+      err.code = 'auth.totp_required';
       err.totpToken = (response as { totp_token: string }).totp_token;
       err.digits = (response as { digits: number }).digits;
       err.period = (response as { period: number }).period;
@@ -228,14 +228,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     // Passkey gate (LBDS-304): when the account has passkeys but no TOTP,
-    // the backend returns 200 with { code: 'PASSKEY_REQUIRED', passkey_token }.
+    // the backend returns 200 with { code: 'auth.passkey_required', passkey_token }.
     // The caller catches this typed error and continues with the passkey ceremony.
-    if (response.code === 'PASSKEY_REQUIRED') {
+    if (response.code === 'auth.passkey_required') {
       const err = new Error('Usá tu passkey para completar el inicio de sesión.') as Error & {
-        code: 'PASSKEY_REQUIRED';
+        code: 'auth.passkey_required';
         passkeyToken: string;
       };
-      err.code = 'PASSKEY_REQUIRED';
+      err.code = 'auth.passkey_required';
       err.passkeyToken = (response as { passkey_token: string }).passkey_token;
       throw err;
     }

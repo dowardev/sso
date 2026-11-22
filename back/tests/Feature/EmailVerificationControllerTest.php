@@ -27,7 +27,7 @@ class EmailVerificationControllerTest extends TestCase
 
         $this->getJson('/api/email/verify/'.$plain)
             ->assertOk()
-            ->assertJson(['message' => 'Email verificado correctamente.']);
+            ->assertJson(['message' => 'Email verified successfully.']);
 
         $this->assertNotNull($user->fresh()->email_verified_at);
     }
@@ -36,7 +36,7 @@ class EmailVerificationControllerTest extends TestCase
     {
         $this->getJson('/api/email/verify/not-a-real-token')
             ->assertStatus(400)
-            ->assertJson(['message' => 'Enlace de verificación inválido o expirado.']);
+            ->assertJson(['message' => 'The verification link is invalid or expired.']);
     }
 
     public function test_resend_returns_generic_202_for_known_email(): void
@@ -46,14 +46,14 @@ class EmailVerificationControllerTest extends TestCase
 
         $this->postJson('/api/resend-confirmation-email', ['email' => $user->email])
             ->assertStatus(202)
-            ->assertJson(['message' => 'Si el email existe, recibirás un enlace de verificación.']);
+            ->assertJson(['message' => 'If the email exists, you will receive a verification link.']);
     }
 
     public function test_resend_returns_same_202_for_unknown_email(): void
     {
         $this->postJson('/api/resend-confirmation-email', ['email' => 'nobody@example.com'])
             ->assertStatus(202)
-            ->assertJson(['message' => 'Si el email existe, recibirás un enlace de verificación.']);
+            ->assertJson(['message' => 'If the email exists, you will receive a verification link.']);
     }
 
     public function test_resend_requires_email(): void

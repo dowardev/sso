@@ -412,13 +412,13 @@ const activeLoginId = ref('');
 
 const passkeyButton = ref<{ $el?: HTMLElement } | null>(null);
 
-// Pending passkey token from a PASSKEY_REQUIRED challenge. Stored so the
+// Pending passkey token from a auth.passkey_required challenge. Stored so the
 // WebAuthn ceremony starts only when the user explicitly clicks the passkey
 // button on step 2, not automatically after the password step.
 const pendingPasskeyToken = ref('');
 
 // TOTP challenge (LBDS-8): set when the password step returns
-// TOTP_REQUIRED. The modal is open as long as `totpToken` is non-empty;
+// auth.totp_required. The modal is open as long as `totpToken` is non-empty;
 // closing it (or cancelling) clears the token so the user can re-enter
 // their password.
 const totpToken = ref('');
@@ -584,7 +584,7 @@ const handleOAuthResponse = async (params: {
 
 // LBDS-304: step 1 — validate identifier + password, discover supported
 // methods, then attempt the password login. If the backend returns
-// TOTP_REQUIRED, advance to step 2 (second factor). Otherwise, the
+// auth.totp_required, advance to step 2 (second factor). Otherwise, the
 // controller's `login` / `loginAdvanced` handles the redirect.
 const handleContinue = async (): Promise<void> => {
   if (loading.value) return;
@@ -621,7 +621,7 @@ const handleContinue = async (): Promise<void> => {
     resolvedLoginId.value = methods.login_id ?? '';
 
     // Attempt the password login directly. handleBasicLogin /
-    // handleAdvancedLogin catch TOTP_REQUIRED and route to step 2.
+    // handleAdvancedLogin catch auth.totp_required and route to step 2.
     if (authMethods.value.encryption_level === 'advanced') {
       await handleAdvancedLogin({ loginId: resolvedLoginId.value });
     } else {
@@ -741,10 +741,10 @@ async function submitTotpChallenge(): Promise<void> {
     }
   } catch (err) {
     const apiError = err as Error & { code?: string };
-    totpError.value = apiError.code === 'TOTP_REQUIRED'
+    totpError.value = apiError.code === 'auth.totp_required'
       ? 'La sesión TOTP expiró. Iniciá sesión de nuevo.'
       : (apiError.message || 'Código TOTP inválido.');
-    if (apiError.code === 'TOTP_REQUIRED') {
+    if (apiError.code === 'auth.totp_required') {
       // Token is spent; close the modal so the user can re-enter
       // their password.
       totpToken.value = '';
@@ -903,7 +903,7 @@ const handleBasicLogin = async (params: { identifier: string }): Promise<void> =
       period?: number;
       passkeyToken?: string;
     };
-    if (apiError.code === 'TOTP_REQUIRED') {
+    if (apiError.code === 'auth.totp_required') {
       // Hand the password step's result to step 2 (second factor).
       totpRememberMe.value = rememberMe.value;
       totpDigits.value = apiError.digits ?? 6;
@@ -919,7 +919,7 @@ const handleBasicLogin = async (params: { identifier: string }): Promise<void> =
       step.value = 'twoFactor';
       return;
     }
-    if (apiError.code === 'PASSKEY_REQUIRED') {
+    if (apiError.code === 'auth.passkey_required') {
       // Password valid, account has passkeys but no TOTP — advance to step 2
       // with the passkey view. Store the passkey_token so the ceremony starts
       // only when the user explicitly clicks the passkey button.
@@ -979,7 +979,7 @@ const handleAdvancedLogin = async (params: { loginId: string }): Promise<void> =
       period?: number;
       passkeyToken?: string;
     };
-    if (apiError.code === 'TOTP_REQUIRED') {
+    if (apiError.code === 'auth.totp_required') {
       totpRememberMe.value = rememberMe.value;
       totpDigits.value = apiError.digits ?? 6;
       totpToken.value = apiError.totpToken ?? '';
@@ -994,7 +994,7 @@ const handleAdvancedLogin = async (params: { loginId: string }): Promise<void> =
       step.value = 'twoFactor';
       return;
     }
-    if (apiError.code === 'PASSKEY_REQUIRED') {
+    if (apiError.code === 'auth.passkey_required') {
       // Password valid, account has passkeys but no TOTP — advance to step 2
       // with the passkey view. Store the passkey_token so the ceremony starts
       // only when the user explicitly clicks the passkey button.

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 // Passkey challenge tests (LBDS-304): when a user has passkeys but NO TOTP,
-// the password step returns PASSKEY_REQUIRED with a one-time passkey_token.
+// the password step returns auth.passkey_required with a one-time passkey_token.
 // The client completes the login via the existing passkey/authenticate/finish
 // endpoint. The token is single-use (consumed via Cache::pull).
 
@@ -71,7 +71,7 @@ class PasskeyChallengeTest extends TestCase
     }
 
     /**
-     * (a) Account with passkey and NO TOTP receives PASSKEY_REQUIRED instead of a token.
+     * (a) Account with passkey and NO TOTP receives auth.passkey_required instead of a token.
      */
     public function test_login_returns_passkey_required_when_user_has_passkeys_but_no_totp(): void
     {
@@ -83,7 +83,7 @@ class PasskeyChallengeTest extends TestCase
         ]);
 
         $response->assertOk()
-            ->assertJsonPath('code', 'PASSKEY_REQUIRED')
+            ->assertJsonPath('code', 'auth.passkey_required')
             ->assertJsonStructure(['code', 'message', 'passkey_token'])
             ->assertJsonMissing(['token', 'user']);
     }
@@ -95,12 +95,12 @@ class PasskeyChallengeTest extends TestCase
     {
         $user = $this->makeUserWithPasskey();
 
-        // Step 1: password -> PASSKEY_REQUIRED
+        // Step 1: password -> auth.passkey_required
         $login = $this->postJson('/api/login', [
             'email' => $user->email,
             'password' => 'correct-password',
         ]);
-        $login->assertOk()->assertJsonPath('code', 'PASSKEY_REQUIRED');
+        $login->assertOk()->assertJsonPath('code', 'auth.passkey_required');
         $passkeyToken = $login->json('passkey_token');
 
         // Step 2: start passkey ceremony (session-based)
@@ -181,7 +181,7 @@ class PasskeyChallengeTest extends TestCase
     }
 
     /**
-     * Account with BOTH TOTP and passkey gets TOTP_REQUIRED (TOTP takes precedence).
+     * Account with BOTH TOTP and passkey gets auth.totp_required (TOTP takes precedence).
      * OLD TEST - kept for backward compatibility but updated to expect passkey_token too.
      */
     public function test_login_returns_totp_required_when_user_has_both_totp_and_passkey(): void
@@ -194,13 +194,13 @@ class PasskeyChallengeTest extends TestCase
         ]);
 
         $response->assertOk()
-            ->assertJsonPath('code', 'TOTP_REQUIRED')
+            ->assertJsonPath('code', 'auth.totp_required')
             ->assertJsonStructure(['code', 'message', 'totp_token', 'digits', 'period', 'passkey_token'])
             ->assertJsonMissing(['token', 'user']);
     }
 
     /**
-     * Advanced login (ZKE) with passkey but no TOTP also returns PASSKEY_REQUIRED.
+     * Advanced login (ZKE) with passkey but no TOTP also returns auth.passkey_required.
      */
     public function test_advanced_login_returns_passkey_required_when_user_has_passkeys_but_no_totp(): void
     {
@@ -292,7 +292,7 @@ class PasskeyChallengeTest extends TestCase
         ]);
 
         $response->assertOk()
-            ->assertJsonPath('code', 'TOTP_REQUIRED')
+            ->assertJsonPath('code', 'auth.totp_required')
             ->assertJsonStructure(['code', 'message', 'totp_token', 'digits', 'period', 'passkey_token'])
             ->assertJsonMissing(['token', 'user']);
 
@@ -325,12 +325,12 @@ class PasskeyChallengeTest extends TestCase
     {
         $user = $this->makeUserWithPasskey();
 
-        // Step 1: password -> PASSKEY_REQUIRED
+        // Step 1: password -> auth.passkey_required
         $login = $this->postJson('/api/login', [
             'email' => $user->email,
             'password' => 'correct-password',
         ]);
-        $login->assertOk()->assertJsonPath('code', 'PASSKEY_REQUIRED');
+        $login->assertOk()->assertJsonPath('code', 'auth.passkey_required');
         $passkeyToken = $login->json('passkey_token');
 
         // Verify the token exists in cache

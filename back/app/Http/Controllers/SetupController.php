@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\SetupAdminRequest;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\ApiError;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 
@@ -24,9 +25,10 @@ class SetupController extends Controller
     public function storeAdmin(SetupAdminRequest $request): JsonResponse
     {
         if (User::exists()) {
-            return response()->json([
-                'message' => 'Ya existen usuarios registrados en el sistema.',
-            ], 403);
+            return response()->json(
+                ApiError::topLevel(ApiError::SETUP_ALREADY_COMPLETED, 'There are already registered users in the system.'),
+                403
+            );
         }
 
         $user = User::create([
@@ -50,8 +52,7 @@ class SetupController extends Controller
 
         $user->roles()->attach($adminRole->id, ['sso_client_id' => null]);
 
-        return response()->json([
-            'message' => 'Administrador creado correctamente.',
+        return response()->json(ApiError::success(ApiError::SUCCESS_ADMIN_CREATED, 'Administrator created successfully.') + [
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,

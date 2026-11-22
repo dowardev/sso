@@ -135,7 +135,7 @@ class VerifyDpopProof
 
         if (! $dpopHeader) {
             return response()->json(
-                ApiError::topLevel(ApiError::DPOP_INCOMPLETE_JWK, 'DPoP proof requerido para tokens vinculados'),
+                ApiError::topLevel(ApiError::DPOP_INCOMPLETE_JWK, 'A DPoP proof is required for bound tokens'),
                 401
             );
         }
@@ -146,7 +146,7 @@ class VerifyDpopProof
 
             if (! $cnf || ! isset($cnf['jkt'])) {
                 return response()->json(
-                    ApiError::topLevel(ApiError::DPOP_INCOMPLETE_JWK, 'El token no está vinculado a una clave DPoP'),
+                    ApiError::topLevel(ApiError::DPOP_INCOMPLETE_JWK, 'The token is not bound to a DPoP key'),
                     401
                 );
             }
@@ -184,7 +184,7 @@ class VerifyDpopProof
             }
 
             return response()->json(
-                ApiError::topLevel(ApiError::DPOP_UNSUPPORTED_JWK, 'DPoP proof inválido: '.$e->getMessage()),
+                ApiError::topLevel(ApiError::DPOP_UNSUPPORTED_JWK, 'Invalid DPoP proof: '.$e->getMessage()),
                 401
             );
         }
@@ -208,7 +208,7 @@ class VerifyDpopProof
 
         if (! $dpopHeader) {
             return response()->json(
-                ApiError::topLevel(ApiError::DPOP_INCOMPLETE_JWK, 'DPoP proof requerido para tokens vinculados'),
+                ApiError::topLevel(ApiError::DPOP_INCOMPLETE_JWK, 'A DPoP proof is required for bound tokens'),
                 401
             );
         }
@@ -232,7 +232,7 @@ class VerifyDpopProof
             }
 
             return response()->json(
-                ApiError::topLevel(ApiError::DPOP_UNSUPPORTED_JWK, 'DPoP proof inválido: '.$e->getMessage()),
+                ApiError::topLevel(ApiError::DPOP_UNSUPPORTED_JWK, 'Invalid DPoP proof: '.$e->getMessage()),
                 401
             );
         }
@@ -272,7 +272,7 @@ class VerifyDpopProof
         $header = $dpopToken->headers();
 
         if ($header->get('typ') !== 'dpop+jwt') {
-            throw new \Exception('Tipo de token DPoP inválido');
+            throw new \Exception('Invalid DPoP token type');
         }
 
         $alg = $alg ?? (string) $header->get('alg');
@@ -292,7 +292,7 @@ class VerifyDpopProof
 
         $jwkHeader = $header->get('jwk');
         if (! $jwkHeader) {
-            throw new \Exception('Falta la clave pública JWK en el header DPoP');
+            throw new \Exception('The DPoP header is missing the JWK public key');
         }
 
         $jwkArray = (array) $jwkHeader;
@@ -312,7 +312,7 @@ class VerifyDpopProof
 
         if ($kty === 'EC') {
             if (! isset($jwkArray['crv'], $jwkArray['x'], $jwkArray['y'])) {
-                throw new \Exception('JWK del DPoP proof incompleto: faltan campos requeridos (crv, x, y)');
+                throw new \Exception('Incomplete DPoP proof JWK: required fields are missing (crv, x, y)');
             }
             if (! isset(self::EC_CURVE_OIDS[$jwkArray['crv']])) {
                 throw new \Exception('Curva EC no soportada: '.$jwkArray['crv']);
@@ -344,7 +344,7 @@ class VerifyDpopProof
         $constraint = new SignedWith($signer, $verificationKey);
 
         if (! $proofConfig->validator()->validate($dpopToken, $constraint)) {
-            throw new \Exception('Firma del DPoP proof inválida');
+            throw new \Exception('The DPoP proof signature is invalid');
         }
 
         $payload = $dpopToken->claims();
@@ -364,7 +364,7 @@ class VerifyDpopProof
         }
 
         if ($htm !== $request->method()) {
-            throw new \Exception('Método HTTP no coincide en DPoP proof');
+            throw new \Exception('The HTTP method does not match the DPoP proof');
         }
 
         $baseUrl = $request->getSchemeAndHttpHost().$request->getBaseUrl();

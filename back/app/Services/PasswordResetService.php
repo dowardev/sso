@@ -85,7 +85,7 @@ class PasswordResetService
         $this->activityLogService->log(
             $user,
             UserActivityLog::ACTION_PASSWORD_CHANGE,
-            'Restablecimiento de contraseña (email)',
+            'Password reset (email)',
             ['reset' => true],
         );
 

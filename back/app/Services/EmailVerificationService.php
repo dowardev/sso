@@ -56,7 +56,7 @@ class EmailVerificationService
         $this->activityLogService->log(
             $user,
             UserActivityLog::ACTION_EMAIL_VERIFIED,
-            'Email verificado',
+            'Email verified',
             ['email' => $user->email],
         );
 

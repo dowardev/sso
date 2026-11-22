@@ -46,7 +46,7 @@ class StoreSsoClientRequest extends FormRequest
             if ($redirectUrl && ! $this->isRedirectUrlAllowed($redirectUrl)) {
                 $validator->errors()->add(
                     'redirect_url',
-                    'El redirect_url debe usar HTTPS cuando la opción de requerir SSL está activa'
+                    'The redirect_url must use HTTPS when the require-SSL option is enabled'
                 );
             }
         });

@@ -39,7 +39,7 @@ class ActivityLogTest extends TestCase
             ->first();
 
         $this->assertNotNull($log);
-        $this->assertEquals('Inicio de sesión', $log->description);
+        $this->assertEquals('Sign in', $log->description);
     }
 
     public function test_activity_log_endpoint_returns_paginated_data(): void
@@ -76,6 +76,6 @@ class ActivityLogTest extends TestCase
             ->first();
 
         $this->assertNotNull($log);
-        $this->assertEquals('Cierre de sesión', $log->description);
+        $this->assertEquals('Sign out', $log->description);
     }
 }

@@ -209,9 +209,9 @@ class PasskeyMultiCredentialTest extends TestCase
         ]);
 
         // The user resolves from the userHandle; without credential records the
-        // ceremony must reject with 400 "no tiene passkeys" (not 404/expired).
+        // ceremony must reject with 400 "no registered passkeys" (not 404/expired).
         $response->assertStatus(400);
-        $response->assertJson(['message' => 'Usuario no tiene passkeys registrados']);
+        $response->assertJson(['message' => 'The user has no registered passkeys']);
     }
 
     public function test_discoverable_finish_rejects_unknown_user_handle(): void
