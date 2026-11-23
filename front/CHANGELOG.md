@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.38.0] - 2026-11-23
+
+### Added
+
+- **The API error codes have a single source of truth in the frontend**: the catalogue maps every code the backend can answer with to its ES and EN copy, plus the `ApiErrorDetail` type for the `error_details` payload. A code that is not listed is treated as unmapped: the UI falls back to generic copy and logs the raw code, so the gap is detectable instead of silent.
+    - `utils/apiErrorCodes.ts` (new) — the catalogue and the detail type.
+    - `utils/__tests__/apiErrorCodes.test.ts` — covers the catalogue contract.
+- **The activity log entries are written by the frontend**: the raw event of each activity entry is translated into a readable sentence, so the API no longer has to compose a sentence for the UI.
+    - `utils/activityDescriptions.ts` (new), `utils/__tests__/activityDescriptions.test.ts` (new).
+
+### Changed
+
+- **The user-facing errors are resolved by code, not by the message text**: the technical failure reason returned by the API is mapped to the sentence the user reads, and the legacy prose path is kept only as a documented fallback for the codes the catalogue does not know.
+    - `utils/userFriendlyErrors.ts`, `utils/fieldLabels.ts` — the resolution by code and the localized field labels.
+    - `composables/useValidation.ts` — the validation messages are now the field-level ones the user sees (`composables/__tests__/useValidation.test.ts`).
+    - `services/api.ts` — the API client reads the `code` and the `error_details` of the response.
+    - `components/AuthLoginForm.vue`, `stores/auth.ts`, `controllers/authController.ts`, `services/totpService.ts` — the login flow consumes the codes instead of parsing the messages.
 
 ## [v0.37.3] - 2026-11-04
 

@@ -6,6 +6,20 @@
 
 ## Deploy Log
 
+### v0.38.0 — 2026-11-23
+
+- **Environment**: production
+- **Source tag**: `v0.38.0`
+- **Status**: shipped
+- **Per-package versions**:
+  - root: 0.37.4 → **0.38.0**
+  - `front`: 0.27.3 → **0.28.0**
+  - `back`: 0.3.3 → **0.4.0** (`composer.json` has no `version` field; git tag is the source of truth)
+  - `@dowardev/sso-client`: 0.4.0 (unchanged)
+  - `dowardev/sso-server`: 0.2.1 (unchanged)
+- **Migration notes**: none — this release adds no schema change. It carries the stable error/success code contract (`ApiError` catalogue, `error_details` on validation failures) and the single-language API: the backend now answers in English and the frontend owns the ES/EN copy. Clients that parsed the Spanish prose of an error or success message must read the `code` instead.
+- **Rollback notes**: rolling back to v0.37.4 restores the Spanish prose and removes the `code` / `error_details` fields from the responses; the frontend of the rolled-back build expects them, so the backend and the frontend must be rolled back together (the pipeline offers `workflow_dispatch` with a rollback target for both). No data impact and no schema change.
+
 ### v0.37.4 — 2026-11-04
 
 - **Environment**: production
