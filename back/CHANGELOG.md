@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.38.0] - 2026-11-23
+
+### Added
+
+- **The error contract is now a catalogue of stable codes**: `App\Support\ApiError` owns the single source of truth for the error and success codes of the API surface (`auth.*`, `client.*`, `oauth.*`, `session.*`, `setup.*`, `role.*`, `setting.*`, `user.*`, `success.*`). Controllers, middleware and requests no longer invent a code inline.
+    - `app/Support/ApiError.php` (new) — the catalogue and the response helpers: `{"code", "message"}` for a top-level error, `error_details` (one entry per field with `code`, `field`, `message` and optional `params`) alongside the existing `errors` object on a `422`, and the `code` added to the existing OAuth `message` payload.
+    - `tests/Feature/ApiErrorContractTest.php` (new) — pins the wire format of the error and success responses.
+
+### Changed
+
+- **The API answers in English and every response carries a stable code**: the auth, OAuth, client, user, session, setup and role endpoints no longer return Spanish prose. The wording is no longer part of the contract — the frontend resolves the copy from the code — so the same backend serves both languages.
+    - `app/Http/Controllers/AuthController.php`, `OAuth2Controller.php`, `RoleController.php`, `SettingController.php`, `SetupController.php`, `SsoClientController.php`, `UserController.php`, `UserSessionController.php`, `EmailVerificationController.php`, `CspReportController.php` — the answers go through `ApiError` and carry the code.
+    - `app/Http/Middleware/*` — the auth, DPoP and throttle middlewares answer with the catalogue codes too.
+    - `app/Services/AuthService.php`, `EmailVerificationService.php`, `PasswordResetService.php` — the service-level failures map to the catalogue.
+    - `app/Http/Requests/*` — the validation failures report the per-field codes.
 
 ## [v0.37.4] - 2026-11-04
 

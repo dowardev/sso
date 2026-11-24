@@ -9,7 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.38.0] - 2026-11-23
+
+### Added
+
+- **Every API error carries a stable, machine-readable `code`**: the auth, OAuth, client, user, session, setup and role endpoints answer with `{"code": "<code>", "message": "<prose>"}`, where the code comes from a single catalogue instead of being inferred from the message text. Validation failures (`422`) add an `error_details` map next to the existing `errors` object, with one entry per field carrying `code`, `field`, `message` and optional `params`. The frontend resolves the copy by code and keeps the legacy prose path only as a documented fallback for codes it does not know.
+    - `back/app/Support/ApiError.php` (new) — the catalogue of error and success codes (`auth.*`, `client.*`, `oauth.*`, `session.*`, `setup.*`, `role.*`, `setting.*`, `user.*`, `success.*`) and the response helpers.
+    - `front/src/utils/apiErrorCodes.ts` (new) — the ES/EN copy per code, plus the `ApiErrorDetail` type; a code that is not listed is treated as unmapped, so the UI falls back to generic copy and logs the raw code.
+
 ### Changed
+
+- **The API speaks a single language (English) and every response carries a stable code**: the API no longer returns Spanish prose. Each response carries a stable code (for example `success.email_verified` or `success.client_created`) and the frontend owns the ES/EN copy, so the same backend serves both languages and the wording of a message stops being a contract. The login, registration and account forms translate the technical failure reason into the field-level message the user actually sees.
+    - `back/app/Http/Controllers/*` — the auth, OAuth2, role, setting, setup, client, user and session controllers answer with the catalogue codes and the English messages.
+    - `front/src/utils/userFriendlyErrors.ts`, `front/src/utils/fieldLabels.ts`, `front/src/composables/useValidation.ts` — the resolution by code, the localized field labels and the field-level validation messages.
 
 - **The frontend sections are built with the native Ionic components**: the hand-rolled `div`, `span` and `ul` markup of the admin and profile sections was replaced by `ion-card`, `ion-list`, `ion-item`, `ion-list-header`, `ion-chip`, `ion-accordion` and `ion-progress-bar`, keeping the same behaviour and the same visual language. The section titles keep their heading semantics, so the sections remain in the document outline that screen readers walk.
 
