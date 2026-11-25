@@ -467,6 +467,47 @@ jobs:
   # STAGE: deploy (solo tags)
   # ============================================================
 
+  # ============================================================
+  # Preflight SSH: verifica que la llave de CI este autorizada
+  # en el servidor. Corre en paralelo con los builds, asi una
+  # llave caida se detecta en segundos en vez de al final del
+  # deploy, y el error dice exactamente que hacer.
+  # ============================================================
+  ssh_preflight:
+    name: ssh_preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [release_gate]
+    if: always() && (needs.release_gate.outputs.release == 'true' || github.event_name == 'workflow_dispatch')
+    steps:
+      - name: Check deploy key against the server
+        env:
+          DEPLOY_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          SSH_HOST: ${{ vars.SSH_HOST }}
+          SSH_PORT: ${{ vars.SSH_PORT }}
+          SSH_USER: ${{ vars.SSH_USER }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::the deploy key secret is empty" >&2
+            exit 1
+          fi
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          if ! ssh-keygen -y -f ~/.ssh/id_rsa > /dev/null 2>&1; then
+            echo "::error::the deploy key secret does not hold a valid private key" >&2
+            exit 1
+          fi
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+          printf 'Host *\n  HostKeyAlgorithms +ssh-rsa\n  PubkeyAcceptedAlgorithms +ssh-rsa\n' > ~/.ssh/config
+          if ! ssh -p "$SSH_PORT" -o BatchMode=yes -o ConnectTimeout=15 \
+               -o StrictHostKeyChecking=accept-new "$SSH_USER@$SSH_HOST" 'true'; then
+            echo "::error::SSH preflight failed: the deploy key is not authorized on $SSH_USER@$SSH_HOST:$SSH_PORT. Add its public key in the hosting panel (SSH Keys) before releasing." >&2
+            exit 1
+          fi
+          echo "SSH preflight OK"
+
   backend_deploy:
     name: backend_deploy
     runs-on: ubuntu-latest
@@ -498,6 +539,17 @@ jobs:
           eval $(ssh-agent -s) && ssh-add ~/.ssh/id_rsa
           printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
           printf 'Host *\n  HostKeyAlgorithms +ssh-rsa\n  PubkeyAcceptedAlgorithms +ssh-rsa\n' > ~/.ssh/config
+
+      - name: Verify the deploy key is authorized on the server
+        env:
+          SSH_HOST: ${{ vars.SSH_HOST }}
+          SSH_PORT: ${{ vars.SSH_PORT }}
+          SSH_USER: ${{ vars.SSH_USER }}
+        run: |
+          if ! ssh -p "$SSH_PORT" -o BatchMode=yes -o ConnectTimeout=15 "$SSH_USER@$SSH_HOST" 'true'; then
+            echo "::error::SSH preflight failed: the deploy key is not authorized on $SSH_USER@$SSH_HOST:$SSH_PORT. Add its public key in the hosting panel (SSH Keys) before releasing." >&2
+            exit 1
+          fi
 
       - name: Deploy backend
         env:
@@ -560,6 +612,17 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
           printf 'Host *\n  HostKeyAlgorithms +ssh-rsa\n  PubkeyAcceptedAlgorithms +ssh-rsa\n' > ~/.ssh/config
 
+      - name: Verify the deploy key is authorized on the server
+        env:
+          SSH_HOST: ${{ vars.SSH_HOST }}
+          SSH_PORT: ${{ vars.SSH_PORT }}
+          SSH_USER: ${{ vars.SSH_USER }}
+        run: |
+          if ! ssh -p "$SSH_PORT" -o BatchMode=yes -o ConnectTimeout=15 "$SSH_USER@$SSH_HOST" 'true'; then
+            echo "::error::SSH preflight failed: the deploy key is not authorized on $SSH_USER@$SSH_HOST:$SSH_PORT. Add its public key in the hosting panel (SSH Keys) before releasing." >&2
+            exit 1
+          fi
+
       - name: Deploy frontend
         env:
           SSH_HOST: ${{ vars.SSH_HOST }}
@@ -604,6 +667,17 @@ jobs:
           eval $(ssh-agent -s) && ssh-add ~/.ssh/id_rsa
           printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
           printf 'Host *\n  HostKeyAlgorithms +ssh-rsa\n  PubkeyAcceptedAlgorithms +ssh-rsa\n' > ~/.ssh/config
+
+      - name: Verify the deploy key is authorized on the server
+        env:
+          SSH_HOST: ${{ vars.SSH_HOST }}
+          SSH_PORT: ${{ vars.SSH_PORT }}
+          SSH_USER: ${{ vars.SSH_USER }}
+        run: |
+          if ! ssh -p "$SSH_PORT" -o BatchMode=yes -o ConnectTimeout=15 "$SSH_USER@$SSH_HOST" 'true'; then
+            echo "::error::SSH preflight failed: the deploy key is not authorized on $SSH_USER@$SSH_HOST:$SSH_PORT. Add its public key in the hosting panel (SSH Keys) before releasing." >&2
+            exit 1
+          fi
 
       - name: Roll back backend
         env:
@@ -679,6 +753,17 @@ jobs:
           eval $(ssh-agent -s) && ssh-add ~/.ssh/id_rsa
           printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
           printf 'Host *\n  HostKeyAlgorithms +ssh-rsa\n  PubkeyAcceptedAlgorithms +ssh-rsa\n' > ~/.ssh/config
+
+      - name: Verify the deploy key is authorized on the server
+        env:
+          SSH_HOST: ${{ vars.SSH_HOST }}
+          SSH_PORT: ${{ vars.SSH_PORT }}
+          SSH_USER: ${{ vars.SSH_USER }}
+        run: |
+          if ! ssh -p "$SSH_PORT" -o BatchMode=yes -o ConnectTimeout=15 "$SSH_USER@$SSH_HOST" 'true'; then
+            echo "::error::SSH preflight failed: the deploy key is not authorized on $SSH_USER@$SSH_HOST:$SSH_PORT. Add its public key in the hosting panel (SSH Keys) before releasing." >&2
+            exit 1
+          fi
 
       - name: Roll back frontend
         env:
