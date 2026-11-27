@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The release pipeline can deploy again after the GitLab → GitHub migration**: the `production` environment only allowed the `main` branch, so the tag that carries the release was rejected with `Tag "vX.Y.Z" is not allowed to deploy to production`; the environment now also allows the `v*` tag policy. The runner's deploy key was no longer in the server's `authorized_keys` either (the `scp` step failed with `Permission denied (publickey)`), so the deploy now uses a dedicated CI key instead of a shared one.
+    - `deploy.md` — new section "GitHub Actions deployment (post-GitLab migration)" documenting the environment policies, the deploy-key rotation procedure, the unused `HEALTHCHECK_URL_*` variables and the asset accumulation on the server.
+
 ## [v0.38.0] - 2026-11-23
 
 ### Added

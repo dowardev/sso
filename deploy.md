@@ -562,6 +562,161 @@ from your local terminal (see "Publishing sso-client to npm" below).
 
 ---
 
+## GitHub Actions deployment (post-GitLab migration)
+
+Since the repository moved from GitLab CI to GitHub Actions, the release
+pipeline runs on **GitHub Actions** (`.github/workflows/ci.yml`). The deploy
+is triggered by pushing a `vX.Y.Z` tag; the `main` branch never deploys.
+
+Two protections sit between the tag and the server. Both of them have to be
+in place, and neither of them exists in GitLab:
+
+### 1. The `production` environment must allow the tag
+
+The `backend_deploy` and `frontend_deploy` jobs declare
+`environment: production`. GitHub applies the environment's protection rules
+to the **ref that triggered the workflow**, and for a release that ref is the
+**tag**, not `main`. An environment whose deployment branch policy only lists
+the `main` branch rejects every tag with:
+
+```
+X Tag "v0.38.0" is not allowed to deploy to production due to environment protection rules.
+```
+
+The environment needs **both** policies:
+
+| Policy | Type | Why |
+| --- | --- | --- |
+| `main` | branch | branch-triggered runs (the `Release` workflows of the sibling repos) |
+| `v*` | tag | release deploys — the tag is what carries the version |
+
+Check and fix them with:
+
+```bash
+gh api repos/dowardev/sso/environments/production/deployment-branch-policies \
+  --jq '.branch_policies[] | "\(.name)\t\(.type)"'
+
+# add the missing tag policy (idempotent: only add when absent)
+gh api repos/dowardev/sso/environments/production/deployment-branch-policies \
+  -X POST -f name='v*' -f type='tag'
+```
+
+The environment also lists `dowardev` as a **required reviewer**, so the two
+deploy jobs sit in `waiting` until that reviewer approves the deployment
+(from the run page, or via the REST API `pending_deployments` endpoint).
+
+### 2. The deploy SSH key must be in the server's `authorized_keys`
+
+The runner authenticates with the `SSH_PRIVATE_KEY` secret. If that public
+key is not in `~/.ssh/authorized_keys` of `SSH_USER` on the server, the job
+dies at the `scp` step with:
+
+```
+u902881280@195.179.236.189: Permission denied (publickey,password).
+scp: Connection closed
+```
+
+The key pair is a **dedicated** one for CI (comment `github-actions-deploy`),
+not the owner's personal key. The private half lives in the GitHub secret
+`SSH_PRIVATE_KEY`; the public half lives in the server's `authorized_keys`.
+A local copy of the private half is kept at `~/.ssh/github-actions-ci`
+(mode `600`) — **never commit it**.
+
+Two independent reasons to keep it separate from the owner's personal key
+(`~/.ssh/id_ed25519`):
+
+- The personal key authenticates against **GitHub** as the owner account
+  (`ssh -T git@github.com` → `Hi dowardev!`). If the deploy used it, the
+  private half of the owner's GitHub account key would have to be stored as a
+  secret in every repository, and a leak of any of those secrets would give
+  away the whole GitHub account, not just a deploy.
+- Rotating or revoking CI access must not require rotating the owner's
+  access to GitHub and to the other servers.
+
+The name must not be one of the identities `ssh` offers on its own
+(`id_rsa`, `id_ecdsa`, `id_ed25519`, …), otherwise the owner's manual
+deploys would start offering the CI key to the server.
+
+### The hosting panel owns `authorized_keys`
+
+This is the part that is easy to get wrong. The hosting panel **regenerates
+`~/.ssh/authorized_keys` on the server from its own key list** (`ak.tmp` is
+its staging file). A key installed with `ssh-copy-id` but **not registered
+in the panel** is therefore removed the next time somebody edits the panel's
+SSH key list — with no error at install time and no warning.
+
+So installing the public half with `ssh-copy-id` is **not enough**: the key
+must be registered in the panel (*Advanced → SSH Access → SSH Keys → Add*),
+otherwise the next panel edit deletes it and the next release fails with
+`Permission denied (publickey)`.
+
+The failure is silent in the worst way: the deploy runs every build, every
+test, and only dies at the `scp` step at the very end.
+
+### Rotating the deploy key
+
+Also the repair path when the deploy fails with `Permission denied (publickey)`:
+
+```bash
+# 1. generate a dedicated key pair
+ssh-keygen -t ed25519 -f ~/.ssh/github-actions-ci -N '' \
+  -C 'github-actions-deploy'
+
+# 2. register the public half in the hosting panel
+#    (Advanced -> SSH Access -> SSH Keys -> Add), then confirm it is listed
+#    under the name 'github-actions-ci' (not 'Default-N')
+
+# 3. publish the private half as the GitHub secret (never in the command line)
+gh secret set SSH_PRIVATE_KEY -R dowardev/sso \
+  < ~/.ssh/github-actions-ci
+
+# 4. verify the key is accepted by the server
+ssh -i ~/.ssh/github-actions-ci -p "$SSH_PORT" \
+  -o BatchMode=yes -o IdentitiesOnly=yes "$SSH_USER@$SSH_HOST" 'echo OK'
+```
+
+Step 2 is the one that is easy to forget: the secret and the panel list must
+move together. The key breaks again whenever one side is changed without the
+other: the secret is rotated without reinstalling the public half, the panel
+list is edited without updating the secret, or the server's
+`authorized_keys` is regenerated (hosting migration, restore from backup,
+account plan change). The symptom is always the same `Permission denied
+(publickey)` on both deploy jobs.
+
+The `ssh_preflight` job (see the `ci.yml` workflow) checks this
+authorization before any build runs, so a missing key fails in seconds with a
+message that says what to do instead of failing at the end of the deploy.
+
+### 3. `HEALTHCHECK_URL_*` are defined but unused
+
+`HEALTHCHECK_URL_BACKEND` (`https://auth.dowar.xyz`) and
+`HEALTHCHECK_URL_FRONTEND` (`https://auth-panel.dowar.xyz`) are inherited
+from the GitLab CI variables, where they were equally unused. No job in
+`.github/workflows/ci.yml` consumes them and `scripts/deploy/deploy.sh` has
+no health-check hook (`scripts/hooks/health-check.sh` does not exist).
+
+The consequence: a deploy can be **green** while the application is not
+serving. Use them manually after a release:
+
+```bash
+curl -fsS -o /dev/null -w '%{http_code}\n' "$HEALTHCHECK_URL_BACKEND"
+curl -fsS -o /dev/null -w '%{http_code}\n' "$HEALTHCHECK_URL_BACKEND/api/.well-known/jwks"
+curl -fsS -o /dev/null -w '%{http_code}\n' "$HEALTHCHECK_URL_FRONTEND"
+```
+
+Wiring them into the pipeline (a `curl -fsS` step after each deploy job) is
+still open work.
+
+### 4. The frontend directory keeps the assets of every previous release
+
+`frontend_deploy` extracts the tarball over the existing directory without
+deleting it, so the hashed assets of past releases accumulate
+(`front/assets` on the server grows by ~1 MB per release). Harmless — the
+old hashes are simply never referenced again — but it is worth pruning
+periodically.
+
+---
+
 ## Useful Commands
 
 ```bash
