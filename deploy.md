@@ -619,36 +619,73 @@ scp: Connection closed
 The key pair is a **dedicated** one for CI (comment `github-actions-deploy`),
 not the owner's personal key. The private half lives in the GitHub secret
 `SSH_PRIVATE_KEY`; the public half lives in the server's `authorized_keys`.
-A local backup of the private half is kept at
-`~/.local/share/sso-deploy-keys/ci_ed25519` (mode `600`) — **never commit
-it**.
+A local copy of the private half is kept at `~/.ssh/github-actions-ci`
+(mode `600`) — **never commit it**.
 
-**Rotating the deploy key** (also the repair path when the deploy fails with
-`Permission denied (publickey)`):
+Two independent reasons to keep it separate from the owner's personal key
+(`~/.ssh/id_ed25519`):
+
+- The personal key authenticates against **GitHub** as the owner account
+  (`ssh -T git@github.com` → `Hi dowardev!`). If the deploy used it, the
+  private half of the owner's GitHub account key would have to be stored as a
+  secret in every repository, and a leak of any of those secrets would give
+  away the whole GitHub account, not just a deploy.
+- Rotating or revoking CI access must not require rotating the owner's
+  access to GitHub and to the other servers.
+
+The name must not be one of the identities `ssh` offers on its own
+(`id_rsa`, `id_ecdsa`, `id_ed25519`, …), otherwise the owner's manual
+deploys would start offering the CI key to the server.
+
+### The hosting panel owns `authorized_keys`
+
+This is the part that is easy to get wrong. The hosting panel **regenerates
+`~/.ssh/authorized_keys` on the server from its own key list** (`ak.tmp` is
+its staging file). A key installed with `ssh-copy-id` but **not registered
+in the panel** is therefore removed the next time somebody edits the panel's
+SSH key list — with no error at install time and no warning.
+
+So installing the public half with `ssh-copy-id` is **not enough**: the key
+must be registered in the panel (*Advanced → SSH Access → SSH Keys → Add*),
+otherwise the next panel edit deletes it and the next release fails with
+`Permission denied (publickey)`.
+
+The failure is silent in the worst way: the deploy runs every build, every
+test, and only dies at the `scp` step at the very end.
+
+### Rotating the deploy key
+
+Also the repair path when the deploy fails with `Permission denied (publickey)`:
 
 ```bash
 # 1. generate a dedicated key pair
-ssh-keygen -t ed25519 -f ~/.local/share/sso-deploy-keys/ci_ed25519 -N '' \
+ssh-keygen -t ed25519 -f ~/.ssh/github-actions-ci -N '' \
   -C 'github-actions-deploy'
 
-# 2. install the public half on the server
-ssh-copy-id -i ~/.local/share/sso-deploy-keys/ci_ed25519.pub \
-  -p "$SSH_PORT" "$SSH_USER@$SSH_HOST"
+# 2. register the public half in the hosting panel
+#    (Advanced -> SSH Access -> SSH Keys -> Add), then confirm it is listed
+#    under the name 'github-actions-ci' (not 'Default-N')
 
 # 3. publish the private half as the GitHub secret (never in the command line)
 gh secret set SSH_PRIVATE_KEY -R dowardev/sso \
-  < ~/.local/share/sso-deploy-keys/ci_ed25519
+  < ~/.ssh/github-actions-ci
 
 # 4. verify the key is accepted by the server
-ssh -i ~/.local/share/sso-deploy-keys/ci_ed25519 -p "$SSH_PORT" \
+ssh -i ~/.ssh/github-actions-ci -p "$SSH_PORT" \
   -o BatchMode=yes -o IdentitiesOnly=yes "$SSH_USER@$SSH_HOST" 'echo OK'
 ```
 
-The key breaks again whenever one side is changed without the other: the
-secret is rotated without reinstalling the public half, or the server's
+Step 2 is the one that is easy to forget: the secret and the panel list must
+move together. The key breaks again whenever one side is changed without the
+other: the secret is rotated without reinstalling the public half, the panel
+list is edited without updating the secret, or the server's
 `authorized_keys` is regenerated (hosting migration, restore from backup,
 account plan change). The symptom is always the same `Permission denied
 (publickey)` on both deploy jobs.
+
+The `ssh_preflight` job (see the `ci.yml` workflow) checks this
+authorization before any build runs, so a missing key fails in seconds with a
+message that says what to do instead of failing at the end of the deploy.
 
 ### 3. `HEALTHCHECK_URL_*` are defined but unused
 
